@@ -1,0 +1,808 @@
+import Foundation
+import HealthKit
+import UIKit
+
+class HealthKitManager: ObservableObject {
+    static let shared = HealthKitManager()
+
+    let healthStore = HKHealthStore()
+
+    @Published var authorizationStatus: [HealthDataType: HKAuthorizationStatus] = [:]
+    @Published var isAvailable: Bool
+
+    static let lookbackDays: Int = 7
+
+    /// Result type indicating why data reading failed or returned empty
+    enum ReadResult {
+        case data([String: Any])
+        case empty
+        case protectedDataUnavailable
+    }
+
+    private init() {
+        self.isAvailable = HKHealthStore.isHealthDataAvailable()
+    }
+
+    // MARK: - Permissions
+
+    var allReadTypes: Set<HKObjectType> {
+        var types = Set<HKObjectType>()
+        for dataType in HealthDataType.allCases {
+            types.formUnion(dataType.hkReadTypes)
+        }
+        return types
+    }
+
+    func readTypesFor(_ types: Set<HealthDataType>) -> Set<HKObjectType> {
+        var hkTypes = Set<HKObjectType>()
+        for dataType in types {
+            hkTypes.formUnion(dataType.hkReadTypes)
+        }
+        return hkTypes
+    }
+
+    func requestAuthorization(for types: Set<HealthDataType>) async throws {
+        let readTypes = readTypesFor(types)
+        guard !readTypes.isEmpty else { return }
+        try await healthStore.requestAuthorization(toShare: [], read: readTypes)
+        await updateAuthorizationStatus()
+    }
+
+    func requestAllAuthorization() async throws {
+        try await healthStore.requestAuthorization(toShare: [], read: allReadTypes)
+        await updateAuthorizationStatus()
+    }
+
+    @MainActor
+    func updateAuthorizationStatus() {
+        var statuses: [HealthDataType: HKAuthorizationStatus] = [:]
+        for dataType in HealthDataType.allCases {
+            if let sampleType = dataType.hkSampleTypes.first {
+                statuses[dataType] = healthStore.authorizationStatus(for: sampleType)
+            } else {
+                statuses[dataType] = .notDetermined
+            }
+        }
+        self.authorizationStatus = statuses
+    }
+
+    func hasAuthorization(for type: HealthDataType) -> Bool {
+        guard let sampleType = type.hkSampleTypes.first else { return false }
+        return healthStore.authorizationStatus(for: sampleType) == .sharingAuthorized ||
+               healthStore.authorizationStatus(for: sampleType) != .notDetermined
+    }
+
+    // MARK: - Data Reading
+
+    func readHealthData(
+        for enabledTypes: Set<HealthDataType>
+    ) async throws -> [String: Any] {
+        let startDate = Calendar.current.date(
+            byAdding: .day,
+            value: -HealthKitManager.lookbackDays,
+            to: Date()
+        )!
+        let endDate = Date()
+
+        // Run all type queries in parallel
+        let results = try await withThrowingTaskGroup(
+            of: (String, Any)?.self
+        ) { group -> [String: Any] in
+            for dataType in enabledTypes {
+                group.addTask {
+                    try await self.readDataForType(dataType, start: startDate, end: endDate)
+                }
+            }
+
+            var payload: [String: Any] = [:]
+            for try await result in group {
+                if let (key, value) = result {
+                    payload[key] = value
+                }
+            }
+            return payload
+        }
+
+        return results
+    }
+
+    // MARK: - Incremental (Anchor-Based) Reading
+
+    /// Reads only new data since the last successful sync using HKAnchoredObjectQuery.
+    /// Falls back to full 7-day read if no anchor exists (first sync).
+    /// Returns `.protectedDataUnavailable` if the device is locked and data is encrypted.
+    func readIncrementalData(
+        for enabledTypes: Set<HealthDataType>
+    ) async throws -> ReadResult {
+        // Stap 5: Check if HealthKit data is accessible (device may be locked)
+        let isProtected = await MainActor.run { UIApplication.shared.isProtectedDataAvailable }
+        guard isProtected else {
+            print("Protected data unavailable (device locked) - skipping HealthKit read")
+            return .protectedDataUnavailable
+        }
+
+        let prefs = PreferencesManager.shared
+
+        let results = try await withThrowingTaskGroup(
+            of: (String, Any)?.self
+        ) { group -> [String: Any] in
+            for dataType in enabledTypes {
+                group.addTask {
+                    try await self.readIncrementalDataForType(dataType, prefs: prefs)
+                }
+            }
+
+            var payload: [String: Any] = [:]
+            for try await result in group {
+                if let (key, value) = result {
+                    payload[key] = value
+                }
+            }
+            return payload
+        }
+
+        return results.isEmpty ? .empty : .data(results)
+    }
+
+    /// Reads incremental data for a single type using HKAnchoredObjectQuery.
+    private func readIncrementalDataForType(
+        _ dataType: HealthDataType,
+        prefs: PreferencesManager
+    ) async throws -> (String, Any)? {
+        let anchor = prefs.loadAnchor(for: dataType)
+
+        // If no anchor exists, fall back to full 7-day read
+        guard anchor != nil else {
+            let startDate = Calendar.current.date(
+                byAdding: .day,
+                value: -HealthKitManager.lookbackDays,
+                to: Date()
+            )!
+            let result = try await readDataForType(dataType, start: startDate, end: Date())
+            // Save anchor after first full read
+            for sampleType in dataType.hkSampleTypes {
+                let newAnchor = try await queryAnchor(for: sampleType)
+                prefs.saveAnchor(newAnchor, for: dataType)
+            }
+            return result
+        }
+
+        // Use anchored queries for each sample type
+        var allNewSamples: [HKSample] = []
+        for sampleType in dataType.hkSampleTypes {
+            let (samples, newAnchor) = try await anchoredQuery(
+                sampleType: sampleType,
+                anchor: anchor
+            )
+            allNewSamples.append(contentsOf: samples)
+            prefs.saveAnchor(newAnchor, for: dataType)
+        }
+
+        guard !allNewSamples.isEmpty else { return nil }
+
+        // Use the full 7-day read for this type to get properly formatted data
+        // (anchored queries return raw samples; re-reading a short window is simpler
+        //  than duplicating all the type-specific formatting logic)
+        let earliest = allNewSamples.map(\.startDate).min() ?? Date()
+        let start = Calendar.current.date(byAdding: .hour, value: -1, to: earliest)!
+        return try await readDataForType(dataType, start: start, end: Date())
+    }
+
+    /// Performs an HKAnchoredObjectQuery and returns new samples + updated anchor.
+    private func anchoredQuery(
+        sampleType: HKSampleType,
+        anchor: HKQueryAnchor?
+    ) async throws -> ([HKSample], HKQueryAnchor) {
+        try await withCheckedThrowingContinuation { continuation in
+            let query = HKAnchoredObjectQuery(
+                type: sampleType,
+                predicate: nil,
+                anchor: anchor,
+                limit: HKObjectQueryNoLimit
+            ) { _, addedSamples, _, newAnchor, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume(returning: (addedSamples ?? [], newAnchor ?? HKQueryAnchor(fromValue: 0)))
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    /// Gets the current anchor for a sample type (used for initial anchor save after full read).
+    private func queryAnchor(for sampleType: HKSampleType) async throws -> HKQueryAnchor {
+        try await withCheckedThrowingContinuation { continuation in
+            let query = HKAnchoredObjectQuery(
+                type: sampleType,
+                predicate: nil,
+                anchor: nil,
+                limit: 0  // We don't need the samples, just the anchor
+            ) { _, _, _, newAnchor, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume(returning: newAnchor ?? HKQueryAnchor(fromValue: 0))
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    /// Reads data for a single HealthDataType. Returns (payloadKey, data) or nil if empty.
+    private func readDataForType(
+        _ dataType: HealthDataType,
+        start: Date,
+        end: Date
+    ) async throws -> (String, Any)? {
+        switch dataType {
+        case .steps:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.stepCount),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                [
+                    "count": Int(sample.quantity.doubleValue(for: .count())),
+                    "start_time": sample.startDate.iso8601String,
+                    "end_time": sample.endDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("steps", mapped)
+
+        case .distance:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.distanceWalkingRunning),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                [
+                    "meters": sample.quantity.doubleValue(for: .meter()),
+                    "start_time": sample.startDate.iso8601String,
+                    "end_time": sample.endDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("distance", mapped)
+
+        case .activeCalories:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.activeEnergyBurned),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                [
+                    "calories": sample.quantity.doubleValue(for: .kilocalorie()),
+                    "start_time": sample.startDate.iso8601String,
+                    "end_time": sample.endDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("active_calories", mapped)
+
+        case .totalCalories:
+            async let activeRecords = readQuantitySamples(
+                type: HKQuantityType(.activeEnergyBurned),
+                start: start, end: end
+            )
+            async let basalRecords = readQuantitySamples(
+                type: HKQuantityType(.basalEnergyBurned),
+                start: start, end: end
+            )
+            var mapped: [[String: Any]] = []
+            mapped += try await activeRecords.map { sample -> [String: Any] in
+                [
+                    "calories": sample.quantity.doubleValue(for: .kilocalorie()),
+                    "start_time": sample.startDate.iso8601String,
+                    "end_time": sample.endDate.iso8601String
+                ]
+            }
+            mapped += try await basalRecords.map { sample -> [String: Any] in
+                [
+                    "calories": sample.quantity.doubleValue(for: .kilocalorie()),
+                    "start_time": sample.startDate.iso8601String,
+                    "end_time": sample.endDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("total_calories", mapped)
+
+        case .weight:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.bodyMass),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                [
+                    "kilograms": sample.quantity.doubleValue(for: .gramUnit(with: .kilo)),
+                    "time": sample.startDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("weight", mapped)
+
+        case .height:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.height),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                [
+                    "meters": sample.quantity.doubleValue(for: .meter()),
+                    "time": sample.startDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("height", mapped)
+
+        case .heartRate:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.heartRate),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                [
+                    "bpm": Int(sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))),
+                    "time": sample.startDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("heart_rate", mapped)
+
+        case .restingHeartRate:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.restingHeartRate),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                [
+                    "bpm": Int(sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))),
+                    "time": sample.startDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("resting_heart_rate", mapped)
+
+        case .heartRateVariability:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.heartRateVariabilitySDNN),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                [
+                    "heart_rate_variability_millis": sample.quantity.doubleValue(for: .secondUnit(with: .milli)),
+                    "time": sample.startDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("heart_rate_variability", mapped)
+
+        case .bloodPressure:
+            async let systolicRecords = readQuantitySamples(
+                type: HKQuantityType(.bloodPressureSystolic),
+                start: start, end: end
+            )
+            async let diastolicRecords = readQuantitySamples(
+                type: HKQuantityType(.bloodPressureDiastolic),
+                start: start, end: end
+            )
+            let systolic = try await systolicRecords
+            let diastolic = try await diastolicRecords
+            let mmHg = HKUnit.millimeterOfMercury()
+            var mapped: [[String: Any]] = []
+            for s in systolic {
+                let matchingDiastolic = diastolic.first {
+                    abs($0.startDate.timeIntervalSince(s.startDate)) < 1
+                }
+                var record: [String: Any] = [
+                    "systolic": s.quantity.doubleValue(for: mmHg),
+                    "time": s.startDate.iso8601String
+                ]
+                if let d = matchingDiastolic {
+                    record["diastolic"] = d.quantity.doubleValue(for: mmHg)
+                }
+                mapped.append(record)
+            }
+            return mapped.isEmpty ? nil : ("blood_pressure", mapped)
+
+        case .bloodGlucose:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.bloodGlucose),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                [
+                    "mmol_per_liter": sample.quantity.doubleValue(
+                        for: HKUnit.moleUnit(with: .milli, molarMass: HKUnitMolarMassBloodGlucose).unitDivided(by: .liter())
+                    ),
+                    "time": sample.startDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("blood_glucose", mapped)
+
+        case .oxygenSaturation:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.oxygenSaturation),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                [
+                    "percentage": sample.quantity.doubleValue(for: .percent()) * 100,
+                    "time": sample.startDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("oxygen_saturation", mapped)
+
+        case .bodyTemperature:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.bodyTemperature),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                [
+                    "celsius": sample.quantity.doubleValue(for: .degreeCelsius()),
+                    "time": sample.startDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("body_temperature", mapped)
+
+        case .respiratoryRate:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.respiratoryRate),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                [
+                    "rate": sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute())),
+                    "time": sample.startDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("respiratory_rate", mapped)
+
+        case .bodyFat:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.bodyFatPercentage),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                [
+                    "percentage": sample.quantity.doubleValue(for: .percent()) * 100,
+                    "time": sample.startDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("body_fat", mapped)
+
+        case .leanBodyMass:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.leanBodyMass),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                [
+                    "kilograms": sample.quantity.doubleValue(for: .gramUnit(with: .kilo)),
+                    "time": sample.startDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("lean_body_mass", mapped)
+
+        case .sleep:
+            let sleepData = try await readSleepData(start: start, end: end)
+            return sleepData.isEmpty ? nil : ("sleep", sleepData)
+
+        case .exercise:
+            let workouts = try await readWorkouts(start: start, end: end)
+            return workouts.isEmpty ? nil : ("exercise", workouts)
+
+        case .hydration:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.dietaryWater),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                [
+                    "liters": sample.quantity.doubleValue(for: .liter()),
+                    "start_time": sample.startDate.iso8601String,
+                    "end_time": sample.endDate.iso8601String
+                ]
+            }
+            return mapped.isEmpty ? nil : ("hydration", mapped)
+
+        case .nutrition:
+            let nutritionData = try await readNutritionData(start: start, end: end)
+            return nutritionData.isEmpty ? nil : ("nutrition", nutritionData)
+
+        case .mindfulness:
+            let records = try await readCategorySamples(
+                type: HKCategoryType(.mindfulSession),
+                start: start, end: end
+            )
+            let mapped = records.map { sample -> [String: Any] in
+                let duration = sample.endDate.timeIntervalSince(sample.startDate)
+                return [
+                    "start_time": sample.startDate.iso8601String,
+                    "end_time": sample.endDate.iso8601String,
+                    "duration_seconds": Int(duration)
+                ]
+            }
+            return mapped.isEmpty ? nil : ("mindfulness", mapped)
+        }
+    }
+
+    // MARK: - Query Helpers
+
+    private func readQuantitySamples(
+        type: HKQuantityType,
+        start: Date,
+        end: Date
+    ) async throws -> [HKQuantitySample] {
+        try await withCheckedThrowingContinuation { continuation in
+            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+
+            let query = HKSampleQuery(
+                sampleType: type,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [sortDescriptor]
+            ) { _, samples, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume(returning: (samples as? [HKQuantitySample]) ?? [])
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    private func readCategorySamples(
+        type: HKCategoryType,
+        start: Date,
+        end: Date
+    ) async throws -> [HKCategorySample] {
+        try await withCheckedThrowingContinuation { continuation in
+            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+
+            let query = HKSampleQuery(
+                sampleType: type,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [sortDescriptor]
+            ) { _, samples, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume(returning: (samples as? [HKCategorySample]) ?? [])
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    private func readSleepData(start: Date, end: Date) async throws -> [[String: Any]] {
+        let samples = try await readCategorySamples(
+            type: HKCategoryType(.sleepAnalysis),
+            start: start, end: end
+        )
+
+        // Group by sleep session (samples with overlapping times)
+        var sessions: [[HKCategorySample]] = []
+        var currentSession: [HKCategorySample] = []
+
+        let sorted = samples.sorted { $0.startDate < $1.startDate }
+
+        for sample in sorted {
+            if let sleepValue = HKCategoryValueSleepAnalysis(rawValue: sample.value),
+               sleepValue == .inBed || sleepValue == .asleepUnspecified ||
+               sleepValue == .asleepCore || sleepValue == .asleepDeep ||
+               sleepValue == .asleepREM || sleepValue == .awake {
+
+                if let lastSample = currentSession.last,
+                   sample.startDate.timeIntervalSince(lastSample.endDate) > 3600 {
+                    // Gap > 1 hour = new session
+                    if !currentSession.isEmpty {
+                        sessions.append(currentSession)
+                    }
+                    currentSession = [sample]
+                } else {
+                    currentSession.append(sample)
+                }
+            }
+        }
+        if !currentSession.isEmpty {
+            sessions.append(currentSession)
+        }
+
+        return sessions.map { session -> [String: Any] in
+            let sessionStart = session.map(\.startDate).min() ?? Date()
+            let sessionEnd = session.map(\.endDate).max() ?? Date()
+            let duration = sessionEnd.timeIntervalSince(sessionStart)
+
+            let stages: [[String: Any]] = session.compactMap { sample in
+                let stageName: String
+                if let value = HKCategoryValueSleepAnalysis(rawValue: sample.value) {
+                    switch value {
+                    case .inBed: stageName = "STAGE_TYPE_IN_BED"  // Container only, not a real stage
+                    case .asleepUnspecified: stageName = "STAGE_TYPE_SLEEPING"
+                    case .asleepCore: stageName = "STAGE_TYPE_LIGHT"
+                    case .asleepDeep: stageName = "STAGE_TYPE_DEEP"
+                    case .asleepREM: stageName = "STAGE_TYPE_REM"
+                    case .awake: stageName = "STAGE_TYPE_AWAKE"
+                    @unknown default: stageName = "STAGE_TYPE_UNKNOWN"
+                    }
+                } else {
+                    stageName = "STAGE_TYPE_UNKNOWN"
+                }
+
+                let stageDuration = sample.endDate.timeIntervalSince(sample.startDate)
+                return [
+                    "stage": stageName,
+                    "start_time": sample.startDate.iso8601String,
+                    "end_time": sample.endDate.iso8601String,
+                    "duration_seconds": Int(stageDuration)
+                ]
+            }
+
+            return [
+                "session_end_time": sessionEnd.iso8601String,
+                "duration_seconds": Int(duration),
+                "stages": stages
+            ]
+        }
+    }
+
+    private func readWorkouts(start: Date, end: Date) async throws -> [[String: Any]] {
+        try await withCheckedThrowingContinuation { continuation in
+            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+
+            let query = HKSampleQuery(
+                sampleType: HKWorkoutType.workoutType(),
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [sortDescriptor]
+            ) { _, samples, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                let workouts = (samples as? [HKWorkout]) ?? []
+                let mapped = workouts.map { workout -> [String: Any] in
+                    [
+                        "type": workout.workoutActivityType.name,
+                        "start_time": workout.startDate.iso8601String,
+                        "end_time": workout.endDate.iso8601String,
+                        "duration_seconds": Int(workout.duration)
+                    ]
+                }
+                continuation.resume(returning: mapped)
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    private func readNutritionData(start: Date, end: Date) async throws -> [[String: Any]] {
+        let calorieRecords = try await readQuantitySamples(
+            type: HKQuantityType(.dietaryEnergyConsumed),
+            start: start, end: end
+        )
+        let proteinRecords = try await readQuantitySamples(
+            type: HKQuantityType(.dietaryProtein),
+            start: start, end: end
+        )
+        let carbRecords = try await readQuantitySamples(
+            type: HKQuantityType(.dietaryCarbohydrates),
+            start: start, end: end
+        )
+        let fatRecords = try await readQuantitySamples(
+            type: HKQuantityType(.dietaryFatTotal),
+            start: start, end: end
+        )
+
+        // Combine by matching timestamps
+        var mapped: [[String: Any]] = calorieRecords.map { sample -> [String: Any] in
+            var record: [String: Any] = [
+                "calories": sample.quantity.doubleValue(for: .kilocalorie()),
+                "start_time": sample.startDate.iso8601String,
+                "end_time": sample.endDate.iso8601String
+            ]
+            if let protein = proteinRecords.first(where: { abs($0.startDate.timeIntervalSince(sample.startDate)) < 1 }) {
+                record["protein_grams"] = protein.quantity.doubleValue(for: .gram())
+            }
+            if let carb = carbRecords.first(where: { abs($0.startDate.timeIntervalSince(sample.startDate)) < 1 }) {
+                record["carbs_grams"] = carb.quantity.doubleValue(for: .gram())
+            }
+            if let fat = fatRecords.first(where: { abs($0.startDate.timeIntervalSince(sample.startDate)) < 1 }) {
+                record["fat_grams"] = fat.quantity.doubleValue(for: .gram())
+            }
+            return record
+        }
+
+        // Also include standalone protein/carb/fat records not matched to calories
+        for protein in proteinRecords {
+            if !calorieRecords.contains(where: { abs($0.startDate.timeIntervalSince(protein.startDate)) < 1 }) {
+                mapped.append([
+                    "protein_grams": protein.quantity.doubleValue(for: .gram()),
+                    "start_time": protein.startDate.iso8601String,
+                    "end_time": protein.endDate.iso8601String
+                ])
+            }
+        }
+
+        return mapped
+    }
+}
+
+// MARK: - Extensions
+
+extension Date {
+    private static let iso8601Formatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        return formatter
+    }()
+
+    var iso8601String: String {
+        Date.iso8601Formatter.string(from: self)
+    }
+}
+
+extension HKWorkoutActivityType {
+    var name: String {
+        switch self {
+        case .americanFootball: return "american_football"
+        case .archery: return "archery"
+        case .australianFootball: return "australian_football"
+        case .badminton: return "badminton"
+        case .baseball: return "baseball"
+        case .basketball: return "basketball"
+        case .bowling: return "bowling"
+        case .boxing: return "boxing"
+        case .climbing: return "climbing"
+        case .cricket: return "cricket"
+        case .crossTraining: return "cross_training"
+        case .curling: return "curling"
+        case .cycling: return "cycling"
+        case .dance: return "dance"
+        case .elliptical: return "elliptical"
+        case .equestrianSports: return "equestrian_sports"
+        case .fencing: return "fencing"
+        case .fishing: return "fishing"
+        case .functionalStrengthTraining: return "functional_strength_training"
+        case .golf: return "golf"
+        case .gymnastics: return "gymnastics"
+        case .handball: return "handball"
+        case .hiking: return "hiking"
+        case .hockey: return "hockey"
+        case .hunting: return "hunting"
+        case .lacrosse: return "lacrosse"
+        case .martialArts: return "martial_arts"
+        case .mindAndBody: return "mind_and_body"
+        case .paddleSports: return "paddle_sports"
+        case .play: return "play"
+        case .preparationAndRecovery: return "preparation_and_recovery"
+        case .racquetball: return "racquetball"
+        case .rowing: return "rowing"
+        case .rugby: return "rugby"
+        case .running: return "running"
+        case .sailing: return "sailing"
+        case .skatingSports: return "skating_sports"
+        case .snowSports: return "snow_sports"
+        case .soccer: return "soccer"
+        case .softball: return "softball"
+        case .squash: return "squash"
+        case .stairClimbing: return "stair_climbing"
+        case .surfingSports: return "surfing_sports"
+        case .swimming: return "swimming"
+        case .tableTennis: return "table_tennis"
+        case .tennis: return "tennis"
+        case .trackAndField: return "track_and_field"
+        case .traditionalStrengthTraining: return "traditional_strength_training"
+        case .volleyball: return "volleyball"
+        case .walking: return "walking"
+        case .waterFitness: return "water_fitness"
+        case .waterPolo: return "water_polo"
+        case .waterSports: return "water_sports"
+        case .wrestling: return "wrestling"
+        case .yoga: return "yoga"
+        case .pilates: return "pilates"
+        case .highIntensityIntervalTraining: return "hiit"
+        case .coreTraining: return "core_training"
+        case .flexibility: return "flexibility"
+        case .cooldown: return "cooldown"
+        default: return "other"
+        }
+    }
+}

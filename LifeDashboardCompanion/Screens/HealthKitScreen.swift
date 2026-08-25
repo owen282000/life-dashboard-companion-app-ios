@@ -1,0 +1,337 @@
+import SwiftUI
+import HealthKit
+
+struct HealthKitScreen: View {
+    @ObservedObject private var prefs = PreferencesManager.shared
+    @ObservedObject private var healthKit = HealthKitManager.shared
+
+    @State private var syncIntervalText: String = ""
+    @State private var newWebhookUrl: String = ""
+    @State private var showPreview = false
+    @State private var previewPayload: String = ""
+    @State private var isSyncing = false
+    @State private var syncMessage: String?
+    @State private var showHeaders = false
+    @State private var newHeaderKey: String = ""
+    @State private var newHeaderValue: String = ""
+    @State private var isLoadingPreview = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // MARK: - Availability
+                if !healthKit.isAvailable {
+                    unavailableSection
+                } else {
+                    dataTypesSection
+                    configurationSection
+                    headersSection
+                    actionsSection
+                }
+            }
+            .padding()
+        }
+        .onAppear {
+            syncIntervalText = String(prefs.healthSyncIntervalMinutes)
+        }
+        .sheet(isPresented: $showPreview) {
+            previewSheet
+        }
+    }
+
+    // MARK: - Sections
+
+    private var unavailableSection: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "heart.slash.fill")
+                .font(.system(size: 48))
+                .foregroundColor(.red)
+            Text("HealthKit Not Available")
+                .font(.headline)
+            Text("This device does not support HealthKit.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+    }
+
+    private var dataTypesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Data Types", systemImage: "list.bullet")
+                .font(.headline)
+
+            ForEach(HealthDataType.allCases) { dataType in
+                HStack {
+                    Image(systemName: dataType.icon)
+                        .foregroundColor(.accentColor)
+                        .frame(width: 24)
+
+                    Text(dataType.displayName)
+                        .font(.subheadline)
+
+                    Spacer()
+
+                    Toggle("", isOn: Binding(
+                        get: { prefs.healthEnabledDataTypes.contains(dataType) },
+                        set: { enabled in
+                            if enabled {
+                                prefs.healthEnabledDataTypes.insert(dataType)
+                                // Request permission for newly enabled types
+                                Task {
+                                    try? await healthKit.requestAuthorization(for: [dataType])
+                                }
+                            } else {
+                                prefs.healthEnabledDataTypes.remove(dataType)
+                            }
+                            // Reconfigure observer queries for changed data types
+                            BackgroundSyncManager.shared.reconfigureObservers()
+                        }
+                    ))
+                    .labelsHidden()
+                }
+                .padding(.vertical, 2)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+
+    private var configurationSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Configuration", systemImage: "gearshape.fill")
+                .font(.headline)
+
+            // Sync Interval
+            HStack {
+                Text("Sync Interval")
+                    .font(.subheadline)
+                Spacer()
+                TextField("60", text: $syncIntervalText)
+                    .keyboardType(.numberPad)
+                    .frame(width: 60)
+                    .textFieldStyle(.roundedBorder)
+                    .onChange(of: syncIntervalText) { _, newValue in
+                        if let minutes = Int(newValue), minutes >= 15 {
+                            prefs.healthSyncIntervalMinutes = minutes
+                        }
+                    }
+                Text("min")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
+            Divider()
+
+            // Webhook URLs
+            Text("Webhook URLs")
+                .font(.subheadline)
+                .fontWeight(.medium)
+
+            ForEach(Array(prefs.healthWebhookUrls.enumerated()), id: \.offset) { index, url in
+                HStack {
+                    Text(url)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Button {
+                        var urls = prefs.healthWebhookUrls
+                        urls.remove(at: index)
+                        prefs.healthWebhookUrls = urls
+                    } label: {
+                        Image(systemName: "minus.circle.fill")
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+
+            HStack {
+                TextField("https://your-webhook.com/health", text: $newWebhookUrl)
+                    .font(.caption)
+                    .textFieldStyle(.roundedBorder)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+                    .keyboardType(.URL)
+
+                Button {
+                    let trimmed = newWebhookUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty {
+                        prefs.healthWebhookUrls.append(trimmed)
+                        newWebhookUrl = ""
+                    }
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundColor(.green)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+
+    private var headersSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation { showHeaders.toggle() }
+            } label: {
+                HStack {
+                    Label("Custom Headers", systemImage: "doc.text.fill")
+                        .font(.headline)
+                    Spacer()
+                    Image(systemName: showHeaders ? "chevron.up" : "chevron.down")
+                }
+            }
+            .buttonStyle(.plain)
+
+            if showHeaders {
+                ForEach(Array(prefs.healthWebhookHeaders.keys.sorted()), id: \.self) { key in
+                    HStack {
+                        Text("\(key): \(prefs.healthWebhookHeaders[key] ?? "")")
+                            .font(.caption)
+                            .lineLimit(1)
+                        Spacer()
+                        Button {
+                            prefs.healthWebhookHeaders.removeValue(forKey: key)
+                        } label: {
+                            Image(systemName: "minus.circle.fill")
+                                .foregroundColor(.red)
+                        }
+                    }
+                }
+
+                HStack(spacing: 4) {
+                    TextField("Key", text: $newHeaderKey)
+                        .font(.caption)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("Value", text: $newHeaderValue)
+                        .font(.caption)
+                        .textFieldStyle(.roundedBorder)
+                    Button {
+                        let key = newHeaderKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let value = newHeaderValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !key.isEmpty, !value.isEmpty {
+                            prefs.healthWebhookHeaders[key] = value
+                            newHeaderKey = ""
+                            newHeaderValue = ""
+                        }
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.green)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+
+    private var actionsSection: some View {
+        VStack(spacing: 12) {
+            // Pending queue indicator
+            let pendingCount = PendingSyncStore.shared.pendingCount
+            if pendingCount > 0 {
+                HStack {
+                    Image(systemName: "tray.full.fill")
+                        .foregroundColor(.orange)
+                    Text("\(pendingCount) pending sync(s)")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                    Spacer()
+                    Button("Retry Now") {
+                        Task {
+                            await HealthSyncManager.shared.drainPendingQueue()
+                        }
+                    }
+                    .font(.caption)
+                    .buttonStyle(.bordered)
+                    .tint(.orange)
+                }
+            }
+
+            // Preview Data
+            Button {
+                isLoadingPreview = true
+                Task {
+                    do {
+                        let payload = try await HealthSyncManager.shared.buildPreviewPayload()
+                        previewPayload = ExportManager.shared.formatPayloadForPreview(payload)
+                    } catch {
+                        previewPayload = "Error: \(error.localizedDescription)"
+                    }
+                    isLoadingPreview = false
+                    showPreview = true
+                }
+            } label: {
+                Label(isLoadingPreview ? "Loading..." : "Preview Data", systemImage: "eye.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(prefs.healthEnabledDataTypes.isEmpty || isLoadingPreview)
+
+            // Sync Now
+            Button {
+                isSyncing = true
+                syncMessage = nil
+                Task {
+                    let result = await HealthSyncManager.shared.performSync()
+                    await MainActor.run {
+                        isSyncing = false
+                        switch result {
+                        case .noData:
+                            syncMessage = "No data to sync"
+                        case .success(let counts):
+                            let total = counts.values.reduce(0, +)
+                            syncMessage = "Synced \(total) records"
+                        case .failure(let error):
+                            syncMessage = "Sync failed (queued for retry): \(error)"
+                        }
+                    }
+                }
+            } label: {
+                Label(isSyncing ? "Syncing..." : "Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(prefs.healthWebhookUrls.isEmpty || prefs.healthEnabledDataTypes.isEmpty || isSyncing)
+
+            if let message = syncMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundColor(message.contains("failed") || message.contains("Error") ? .red : .green)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+
+    private var previewSheet: some View {
+        NavigationStack {
+            ScrollView {
+                Text(previewPayload)
+                    .font(.system(.caption, design: .monospaced))
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .navigationTitle("Health Data Preview")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { showPreview = false }
+                }
+                ToolbarItem(placement: .topBarLeading) {
+                    ShareLink(item: previewPayload) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                }
+            }
+        }
+    }
+
+}

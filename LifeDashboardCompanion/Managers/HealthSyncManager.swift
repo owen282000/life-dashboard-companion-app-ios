@@ -1,0 +1,206 @@
+import Foundation
+
+class HealthSyncManager {
+    static let shared = HealthSyncManager()
+
+    private let prefs = PreferencesManager.shared
+    private let healthKit = HealthKitManager.shared
+    private let pendingStore = PendingSyncStore.shared
+    private let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+
+    private init() {}
+
+    // MARK: - Full Sync (all enabled types, always last 7 days)
+
+    func performSync() async -> HealthSyncResult {
+        let enabledTypes = prefs.healthEnabledDataTypes
+        let webhookUrls = prefs.healthWebhookUrls
+        let headers = prefs.healthWebhookHeaders
+
+        guard !enabledTypes.isEmpty, !webhookUrls.isEmpty else {
+            return .noData
+        }
+
+        do {
+            let healthData = try await healthKit.readHealthData(for: enabledTypes)
+
+            guard !healthData.isEmpty else {
+                return .noData
+            }
+
+            var payload: [String: Any] = healthData
+            payload["timestamp"] = Date().iso8601String
+            payload["app_version"] = appVersion
+            payload["source"] = "healthkit_ios"
+
+            var syncCounts: [HealthDataType: Int] = [:]
+            let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
+
+            let success = await WebhookManager.shared.post(
+                payload: payload,
+                urls: webhookUrls,
+                headers: headers,
+                logType: .healthConnect,
+                dataType: "health_connect",
+                recordCount: totalRecords
+            )
+
+            if success {
+                return .success(syncCounts: syncCounts)
+            } else {
+                enqueuePayload(payload, urls: webhookUrls, headers: headers, totalRecords: totalRecords)
+                return .failure(error: "Webhook failed - queued for retry")
+            }
+        } catch {
+            let log = WebhookLog(
+                url: webhookUrls.first ?? "unknown",
+                success: false,
+                errorMessage: error.localizedDescription,
+                dataType: "health_connect",
+                logType: .healthConnect
+            )
+            prefs.addWebhookLog(log)
+            return .failure(error: error.localizedDescription)
+        }
+    }
+
+    // MARK: - Incremental Sync (anchor-based, triggered by HKObserverQuery)
+
+    func performIncrementalSync(types: Set<HealthDataType>) async -> HealthSyncResult {
+        let webhookUrls = prefs.healthWebhookUrls
+        let headers = prefs.healthWebhookHeaders
+
+        guard !types.isEmpty, !webhookUrls.isEmpty else { return .noData }
+
+        do {
+            let readResult = try await healthKit.readIncrementalData(for: types)
+
+            switch readResult {
+            case .protectedDataUnavailable:
+                return .failure(error: "Device locked - data encrypted")
+            case .empty:
+                return .noData
+            case .data(let healthData):
+                var payload: [String: Any] = healthData
+                payload["timestamp"] = Date().iso8601String
+                payload["app_version"] = appVersion
+                payload["source"] = "healthkit_ios"
+
+                var syncCounts: [HealthDataType: Int] = [:]
+                let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
+
+                let success = await WebhookManager.shared.post(
+                    payload: payload,
+                    urls: webhookUrls,
+                    headers: headers,
+                    logType: .healthConnect,
+                    dataType: "health_connect",
+                    recordCount: totalRecords
+                )
+
+                if success {
+                    return .success(syncCounts: syncCounts)
+                } else {
+                    enqueuePayload(payload, urls: webhookUrls, headers: headers, totalRecords: totalRecords)
+                    return .failure(error: "Webhook failed - queued for retry")
+                }
+            }
+        } catch {
+            return .failure(error: error.localizedDescription)
+        }
+    }
+
+    // MARK: - Pending Queue Drain
+
+    func drainPendingQueue() async {
+        let items = pendingStore.dequeueAll()
+        guard !items.isEmpty else { return }
+
+        print("Draining pending sync queue: \(items.count) item(s)")
+
+        for item in items {
+            guard let payload = try? JSONSerialization.jsonObject(with: item.payload) as? [String: Any] else {
+                pendingStore.remove(id: item.id)
+                continue
+            }
+
+            let success = await WebhookManager.shared.post(
+                payload: payload,
+                urls: item.urls,
+                headers: item.headers,
+                logType: LogType(rawValue: item.logType) ?? .healthConnect,
+                dataType: item.dataType,
+                recordCount: item.recordCount
+            )
+
+            if success {
+                pendingStore.remove(id: item.id)
+                print("Pending sync item \(item.id) delivered successfully")
+            } else {
+                pendingStore.updateAttempt(id: item.id, error: "Retry failed")
+                print("Pending sync retry failed, stopping drain")
+                break
+            }
+        }
+    }
+
+    // MARK: - Preview
+
+    func buildPreviewPayload() async throws -> [String: Any] {
+        let enabledTypes = prefs.healthEnabledDataTypes
+
+        var payload = try await healthKit.readHealthData(for: enabledTypes)
+        payload["timestamp"] = Date().iso8601String
+        payload["app_version"] = appVersion
+        payload["source"] = "healthkit_ios"
+
+        return payload
+    }
+
+    // MARK: - Private Helpers
+
+    private func enqueuePayload(
+        _ payload: [String: Any],
+        urls: [String],
+        headers: [String: String],
+        totalRecords: Int
+    ) {
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
+            return
+        }
+
+        pendingStore.enqueue(
+            payload: jsonData,
+            urls: urls,
+            headers: headers,
+            logType: LogType.healthConnect.rawValue,
+            dataType: "health_connect",
+            recordCount: totalRecords
+        )
+
+        print("Enqueued failed sync payload (\(totalRecords) records) for retry")
+    }
+
+    private func countRecords(in data: [String: Any], syncCounts: inout [HealthDataType: Int]) -> Int {
+        var total = 0
+        let keyToType: [String: HealthDataType] = [
+            "steps": .steps, "sleep": .sleep, "heart_rate": .heartRate,
+            "distance": .distance, "active_calories": .activeCalories,
+            "total_calories": .totalCalories, "weight": .weight, "height": .height,
+            "blood_pressure": .bloodPressure, "blood_glucose": .bloodGlucose,
+            "oxygen_saturation": .oxygenSaturation, "body_temperature": .bodyTemperature,
+            "respiratory_rate": .respiratoryRate, "resting_heart_rate": .restingHeartRate,
+            "exercise": .exercise, "hydration": .hydration, "nutrition": .nutrition,
+            "mindfulness": .mindfulness, "body_fat": .bodyFat,
+            "lean_body_mass": .leanBodyMass, "heart_rate_variability": .heartRateVariability
+        ]
+
+        for (key, type) in keyToType {
+            if let records = data[key] as? [Any] {
+                syncCounts[type] = records.count
+                total += records.count
+            }
+        }
+        return total
+    }
+}
