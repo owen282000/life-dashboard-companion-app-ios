@@ -23,6 +23,7 @@ enum HealthDataType: String, CaseIterable, Codable, Identifiable {
     case bodyFat = "BODY_FAT"
     case leanBodyMass = "LEAN_BODY_MASS"
     case heartRateVariability = "HEART_RATE_VARIABILITY"
+    case menstruation = "MENSTRUATION"
 
     var id: String { rawValue }
 
@@ -49,6 +50,7 @@ enum HealthDataType: String, CaseIterable, Codable, Identifiable {
         case .bodyFat: return "Body Fat"
         case .leanBodyMass: return "Lean Body Mass"
         case .heartRateVariability: return "Heart Rate Variability"
+        case .menstruation: return "Cycle Tracking"
         }
     }
 
@@ -75,6 +77,7 @@ enum HealthDataType: String, CaseIterable, Codable, Identifiable {
         case .bodyFat: return "percent"
         case .leanBodyMass: return "figure.strengthtraining.traditional"
         case .heartRateVariability: return "waveform.path.ecg"
+        case .menstruation: return "calendar.circle.fill"
         }
     }
 
@@ -127,6 +130,8 @@ enum HealthDataType: String, CaseIterable, Codable, Identifiable {
             return [HKQuantityType(.leanBodyMass)]
         case .heartRateVariability:
             return [HKQuantityType(.heartRateVariabilitySDNN)]
+        case .menstruation:
+            return [HKCategoryType(.menstrualFlow)]
         }
     }
 

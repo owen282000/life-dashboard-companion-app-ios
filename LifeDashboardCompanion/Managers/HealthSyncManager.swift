@@ -192,7 +192,8 @@ class HealthSyncManager {
             "respiratory_rate": .respiratoryRate, "resting_heart_rate": .restingHeartRate,
             "exercise": .exercise, "hydration": .hydration, "nutrition": .nutrition,
             "mindfulness": .mindfulness, "body_fat": .bodyFat,
-            "lean_body_mass": .leanBodyMass, "heart_rate_variability": .heartRateVariability
+            "lean_body_mass": .leanBodyMass, "heart_rate_variability": .heartRateVariability,
+            "menstruation_flow": .menstruation
         ]
 
         for (key, type) in keyToType {
