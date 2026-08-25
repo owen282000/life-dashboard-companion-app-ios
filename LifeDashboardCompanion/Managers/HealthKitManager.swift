@@ -68,6 +68,25 @@ class HealthKitManager: ObservableObject {
         self.authorizationStatus = statuses
     }
 
+    /// Most recent heart rate sample, used by the About screen's beating-heart easter egg.
+    func latestHeartRateBPM() async -> Int? {
+        guard isAvailable else { return nil }
+        return await withCheckedContinuation { continuation in
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+            let query = HKSampleQuery(
+                sampleType: HKQuantityType(.heartRate),
+                predicate: nil,
+                limit: 1,
+                sortDescriptors: [sort]
+            ) { _, samples, _ in
+                let bpm = (samples?.first as? HKQuantitySample)
+                    .map { Int($0.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))) }
+                continuation.resume(returning: bpm)
+            }
+            healthStore.execute(query)
+        }
+    }
+
     // MARK: - Data Reading
 
     func readHealthData(

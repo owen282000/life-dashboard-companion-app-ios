@@ -41,6 +41,25 @@ final class LogStore {
                 logs = Array(logs.prefix(LogStore.maxLogs))
             }
             writeAll(logs)
+            updateLifetimeStats(log)
+        }
+    }
+
+    /// Lifetime counters shown in the hidden Nerd Stats card on the About screen.
+    /// Counted per delivery (one log entry per webhook URL).
+    private func updateLifetimeStats(_ log: WebhookLog) {
+        guard log.success else { return }
+        let defaults = UserDefaults.standard
+        defaults.set(defaults.integer(forKey: "stats_total_deliveries") + 1, forKey: "stats_total_deliveries")
+        if let count = log.recordCount {
+            defaults.set(defaults.integer(forKey: "stats_lifetime_records") + count, forKey: "stats_lifetime_records")
+        }
+        if defaults.object(forKey: "stats_first_sync") == nil {
+            defaults.set(log.timestamp, forKey: "stats_first_sync")
+        }
+        let payloadBytes = log.rawPayload?.utf8.count ?? 0
+        if payloadBytes > defaults.integer(forKey: "stats_largest_payload") {
+            defaults.set(payloadBytes, forKey: "stats_largest_payload")
         }
     }
 
