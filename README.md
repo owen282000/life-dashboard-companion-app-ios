@@ -16,6 +16,8 @@ A privacy-focused iOS app that syncs your Apple Health (HealthKit) data to your 
 
 This is the iOS counterpart of [Life Dashboard Companion for Android](https://github.com/owen282000/life-dashboard-companion-app). Both apps send a compatible JSON payload, so they can feed the same backend.
 
+Looking for an open source alternative to Health Auto Export? This app covers the same HealthKit-to-webhook use case, fully open and self-hosted.
+
 ## Why This App?
 
 - **Own Your Data** - Send health data to your own server, not third-party clouds
@@ -37,9 +39,11 @@ This is the iOS counterpart of [Life Dashboard Companion for Android](https://gi
   - **Sleep**: Sleep sessions with stages (light, deep, REM, awake)
   - **Nutrition**: Hydration, Nutrition records (calories, protein, carbs, fat)
   - **Mindfulness**: Meditation sessions (from apps that write mindful minutes to Apple Health)
-  - **Cycle Tracking**: Menstruation Flow (logged data from cycle apps that write to Apple Health)
+  - **Cycle Tracking**: Menstruation Flow, plus Menstruation Periods derived from consecutive flow days (logged data from cycle apps that write to Apple Health)
 - Per-data-type toggle and permission management
 - Configurable sync interval (minimum 15 minutes)
+- **Bounded payloads** - High-volume types are capped per sync (1000 records for heart rate and steps, 500 for HRV and respiratory rate, 200 for the rest), oldest first, so later syncs catch up without skipping records
+- **Fault isolation** - A read failure in one data type skips only that type instead of failing the whole sync
 
 ### No Screen Time?
 
@@ -144,7 +148,8 @@ Every payload has these top-level fields:
   "body_fat": [],
   "lean_body_mass": [],
   "heart_rate_variability": [],
-  "menstruation_flow": []
+  "menstruation_flow": [],
+  "menstruation_period": []
 }
 ```
 
@@ -315,6 +320,14 @@ All nutrition fields (`calories`, `protein_grams`, `carbs_grams`, `fat_grams`) a
 
 The `flow` field is one of `light`, `medium`, `heavy`, or `unknown`.
 
+**Menstruation Period**
+
+```json
+{ "start_time": "2026-02-01T00:00:00Z", "end_time": "2026-02-05T00:00:00Z" }
+```
+
+HealthKit has no period record type, so periods are derived from consecutive flow days (a gap of up to 48 hours tolerates one missed logging day). These records carry no `uuid` or `source`.
+
 ## Delivery, Retries and Signing
 
 Every configured webhook URL receives each payload. A sync counts as delivered when at least one endpoint accepted it; per-URL results are visible in the in-app webhook logs.
@@ -383,6 +396,9 @@ This app:
 - **Does not send data anywhere** except your configured webhook URLs
 - **Does not include any analytics** or tracking
 - **Stores settings locally** on your device only
+- **Keeps secrets in the iOS Keychain** - Webhook headers and the HMAC signing secret are stored in the Keychain, not in plaintext preferences
+- **Protects logs at rest** - Webhook logs (which contain payload snapshots) are stored with iOS file protection and capped in size
+- **Ships a privacy manifest** (`PrivacyInfo.xcprivacy`): no tracking, no collected data types
 
 You are in full control of where your data goes.
 
