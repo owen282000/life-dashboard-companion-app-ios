@@ -1,11 +1,13 @@
 import Foundation
 import HealthKit
 import UIKit
+import OSLog
 
 class HealthKitManager: ObservableObject {
     static let shared = HealthKitManager()
 
     let healthStore = HKHealthStore()
+    private let logger = Logger(subsystem: "com.owen282000.lifedashboard", category: "HealthKit")
 
     @Published var authorizationStatus: [HealthDataType: HKAuthorizationStatus] = [:]
     @Published var isAvailable: Bool
@@ -78,19 +80,24 @@ class HealthKitManager: ObservableObject {
         )!
         let endDate = Date()
 
-        // Run all type queries in parallel
-        let results = try await withThrowingTaskGroup(
-            of: (String, Any)?.self
+        // Run all type queries in parallel; a failure in one type only skips that type
+        let results = await withTaskGroup(
+            of: [(String, Any)]?.self
         ) { group -> [String: Any] in
             for dataType in enabledTypes {
                 group.addTask {
-                    try await self.readDataForType(dataType, start: startDate, end: endDate)
+                    do {
+                        return try await self.readDataForType(dataType, start: startDate, end: endDate)
+                    } catch {
+                        self.logger.error("Read failed for \(dataType.rawValue): \(error.localizedDescription)")
+                        return nil
+                    }
                 }
             }
 
             var payload: [String: Any] = [:]
-            for try await result in group {
-                if let (key, value) = result {
+            for await result in group {
+                for (key, value) in result ?? [] {
                     payload[key] = value
                 }
             }
@@ -111,24 +118,29 @@ class HealthKitManager: ObservableObject {
         // Stap 5: Check if HealthKit data is accessible (device may be locked)
         let isProtected = await MainActor.run { UIApplication.shared.isProtectedDataAvailable }
         guard isProtected else {
-            print("Protected data unavailable (device locked) - skipping HealthKit read")
+            logger.info("Protected data unavailable (device locked) - skipping HealthKit read")
             return .protectedDataUnavailable
         }
 
         let prefs = PreferencesManager.shared
 
-        let results = try await withThrowingTaskGroup(
-            of: (String, Any)?.self
+        let results = await withTaskGroup(
+            of: [(String, Any)]?.self
         ) { group -> [String: Any] in
             for dataType in enabledTypes {
                 group.addTask {
-                    try await self.readIncrementalDataForType(dataType, prefs: prefs)
+                    do {
+                        return try await self.readIncrementalDataForType(dataType, prefs: prefs)
+                    } catch {
+                        self.logger.error("Incremental read failed for \(dataType.rawValue): \(error.localizedDescription)")
+                        return nil
+                    }
                 }
             }
 
             var payload: [String: Any] = [:]
-            for try await result in group {
-                if let (key, value) = result {
+            for await result in group {
+                for (key, value) in result ?? [] {
                     payload[key] = value
                 }
             }
@@ -142,7 +154,7 @@ class HealthKitManager: ObservableObject {
     private func readIncrementalDataForType(
         _ dataType: HealthDataType,
         prefs: PreferencesManager
-    ) async throws -> (String, Any)? {
+    ) async throws -> [(String, Any)]? {
         let anchor = prefs.loadAnchor(for: dataType)
 
         // If no anchor exists, fall back to full 7-day read
@@ -232,17 +244,21 @@ class HealthKitManager: ObservableObject {
         return record
     }
 
-    /// Reads data for a single HealthDataType. Returns (payloadKey, data) or nil if empty.
+    /// Reads data for a single HealthDataType. Returns (payloadKey, data) pairs or nil if empty.
+    /// Most types produce one pair; menstruation produces both flow records and derived periods.
+    /// Reads are capped oldest-first per type (see SyncLimits) to bound payload size.
     private func readDataForType(
         _ dataType: HealthDataType,
         start: Date,
         end: Date
-    ) async throws -> (String, Any)? {
+    ) async throws -> [(String, Any)]? {
+        let limit = SyncLimits.maxRecordsPerSync(for: dataType)
         switch dataType {
         case .steps:
             let records = try await readQuantitySamples(
                 type: HKQuantityType(.stepCount),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 record([
@@ -251,12 +267,13 @@ class HealthKitManager: ObservableObject {
                     "end_time": sample.endDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("steps", mapped)
+            return mapped.isEmpty ? nil : [("steps", mapped)]
 
         case .distance:
             let records = try await readQuantitySamples(
                 type: HKQuantityType(.distanceWalkingRunning),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 record([
@@ -265,12 +282,13 @@ class HealthKitManager: ObservableObject {
                     "end_time": sample.endDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("distance", mapped)
+            return mapped.isEmpty ? nil : [("distance", mapped)]
 
         case .activeCalories:
             let records = try await readQuantitySamples(
                 type: HKQuantityType(.activeEnergyBurned),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 record([
@@ -279,38 +297,38 @@ class HealthKitManager: ObservableObject {
                     "end_time": sample.endDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("active_calories", mapped)
+            return mapped.isEmpty ? nil : [("active_calories", mapped)]
 
         case .totalCalories:
             async let activeRecords = readQuantitySamples(
                 type: HKQuantityType(.activeEnergyBurned),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             async let basalRecords = readQuantitySamples(
                 type: HKQuantityType(.basalEnergyBurned),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
-            var mapped: [[String: Any]] = []
-            mapped += try await activeRecords.map { sample -> [String: Any] in
+            let combined = try await SyncLimits.capOldestFirst(
+                activeRecords + basalRecords,
+                limit: limit,
+                timeOf: { $0.startDate }
+            )
+            let mapped = combined.map { sample -> [String: Any] in
                 record([
                     "calories": sample.quantity.doubleValue(for: .kilocalorie()),
                     "start_time": sample.startDate.iso8601String,
                     "end_time": sample.endDate.iso8601String
                 ], from: sample)
             }
-            mapped += try await basalRecords.map { sample -> [String: Any] in
-                record([
-                    "calories": sample.quantity.doubleValue(for: .kilocalorie()),
-                    "start_time": sample.startDate.iso8601String,
-                    "end_time": sample.endDate.iso8601String
-                ], from: sample)
-            }
-            return mapped.isEmpty ? nil : ("total_calories", mapped)
+            return mapped.isEmpty ? nil : [("total_calories", mapped)]
 
         case .weight:
             let records = try await readQuantitySamples(
                 type: HKQuantityType(.bodyMass),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 record([
@@ -318,12 +336,13 @@ class HealthKitManager: ObservableObject {
                     "time": sample.startDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("weight", mapped)
+            return mapped.isEmpty ? nil : [("weight", mapped)]
 
         case .height:
             let records = try await readQuantitySamples(
                 type: HKQuantityType(.height),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 record([
@@ -331,12 +350,13 @@ class HealthKitManager: ObservableObject {
                     "time": sample.startDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("height", mapped)
+            return mapped.isEmpty ? nil : [("height", mapped)]
 
         case .heartRate:
             let records = try await readQuantitySamples(
                 type: HKQuantityType(.heartRate),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 record([
@@ -344,12 +364,13 @@ class HealthKitManager: ObservableObject {
                     "time": sample.startDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("heart_rate", mapped)
+            return mapped.isEmpty ? nil : [("heart_rate", mapped)]
 
         case .restingHeartRate:
             let records = try await readQuantitySamples(
                 type: HKQuantityType(.restingHeartRate),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 record([
@@ -357,12 +378,13 @@ class HealthKitManager: ObservableObject {
                     "time": sample.startDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("resting_heart_rate", mapped)
+            return mapped.isEmpty ? nil : [("resting_heart_rate", mapped)]
 
         case .heartRateVariability:
             let records = try await readQuantitySamples(
                 type: HKQuantityType(.heartRateVariabilitySDNN),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 record([
@@ -370,16 +392,18 @@ class HealthKitManager: ObservableObject {
                     "time": sample.startDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("heart_rate_variability", mapped)
+            return mapped.isEmpty ? nil : [("heart_rate_variability", mapped)]
 
         case .bloodPressure:
             async let systolicRecords = readQuantitySamples(
                 type: HKQuantityType(.bloodPressureSystolic),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             async let diastolicRecords = readQuantitySamples(
                 type: HKQuantityType(.bloodPressureDiastolic),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let systolic = try await systolicRecords
             let diastolic = try await diastolicRecords
@@ -398,12 +422,13 @@ class HealthKitManager: ObservableObject {
                 }
                 mapped.append(record(fields, from: s))
             }
-            return mapped.isEmpty ? nil : ("blood_pressure", mapped)
+            return mapped.isEmpty ? nil : [("blood_pressure", mapped)]
 
         case .bloodGlucose:
             let records = try await readQuantitySamples(
                 type: HKQuantityType(.bloodGlucose),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 record([
@@ -413,12 +438,13 @@ class HealthKitManager: ObservableObject {
                     "time": sample.startDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("blood_glucose", mapped)
+            return mapped.isEmpty ? nil : [("blood_glucose", mapped)]
 
         case .oxygenSaturation:
             let records = try await readQuantitySamples(
                 type: HKQuantityType(.oxygenSaturation),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 record([
@@ -426,12 +452,13 @@ class HealthKitManager: ObservableObject {
                     "time": sample.startDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("oxygen_saturation", mapped)
+            return mapped.isEmpty ? nil : [("oxygen_saturation", mapped)]
 
         case .bodyTemperature:
             let records = try await readQuantitySamples(
                 type: HKQuantityType(.bodyTemperature),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 record([
@@ -439,12 +466,13 @@ class HealthKitManager: ObservableObject {
                     "time": sample.startDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("body_temperature", mapped)
+            return mapped.isEmpty ? nil : [("body_temperature", mapped)]
 
         case .respiratoryRate:
             let records = try await readQuantitySamples(
                 type: HKQuantityType(.respiratoryRate),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 record([
@@ -452,12 +480,13 @@ class HealthKitManager: ObservableObject {
                     "time": sample.startDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("respiratory_rate", mapped)
+            return mapped.isEmpty ? nil : [("respiratory_rate", mapped)]
 
         case .bodyFat:
             let records = try await readQuantitySamples(
                 type: HKQuantityType(.bodyFatPercentage),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 record([
@@ -465,12 +494,13 @@ class HealthKitManager: ObservableObject {
                     "time": sample.startDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("body_fat", mapped)
+            return mapped.isEmpty ? nil : [("body_fat", mapped)]
 
         case .leanBodyMass:
             let records = try await readQuantitySamples(
                 type: HKQuantityType(.leanBodyMass),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 record([
@@ -478,20 +508,21 @@ class HealthKitManager: ObservableObject {
                     "time": sample.startDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("lean_body_mass", mapped)
+            return mapped.isEmpty ? nil : [("lean_body_mass", mapped)]
 
         case .sleep:
-            let sleepData = try await readSleepData(start: start, end: end)
-            return sleepData.isEmpty ? nil : ("sleep", sleepData)
+            let sleepData = try await readSleepData(start: start, end: end, limit: limit)
+            return sleepData.isEmpty ? nil : [("sleep", sleepData)]
 
         case .exercise:
-            let workouts = try await readWorkouts(start: start, end: end)
-            return workouts.isEmpty ? nil : ("exercise", workouts)
+            let workouts = try await readWorkouts(start: start, end: end, limit: limit)
+            return workouts.isEmpty ? nil : [("exercise", workouts)]
 
         case .hydration:
             let records = try await readQuantitySamples(
                 type: HKQuantityType(.dietaryWater),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 record([
@@ -500,16 +531,17 @@ class HealthKitManager: ObservableObject {
                     "end_time": sample.endDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("hydration", mapped)
+            return mapped.isEmpty ? nil : [("hydration", mapped)]
 
         case .nutrition:
-            let nutritionData = try await readNutritionData(start: start, end: end)
-            return nutritionData.isEmpty ? nil : ("nutrition", nutritionData)
+            let nutritionData = try await readNutritionData(start: start, end: end, limit: limit)
+            return nutritionData.isEmpty ? nil : [("nutrition", nutritionData)]
 
         case .mindfulness:
             let records = try await readCategorySamples(
                 type: HKCategoryType(.mindfulSession),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
             let mapped = records.map { sample -> [String: Any] in
                 let duration = sample.endDate.timeIntervalSince(sample.startDate)
@@ -519,38 +551,50 @@ class HealthKitManager: ObservableObject {
                     "duration_seconds": Int(duration)
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("mindfulness", mapped)
+            return mapped.isEmpty ? nil : [("mindfulness", mapped)]
 
         case .menstruation:
             let records = try await readCategorySamples(
                 type: HKCategoryType(.menstrualFlow),
-                start: start, end: end
+                start: start, end: end,
+                limit: limit
             )
-            let mapped = records.compactMap { sample -> [String: Any]? in
+            let flowSamples = records.compactMap { sample -> (HKCategorySample, String)? in
                 guard let value = HKCategoryValueMenstrualFlow(rawValue: sample.value) else { return nil }
-                let flow: String
                 switch value {
-                case .light: flow = "light"
-                case .medium: flow = "medium"
-                case .heavy: flow = "heavy"
-                case .unspecified: flow = "unknown"
+                case .light: return (sample, "light")
+                case .medium: return (sample, "medium")
+                case .heavy: return (sample, "heavy")
+                case .unspecified: return (sample, "unknown")
                 default: return nil  // .none means no bleeding: skip
                 }
-                return record([
+            }
+            let mapped = flowSamples.map { sample, flow in
+                record([
                     "flow": flow,
                     "time": sample.startDate.iso8601String
                 ], from: sample)
             }
-            return mapped.isEmpty ? nil : ("menstruation_flow", mapped)
+            guard !mapped.isEmpty else { return nil }
+
+            // HealthKit has no period record type; derive periods from consecutive flow
+            // days so the payload matches the Android app's menstruation_period records.
+            let periods = MenstruationPeriodBuilder.periods(
+                from: flowSamples.map { FlowSample(start: $0.0.startDate, end: $0.0.endDate) }
+            )
+            return [("menstruation_flow", mapped), ("menstruation_period", periods)]
         }
     }
 
     // MARK: - Query Helpers
 
+    /// Reads at most `limit` samples, oldest first (ascending sort + query limit), so payload
+    /// size stays bounded and later syncs catch up without skipping records.
     private func readQuantitySamples(
         type: HKQuantityType,
         start: Date,
-        end: Date
+        end: Date,
+        limit: Int
     ) async throws -> [HKQuantitySample] {
         try await withCheckedThrowingContinuation { continuation in
             let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
@@ -559,7 +603,7 @@ class HealthKitManager: ObservableObject {
             let query = HKSampleQuery(
                 sampleType: type,
                 predicate: predicate,
-                limit: HKObjectQueryNoLimit,
+                limit: limit,
                 sortDescriptors: [sortDescriptor]
             ) { _, samples, error in
                 if let error = error {
@@ -575,7 +619,8 @@ class HealthKitManager: ObservableObject {
     private func readCategorySamples(
         type: HKCategoryType,
         start: Date,
-        end: Date
+        end: Date,
+        limit: Int
     ) async throws -> [HKCategorySample] {
         try await withCheckedThrowingContinuation { continuation in
             let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
@@ -584,7 +629,7 @@ class HealthKitManager: ObservableObject {
             let query = HKSampleQuery(
                 sampleType: type,
                 predicate: predicate,
-                limit: HKObjectQueryNoLimit,
+                limit: limit,
                 sortDescriptors: [sortDescriptor]
             ) { _, samples, error in
                 if let error = error {
@@ -597,10 +642,11 @@ class HealthKitManager: ObservableObject {
         }
     }
 
-    private func readSleepData(start: Date, end: Date) async throws -> [[String: Any]] {
+    private func readSleepData(start: Date, end: Date, limit: Int) async throws -> [[String: Any]] {
         let samples = try await readCategorySamples(
             type: HKCategoryType(.sleepAnalysis),
-            start: start, end: end
+            start: start, end: end,
+            limit: limit
         )
 
         // Stage values match the Android companion app so both can feed the same backend.
@@ -628,7 +674,7 @@ class HealthKitManager: ObservableObject {
         return SleepSessionBuilder.sessions(from: stageSamples)
     }
 
-    private func readWorkouts(start: Date, end: Date) async throws -> [[String: Any]] {
+    private func readWorkouts(start: Date, end: Date, limit: Int) async throws -> [[String: Any]] {
         let workouts: [HKWorkout] = try await withCheckedThrowingContinuation { continuation in
             let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
             let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
@@ -636,7 +682,7 @@ class HealthKitManager: ObservableObject {
             let query = HKSampleQuery(
                 sampleType: HKWorkoutType.workoutType(),
                 predicate: predicate,
-                limit: HKObjectQueryNoLimit,
+                limit: limit,
                 sortDescriptors: [sortDescriptor]
             ) { _, samples, error in
                 if let error = error {
@@ -658,22 +704,26 @@ class HealthKitManager: ObservableObject {
         }
     }
 
-    private func readNutritionData(start: Date, end: Date) async throws -> [[String: Any]] {
+    private func readNutritionData(start: Date, end: Date, limit: Int) async throws -> [[String: Any]] {
         let calorieRecords = try await readQuantitySamples(
             type: HKQuantityType(.dietaryEnergyConsumed),
-            start: start, end: end
+            start: start, end: end,
+            limit: limit
         )
         let proteinRecords = try await readQuantitySamples(
             type: HKQuantityType(.dietaryProtein),
-            start: start, end: end
+            start: start, end: end,
+            limit: limit
         )
         let carbRecords = try await readQuantitySamples(
             type: HKQuantityType(.dietaryCarbohydrates),
-            start: start, end: end
+            start: start, end: end,
+            limit: limit
         )
         let fatRecords = try await readQuantitySamples(
             type: HKQuantityType(.dietaryFatTotal),
-            start: start, end: end
+            start: start, end: end,
+            limit: limit
         )
 
         // Combine by matching timestamps
