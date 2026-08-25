@@ -6,7 +6,8 @@
 [![iOS](https://img.shields.io/badge/iOS-17%2B-blue.svg)](https://developer.apple.com)
 
 <p align="center">
-  <img src="docs/screenshots/health.png" width="250" alt="Health Screen">
+  <img src="docs/screenshots/health.png" width="250" alt="Health Data Types">
+  <img src="docs/screenshots/config.png" width="250" alt="Webhook Configuration">
   <img src="docs/screenshots/logs.png" width="250" alt="Webhook Logs Screen">
 </p>
 
