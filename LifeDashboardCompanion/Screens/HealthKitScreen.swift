@@ -12,9 +12,11 @@ struct HealthKitScreen: View {
     @State private var isSyncing = false
     @State private var syncMessage: String?
     @State private var showHeaders = false
+    @State private var showDataTypes = false
     @State private var newHeaderKey: String = ""
     @State private var newHeaderValue: String = ""
     @State private var isLoadingPreview = false
+    @State private var previewFullPayload: String = ""
 
     var body: some View {
         ScrollView {
@@ -33,6 +35,8 @@ struct HealthKitScreen: View {
         }
         .onAppear {
             syncIntervalText = String(prefs.healthSyncIntervalMinutes)
+            // Expanded on first run so new users see the data types; collapsed once configured
+            showDataTypes = prefs.healthEnabledDataTypes.isEmpty
         }
         .sheet(isPresented: $showPreview) {
             previewSheet
@@ -59,10 +63,32 @@ struct HealthKitScreen: View {
 
     private var dataTypesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Data Types", systemImage: "list.bullet")
-                .font(.headline)
+            Button {
+                withAnimation { showDataTypes.toggle() }
+            } label: {
+                HStack {
+                    Label("Data Types", systemImage: "list.bullet")
+                        .font(.headline)
+                    Spacer()
+                    Text("\(prefs.healthEnabledDataTypes.count) of \(HealthDataType.allCases.count) enabled")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Image(systemName: showDataTypes ? "chevron.up" : "chevron.down")
+                }
+            }
+            .buttonStyle(.plain)
 
-            ForEach(HealthDataType.allCases) { dataType in
+            if showDataTypes {
+                dataTypesList
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+
+    private var dataTypesList: some View {
+        ForEach(HealthDataType.allCases) { dataType in
                 HStack {
                     Image(systemName: dataType.icon)
                         .foregroundColor(.accentColor)
@@ -92,11 +118,7 @@ struct HealthKitScreen: View {
                     .labelsHidden()
                 }
                 .padding(.vertical, 2)
-            }
         }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
     }
 
     private var configurationSection: some View {
@@ -278,12 +300,26 @@ struct HealthKitScreen: View {
             Button {
                 isLoadingPreview = true
                 Task {
-                    do {
-                        let payload = try await HealthSyncManager.shared.buildPreviewPayload()
-                        previewPayload = ExportManager.shared.formatPayloadForPreview(payload)
-                    } catch {
-                        previewPayload = "Error: \(error.localizedDescription)"
-                    }
+                    // Build and format off the main thread; rendering megabytes of JSON
+                    // in a Text view freezes the UI, so the display copy is truncated.
+                    let result: (display: String, full: String) = await Task.detached(priority: .userInitiated) {
+                        do {
+                            let payload = try await HealthSyncManager.shared.buildPreviewPayload()
+                            let formatted = ExportManager.shared.formatPayloadForPreview(payload)
+                            let displayLimit = 100_000
+                            if formatted.count > displayLimit {
+                                let display = String(formatted.prefix(displayLimit))
+                                    + "\n\n... [truncated for display, \(formatted.count) characters total - use the share button for the full payload]"
+                                return (display, formatted)
+                            }
+                            return (formatted, formatted)
+                        } catch {
+                            let message = "Error: \(error.localizedDescription)"
+                            return (message, message)
+                        }
+                    }.value
+                    previewPayload = result.display
+                    previewFullPayload = result.full
                     isLoadingPreview = false
                     showPreview = true
                 }
@@ -347,9 +383,10 @@ struct HealthKitScreen: View {
                     Button("Done") { showPreview = false }
                 }
                 ToolbarItem(placement: .topBarLeading) {
-                    ShareLink(item: previewPayload) {
+                    ShareLink(item: previewFullPayload) {
                         Image(systemName: "square.and.arrow.up")
                     }
+                    .accessibilityLabel("Share full payload")
                 }
             }
         }

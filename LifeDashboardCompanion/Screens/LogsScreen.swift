@@ -169,37 +169,70 @@ struct LogRow: View {
         return df
     }()
 
+    private var urlHost: String {
+        URL(string: log.url)?.host ?? log.url
+    }
+
+    private var payloadSize: String? {
+        guard let payload = log.rawPayload else { return nil }
+        return ByteCountFormatter.string(fromByteCount: Int64(payload.utf8.count), countStyle: .file)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Button(action: onTap) {
-                HStack {
-                    Circle()
-                        .fill(log.success ? Color.green : Color.red)
-                        .frame(width: 8, height: 8)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Circle()
+                            .fill(log.success ? Color.green : Color.red)
+                            .frame(width: 8, height: 8)
 
-                    Text(log.logType.displayName)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.green.opacity(0.2))
-                        .cornerRadius(4)
-
-                    if let statusCode = log.statusCode {
-                        Text("\(statusCode)")
+                        Text(log.logType.displayName)
                             .font(.caption)
-                            .foregroundColor(log.success ? .green : .red)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green.opacity(0.2))
+                            .cornerRadius(4)
+
+                        if let statusCode = log.statusCode {
+                            Text("\(statusCode)")
+                                .font(.caption)
+                                .foregroundColor(log.success ? .green : .red)
+                        }
+
+                        if let recordCount = log.recordCount, recordCount > 0 {
+                            Text("\(recordCount) rec")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Text(dateFormatter.string(from: log.timestamp))
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
                     }
 
-                    Spacer()
+                    HStack(spacing: 6) {
+                        Text(urlHost)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
 
-                    Text(dateFormatter.string(from: log.timestamp))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                        if !log.success, let error = log.errorMessage {
+                            Text(error)
+                                .font(.caption2)
+                                .foregroundColor(.red)
+                                .lineLimit(1)
+                        }
+                    }
+                    .padding(.leading, 16)
                 }
             }
             .buttonStyle(.plain)
@@ -217,8 +250,32 @@ struct LogRow: View {
                     if let recordCount = log.recordCount {
                         DetailRow(label: "Records", value: "\(recordCount)")
                     }
+                    if let dataType = log.dataType {
+                        DetailRow(label: "Type", value: dataType)
+                    }
+                    if let size = payloadSize {
+                        DetailRow(label: "Payload", value: size)
+                    }
+
+                    if let payload = log.rawPayload {
+                        Text(payload.count > 1500
+                             ? String(payload.prefix(1500)) + "\n... [share for the full payload]"
+                             : payload)
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(6)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(6)
+                    }
 
                     HStack {
+                        if let payload = log.rawPayload {
+                            ShareLink(item: payload) {
+                                Label("Share payload", systemImage: "square.and.arrow.up")
+                                    .font(.caption)
+                            }
+                        }
                         Spacer()
                         Button(role: .destructive, action: onDelete) {
                             Label("Delete", systemImage: "trash")
