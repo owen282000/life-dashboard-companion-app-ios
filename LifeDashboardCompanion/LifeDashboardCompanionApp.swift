@@ -30,7 +30,7 @@ struct LifeDashboardCompanionApp: App {
 
                 // Incremental sync catches anything background delivery missed
                 let enabledTypes = prefs.healthEnabledDataTypes
-                let _ = await HealthSyncManager.shared.performIncrementalSync(types: enabledTypes)
+                _ = await HealthSyncManager.shared.performIncrementalSync(types: enabledTypes)
             }
         }
     }
@@ -59,6 +59,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
         // Start network monitoring - drains pending queue when connectivity returns
         _ = NetworkMonitor.shared
+
+        // Quiet notification authorization for sync-failure alerts (no prompt)
+        SyncFailureNotifier.shared.requestProvisionalAuthorization()
 
         // Drain any pending sync items from previous session
         Task {

@@ -1,7 +1,9 @@
 import Foundation
 import HealthKit
 
-class PreferencesManager: ObservableObject {
+/// @unchecked Sendable: values are backed by UserDefaults and the Keychain (both
+/// thread-safe); the @Published properties are only mutated from the main thread (UI).
+final class PreferencesManager: ObservableObject, @unchecked Sendable {
     static let shared = PreferencesManager()
 
     private let defaults = UserDefaults.standard
@@ -17,6 +19,8 @@ class PreferencesManager: ObservableObject {
         static let healthWebhookHeaders = "health_webhook_headers"
         static let healthSigningSecret = "health_signing_secret"
         static let webhookLogs = "webhook_logs"
+        static let failureNotificationsEnabled = "failure_notifications_enabled"
+        static let failureNotificationThreshold = "failure_notification_threshold"
     }
 
     // MARK: - Constants
@@ -59,6 +63,14 @@ class PreferencesManager: ObservableObject {
         didSet { KeychainStore.setString(healthSigningSecret, forKey: Keys.healthSigningSecret) }
     }
 
+    @Published var failureNotificationsEnabled: Bool {
+        didSet { defaults.set(failureNotificationsEnabled, forKey: Keys.failureNotificationsEnabled) }
+    }
+
+    @Published var failureNotificationThreshold: Int {
+        didSet { defaults.set(failureNotificationThreshold, forKey: Keys.failureNotificationThreshold) }
+    }
+
     // MARK: - Init
 
     private init() {
@@ -91,6 +103,9 @@ class PreferencesManager: ObservableObject {
         } else {
             self.healthWebhookHeaders = [:]
         }
+
+        self.failureNotificationsEnabled = defaults.object(forKey: Keys.failureNotificationsEnabled) as? Bool ?? true
+        self.failureNotificationThreshold = defaults.object(forKey: Keys.failureNotificationThreshold) as? Int ?? 3
 
         if let secret = KeychainStore.string(forKey: Keys.healthSigningSecret) {
             self.healthSigningSecret = secret

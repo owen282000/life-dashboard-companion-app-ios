@@ -43,6 +43,7 @@
 		B100002A /* SharedSyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002C /* SharedSyncStatus.swift */; };
 		B100002B /* SharedSyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002C /* SharedSyncStatus.swift */; };
 		B100002C /* SyncHealthDataIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002D /* SyncHealthDataIntent.swift */; };
+		B100002D /* SyncFailureNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002E /* SyncFailureNotifier.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -118,6 +119,7 @@
 		F100002B /* LifeDashboardWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LifeDashboardWidget.entitlements; sourceTree = "<group>"; };
 		F100002C /* SharedSyncStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedSyncStatus.swift; sourceTree = "<group>"; };
 		F100002D /* SyncHealthDataIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncHealthDataIntent.swift; sourceTree = "<group>"; };
+		F100002E /* SyncFailureNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncFailureNotifier.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -212,6 +214,7 @@
 				F1000022 /* LogStore.swift */,
 				F100002C /* SharedSyncStatus.swift */,
 				F100002D /* SyncHealthDataIntent.swift */,
+				F100002E /* SyncFailureNotifier.swift */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
@@ -344,6 +347,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				nl,
 				Base,
 			);
 			mainGroup = D1000001;
@@ -401,6 +405,7 @@
 				B1000023 /* AboutScreen.swift in Sources */,
 				B100002A /* SharedSyncStatus.swift in Sources */,
 				B100002C /* SyncHealthDataIntent.swift in Sources */,
+				B100002D /* SyncFailureNotifier.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

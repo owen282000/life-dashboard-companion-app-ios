@@ -148,6 +148,40 @@ struct HealthKitScreen: View {
 
             Divider()
 
+            // Failure notifications
+            Toggle("Notify after failed syncs", isOn: Binding(
+                get: { prefs.failureNotificationsEnabled },
+                set: { enabled in
+                    prefs.failureNotificationsEnabled = enabled
+                    if enabled {
+                        SyncFailureNotifier.shared.requestFullAuthorization()
+                    }
+                }
+            ))
+            .font(.subheadline)
+
+            if prefs.failureNotificationsEnabled {
+                HStack {
+                    Text("After consecutive failures")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Picker("Failure threshold", selection: Binding(
+                        get: { prefs.failureNotificationThreshold },
+                        set: { prefs.failureNotificationThreshold = $0 }
+                    )) {
+                        Text("3").tag(3)
+                        Text("5").tag(5)
+                        Text("10").tag(10)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 140)
+                }
+            }
+
+            Divider()
+
             // Webhook URLs
             Text("Webhook URLs")
                 .font(.subheadline)
@@ -309,8 +343,11 @@ struct HealthKitScreen: View {
                         "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
                         "source": "healthkit_ios"
                     ]
+                    guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
+                        return
+                    }
                     let success = await WebhookManager.shared.post(
-                        payload: payload,
+                        body: body,
                         urls: prefs.healthWebhookUrls,
                         headers: prefs.healthWebhookHeaders,
                         logType: .healthConnect,
@@ -340,7 +377,7 @@ struct HealthKitScreen: View {
                     let result: (display: String, full: String) = await Task.detached(priority: .userInitiated) {
                         do {
                             let payload = try await HealthSyncManager.shared.buildPreviewPayload()
-                            let formatted = ExportManager.shared.formatPayloadForPreview(payload)
+                            let formatted = ExportManager.formatPayloadForPreview(payload)
                             let displayLimit = 100_000
                             if formatted.count > displayLimit {
                                 let display = String(formatted.prefix(displayLimit))
