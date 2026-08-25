@@ -223,6 +223,23 @@ struct HealthKitScreen: View {
                             .foregroundColor(.green)
                     }
                 }
+
+                Divider()
+
+                Text("HMAC Signing Secret")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                SecureField("Optional secret for X-Signature", text: Binding(
+                    get: { prefs.healthSigningSecret },
+                    set: { prefs.healthSigningSecret = $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                ))
+                .font(.caption)
+                .textFieldStyle(.roundedBorder)
+
+                Text("When set, every request includes X-Signature: sha256=HMAC-SHA256(secret, body) so your server can verify the sender.")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
         }
         .padding()

@@ -4,8 +4,6 @@ actor WebhookManager {
     static let shared = WebhookManager()
 
     private let timeoutSeconds: TimeInterval = 10
-    private let maxRetries = 3
-    private let initialRetryDelayMs: UInt64 = 1_000_000_000 // 1 second in nanoseconds
 
     private init() {}
 
@@ -30,6 +28,12 @@ actor WebhookManager {
             return false
         }
 
+        var allHeaders = headers
+        let signingSecret = PreferencesManager.shared.healthSigningSecret
+        if !signingSecret.isEmpty {
+            allHeaders["X-Signature"] = WebhookSigner.signatureHeader(for: jsonData, secret: signingSecret)
+        }
+
         let rawPayload = String(data: jsonData, encoding: .utf8)
         var anySuccess = false
 
@@ -37,7 +41,7 @@ actor WebhookManager {
             let result = await postWithRetry(
                 data: jsonData,
                 urlString: url,
-                headers: headers
+                headers: allHeaders
             )
 
             let log = WebhookLog(
@@ -68,10 +72,9 @@ actor WebhookManager {
         var lastError: String?
         var lastStatusCode: Int?
 
-        for attempt in 0..<maxRetries {
+        for attempt in 0..<WebhookRetryPolicy.maxAttempts {
             if attempt > 0 {
-                let delay = initialRetryDelayMs * UInt64(1 << (attempt - 1)) // exponential backoff
-                try? await Task.sleep(nanoseconds: delay)
+                try? await Task.sleep(nanoseconds: WebhookRetryPolicy.backoffDelayNanoseconds(attempt: attempt))
             }
 
             do {
@@ -102,6 +105,10 @@ actor WebhookManager {
                         )
                     } else {
                         lastError = "HTTP \(httpResponse.statusCode)"
+                        if !WebhookRetryPolicy.isTransient(statusCode: httpResponse.statusCode) {
+                            // Permanent client error: retrying will not help
+                            break
+                        }
                     }
                 }
             } catch {
@@ -113,7 +120,7 @@ actor WebhookManager {
             url: urlString,
             statusCode: lastStatusCode,
             success: false,
-            errorMessage: lastError ?? "Unknown error after \(maxRetries) attempts"
+            errorMessage: lastError ?? "Unknown error after \(WebhookRetryPolicy.maxAttempts) attempts"
         )
     }
 }

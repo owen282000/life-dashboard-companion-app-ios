@@ -15,6 +15,7 @@ class PreferencesManager: ObservableObject {
         static let healthWebhookUrls = "health_webhook_urls"
         static let healthEnabledDataTypes = "health_enabled_data_types"
         static let healthWebhookHeaders = "health_webhook_headers"
+        static let healthSigningSecret = "health_signing_secret"
         static let webhookLogs = "webhook_logs"
     }
 
@@ -54,6 +55,10 @@ class PreferencesManager: ObservableObject {
         }
     }
 
+    @Published var healthSigningSecret: String {
+        didSet { defaults.set(healthSigningSecret, forKey: Keys.healthSigningSecret) }
+    }
+
     // MARK: - Init
 
     private init() {
@@ -81,6 +86,7 @@ class PreferencesManager: ObservableObject {
             self.healthWebhookHeaders = [:]
         }
 
+        self.healthSigningSecret = defaults.string(forKey: Keys.healthSigningSecret) ?? ""
     }
 
     // MARK: - HKQueryAnchor Persistence
