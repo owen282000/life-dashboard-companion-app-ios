@@ -50,13 +50,13 @@ class PreferencesManager: ObservableObject {
     @Published var healthWebhookHeaders: [String: String] {
         didSet {
             if let data = try? encoder.encode(healthWebhookHeaders) {
-                defaults.set(data, forKey: Keys.healthWebhookHeaders)
+                KeychainStore.setData(data, forKey: Keys.healthWebhookHeaders)
             }
         }
     }
 
     @Published var healthSigningSecret: String {
-        didSet { defaults.set(healthSigningSecret, forKey: Keys.healthSigningSecret) }
+        didSet { KeychainStore.setString(healthSigningSecret, forKey: Keys.healthSigningSecret) }
     }
 
     // MARK: - Init
@@ -79,14 +79,28 @@ class PreferencesManager: ObservableObject {
             self.healthEnabledDataTypes = []
         }
 
-        if let data = defaults.data(forKey: Keys.healthWebhookHeaders),
+        // Secrets live in the Keychain; migrate any values older versions kept in UserDefaults.
+        if let data = KeychainStore.data(forKey: Keys.healthWebhookHeaders),
            let headers = try? JSONDecoder().decode([String: String].self, from: data) {
             self.healthWebhookHeaders = headers
+        } else if let data = defaults.data(forKey: Keys.healthWebhookHeaders),
+                  let headers = try? JSONDecoder().decode([String: String].self, from: data) {
+            self.healthWebhookHeaders = headers
+            KeychainStore.setData(data, forKey: Keys.healthWebhookHeaders)
+            defaults.removeObject(forKey: Keys.healthWebhookHeaders)
         } else {
             self.healthWebhookHeaders = [:]
         }
 
-        self.healthSigningSecret = defaults.string(forKey: Keys.healthSigningSecret) ?? ""
+        if let secret = KeychainStore.string(forKey: Keys.healthSigningSecret) {
+            self.healthSigningSecret = secret
+        } else if let secret = defaults.string(forKey: Keys.healthSigningSecret) {
+            self.healthSigningSecret = secret
+            KeychainStore.setString(secret, forKey: Keys.healthSigningSecret)
+            defaults.removeObject(forKey: Keys.healthSigningSecret)
+        } else {
+            self.healthSigningSecret = ""
+        }
     }
 
     // MARK: - HKQueryAnchor Persistence
@@ -107,50 +121,24 @@ class PreferencesManager: ObservableObject {
         }
     }
 
-    // MARK: - Webhook Logs
+    // MARK: - Webhook Logs (stored in protected files, see LogStore)
 
     func getWebhookLogs(filterType: LogType? = nil) -> [WebhookLog] {
-        guard let data = defaults.data(forKey: Keys.webhookLogs),
-              var logs = try? decoder.decode([WebhookLog].self, from: data) else {
-            return []
-        }
-        if let filterType = filterType {
-            logs = logs.filter { $0.logType == filterType }
-        }
-        return logs
+        LogStore.shared.load(filterType: filterType)
     }
 
     func addWebhookLog(_ log: WebhookLog) {
-        var logs = getWebhookLogs()
-        logs.insert(log, at: 0)
-        if logs.count > PreferencesManager.maxLogs {
-            logs = Array(logs.prefix(PreferencesManager.maxLogs))
-        }
-        if let data = try? encoder.encode(logs) {
-            defaults.set(data, forKey: Keys.webhookLogs)
-        }
+        LogStore.shared.add(log)
         DispatchQueue.main.async { self.objectWillChange.send() }
     }
 
     func clearWebhookLogs(filterType: LogType? = nil) {
-        if let filterType = filterType {
-            var logs = getWebhookLogs()
-            logs.removeAll { $0.logType == filterType }
-            if let data = try? encoder.encode(logs) {
-                defaults.set(data, forKey: Keys.webhookLogs)
-            }
-        } else {
-            defaults.removeObject(forKey: Keys.webhookLogs)
-        }
+        LogStore.shared.clear(filterType: filterType)
         DispatchQueue.main.async { self.objectWillChange.send() }
     }
 
     func deleteWebhookLog(id: String) {
-        var logs = getWebhookLogs()
-        logs.removeAll { $0.id == id }
-        if let data = try? encoder.encode(logs) {
-            defaults.set(data, forKey: Keys.webhookLogs)
-        }
+        LogStore.shared.delete(id: id)
         DispatchQueue.main.async { self.objectWillChange.send() }
     }
 }

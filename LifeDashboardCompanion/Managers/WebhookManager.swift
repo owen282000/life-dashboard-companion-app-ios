@@ -3,7 +3,8 @@ import Foundation
 actor WebhookManager {
     static let shared = WebhookManager()
 
-    private let timeoutSeconds: TimeInterval = 10
+    // 30s accommodates large payloads over cellular connections
+    private let timeoutSeconds: TimeInterval = 30
 
     private init() {}
 

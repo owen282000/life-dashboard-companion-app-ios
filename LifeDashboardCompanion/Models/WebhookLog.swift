@@ -9,7 +9,7 @@ struct WebhookLog: Codable, Identifiable {
     let errorMessage: String?
     let dataType: String?
     let recordCount: Int?
-    let rawPayload: String?
+    var rawPayload: String?
     let logType: LogType
 
     init(
