@@ -65,9 +65,15 @@ Three complementary mechanisms keep your data flowing without opening the app:
 - **Retries with backoff** - Transient failures are retried automatically; permanent errors fail fast
 - **Offline queue** - Failed payloads are stored on-device and re-sent automatically when connectivity returns or on the next background task
 
+### Automation
+
+- **Shortcuts & Siri** - A "Sync Health Data" action for the Shortcuts app: automate syncs on a schedule, on arriving home, or by voice
+- **Home screen widget** - Last sync result, records delivered today, and a green/red status dot, so silent background failures are visible at a glance
+
 ### Data Tools
 
 - **Data preview** - View the exact JSON payload before syncing
+- **Test ping** - Send a small test payload to verify your server setup without waiting for real data
 - **Export as CSV/JSON** - Export sync logs via the iOS share sheet
 - **Webhook logs** - View recent sync attempts with payloads for debugging
 
@@ -423,6 +429,8 @@ If you find this project useful, please consider:
 - Starring the repository
 - Sharing it with others who might benefit
 - Contributing improvements
+
+P.S. The About screen hides a couple of easter eggs.
 
 ---
 
