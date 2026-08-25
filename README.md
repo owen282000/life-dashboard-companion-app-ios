@@ -3,6 +3,7 @@
 [![Build](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/build.yml/badge.svg)](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/build.yml)
 [![Security](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/security.yml/badge.svg)](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/security.yml)
 [![CodeQL](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/codeql.yml/badge.svg)](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/owen282000/life-dashboard-companion-app-ios/badge)](https://scorecard.dev/viewer/?uri=github.com/owen282000/life-dashboard-companion-app-ios)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![iOS](https://img.shields.io/badge/iOS-17%2B-blue.svg)](https://developer.apple.com)
 

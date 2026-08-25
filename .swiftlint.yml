@@ -1,0 +1,25 @@
+included:
+  - LifeDashboardCompanion
+  - LifeDashboardCompanionTests
+  - LifeDashboardWidget
+
+disabled_rules:
+  # Views and payload-mapping switches are naturally long in this codebase
+  - line_length
+  - function_body_length
+  - type_body_length
+  - file_length
+  - cyclomatic_complexity
+
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+  - contains_over_filter_is_empty
+
+identifier_name:
+  min_length: 2
+  max_length: 50
+
+# Webhook delivery calls carry url/header/log context explicitly by design
+function_parameter_count:
+  warning: 8
