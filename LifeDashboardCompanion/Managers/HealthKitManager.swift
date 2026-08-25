@@ -66,12 +66,6 @@ class HealthKitManager: ObservableObject {
         self.authorizationStatus = statuses
     }
 
-    func hasAuthorization(for type: HealthDataType) -> Bool {
-        guard let sampleType = type.hkSampleTypes.first else { return false }
-        return healthStore.authorizationStatus(for: sampleType) == .sharingAuthorized ||
-               healthStore.authorizationStatus(for: sampleType) != .notDetermined
-    }
-
     // MARK: - Data Reading
 
     func readHealthData(
@@ -229,6 +223,15 @@ class HealthKitManager: ObservableObject {
         }
     }
 
+    /// Adds the stable HealthKit UUID and the writing app/device to a payload record,
+    /// so servers can deduplicate re-sent records and trace their origin.
+    private func record(_ fields: [String: Any], from sample: HKSample) -> [String: Any] {
+        var record = fields
+        record["uuid"] = sample.uuid.uuidString
+        record["source"] = sample.sourceRevision.source.name
+        return record
+    }
+
     /// Reads data for a single HealthDataType. Returns (payloadKey, data) or nil if empty.
     private func readDataForType(
         _ dataType: HealthDataType,
@@ -242,11 +245,11 @@ class HealthKitManager: ObservableObject {
                 start: start, end: end
             )
             let mapped = records.map { sample -> [String: Any] in
-                [
+                record([
                     "count": Int(sample.quantity.doubleValue(for: .count())),
                     "start_time": sample.startDate.iso8601String,
                     "end_time": sample.endDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("steps", mapped)
 
@@ -256,11 +259,11 @@ class HealthKitManager: ObservableObject {
                 start: start, end: end
             )
             let mapped = records.map { sample -> [String: Any] in
-                [
+                record([
                     "meters": sample.quantity.doubleValue(for: .meter()),
                     "start_time": sample.startDate.iso8601String,
                     "end_time": sample.endDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("distance", mapped)
 
@@ -270,11 +273,11 @@ class HealthKitManager: ObservableObject {
                 start: start, end: end
             )
             let mapped = records.map { sample -> [String: Any] in
-                [
+                record([
                     "calories": sample.quantity.doubleValue(for: .kilocalorie()),
                     "start_time": sample.startDate.iso8601String,
                     "end_time": sample.endDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("active_calories", mapped)
 
@@ -289,18 +292,18 @@ class HealthKitManager: ObservableObject {
             )
             var mapped: [[String: Any]] = []
             mapped += try await activeRecords.map { sample -> [String: Any] in
-                [
+                record([
                     "calories": sample.quantity.doubleValue(for: .kilocalorie()),
                     "start_time": sample.startDate.iso8601String,
                     "end_time": sample.endDate.iso8601String
-                ]
+                ], from: sample)
             }
             mapped += try await basalRecords.map { sample -> [String: Any] in
-                [
+                record([
                     "calories": sample.quantity.doubleValue(for: .kilocalorie()),
                     "start_time": sample.startDate.iso8601String,
                     "end_time": sample.endDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("total_calories", mapped)
 
@@ -310,10 +313,10 @@ class HealthKitManager: ObservableObject {
                 start: start, end: end
             )
             let mapped = records.map { sample -> [String: Any] in
-                [
+                record([
                     "kilograms": sample.quantity.doubleValue(for: .gramUnit(with: .kilo)),
                     "time": sample.startDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("weight", mapped)
 
@@ -323,10 +326,10 @@ class HealthKitManager: ObservableObject {
                 start: start, end: end
             )
             let mapped = records.map { sample -> [String: Any] in
-                [
+                record([
                     "meters": sample.quantity.doubleValue(for: .meter()),
                     "time": sample.startDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("height", mapped)
 
@@ -336,10 +339,10 @@ class HealthKitManager: ObservableObject {
                 start: start, end: end
             )
             let mapped = records.map { sample -> [String: Any] in
-                [
+                record([
                     "bpm": Int(sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))),
                     "time": sample.startDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("heart_rate", mapped)
 
@@ -349,10 +352,10 @@ class HealthKitManager: ObservableObject {
                 start: start, end: end
             )
             let mapped = records.map { sample -> [String: Any] in
-                [
+                record([
                     "bpm": Int(sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))),
                     "time": sample.startDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("resting_heart_rate", mapped)
 
@@ -362,10 +365,10 @@ class HealthKitManager: ObservableObject {
                 start: start, end: end
             )
             let mapped = records.map { sample -> [String: Any] in
-                [
+                record([
                     "heart_rate_variability_millis": sample.quantity.doubleValue(for: .secondUnit(with: .milli)),
                     "time": sample.startDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("heart_rate_variability", mapped)
 
@@ -386,14 +389,14 @@ class HealthKitManager: ObservableObject {
                 let matchingDiastolic = diastolic.first {
                     abs($0.startDate.timeIntervalSince(s.startDate)) < 1
                 }
-                var record: [String: Any] = [
+                var fields: [String: Any] = [
                     "systolic": s.quantity.doubleValue(for: mmHg),
                     "time": s.startDate.iso8601String
                 ]
                 if let d = matchingDiastolic {
-                    record["diastolic"] = d.quantity.doubleValue(for: mmHg)
+                    fields["diastolic"] = d.quantity.doubleValue(for: mmHg)
                 }
-                mapped.append(record)
+                mapped.append(record(fields, from: s))
             }
             return mapped.isEmpty ? nil : ("blood_pressure", mapped)
 
@@ -403,12 +406,12 @@ class HealthKitManager: ObservableObject {
                 start: start, end: end
             )
             let mapped = records.map { sample -> [String: Any] in
-                [
+                record([
                     "mmol_per_liter": sample.quantity.doubleValue(
                         for: HKUnit.moleUnit(with: .milli, molarMass: HKUnitMolarMassBloodGlucose).unitDivided(by: .liter())
                     ),
                     "time": sample.startDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("blood_glucose", mapped)
 
@@ -418,10 +421,10 @@ class HealthKitManager: ObservableObject {
                 start: start, end: end
             )
             let mapped = records.map { sample -> [String: Any] in
-                [
+                record([
                     "percentage": sample.quantity.doubleValue(for: .percent()) * 100,
                     "time": sample.startDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("oxygen_saturation", mapped)
 
@@ -431,10 +434,10 @@ class HealthKitManager: ObservableObject {
                 start: start, end: end
             )
             let mapped = records.map { sample -> [String: Any] in
-                [
+                record([
                     "celsius": sample.quantity.doubleValue(for: .degreeCelsius()),
                     "time": sample.startDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("body_temperature", mapped)
 
@@ -444,10 +447,10 @@ class HealthKitManager: ObservableObject {
                 start: start, end: end
             )
             let mapped = records.map { sample -> [String: Any] in
-                [
+                record([
                     "rate": sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute())),
                     "time": sample.startDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("respiratory_rate", mapped)
 
@@ -457,10 +460,10 @@ class HealthKitManager: ObservableObject {
                 start: start, end: end
             )
             let mapped = records.map { sample -> [String: Any] in
-                [
+                record([
                     "percentage": sample.quantity.doubleValue(for: .percent()) * 100,
                     "time": sample.startDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("body_fat", mapped)
 
@@ -470,10 +473,10 @@ class HealthKitManager: ObservableObject {
                 start: start, end: end
             )
             let mapped = records.map { sample -> [String: Any] in
-                [
+                record([
                     "kilograms": sample.quantity.doubleValue(for: .gramUnit(with: .kilo)),
                     "time": sample.startDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("lean_body_mass", mapped)
 
@@ -491,11 +494,11 @@ class HealthKitManager: ObservableObject {
                 start: start, end: end
             )
             let mapped = records.map { sample -> [String: Any] in
-                [
+                record([
                     "liters": sample.quantity.doubleValue(for: .liter()),
                     "start_time": sample.startDate.iso8601String,
                     "end_time": sample.endDate.iso8601String
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("hydration", mapped)
 
@@ -510,13 +513,35 @@ class HealthKitManager: ObservableObject {
             )
             let mapped = records.map { sample -> [String: Any] in
                 let duration = sample.endDate.timeIntervalSince(sample.startDate)
-                return [
+                return record([
                     "start_time": sample.startDate.iso8601String,
                     "end_time": sample.endDate.iso8601String,
                     "duration_seconds": Int(duration)
-                ]
+                ], from: sample)
             }
             return mapped.isEmpty ? nil : ("mindfulness", mapped)
+
+        case .menstruation:
+            let records = try await readCategorySamples(
+                type: HKCategoryType(.menstrualFlow),
+                start: start, end: end
+            )
+            let mapped = records.compactMap { sample -> [String: Any]? in
+                guard let value = HKCategoryValueMenstrualFlow(rawValue: sample.value) else { return nil }
+                let flow: String
+                switch value {
+                case .light: flow = "light"
+                case .medium: flow = "medium"
+                case .heavy: flow = "heavy"
+                case .unspecified: flow = "unknown"
+                default: return nil  // .none means no bleeding: skip
+                }
+                return record([
+                    "flow": flow,
+                    "time": sample.startDate.iso8601String
+                ], from: sample)
+            }
+            return mapped.isEmpty ? nil : ("menstruation_flow", mapped)
         }
     }
 
@@ -578,74 +603,33 @@ class HealthKitManager: ObservableObject {
             start: start, end: end
         )
 
-        // Group by sleep session (samples with overlapping times)
-        var sessions: [[HKCategorySample]] = []
-        var currentSession: [HKCategorySample] = []
-
-        let sorted = samples.sorted { $0.startDate < $1.startDate }
-
-        for sample in sorted {
-            if let sleepValue = HKCategoryValueSleepAnalysis(rawValue: sample.value),
-               sleepValue == .inBed || sleepValue == .asleepUnspecified ||
-               sleepValue == .asleepCore || sleepValue == .asleepDeep ||
-               sleepValue == .asleepREM || sleepValue == .awake {
-
-                if let lastSample = currentSession.last,
-                   sample.startDate.timeIntervalSince(lastSample.endDate) > 3600 {
-                    // Gap > 1 hour = new session
-                    if !currentSession.isEmpty {
-                        sessions.append(currentSession)
-                    }
-                    currentSession = [sample]
-                } else {
-                    currentSession.append(sample)
-                }
+        // Stage values match the Android companion app so both can feed the same backend.
+        let stageSamples = samples.compactMap { sample -> SleepStageSample? in
+            guard let value = HKCategoryValueSleepAnalysis(rawValue: sample.value) else { return nil }
+            let stage: String
+            switch value {
+            case .inBed: stage = "in_bed"  // Container only, not a real stage
+            case .asleepUnspecified: stage = "sleeping"
+            case .asleepCore: stage = "light"
+            case .asleepDeep: stage = "deep"
+            case .asleepREM: stage = "rem"
+            case .awake: stage = "awake"
+            @unknown default: stage = "unknown"
             }
+            return SleepStageSample(
+                stage: stage,
+                start: sample.startDate,
+                end: sample.endDate,
+                uuid: sample.uuid.uuidString,
+                source: sample.sourceRevision.source.name
+            )
         }
-        if !currentSession.isEmpty {
-            sessions.append(currentSession)
-        }
 
-        return sessions.map { session -> [String: Any] in
-            let sessionStart = session.map(\.startDate).min() ?? Date()
-            let sessionEnd = session.map(\.endDate).max() ?? Date()
-            let duration = sessionEnd.timeIntervalSince(sessionStart)
-
-            let stages: [[String: Any]] = session.compactMap { sample in
-                let stageName: String
-                if let value = HKCategoryValueSleepAnalysis(rawValue: sample.value) {
-                    switch value {
-                    case .inBed: stageName = "STAGE_TYPE_IN_BED"  // Container only, not a real stage
-                    case .asleepUnspecified: stageName = "STAGE_TYPE_SLEEPING"
-                    case .asleepCore: stageName = "STAGE_TYPE_LIGHT"
-                    case .asleepDeep: stageName = "STAGE_TYPE_DEEP"
-                    case .asleepREM: stageName = "STAGE_TYPE_REM"
-                    case .awake: stageName = "STAGE_TYPE_AWAKE"
-                    @unknown default: stageName = "STAGE_TYPE_UNKNOWN"
-                    }
-                } else {
-                    stageName = "STAGE_TYPE_UNKNOWN"
-                }
-
-                let stageDuration = sample.endDate.timeIntervalSince(sample.startDate)
-                return [
-                    "stage": stageName,
-                    "start_time": sample.startDate.iso8601String,
-                    "end_time": sample.endDate.iso8601String,
-                    "duration_seconds": Int(stageDuration)
-                ]
-            }
-
-            return [
-                "session_end_time": sessionEnd.iso8601String,
-                "duration_seconds": Int(duration),
-                "stages": stages
-            ]
-        }
+        return SleepSessionBuilder.sessions(from: stageSamples)
     }
 
     private func readWorkouts(start: Date, end: Date) async throws -> [[String: Any]] {
-        try await withCheckedThrowingContinuation { continuation in
+        let workouts: [HKWorkout] = try await withCheckedThrowingContinuation { continuation in
             let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
             let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
 
@@ -659,18 +643,18 @@ class HealthKitManager: ObservableObject {
                     continuation.resume(throwing: error)
                     return
                 }
-                let workouts = (samples as? [HKWorkout]) ?? []
-                let mapped = workouts.map { workout -> [String: Any] in
-                    [
-                        "type": workout.workoutActivityType.name,
-                        "start_time": workout.startDate.iso8601String,
-                        "end_time": workout.endDate.iso8601String,
-                        "duration_seconds": Int(workout.duration)
-                    ]
-                }
-                continuation.resume(returning: mapped)
+                continuation.resume(returning: (samples as? [HKWorkout]) ?? [])
             }
             healthStore.execute(query)
+        }
+
+        return workouts.map { workout in
+            record([
+                "type": workout.workoutActivityType.name,
+                "start_time": workout.startDate.iso8601String,
+                "end_time": workout.endDate.iso8601String,
+                "duration_seconds": Int(workout.duration)
+            ], from: workout)
         }
     }
 
@@ -694,31 +678,31 @@ class HealthKitManager: ObservableObject {
 
         // Combine by matching timestamps
         var mapped: [[String: Any]] = calorieRecords.map { sample -> [String: Any] in
-            var record: [String: Any] = [
+            var fields: [String: Any] = [
                 "calories": sample.quantity.doubleValue(for: .kilocalorie()),
                 "start_time": sample.startDate.iso8601String,
                 "end_time": sample.endDate.iso8601String
             ]
             if let protein = proteinRecords.first(where: { abs($0.startDate.timeIntervalSince(sample.startDate)) < 1 }) {
-                record["protein_grams"] = protein.quantity.doubleValue(for: .gram())
+                fields["protein_grams"] = protein.quantity.doubleValue(for: .gram())
             }
             if let carb = carbRecords.first(where: { abs($0.startDate.timeIntervalSince(sample.startDate)) < 1 }) {
-                record["carbs_grams"] = carb.quantity.doubleValue(for: .gram())
+                fields["carbs_grams"] = carb.quantity.doubleValue(for: .gram())
             }
             if let fat = fatRecords.first(where: { abs($0.startDate.timeIntervalSince(sample.startDate)) < 1 }) {
-                record["fat_grams"] = fat.quantity.doubleValue(for: .gram())
+                fields["fat_grams"] = fat.quantity.doubleValue(for: .gram())
             }
-            return record
+            return record(fields, from: sample)
         }
 
         // Also include standalone protein/carb/fat records not matched to calories
         for protein in proteinRecords {
             if !calorieRecords.contains(where: { abs($0.startDate.timeIntervalSince(protein.startDate)) < 1 }) {
-                mapped.append([
+                mapped.append(record([
                     "protein_grams": protein.quantity.doubleValue(for: .gram()),
                     "start_time": protein.startDate.iso8601String,
                     "end_time": protein.endDate.iso8601String
-                ])
+                ], from: protein))
             }
         }
 
