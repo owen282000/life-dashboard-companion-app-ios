@@ -1,7 +1,9 @@
 import Foundation
+import OSLog
 
 class ExportManager {
     static let shared = ExportManager()
+    private let logger = Logger(subsystem: "com.owen282000.lifedashboard", category: "Export")
 
     private let dateFormatter: DateFormatter = {
         let df = DateFormatter()
@@ -77,7 +79,7 @@ class ExportManager {
             try content.write(to: fileURL, atomically: true, encoding: .utf8)
             return fileURL
         } catch {
-            print("Failed to write export file: \(error)")
+            logger.error("Failed to write export file: \(error)")
             return nil
         }
     }

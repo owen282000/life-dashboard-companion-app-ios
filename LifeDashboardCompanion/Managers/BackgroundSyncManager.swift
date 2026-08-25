@@ -1,9 +1,11 @@
 import Foundation
+import OSLog
 import BackgroundTasks
 import HealthKit
 
 class BackgroundSyncManager {
     static let shared = BackgroundSyncManager()
+    private let logger = Logger(subsystem: "com.owen282000.lifedashboard", category: "BackgroundSync")
 
     static let healthSyncTaskId = "com.owen282000.lifedashboard.healthsync"
     static let healthRefreshTaskId = "com.owen282000.lifedashboard.healthrefresh"
@@ -75,15 +77,15 @@ class BackgroundSyncManager {
                 healthKitManager.healthStore.enableBackgroundDelivery(
                     for: sampleType,
                     frequency: .hourly
-                ) { success, error in
+                ) { [logger] success, error in
                     if let error = error {
-                        print("Background delivery error for \(dataType.displayName): \(error)")
+                        logger.error("Background delivery error for \(dataType.displayName): \(error)")
                     }
                 }
             }
         }
 
-        print("HealthKit observers set up for \(enabledTypes.count) data types (\(observerQueries.count) queries)")
+        logger.info("HealthKit observers set up for \(enabledTypes.count) data types (\(self.observerQueries.count) queries)")
     }
 
     /// Reconfigures observers when user toggles data types on/off.
@@ -108,7 +110,7 @@ class BackgroundSyncManager {
 
             guard !typesToSync.isEmpty else { return }
 
-            print("HealthKit observer triggered sync for: \(typesToSync.map { $0.displayName })")
+            logger.info("HealthKit observer triggered sync for: \(typesToSync.map { $0.displayName })")
             let _ = await HealthSyncManager.shared.performIncrementalSync(types: typesToSync)
         }
     }
@@ -125,7 +127,7 @@ class BackgroundSyncManager {
         do {
             try BGTaskScheduler.shared.submit(request)
         } catch {
-            print("Failed to schedule health sync: \(error)")
+            logger.error("Failed to schedule health sync: \(error)")
         }
     }
 
@@ -137,7 +139,7 @@ class BackgroundSyncManager {
         do {
             try BGTaskScheduler.shared.submit(request)
         } catch {
-            print("Failed to schedule health refresh: \(error)")
+            logger.error("Failed to schedule health refresh: \(error)")
         }
     }
 

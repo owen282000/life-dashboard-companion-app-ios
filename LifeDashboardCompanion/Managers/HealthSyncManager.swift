@@ -1,7 +1,9 @@
 import Foundation
+import OSLog
 
 class HealthSyncManager {
     static let shared = HealthSyncManager()
+    private let logger = Logger(subsystem: "com.owen282000.lifedashboard", category: "HealthSync")
 
     private let prefs = PreferencesManager.shared
     private let healthKit = HealthKitManager.shared
@@ -116,7 +118,7 @@ class HealthSyncManager {
         let items = pendingStore.dequeueAll()
         guard !items.isEmpty else { return }
 
-        print("Draining pending sync queue: \(items.count) item(s)")
+        logger.info("Draining pending sync queue: \(items.count) item(s)")
 
         for item in items {
             guard let payload = try? JSONSerialization.jsonObject(with: item.payload) as? [String: Any] else {
@@ -135,10 +137,10 @@ class HealthSyncManager {
 
             if success {
                 pendingStore.remove(id: item.id)
-                print("Pending sync item \(item.id) delivered successfully")
+                logger.info("Pending sync item \(item.id) delivered successfully")
             } else {
                 pendingStore.updateAttempt(id: item.id, error: "Retry failed")
-                print("Pending sync retry failed, stopping drain")
+                logger.info("Pending sync retry failed, stopping drain")
                 break
             }
         }
@@ -178,7 +180,7 @@ class HealthSyncManager {
             recordCount: totalRecords
         )
 
-        print("Enqueued failed sync payload (\(totalRecords) records) for retry")
+        logger.info("Enqueued failed sync payload (\(totalRecords) records) for retry")
     }
 
     private func countRecords(in data: [String: Any], syncCounts: inout [HealthDataType: Int]) -> Int {
