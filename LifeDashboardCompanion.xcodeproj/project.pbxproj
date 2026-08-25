@@ -29,6 +29,15 @@
 		B100001A /* WebhookSignerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001A /* WebhookSignerTests.swift */; };
 		B100001B /* WebhookRetryPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001B /* WebhookRetryPolicyTests.swift */; };
 		B100001C /* SleepSessionBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001C /* SleepSessionBuilderTests.swift */; };
+		B100001D /* SyncLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001D /* SyncLimits.swift */; };
+		B100001E /* MenstruationPeriodBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001E /* MenstruationPeriodBuilder.swift */; };
+		B100001F /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001F /* KeychainStore.swift */; };
+		B1000022 /* LogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000022 /* LogStore.swift */; };
+		B1000023 /* AboutScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000023 /* AboutScreen.swift */; };
+		B1000024 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F1000024 /* PrivacyInfo.xcprivacy */; };
+		B1000025 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F1000025 /* Localizable.xcstrings */; };
+		B1000026 /* SyncLimitsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000026 /* SyncLimitsTests.swift */; };
+		B1000027 /* MenstruationPeriodBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000027 /* MenstruationPeriodBuilderTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,6 +77,15 @@
 		F100001C /* SleepSessionBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSessionBuilderTests.swift; sourceTree = "<group>"; };
 		F1000020 /* LifeDashboardCompanion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LifeDashboardCompanion.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F1000021 /* LifeDashboardCompanionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LifeDashboardCompanionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F100001D /* SyncLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncLimits.swift; sourceTree = "<group>"; };
+		F100001E /* MenstruationPeriodBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenstruationPeriodBuilder.swift; sourceTree = "<group>"; };
+		F100001F /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		F1000022 /* LogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStore.swift; sourceTree = "<group>"; };
+		F1000023 /* AboutScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutScreen.swift; sourceTree = "<group>"; };
+		F1000024 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		F1000025 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		F1000026 /* SyncLimitsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncLimitsTests.swift; sourceTree = "<group>"; };
+		F1000027 /* MenstruationPeriodBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenstruationPeriodBuilderTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,6 +126,8 @@
 				F1000003 /* Assets.xcassets */,
 				F1000013 /* Info.plist */,
 				F1000014 /* LifeDashboardCompanion.entitlements */,
+				F1000024 /* PrivacyInfo.xcprivacy */,
+				F1000025 /* Localizable.xcstrings */,
 			);
 			path = LifeDashboardCompanion;
 			sourceTree = "<group>";
@@ -145,6 +165,10 @@
 				F1000017 /* WebhookSigner.swift */,
 				F1000018 /* WebhookRetryPolicy.swift */,
 				F1000019 /* SleepSessionBuilder.swift */,
+				F100001D /* SyncLimits.swift */,
+				F100001E /* MenstruationPeriodBuilder.swift */,
+				F100001F /* KeychainStore.swift */,
+				F1000022 /* LogStore.swift */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
@@ -154,6 +178,7 @@
 			children = (
 				F1000010 /* HealthKitScreen.swift */,
 				F1000012 /* LogsScreen.swift */,
+				F1000023 /* AboutScreen.swift */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -164,6 +189,8 @@
 				F100001A /* WebhookSignerTests.swift */,
 				F100001B /* WebhookRetryPolicyTests.swift */,
 				F100001C /* SleepSessionBuilderTests.swift */,
+				F1000026 /* SyncLimitsTests.swift */,
+				F1000027 /* MenstruationPeriodBuilderTests.swift */,
 			);
 			path = LifeDashboardCompanionTests;
 			sourceTree = "<group>";
@@ -257,6 +284,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				B1000003 /* Assets.xcassets in Resources */,
+				B1000024 /* PrivacyInfo.xcprivacy in Resources */,
+				B1000025 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -285,6 +314,11 @@
 				B1000017 /* WebhookSigner.swift in Sources */,
 				B1000018 /* WebhookRetryPolicy.swift in Sources */,
 				B1000019 /* SleepSessionBuilder.swift in Sources */,
+				B100001D /* SyncLimits.swift in Sources */,
+				B100001E /* MenstruationPeriodBuilder.swift in Sources */,
+				B100001F /* KeychainStore.swift in Sources */,
+				B1000022 /* LogStore.swift in Sources */,
+				B1000023 /* AboutScreen.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -295,6 +329,8 @@
 				B100001A /* WebhookSignerTests.swift in Sources */,
 				B100001B /* WebhookRetryPolicyTests.swift in Sources */,
 				B100001C /* SleepSessionBuilderTests.swift in Sources */,
+				B1000026 /* SyncLimitsTests.swift in Sources */,
+				B1000027 /* MenstruationPeriodBuilderTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -363,6 +399,7 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
 			};
 			name = Debug;
 		};
@@ -419,6 +456,7 @@
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;

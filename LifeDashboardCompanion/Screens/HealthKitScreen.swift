@@ -73,7 +73,7 @@ struct HealthKitScreen: View {
 
                     Spacer()
 
-                    Toggle("", isOn: Binding(
+                    Toggle(dataType.displayName, isOn: Binding(
                         get: { prefs.healthEnabledDataTypes.contains(dataType) },
                         set: { enabled in
                             if enabled {
@@ -145,6 +145,7 @@ struct HealthKitScreen: View {
                         Image(systemName: "minus.circle.fill")
                             .foregroundColor(.red)
                     }
+                    .accessibilityLabel("Remove webhook URL")
                 }
             }
 
@@ -166,6 +167,7 @@ struct HealthKitScreen: View {
                     Image(systemName: "plus.circle.fill")
                         .foregroundColor(.green)
                 }
+                .accessibilityLabel("Add webhook URL")
             }
         }
         .padding()
@@ -200,6 +202,7 @@ struct HealthKitScreen: View {
                             Image(systemName: "minus.circle.fill")
                                 .foregroundColor(.red)
                         }
+                        .accessibilityLabel("Remove header \(key)")
                     }
                 }
 
@@ -222,6 +225,7 @@ struct HealthKitScreen: View {
                         Image(systemName: "plus.circle.fill")
                             .foregroundColor(.green)
                     }
+                    .accessibilityLabel("Add header")
                 }
 
                 Divider()

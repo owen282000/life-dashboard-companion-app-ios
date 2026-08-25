@@ -24,6 +24,16 @@ struct ContentView: View {
                 Label("Logs", systemImage: "doc.text.fill")
             }
             .tag(1)
+
+            NavigationStack {
+                AboutScreen()
+                    .navigationTitle("About")
+                    .navigationBarTitleDisplayMode(.inline)
+            }
+            .tabItem {
+                Label("About", systemImage: "info.circle.fill")
+            }
+            .tag(2)
         }
         .tint(.accentColor)
     }
