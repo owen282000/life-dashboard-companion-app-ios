@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/owen282000/life-dashboard-companion-app-ios/security/advisories/new
+    about: Please report security vulnerabilities privately, not as a public issue.
+  - name: Android companion app
+    url: https://github.com/owen282000/life-dashboard-companion-app/issues
+    about: Issues with the Android app belong in its own repository.
