@@ -17,6 +17,7 @@ struct HealthKitScreen: View {
     @State private var newHeaderValue: String = ""
     @State private var isLoadingPreview = false
     @State private var previewFullPayload: String = ""
+    @State private var isTestingWebhook = false
 
     var body: some View {
         ScrollView {
@@ -295,6 +296,40 @@ struct HealthKitScreen: View {
                     .tint(.orange)
                 }
             }
+
+            // Test Ping: verify server setup without waiting for real data
+            Button {
+                isTestingWebhook = true
+                syncMessage = nil
+                Task {
+                    let payload: [String: Any] = [
+                        "test": true,
+                        "message": "Test ping from Life Dashboard Companion",
+                        "timestamp": Date().iso8601String,
+                        "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
+                        "source": "healthkit_ios"
+                    ]
+                    let success = await WebhookManager.shared.post(
+                        payload: payload,
+                        urls: prefs.healthWebhookUrls,
+                        headers: prefs.healthWebhookHeaders,
+                        logType: .healthConnect,
+                        dataType: "test",
+                        recordCount: 0
+                    )
+                    await MainActor.run {
+                        isTestingWebhook = false
+                        syncMessage = success
+                            ? "Test ping delivered"
+                            : "Test ping failed, check the logs"
+                    }
+                }
+            } label: {
+                Label(isTestingWebhook ? "Pinging..." : "Send Test Ping", systemImage: "dot.radiowaves.left.and.right")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(prefs.healthWebhookUrls.isEmpty || isTestingWebhook)
 
             // Preview Data
             Button {
