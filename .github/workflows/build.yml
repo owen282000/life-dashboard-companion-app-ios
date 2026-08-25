@@ -1,0 +1,35 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build app (unsigned, simulator SDK)
+        run: |
+          xcodebuild \
+            -project LifeDashboardCompanion.xcodeproj \
+            -target LifeDashboardCompanion \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Upload simulator app
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: success()
+        with:
+          name: simulator-app
+          path: build/Debug-iphonesimulator/LifeDashboardCompanion.app
+          retention-days: 30

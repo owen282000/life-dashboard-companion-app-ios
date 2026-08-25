@@ -1,8 +1,14 @@
 # Life Dashboard Companion (iOS)
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Platform](https://img.shields.io/badge/Platform-iOS%2017%2B-blue.svg)
-![Swift](https://img.shields.io/badge/Swift-5-orange.svg)
+[![Build](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/build.yml/badge.svg)](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/build.yml)
+[![Security](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/security.yml/badge.svg)](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/security.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![iOS](https://img.shields.io/badge/iOS-17%2B-blue.svg)](https://developer.apple.com)
+
+<p align="center">
+  <img src="docs/screenshots/health.png" width="250" alt="Health Screen">
+  <img src="docs/screenshots/logs.png" width="250" alt="Webhook Logs Screen">
+</p>
 
 A privacy-focused iOS app that syncs your Apple Health (HealthKit) data to your own server via webhooks. Perfect for self-hosted dashboards, Home Assistant integrations, or any quantified self setup.
 
