@@ -38,6 +38,11 @@
 		B1000025 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F1000025 /* Localizable.xcstrings */; };
 		B1000026 /* SyncLimitsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000026 /* SyncLimitsTests.swift */; };
 		B1000027 /* MenstruationPeriodBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000027 /* MenstruationPeriodBuilderTests.swift */; };
+		B1000028 /* LifeDashboardWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F100002A /* LifeDashboardWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B1000029 /* LifeDashboardWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000028 /* LifeDashboardWidget.swift */; };
+		B100002A /* SharedSyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002C /* SharedSyncStatus.swift */; };
+		B100002B /* SharedSyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002C /* SharedSyncStatus.swift */; };
+		B100002C /* SyncHealthDataIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002D /* SyncHealthDataIntent.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -48,7 +53,28 @@
 			remoteGlobalIDString = C1000001;
 			remoteInfo = LifeDashboardCompanion;
 		};
+		CP000002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C1000002 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C1000004;
+			remoteInfo = LifeDashboardWidget;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		E1000008 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B1000028 /* LifeDashboardWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		F1000001 /* LifeDashboardCompanionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeDashboardCompanionApp.swift; sourceTree = "<group>"; };
@@ -86,6 +112,12 @@
 		F1000025 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		F1000026 /* SyncLimitsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncLimitsTests.swift; sourceTree = "<group>"; };
 		F1000027 /* MenstruationPeriodBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenstruationPeriodBuilderTests.swift; sourceTree = "<group>"; };
+		F1000028 /* LifeDashboardWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeDashboardWidget.swift; sourceTree = "<group>"; };
+		F1000029 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F100002A /* LifeDashboardWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LifeDashboardWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F100002B /* LifeDashboardWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LifeDashboardWidget.entitlements; sourceTree = "<group>"; };
+		F100002C /* SharedSyncStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedSyncStatus.swift; sourceTree = "<group>"; };
+		F100002D /* SyncHealthDataIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncHealthDataIntent.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -103,6 +135,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E1000007 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -110,6 +149,7 @@
 			isa = PBXGroup;
 			children = (
 				D1000002 /* LifeDashboardCompanion */,
+				D1000008 /* LifeDashboardWidget */,
 				D1000007 /* LifeDashboardCompanionTests */,
 				D1000003 /* Products */,
 			);
@@ -137,6 +177,7 @@
 			children = (
 				F1000020 /* LifeDashboardCompanion.app */,
 				F1000021 /* LifeDashboardCompanionTests.xctest */,
+				F100002A /* LifeDashboardWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -169,6 +210,8 @@
 				F100001E /* MenstruationPeriodBuilder.swift */,
 				F100001F /* KeychainStore.swift */,
 				F1000022 /* LogStore.swift */,
+				F100002C /* SharedSyncStatus.swift */,
+				F100002D /* SyncHealthDataIntent.swift */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
@@ -181,6 +224,16 @@
 				F1000023 /* AboutScreen.swift */,
 			);
 			path = Screens;
+			sourceTree = "<group>";
+		};
+		D1000008 /* LifeDashboardWidget */ = {
+			isa = PBXGroup;
+			children = (
+				F1000028 /* LifeDashboardWidget.swift */,
+				F1000029 /* Info.plist */,
+				F100002B /* LifeDashboardWidget.entitlements */,
+			);
+			path = LifeDashboardWidget;
 			sourceTree = "<group>";
 		};
 		D1000007 /* LifeDashboardCompanionTests */ = {
@@ -205,10 +258,12 @@
 				E1000002 /* Sources */,
 				E1000001 /* Frameworks */,
 				E1000003 /* Resources */,
+				E1000008 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				CD000002 /* PBXTargetDependency */,
 			);
 			name = LifeDashboardCompanion;
 			productName = LifeDashboardCompanion;
@@ -232,6 +287,22 @@
 			productReference = F1000021 /* LifeDashboardCompanionTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		C1000004 /* LifeDashboardWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1000004 /* Build configuration list for PBXNativeTarget "LifeDashboardWidget" */;
+			buildPhases = (
+				E1000006 /* Sources */,
+				E1000007 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LifeDashboardWidget;
+			productName = LifeDashboardWidget;
+			productReference = F100002A /* LifeDashboardWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXTargetDependency section */
@@ -239,6 +310,11 @@
 			isa = PBXTargetDependency;
 			target = C1000001 /* LifeDashboardCompanion */;
 			targetProxy = CP000001 /* PBXContainerItemProxy */;
+		};
+		CD000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C1000004 /* LifeDashboardWidget */;
+			targetProxy = CP000002 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -257,6 +333,9 @@
 						CreatedOnToolsVersion = 15.4;
 						TestTargetID = C1000001;
 					};
+					C1000004 = {
+						CreatedOnToolsVersion = 15.4;
+					};
 				};
 			};
 			buildConfigurationList = A1000001 /* Build configuration list for PBXProject "LifeDashboardCompanion" */;
@@ -273,6 +352,7 @@
 			projectRoot = "";
 			targets = (
 				C1000001 /* LifeDashboardCompanion */,
+				C1000004 /* LifeDashboardWidget */,
 				C1000003 /* LifeDashboardCompanionTests */,
 			);
 		};
@@ -319,6 +399,17 @@
 				B100001F /* KeychainStore.swift in Sources */,
 				B1000022 /* LogStore.swift in Sources */,
 				B1000023 /* AboutScreen.swift in Sources */,
+				B100002A /* SharedSyncStatus.swift in Sources */,
+				B100002C /* SyncHealthDataIntent.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E1000006 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B1000029 /* LifeDashboardWidget.swift in Sources */,
+				B100002B /* SharedSyncStatus.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -527,6 +618,58 @@
 			};
 			name = Release;
 		};
+		AA000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = LifeDashboardWidget/LifeDashboardWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B92ASNRFPF;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LifeDashboardWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Life Dashboard";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.owen282000.lifedashboard.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = LifeDashboardWidget/LifeDashboardWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B92ASNRFPF;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LifeDashboardWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Life Dashboard";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.owen282000.lifedashboard.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		AA000005 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -589,6 +732,15 @@
 			buildConfigurations = (
 				AA000005 /* Debug */,
 				AA000006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1000004 /* Build configuration list for PBXNativeTarget "LifeDashboardWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA000007 /* Debug */,
+				AA000008 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

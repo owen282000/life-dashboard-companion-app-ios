@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import WidgetKit
 
 class HealthSyncManager {
     static let shared = HealthSyncManager()
@@ -46,6 +47,8 @@ class HealthSyncManager {
                 dataType: "health_connect",
                 recordCount: totalRecords
             )
+
+            updateWidgetStatus(success: success, records: totalRecords)
 
             if success {
                 return .success(syncCounts: syncCounts)
@@ -100,6 +103,8 @@ class HealthSyncManager {
                     recordCount: totalRecords
                 )
 
+                updateWidgetStatus(success: success, records: totalRecords)
+
                 if success {
                     return .success(syncCounts: syncCounts)
                 } else {
@@ -110,6 +115,12 @@ class HealthSyncManager {
         } catch {
             return .failure(error: error.localizedDescription)
         }
+    }
+
+    /// Pushes the latest sync result to the app group so the home screen widget stays current.
+    private func updateWidgetStatus(success: Bool, records: Int) {
+        SharedSyncStatus.record(success: success, records: success ? records : 0)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     // MARK: - Pending Queue Drain
