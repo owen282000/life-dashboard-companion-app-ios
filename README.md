@@ -2,6 +2,7 @@
 
 [![Build](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/build.yml/badge.svg)](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/build.yml)
 [![Security](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/security.yml/badge.svg)](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/security.yml)
+[![CodeQL](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/codeql.yml/badge.svg)](https://github.com/owen282000/life-dashboard-companion-app-ios/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![iOS](https://img.shields.io/badge/iOS-17%2B-blue.svg)](https://developer.apple.com)
 
@@ -19,7 +20,7 @@ This is the iOS counterpart of [Life Dashboard Companion for Android](https://gi
 
 - **Own Your Data** - Send health data to your own server, not third-party clouds
 - **Flexible Webhooks** - Works with any backend that accepts JSON POST requests
-- **21 Health Data Types** - Supports all major HealthKit data types
+- **22 Health Data Types** - Supports all major HealthKit data types
 - **Real Background Sync** - HealthKit wakes the app when new data arrives, no polling needed
 - **Modern UI** - Built with SwiftUI
 
@@ -28,7 +29,7 @@ This is the iOS counterpart of [Life Dashboard Companion for Android](https://gi
 ### HealthKit Integration
 
 - Syncs data from Apple Health to your webhook
-- **21 supported data types**:
+- **22 supported data types**:
   - **Activity**: Steps, Distance, Active Calories, Total Calories, Exercise Sessions
   - **Body**: Weight, Height, Body Temperature
   - **Body Composition**: Body Fat %, Lean Body Mass
@@ -36,8 +37,13 @@ This is the iOS counterpart of [Life Dashboard Companion for Android](https://gi
   - **Sleep**: Sleep sessions with stages (light, deep, REM, awake)
   - **Nutrition**: Hydration, Nutrition records (calories, protein, carbs, fat)
   - **Mindfulness**: Meditation sessions (from apps that write mindful minutes to Apple Health)
+  - **Cycle Tracking**: Menstruation Flow (logged data from cycle apps that write to Apple Health)
 - Per-data-type toggle and permission management
 - Configurable sync interval (minimum 15 minutes)
+
+### No Screen Time?
+
+The Android companion app also syncs Screen Time, but iOS has no equivalent: Apple's Screen Time APIs (DeviceActivity) are restricted to on-device reports and do not allow exporting usage data, so a webhook sync is not possible.
 
 ### Background Sync
 
@@ -51,7 +57,8 @@ Three complementary mechanisms keep your data flowing without opening the app:
 
 - **Multiple webhook URLs** - Send to multiple endpoints simultaneously; a sync counts as delivered when at least one endpoint accepted it
 - **Custom headers** - Add auth tokens, API keys, or any custom HTTP headers
-- **Retries with backoff** - Up to 3 attempts per URL with exponential backoff (1s, 2s)
+- **HMAC payload signing** - Optional `X-Signature` header so your server can verify the sender
+- **Retries with backoff** - Transient failures are retried automatically; permanent errors fail fast
 - **Offline queue** - Failed payloads are stored on-device and re-sent automatically when connectivity returns or on the next background task
 
 ### Data Tools
@@ -84,14 +91,28 @@ In Xcode:
 1. Select your own development team under **Signing & Capabilities**
 2. Build and run on your iPhone (HealthKit does not work in the simulator with real data)
 
+To run the unit tests:
+
+```bash
+xcodebuild test -project LifeDashboardCompanion.xcodeproj -scheme LifeDashboardCompanion \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
+```
+
+Contributors who push version tags should enable the repo's git hooks once (validates semver tags against the project version):
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ## Setup
 
 1. Install the app on your iPhone
 2. **Grant HealthKit permissions** - Tap "Grant" and select the data types you want to sync
 3. **Configure webhook URLs** - Enter your server endpoint(s)
 4. **Add webhook headers** (optional) - Configure auth tokens or API keys
-5. **Set the sync interval** - Minimum 15 minutes
-6. Tap **Sync Now** to send your first payload
+5. **Set an HMAC signing secret** (optional, under Custom Headers) - Adds an `X-Signature` header to every request
+6. **Set the sync interval** - Minimum 15 minutes
+7. Tap **Preview Data** to inspect the payload, then **Sync Now** to send
 
 ## Webhook Payload Format
 
@@ -122,11 +143,12 @@ Every payload has these top-level fields:
   "mindfulness": [],
   "body_fat": [],
   "lean_body_mass": [],
-  "heart_rate_variability": []
+  "heart_rate_variability": [],
+  "menstruation_flow": []
 }
 ```
 
-Only enabled data types with records are included. Each array contains records with the following fields:
+Only enabled data types with records are included. Every record additionally contains a `uuid` (the stable HealthKit sample identifier, useful for server-side deduplication since full syncs re-send the last 7 days) and a `source` (the name of the app or device that wrote the record). These are omitted from the examples below for brevity. Each array contains records with the following fields:
 
 ### Activity
 
@@ -248,7 +270,7 @@ Only enabled data types with records are included. Each array contains records w
   "duration_seconds": 28800,
   "stages": [
     {
-      "stage": "STAGE_TYPE_DEEP",
+      "stage": "deep",
       "start_time": "2026-02-04T23:00:00Z",
       "end_time": "2026-02-05T01:00:00Z",
       "duration_seconds": 7200
@@ -257,7 +279,7 @@ Only enabled data types with records are included. Each array contains records w
 }
 ```
 
-Possible stage values: `STAGE_TYPE_IN_BED`, `STAGE_TYPE_SLEEPING`, `STAGE_TYPE_LIGHT`, `STAGE_TYPE_DEEP`, `STAGE_TYPE_REM`, `STAGE_TYPE_AWAKE`, `STAGE_TYPE_UNKNOWN`.
+Possible stage values: `in_bed`, `sleeping`, `light`, `deep`, `rem`, `awake`, `unknown`. These match the Android companion app's stage naming.
 
 ### Nutrition
 
@@ -283,11 +305,45 @@ All nutrition fields (`calories`, `protein_grams`, `carbs_grams`, `fat_grams`) a
 { "start_time": "2026-02-05T06:00:00Z", "end_time": "2026-02-05T06:15:00Z", "duration_seconds": 900 }
 ```
 
-## Delivery and Retries
+### Cycle Tracking
+
+**Menstruation Flow**
+
+```json
+{ "flow": "medium", "time": "2026-02-03T00:00:00Z" }
+```
+
+The `flow` field is one of `light`, `medium`, `heavy`, or `unknown`.
+
+## Delivery, Retries and Signing
 
 Every configured webhook URL receives each payload. A sync counts as delivered when at least one endpoint accepted it; per-URL results are visible in the in-app webhook logs.
 
-Failed posts are retried up to 3 times per URL with exponential backoff (1s, 2s). If all attempts fail, the payload is queued on-device and re-sent automatically when connectivity returns or on the next background task, so no data is lost while your server is down.
+Failed posts are retried up to 3 times per URL with exponential backoff (1s, 2s), but only for transient failures: network errors, timeouts, HTTP 408, 429, and 5xx. Permanent client errors (401, 404, ...) fail immediately without retrying. If all attempts fail, the payload is queued on-device and re-sent automatically when connectivity returns or on the next background task, so no data is lost while your server is down.
+
+When an HMAC signing secret is configured (under Custom Headers in the app), every POST includes:
+
+```
+X-Signature: sha256=<hex of HMAC-SHA256(secret, raw request body)>
+```
+
+Verify it server-side by recomputing the HMAC over the raw body:
+
+```javascript
+const crypto = require('crypto');
+
+function verifySignature(req, secret) {
+  const expected = 'sha256=' + crypto
+    .createHmac('sha256', secret)
+    .update(req.rawBody) // the exact raw request body bytes
+    .digest('hex');
+  const actual = req.get('X-Signature') || '';
+  return actual.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
+}
+```
+
+This is the same signing scheme as the Android companion app, so one server-side check covers both.
 
 ## Example Backend Integrations
 
