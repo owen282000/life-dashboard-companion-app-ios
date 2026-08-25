@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '[0-9]*.[0-9]*.[0-9]*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0  # full history so all version tags are available for comparison
+
+      - name: Validate semver tag
+        run: |
+          TAG="$GITHUB_REF_NAME"
+          if ! echo "$TAG" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Tag '$TAG' is not strict semver (X.Y.Z). Refusing to release."
+            exit 1
+          fi
+          LATEST=$(git tag --list | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | grep -vx "$TAG" | sort -V | tail -1)
+          if [ -n "$LATEST" ]; then
+            HIGHEST=$(printf '%s\n%s\n' "$LATEST" "$TAG" | sort -V | tail -1)
+            if [ "$HIGHEST" != "$TAG" ]; then
+              echo "Tag '$TAG' is not higher than the latest release '$LATEST'. Refusing to release."
+              exit 1
+            fi
+          fi
+
+      - name: Check tag matches MARKETING_VERSION
+        run: |
+          VERSION=$(grep -m1 -oE 'MARKETING_VERSION = [0-9.]+' LifeDashboardCompanion.xcodeproj/project.pbxproj | awk '{print $3}')
+          if [ "$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "MARKETING_VERSION ($VERSION) does not match tag ($GITHUB_REF_NAME). Refusing to release."
+            exit 1
+          fi
+
+      # No installable artifact: distributing an iOS build requires code signing,
+      # so releases only publish the version and generated release notes.
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
