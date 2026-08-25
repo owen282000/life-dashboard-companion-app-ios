@@ -1,7 +1,9 @@
 import Foundation
 import Network
 
-class NetworkMonitor: ObservableObject {
+/// @unchecked Sendable: `wasDisconnected` is only touched on the monitor's own
+/// serial queue, and `isConnected` is only mutated on the main queue.
+final class NetworkMonitor: ObservableObject, @unchecked Sendable {
     static let shared = NetworkMonitor()
 
     private let monitor = NWPathMonitor()
@@ -12,25 +14,30 @@ class NetworkMonitor: ObservableObject {
     private var wasDisconnected = false
 
     private init() {
+        configureHandler()
+        monitor.start(queue: queue)
+    }
+
+    private func configureHandler() {
         monitor.pathUpdateHandler = { [weak self] path in
+            guard let self = self else { return }
             let connected = path.status == .satisfied
 
             DispatchQueue.main.async {
-                self?.isConnected = connected
+                self.isConnected = connected
             }
 
             // Drain pending queue when network comes back
-            if connected && self?.wasDisconnected == true {
-                self?.wasDisconnected = false
+            if connected && self.wasDisconnected {
+                self.wasDisconnected = false
                 Task {
                     await HealthSyncManager.shared.drainPendingQueue()
                 }
             }
 
             if !connected {
-                self?.wasDisconnected = true
+                self.wasDisconnected = true
             }
         }
-        monitor.start(queue: queue)
     }
 }

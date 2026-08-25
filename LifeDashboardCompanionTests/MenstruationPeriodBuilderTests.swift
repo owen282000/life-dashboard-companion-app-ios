@@ -3,12 +3,12 @@ import XCTest
 
 final class MenstruationPeriodBuilderTests: XCTestCase {
 
-    private func day(_ n: Int) -> Date {
-        Date(timeIntervalSince1970: TimeInterval(n) * 86_400)
+    private func day(_ number: Int) -> Date {
+        Date(timeIntervalSince1970: TimeInterval(number) * 86_400)
     }
 
-    private func flowDay(_ n: Int) -> FlowSample {
-        FlowSample(start: day(n), end: day(n))
+    private func flowDay(_ number: Int) -> FlowSample {
+        FlowSample(start: day(number), end: day(number))
     }
 
     func testConsecutiveFlowDaysFormOnePeriod() {

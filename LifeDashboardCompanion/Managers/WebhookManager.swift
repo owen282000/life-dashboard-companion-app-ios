@@ -15,8 +15,10 @@ actor WebhookManager {
         let errorMessage: String?
     }
 
+    /// Posts a pre-serialized JSON body to every URL. Takes Data rather than a
+    /// dictionary so the payload crosses the actor boundary as a Sendable value.
     func post(
-        payload: [String: Any],
+        body jsonData: Data,
         urls: [String],
         headers: [String: String],
         logType: LogType,
@@ -24,10 +26,6 @@ actor WebhookManager {
         recordCount: Int
     ) async -> Bool {
         guard !urls.isEmpty else { return false }
-
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
-            return false
-        }
 
         var allHeaders = headers
         let signingSecret = PreferencesManager.shared.healthSigningSecret

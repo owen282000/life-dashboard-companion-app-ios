@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 import WidgetKit
 
-class HealthSyncManager {
+final class HealthSyncManager: Sendable {
     static let shared = HealthSyncManager()
     private let logger = Logger(subsystem: "com.owen282000.lifedashboard", category: "HealthSync")
 
@@ -39,8 +39,12 @@ class HealthSyncManager {
             var syncCounts: [HealthDataType: Int] = [:]
             let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
 
+            guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
+                return .failure(error: "Failed to serialize payload")
+            }
+
             let success = await WebhookManager.shared.post(
-                payload: payload,
+                body: body,
                 urls: webhookUrls,
                 headers: headers,
                 logType: .healthConnect,
@@ -53,7 +57,7 @@ class HealthSyncManager {
             if success {
                 return .success(syncCounts: syncCounts)
             } else {
-                enqueuePayload(payload, urls: webhookUrls, headers: headers, totalRecords: totalRecords)
+                enqueueBody(body, urls: webhookUrls, headers: headers, totalRecords: totalRecords)
                 return .failure(error: "Webhook failed - queued for retry")
             }
         } catch {
@@ -94,8 +98,12 @@ class HealthSyncManager {
                 var syncCounts: [HealthDataType: Int] = [:]
                 let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
 
+                guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
+                    return .failure(error: "Failed to serialize payload")
+                }
+
                 let success = await WebhookManager.shared.post(
-                    payload: payload,
+                    body: body,
                     urls: webhookUrls,
                     headers: headers,
                     logType: .healthConnect,
@@ -108,7 +116,7 @@ class HealthSyncManager {
                 if success {
                     return .success(syncCounts: syncCounts)
                 } else {
-                    enqueuePayload(payload, urls: webhookUrls, headers: headers, totalRecords: totalRecords)
+                    enqueueBody(body, urls: webhookUrls, headers: headers, totalRecords: totalRecords)
                     return .failure(error: "Webhook failed - queued for retry")
                 }
             }
@@ -117,10 +125,12 @@ class HealthSyncManager {
         }
     }
 
-    /// Pushes the latest sync result to the app group so the home screen widget stays current.
+    /// Pushes the latest sync result to the app group so the home screen widget stays
+    /// current, and tracks the failure streak for the local failure notification.
     private func updateWidgetStatus(success: Bool, records: Int) {
         SharedSyncStatus.record(success: success, records: success ? records : 0)
         WidgetCenter.shared.reloadAllTimelines()
+        SyncFailureNotifier.shared.recordResult(success: success, lastError: nil)
     }
 
     // MARK: - Pending Queue Drain
@@ -132,13 +142,8 @@ class HealthSyncManager {
         logger.info("Draining pending sync queue: \(items.count) item(s)")
 
         for item in items {
-            guard let payload = try? JSONSerialization.jsonObject(with: item.payload) as? [String: Any] else {
-                pendingStore.remove(id: item.id)
-                continue
-            }
-
             let success = await WebhookManager.shared.post(
-                payload: payload,
+                body: item.payload,
                 urls: item.urls,
                 headers: item.headers,
                 logType: LogType(rawValue: item.logType) ?? .healthConnect,
@@ -172,18 +177,14 @@ class HealthSyncManager {
 
     // MARK: - Private Helpers
 
-    private func enqueuePayload(
-        _ payload: [String: Any],
+    private func enqueueBody(
+        _ body: Data,
         urls: [String],
         headers: [String: String],
         totalRecords: Int
     ) {
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
-            return
-        }
-
         pendingStore.enqueue(
-            payload: jsonData,
+            payload: body,
             urls: urls,
             headers: headers,
             logType: LogType.healthConnect.rawValue,

@@ -3,7 +3,10 @@ import OSLog
 import BackgroundTasks
 import HealthKit
 
-class BackgroundSyncManager {
+/// MainActor: observer queries, the debounce state, and scheduling are all managed
+/// from the main actor; HealthKit and BGTaskScheduler callbacks hop over explicitly.
+@MainActor
+final class BackgroundSyncManager {
     static let shared = BackgroundSyncManager()
     private let logger = Logger(subsystem: "com.owen282000.lifedashboard", category: "BackgroundSync")
 
@@ -23,20 +26,28 @@ class BackgroundSyncManager {
     // MARK: - Registration
 
     func registerBackgroundTasks() {
+        // Handlers run on the main queue so they can safely enter this MainActor class
+
         // BGProcessingTask - runs when idle + charging (full catch-up sync)
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: BackgroundSyncManager.healthSyncTaskId,
-            using: nil
+            using: .main
         ) { task in
-            self.handleHealthSync(task: task as! BGProcessingTask)
+            MainActor.assumeIsolated {
+                guard let task = task as? BGProcessingTask else { return }
+                BackgroundSyncManager.shared.handleHealthSync(task: task)
+            }
         }
 
         // BGAppRefreshTask - runs more frequently (every few hours), 30s window
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: BackgroundSyncManager.healthRefreshTaskId,
-            using: nil
+            using: .main
         ) { task in
-            self.handleHealthRefresh(task: task as! BGAppRefreshTask)
+            MainActor.assumeIsolated {
+                guard let task = task as? BGAppRefreshTask else { return }
+                BackgroundSyncManager.shared.handleHealthRefresh(task: task)
+            }
         }
     }
 
@@ -61,13 +72,15 @@ class BackgroundSyncManager {
                 let query = HKObserverQuery(
                     sampleType: sampleType,
                     predicate: nil
-                ) { [weak self] _, completionHandler, error in
+                ) { _, completionHandler, error in
                     // MUST call completionHandler on every path or HealthKit
                     // permanently stops delivering background updates.
                     defer { completionHandler() }
 
                     guard error == nil else { return }
-                    self?.handleHealthKitUpdate(for: dataType)
+                    Task { @MainActor in
+                        BackgroundSyncManager.shared.handleHealthKitUpdate(for: dataType)
+                    }
                 }
 
                 healthKitManager.healthStore.execute(query)
@@ -77,7 +90,7 @@ class BackgroundSyncManager {
                 healthKitManager.healthStore.enableBackgroundDelivery(
                     for: sampleType,
                     frequency: .hourly
-                ) { [logger] success, error in
+                ) { [logger] _, error in
                     if let error = error {
                         logger.error("Background delivery error for \(dataType.displayName): \(error)")
                     }
@@ -111,7 +124,7 @@ class BackgroundSyncManager {
             guard !typesToSync.isEmpty else { return }
 
             logger.info("HealthKit observer triggered sync for: \(typesToSync.map { $0.displayName })")
-            let _ = await HealthSyncManager.shared.performIncrementalSync(types: typesToSync)
+            _ = await HealthSyncManager.shared.performIncrementalSync(types: typesToSync)
         }
     }
 

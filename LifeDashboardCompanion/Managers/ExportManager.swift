@@ -1,7 +1,9 @@
 import Foundation
 import OSLog
 
-class ExportManager {
+/// MainActor: exports are user-initiated from the UI, and DateFormatter is not thread-safe.
+@MainActor
+final class ExportManager {
     static let shared = ExportManager()
     private let logger = Logger(subsystem: "com.owen282000.lifedashboard", category: "Export")
 
@@ -52,7 +54,7 @@ class ExportManager {
         return writeToTempFile(content: jsonString, extension: "json", prefix: "webhook_logs")
     }
 
-    func formatPayloadForPreview(_ payload: [String: Any]) -> String {
+    nonisolated static func formatPayloadForPreview(_ payload: [String: Any]) -> String {
         guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]),
               let string = String(data: data, encoding: .utf8) else {
             return "{}"

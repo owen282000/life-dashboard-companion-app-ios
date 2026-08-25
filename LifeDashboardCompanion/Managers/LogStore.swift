@@ -3,7 +3,8 @@ import OSLog
 
 /// File-based storage for webhook logs. Raw payloads contain health data, so logs live in
 /// Application Support with file protection instead of the unencrypted UserDefaults plist.
-final class LogStore {
+/// @unchecked Sendable: all file access is serialized on the internal queue.
+final class LogStore: @unchecked Sendable {
     static let shared = LogStore()
 
     static let maxLogs = 100

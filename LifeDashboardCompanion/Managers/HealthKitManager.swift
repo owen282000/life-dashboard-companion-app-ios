@@ -3,7 +3,9 @@ import HealthKit
 import UIKit
 import OSLog
 
-class HealthKitManager: ObservableObject {
+/// @unchecked Sendable: HKHealthStore is thread-safe, `isAvailable` is set once in init,
+/// and the @Published authorization status is only mutated via the @MainActor method.
+final class HealthKitManager: ObservableObject, @unchecked Sendable {
     static let shared = HealthKitManager()
 
     let healthStore = HKHealthStore()
@@ -19,6 +21,13 @@ class HealthKitManager: ObservableObject {
         case data([String: Any])
         case empty
         case protectedDataUnavailable
+    }
+
+    /// Payload fragments produced by reading a single data type, safe to move across
+    /// the task group boundary. @unchecked Sendable: the values are JSON value types
+    /// (String, Int, Double, arrays, dictionaries) freshly built per task.
+    private struct PayloadFragments: @unchecked Sendable {
+        let pairs: [(String, Any)]
     }
 
     private init() {
@@ -101,12 +110,15 @@ class HealthKitManager: ObservableObject {
 
         // Run all type queries in parallel; a failure in one type only skips that type
         let results = await withTaskGroup(
-            of: [(String, Any)]?.self
+            of: PayloadFragments?.self
         ) { group -> [String: Any] in
             for dataType in enabledTypes {
                 group.addTask {
                     do {
-                        return try await self.readDataForType(dataType, start: startDate, end: endDate)
+                        guard let pairs = try await self.readDataForType(dataType, start: startDate, end: endDate) else {
+                            return nil
+                        }
+                        return PayloadFragments(pairs: pairs)
                     } catch {
                         self.logger.error("Read failed for \(dataType.rawValue): \(error.localizedDescription)")
                         return nil
@@ -116,7 +128,7 @@ class HealthKitManager: ObservableObject {
 
             var payload: [String: Any] = [:]
             for await result in group {
-                for (key, value) in result ?? [] {
+                for (key, value) in result?.pairs ?? [] {
                     payload[key] = value
                 }
             }
@@ -144,12 +156,15 @@ class HealthKitManager: ObservableObject {
         let prefs = PreferencesManager.shared
 
         let results = await withTaskGroup(
-            of: [(String, Any)]?.self
+            of: PayloadFragments?.self
         ) { group -> [String: Any] in
             for dataType in enabledTypes {
                 group.addTask {
                     do {
-                        return try await self.readIncrementalDataForType(dataType, prefs: prefs)
+                        guard let pairs = try await self.readIncrementalDataForType(dataType, prefs: prefs) else {
+                            return nil
+                        }
+                        return PayloadFragments(pairs: pairs)
                     } catch {
                         self.logger.error("Incremental read failed for \(dataType.rawValue): \(error.localizedDescription)")
                         return nil
@@ -159,7 +174,7 @@ class HealthKitManager: ObservableObject {
 
             var payload: [String: Any] = [:]
             for await result in group {
-                for (key, value) in result ?? [] {
+                for (key, value) in result?.pairs ?? [] {
                     payload[key] = value
                 }
             }
@@ -428,18 +443,18 @@ class HealthKitManager: ObservableObject {
             let diastolic = try await diastolicRecords
             let mmHg = HKUnit.millimeterOfMercury()
             var mapped: [[String: Any]] = []
-            for s in systolic {
+            for systolicSample in systolic {
                 let matchingDiastolic = diastolic.first {
-                    abs($0.startDate.timeIntervalSince(s.startDate)) < 1
+                    abs($0.startDate.timeIntervalSince(systolicSample.startDate)) < 1
                 }
                 var fields: [String: Any] = [
-                    "systolic": s.quantity.doubleValue(for: mmHg),
-                    "time": s.startDate.iso8601String
+                    "systolic": systolicSample.quantity.doubleValue(for: mmHg),
+                    "time": systolicSample.startDate.iso8601String
                 ]
-                if let d = matchingDiastolic {
-                    fields["diastolic"] = d.quantity.doubleValue(for: mmHg)
+                if let diastolicSample = matchingDiastolic {
+                    fields["diastolic"] = diastolicSample.quantity.doubleValue(for: mmHg)
                 }
-                mapped.append(record(fields, from: s))
+                mapped.append(record(fields, from: systolicSample))
             }
             return mapped.isEmpty ? nil : [("blood_pressure", mapped)]
 
@@ -765,14 +780,13 @@ class HealthKitManager: ObservableObject {
         }
 
         // Also include standalone protein/carb/fat records not matched to calories
-        for protein in proteinRecords {
-            if !calorieRecords.contains(where: { abs($0.startDate.timeIntervalSince(protein.startDate)) < 1 }) {
-                mapped.append(record([
-                    "protein_grams": protein.quantity.doubleValue(for: .gram()),
-                    "start_time": protein.startDate.iso8601String,
-                    "end_time": protein.endDate.iso8601String
-                ], from: protein))
-            }
+        for protein in proteinRecords
+        where !calorieRecords.contains(where: { abs($0.startDate.timeIntervalSince(protein.startDate)) < 1 }) {
+            mapped.append(record([
+                "protein_grams": protein.quantity.doubleValue(for: .gram()),
+                "start_time": protein.startDate.iso8601String,
+                "end_time": protein.endDate.iso8601String
+            ], from: protein))
         }
 
         return mapped
@@ -782,7 +796,8 @@ class HealthKitManager: ObservableObject {
 // MARK: - Extensions
 
 extension Date {
-    private static let iso8601Formatter: ISO8601DateFormatter = {
+    // ISO8601DateFormatter is documented as thread-safe, unlike DateFormatter
+    nonisolated(unsafe) private static let iso8601Formatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         return formatter
     }()

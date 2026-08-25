@@ -14,7 +14,9 @@ struct PendingSyncItem: Codable, Identifiable {
     var lastError: String?
 }
 
-class PendingSyncStore {
+/// @unchecked Sendable: the store keeps no in-memory state; all data lives in
+/// individual files written atomically, and FileManager is thread-safe.
+final class PendingSyncStore: @unchecked Sendable {
     static let shared = PendingSyncStore()
 
     private let fileManager = FileManager.default

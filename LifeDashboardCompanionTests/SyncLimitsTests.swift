@@ -28,7 +28,7 @@ final class SyncLimitsTests: XCTestCase {
         let records = (1...100).shuffled().map(record)
         let capped = SyncLimits.capOldestFirst(records, limit: 40, timeOf: \.time)
         let keptMax = capped.map(\.time).max()!
-        let dropped = records.filter { r in !capped.contains { $0.name == r.name } }
+        let dropped = records.filter { item in !capped.contains { $0.name == item.name } }
         XCTAssertTrue(dropped.allSatisfy { $0.time > keptMax })
     }
 
