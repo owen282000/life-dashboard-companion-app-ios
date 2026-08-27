@@ -79,7 +79,7 @@ final class MqttPublisher: @unchecked Sendable {
         host: String,
         port: Int,
         useTls: Bool,
-        body: @escaping (NWConnection) async throws -> Void
+        body: @escaping @Sendable (NWConnection) async throws -> Void
     ) async throws {
         guard let nwPort = NWEndpoint.Port(rawValue: UInt16(clamping: port)), port > 0 else {
             throw MqttError.invalidPort
@@ -94,21 +94,34 @@ final class MqttPublisher: @unchecked Sendable {
         }
     }
 
+    /// Ensures the ready-continuation resumes exactly once even though NWConnection may fire
+    /// multiple state updates; safe to touch from concurrent contexts (Swift 6 clean).
+    private final class ResumeGuard: @unchecked Sendable {
+        private let lock = NSLock()
+        private var resumed = false
+        func tryResume() -> Bool {
+            lock.lock(); defer { lock.unlock() }
+            if resumed { return false }
+            resumed = true
+            return true
+        }
+    }
+
     private func awaitReady(_ connection: NWConnection) async throws {
+        let guardFlag = ResumeGuard()
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            var resumed = false
             connection.stateUpdateHandler = { state in
-                guard !resumed else { return }
                 switch state {
                 case .ready:
-                    resumed = true
-                    continuation.resume()
+                    if guardFlag.tryResume() { continuation.resume() }
                 case .failed(let error):
-                    resumed = true
-                    continuation.resume(throwing: MqttError.connectionFailed(error.localizedDescription))
+                    if guardFlag.tryResume() {
+                        continuation.resume(throwing: MqttError.connectionFailed(error.localizedDescription))
+                    }
                 case .cancelled:
-                    resumed = true
-                    continuation.resume(throwing: MqttError.connectionFailed("Connection cancelled"))
+                    if guardFlag.tryResume() {
+                        continuation.resume(throwing: MqttError.connectionFailed("Connection cancelled"))
+                    }
                 default:
                     break
                 }
@@ -143,7 +156,7 @@ final class MqttPublisher: @unchecked Sendable {
         }
     }
 
-    private func withTimeout(seconds: TimeInterval, operation: @escaping () async throws -> Void) async throws {
+    private func withTimeout(seconds: TimeInterval, operation: @escaping @Sendable () async throws -> Void) async throws {
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask { try await operation() }
             group.addTask {
