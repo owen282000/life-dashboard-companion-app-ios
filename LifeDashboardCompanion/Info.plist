@@ -2,6 +2,15 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- Self-hosted receivers and MQTT brokers commonly live on the LAN without TLS;
+		     this permits plain HTTP to local network hosts only. Internet stays HTTPS. -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Used to deliver your health data to webhook servers and MQTT brokers on your own local network.</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>com.owen282000.lifedashboard.healthsync</string>
