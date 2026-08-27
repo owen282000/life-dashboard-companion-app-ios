@@ -21,6 +21,14 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         static let webhookLogs = "webhook_logs"
         static let failureNotificationsEnabled = "failure_notifications_enabled"
         static let failureNotificationThreshold = "failure_notification_threshold"
+        static let mqttEnabled = "mqtt_enabled"
+        static let mqttHost = "mqtt_host"
+        static let mqttPort = "mqtt_port"
+        static let mqttUseTls = "mqtt_use_tls"
+        static let mqttUsername = "mqtt_username"
+        static let mqttPassword = "mqtt_password"
+        static let mqttBaseTopic = "mqtt_base_topic"
+        static let mqttLastStatus = "mqtt_last_status"
     }
 
     // MARK: - Constants
@@ -71,6 +79,40 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         didSet { defaults.set(failureNotificationThreshold, forKey: Keys.failureNotificationThreshold) }
     }
 
+    // MARK: - MQTT (Home Assistant Discovery); credentials live in the Keychain
+
+    @Published var mqttEnabled: Bool {
+        didSet { defaults.set(mqttEnabled, forKey: Keys.mqttEnabled) }
+    }
+
+    @Published var mqttHost: String {
+        didSet { defaults.set(mqttHost, forKey: Keys.mqttHost) }
+    }
+
+    @Published var mqttPort: Int {
+        didSet { defaults.set(mqttPort, forKey: Keys.mqttPort) }
+    }
+
+    @Published var mqttUseTls: Bool {
+        didSet { defaults.set(mqttUseTls, forKey: Keys.mqttUseTls) }
+    }
+
+    @Published var mqttUsername: String {
+        didSet { KeychainStore.setString(mqttUsername, forKey: Keys.mqttUsername) }
+    }
+
+    @Published var mqttPassword: String {
+        didSet { KeychainStore.setString(mqttPassword, forKey: Keys.mqttPassword) }
+    }
+
+    @Published var mqttBaseTopic: String {
+        didSet { defaults.set(mqttBaseTopic, forKey: Keys.mqttBaseTopic) }
+    }
+
+    @Published var mqttLastStatus: String {
+        didSet { defaults.set(mqttLastStatus, forKey: Keys.mqttLastStatus) }
+    }
+
     // MARK: - Init
 
     private init() {
@@ -116,6 +158,15 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         } else {
             self.healthSigningSecret = ""
         }
+
+        self.mqttEnabled = defaults.object(forKey: Keys.mqttEnabled) as? Bool ?? false
+        self.mqttHost = defaults.string(forKey: Keys.mqttHost) ?? ""
+        self.mqttPort = defaults.object(forKey: Keys.mqttPort) as? Int ?? 1883
+        self.mqttUseTls = defaults.object(forKey: Keys.mqttUseTls) as? Bool ?? false
+        self.mqttUsername = KeychainStore.string(forKey: Keys.mqttUsername) ?? ""
+        self.mqttPassword = KeychainStore.string(forKey: Keys.mqttPassword) ?? ""
+        self.mqttBaseTopic = defaults.string(forKey: Keys.mqttBaseTopic) ?? MqttSupport.defaultBaseTopic
+        self.mqttLastStatus = defaults.string(forKey: Keys.mqttLastStatus) ?? ""
     }
 
     // MARK: - HKQueryAnchor Persistence

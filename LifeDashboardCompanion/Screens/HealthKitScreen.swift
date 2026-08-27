@@ -29,6 +29,7 @@ struct HealthKitScreen: View {
                     dataTypesSection
                     configurationSection
                     headersSection
+                    mqttSection
                     actionsSection
                 }
             }
@@ -230,6 +231,98 @@ struct HealthKitScreen: View {
         .padding()
         .background(Color(.systemGray6))
         .cornerRadius(12)
+    }
+
+    @State private var showMqtt = false
+    @State private var mqttPortText = String(PreferencesManager.shared.mqttPort)
+
+    private var mqttSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation { showMqtt.toggle() }
+            } label: {
+                HStack {
+                    Label("MQTT / Home Assistant", systemImage: "house.fill")
+                        .font(.headline)
+                    Spacer()
+                    Text(prefs.mqttEnabled ? "On" : "Off")
+                        .font(.subheadline)
+                        .foregroundStyle(prefs.mqttEnabled ? Color.accentColor : Color.secondary)
+                    Image(systemName: "chevron.down")
+                        .rotationEffect(.degrees(showMqtt ? 180 : 0))
+                }
+            }
+            .buttonStyle(.plain)
+
+            if showMqtt {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Publishes the latest value of each synced data type to your MQTT broker with Home Assistant Discovery: sensors appear automatically, no server-side setup needed.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Toggle("Enable MQTT publishing", isOn: Binding(
+                        get: { prefs.mqttEnabled },
+                        set: { prefs.mqttEnabled = $0 }
+                    ))
+
+                    TextField("Broker host, e.g. 192.168.1.10", text: Binding(
+                        get: { prefs.mqttHost },
+                        set: { prefs.mqttHost = $0 }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+
+                    HStack {
+                        TextField("Port", text: $mqttPortText)
+                            .textFieldStyle(.roundedBorder)
+                            .keyboardType(.numberPad)
+                            .frame(maxWidth: 120)
+                            .onChange(of: mqttPortText) { _, newValue in
+                                if let port = Int(newValue.filter(\.isNumber)), port > 0, port <= 65535 {
+                                    prefs.mqttPort = port
+                                }
+                            }
+                        Toggle("TLS", isOn: Binding(
+                            get: { prefs.mqttUseTls },
+                            set: { prefs.mqttUseTls = $0 }
+                        ))
+                    }
+
+                    TextField("Username (optional)", text: Binding(
+                        get: { prefs.mqttUsername },
+                        set: { prefs.mqttUsername = $0 }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+
+                    SecureField("Password (optional)", text: Binding(
+                        get: { prefs.mqttPassword },
+                        set: { prefs.mqttPassword = $0 }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+
+                    TextField("Base topic", text: Binding(
+                        get: { prefs.mqttBaseTopic },
+                        set: { prefs.mqttBaseTopic = $0 }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+
+                    if !prefs.mqttLastStatus.isEmpty {
+                        Text(prefs.mqttLastStatus)
+                            .font(.caption)
+                            .foregroundStyle(prefs.mqttLastStatus.hasPrefix("OK") ? Color.accentColor : Color.red)
+                    }
+                }
+                .padding(.top, 4)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private var headersSection: some View {

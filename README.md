@@ -66,6 +66,12 @@ Three complementary mechanisms keep your data flowing without opening the app:
 - **Retries with backoff** - Transient failures are retried automatically; permanent errors fail fast
 - **Offline queue** - Failed payloads are stored on-device and re-sent automatically when connectivity returns or on the next background task
 
+### Home Assistant / MQTT
+- **MQTT publishing with Home Assistant Discovery** - Point the app at your MQTT broker and the latest value of every synced data type appears in Home Assistant automatically as sensors, grouped under one device. No server-side configuration needed.
+- Implemented with an in-process MQTT 3.1.1 client over Network.framework, so the app stays free of third-party dependencies
+- States and discovery configs are published retained; optional TLS and username/password (stored in the Keychain)
+- Uses its own device id and default base topic (`lifedashboard-ios`), so it never collides with the Android app's sensors in mixed households
+
 ### Automation
 
 - **Shortcuts & Siri** - A "Sync Health Data" action for the Shortcuts app: automate syncs on a schedule, on arriving home, or by voice
