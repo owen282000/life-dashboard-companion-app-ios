@@ -242,7 +242,7 @@ struct HealthKitScreen: View {
                 withAnimation { showMqtt.toggle() }
             } label: {
                 HStack {
-                    Label("MQTT / Home Assistant", systemImage: "house.fill")
+                    Label("MQTT", systemImage: "house.fill")
                         .font(.headline)
                     Spacer()
                     Text(prefs.mqttEnabled ? "On" : "Off")
