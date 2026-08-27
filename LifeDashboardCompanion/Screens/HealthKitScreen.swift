@@ -26,6 +26,7 @@ struct HealthKitScreen: View {
                 if !healthKit.isAvailable {
                     unavailableSection
                 } else {
+                    DashboardCard()
                     dataTypesSection
                     configurationSection
                     headersSection

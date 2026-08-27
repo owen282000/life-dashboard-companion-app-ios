@@ -138,6 +138,38 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         return results
     }
 
+    // MARK: - Daily Totals
+
+    /// Deduplicated daily step totals for the last `days` days including today, via
+    /// HKStatisticsCollectionQuery which merges overlapping phone and watch samples
+    /// instead of double counting. Returns oldest-first; empty when steps are unavailable.
+    func readDailyStepTotals(days: Int) async -> [Int] {
+        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return [] }
+        let calendar = Calendar.current
+        let end = Date()
+        let startOfToday = calendar.startOfDay(for: end)
+        guard let start = calendar.date(byAdding: .day, value: -(days - 1), to: startOfToday) else { return [] }
+
+        return await withCheckedContinuation { continuation in
+            let query = HKStatisticsCollectionQuery(
+                quantityType: stepType,
+                quantitySamplePredicate: HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate),
+                options: .cumulativeSum,
+                anchorDate: startOfToday,
+                intervalComponents: DateComponents(day: 1)
+            )
+            query.initialResultsHandler = { _, results, _ in
+                var totals: [Int] = []
+                results?.enumerateStatistics(from: start, to: end) { statistics, _ in
+                    let value = statistics.sumQuantity()?.doubleValue(for: .count()) ?? 0
+                    totals.append(Int(value))
+                }
+                continuation.resume(returning: totals)
+            }
+            self.healthStore.execute(query)
+        }
+    }
+
     // MARK: - Incremental (Anchor-Based) Reading
 
     /// Reads only new data since the last successful sync using HKAnchoredObjectQuery.

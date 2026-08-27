@@ -39,6 +39,7 @@
 		B100001F /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001F /* KeychainStore.swift */; };
 		B1000022 /* LogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000022 /* LogStore.swift */; };
 		B1000023 /* AboutScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000023 /* AboutScreen.swift */; };
+		B1000040 /* DashboardCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000040 /* DashboardCard.swift */; };
 		B1000024 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F1000024 /* PrivacyInfo.xcprivacy */; };
 		B1000025 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F1000025 /* Localizable.xcstrings */; };
 		B1000026 /* SyncLimitsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000026 /* SyncLimitsTests.swift */; };
@@ -119,6 +120,7 @@
 		F100001F /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		F1000022 /* LogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStore.swift; sourceTree = "<group>"; };
 		F1000023 /* AboutScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutScreen.swift; sourceTree = "<group>"; };
+		F1000040 /* DashboardCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardCard.swift; sourceTree = "<group>"; };
 		F1000024 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F1000025 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		F1000026 /* SyncLimitsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncLimitsTests.swift; sourceTree = "<group>"; };
@@ -238,6 +240,7 @@
 				F1000010 /* HealthKitScreen.swift */,
 				F1000012 /* LogsScreen.swift */,
 				F1000023 /* AboutScreen.swift */,
+				F1000040 /* DashboardCard.swift */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -362,7 +365,6 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
-				nl,
 				Base,
 			);
 			mainGroup = D1000001;
@@ -421,6 +423,7 @@
 				B100001F /* KeychainStore.swift in Sources */,
 				B1000022 /* LogStore.swift in Sources */,
 				B1000023 /* AboutScreen.swift in Sources */,
+				B1000040 /* DashboardCard.swift in Sources */,
 				B100002A /* SharedSyncStatus.swift in Sources */,
 				B100002C /* SyncHealthDataIntent.swift in Sources */,
 				B100002D /* SyncFailureNotifier.swift in Sources */,

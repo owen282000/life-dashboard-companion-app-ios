@@ -1,623 +1,233 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "%@: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@: %2$@"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@: %2$@"
+  "sourceLanguage": "en",
+  "strings": {
+    "%@: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %2$@"
           }
         }
       }
     },
-    "%lld" : {
-      "shouldTranslate" : false
+    "%lld": {
+      "shouldTranslate": false
     },
-    "%lld BPM" : {
-      "shouldTranslate" : false
+    "%lld BPM": {
+      "shouldTranslate": false
     },
-    "%lld of %lld enabled" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld of %2$lld enabled"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld van %2$lld aan"
+    "%lld of %lld enabled": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld of %2$lld enabled"
           }
         }
       }
     },
-    "%lld pending sync(s)" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld wachtende sync(s)"
-          }
-        }
-      }
-    },
-    "%lld rec" : {
-      "shouldTranslate" : false
-    },
-    "%lld syncs in a row failed. Payloads are queued and will retry. Check the Logs tab for details." : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld syncs op rij mislukt. Payloads staan in de wachtrij en worden opnieuw geprobeerd. Bekijk de Logs-tab voor details."
-          }
-        }
-      }
-    },
-    "3" : {
-      "shouldTranslate" : false
-    },
-    "5" : {
-      "shouldTranslate" : false
-    },
-    "10" : {
-      "shouldTranslate" : false
-    },
-    "60" : {
-      "shouldTranslate" : false
-    },
-    "About" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Over"
-          }
-        }
-      }
-    },
-    "Add header" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Header toevoegen"
-          }
-        }
-      }
-    },
-    "Add webhook URL" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Webhook-URL toevoegen"
-          }
-        }
-      }
-    },
-    "After consecutive failures" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Na opeenvolgende mislukkingen"
-          }
-        }
-      }
-    },
-    "Cancel" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Annuleer"
-          }
-        }
-      }
-    },
-    "Clear All Logs" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle logs wissen"
-          }
-        }
-      }
-    },
-    "Clear Logs" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Logs wissen"
-          }
-        }
-      }
-    },
-    "Companion" : {
-      "shouldTranslate" : false
-    },
-    "Configuration" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Configuratie"
-          }
-        }
-      }
-    },
-    "Custom Headers" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eigen headers"
-          }
-        }
-      }
-    },
-    "Data Types" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Datatypes"
-          }
-        }
-      }
-    },
-    "Delete" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verwijder"
-          }
-        }
-      }
-    },
-    "Done" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gereed"
-          }
-        }
-      }
-    },
-    "Export CSV" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exporteer CSV"
-          }
-        }
-      }
-    },
-    "Export JSON" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exporteer JSON"
-          }
-        }
-      }
-    },
-    "Failure threshold" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Drempel voor mislukkingen"
-          }
-        }
-      }
-    },
-    "Health" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gezondheid"
-          }
-        }
-      }
-    },
-    "Health Data Preview" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Voorbeeld gezondheidsdata"
-          }
-        }
-      }
-    },
-    "HealthKit Not Available" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HealthKit niet beschikbaar"
-          }
-        }
-      }
-    },
-    "HMAC Signing Secret" : {
-      "shouldTranslate" : false
-    },
-    "https://your-webhook.com/health" : {
-      "shouldTranslate" : false
-    },
-    "Key" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sleutel"
-          }
-        }
-      }
-    },
-    "Last error: %@" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Laatste fout: %@"
-          }
-        }
-      }
-    },
-    "Life Dashboard" : {
-      "shouldTranslate" : false
-    },
-    "Loading..." : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Laden..."
-          }
-        }
-      }
-    },
-    "Logs" : {
-      "shouldTranslate" : false
-    },
-    "Logs (%lld)" : {
-      "shouldTranslate" : false
-    },
-    "Made by Owen Vogelaar for the self-hosted\nand quantified self community." : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gemaakt door Owen Vogelaar voor de self-hosted\nen quantified self community."
-          }
-        }
-      }
-    },
-    "min" : {
-      "shouldTranslate" : false
-    },
-    "Nerd Stats" : {
-      "shouldTranslate" : false
-    },
-    "No logs yet" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nog geen logs"
-          }
-        }
-      }
-    },
-    "No new health data to sync." : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Geen nieuwe gezondheidsdata om te syncen."
-          }
-        }
-      }
-    },
-    "No syncs yet. Come back when your data has started flowing." : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nog geen syncs. Kom terug zodra je data stroomt."
-          }
-        }
-      }
-    },
-    "Notify after failed syncs" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Melding na mislukte syncs"
-          }
-        }
-      }
-    },
-    "Optional secret for X-Signature" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Optioneel geheim voor X-Signature"
-          }
-        }
-      }
-    },
-    "Pinging..." : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pingen..."
-          }
-        }
-      }
-    },
-    "Preview Data" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bekijk data"
-          }
-        }
-      }
-    },
-    "Reads your enabled Apple Health data types and delivers them to your configured webhooks." : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Leest je ingeschakelde Apple Health-datatypes en levert ze af bij je geconfigureerde webhooks."
-          }
-        }
-      }
-    },
-    "Remove header %@" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verwijder header %@"
-          }
-        }
-      }
-    },
-    "Remove webhook URL" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verwijder webhook-URL"
-          }
-        }
-      }
-    },
-    "Retry Now" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Probeer opnieuw"
-          }
-        }
-      }
-    },
-    "Send Test Ping" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stuur testping"
-          }
-        }
-      }
-    },
-    "Share full payload" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deel volledige payload"
-          }
-        }
-      }
-    },
-    "Share payload" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deel payload"
-          }
-        }
-      }
-    },
-    "Statistics" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Statistieken"
-          }
-        }
-      }
-    },
-    "Sync failed: %@" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sync mislukt: %@"
-          }
-        }
-      }
-    },
-    "Sync Health Data" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sync gezondheidsdata"
-          }
-        }
-      }
-    },
-    "Sync Interval" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sync-interval"
-          }
-        }
-      }
-    },
-    "Sync Now" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sync nu"
-          }
-        }
-      }
-    },
-    "Synced %lld health records to your webhook." : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld gezondheidsrecords naar je webhook gesynct."
-          }
-        }
-      }
-    },
-    "Syncing..." : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Syncen..."
-          }
-        }
-      }
-    },
-    "Syncs your Apple Health data to your own webhook endpoints for automated life tracking." : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Synct je Apple Health-data naar je eigen webhook-endpoints voor geautomatiseerde life tracking."
-          }
-        }
-      }
-    },
-    "This device does not support HealthKit." : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dit apparaat ondersteunt HealthKit niet."
-          }
-        }
-      }
-    },
-    "This will permanently delete the selected logs." : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dit verwijdert de geselecteerde logs permanent."
-          }
-        }
-      }
-    },
-    "Value" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Waarde"
-          }
-        }
-      }
-    },
-    "Version %@" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Versie %@"
-          }
-        }
-      }
-    },
-    "Webhook sync is failing" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Webhook-sync mislukt"
-          }
-        }
-      }
-    },
-    "Webhook URLs" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Webhook-URLs"
-          }
-        }
-      }
-    },
-    "When set, every request includes X-Signature: sha256=HMAC-SHA256(secret, body) so your server can verify the sender." : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Indien ingesteld bevat elk request X-Signature: sha256=HMAC-SHA256(secret, body) zodat je server de afzender kan verifiëren."
-          }
-        }
-      }
-    },
-    "You found the secret" : {
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Je hebt het geheim gevonden"
-          }
-        }
-      }
+    "%lld pending sync(s)": {
+      "localizations": {}
+    },
+    "%lld rec": {
+      "shouldTranslate": false
+    },
+    "%lld syncs in a row failed. Payloads are queued and will retry. Check the Logs tab for details.": {
+      "localizations": {}
+    },
+    "10": {
+      "shouldTranslate": false
+    },
+    "3": {
+      "shouldTranslate": false
+    },
+    "5": {
+      "shouldTranslate": false
+    },
+    "60": {
+      "shouldTranslate": false
+    },
+    "About": {
+      "localizations": {}
+    },
+    "Add header": {
+      "localizations": {}
+    },
+    "Add webhook URL": {
+      "localizations": {}
+    },
+    "After consecutive failures": {
+      "localizations": {}
+    },
+    "Cancel": {
+      "localizations": {}
+    },
+    "Clear All Logs": {
+      "localizations": {}
+    },
+    "Clear Logs": {
+      "localizations": {}
+    },
+    "Companion": {
+      "shouldTranslate": false
+    },
+    "Configuration": {
+      "localizations": {}
+    },
+    "Custom Headers": {
+      "localizations": {}
+    },
+    "Data Types": {
+      "localizations": {}
+    },
+    "Delete": {
+      "localizations": {}
+    },
+    "Done": {
+      "localizations": {}
+    },
+    "Export CSV": {
+      "localizations": {}
+    },
+    "Export JSON": {
+      "localizations": {}
+    },
+    "Failure threshold": {
+      "localizations": {}
+    },
+    "HMAC Signing Secret": {
+      "shouldTranslate": false
+    },
+    "Health": {
+      "localizations": {}
+    },
+    "Health Data Preview": {
+      "localizations": {}
+    },
+    "HealthKit Not Available": {
+      "localizations": {}
+    },
+    "Key": {
+      "localizations": {}
+    },
+    "Last error: %@": {
+      "localizations": {}
+    },
+    "Life Dashboard": {
+      "shouldTranslate": false
+    },
+    "Loading...": {
+      "localizations": {}
+    },
+    "Logs": {
+      "shouldTranslate": false
+    },
+    "Logs (%lld)": {
+      "shouldTranslate": false
+    },
+    "Made by Owen Vogelaar for the self-hosted\nand quantified self community.": {
+      "localizations": {}
+    },
+    "Nerd Stats": {
+      "shouldTranslate": false
+    },
+    "No logs yet": {
+      "localizations": {}
+    },
+    "No new health data to sync.": {
+      "localizations": {}
+    },
+    "No syncs yet. Come back when your data has started flowing.": {
+      "localizations": {}
+    },
+    "Notify after failed syncs": {
+      "localizations": {}
+    },
+    "Optional secret for X-Signature": {
+      "localizations": {}
+    },
+    "Pinging...": {
+      "localizations": {}
+    },
+    "Preview Data": {
+      "localizations": {}
+    },
+    "Reads your enabled Apple Health data types and delivers them to your configured webhooks.": {
+      "localizations": {}
+    },
+    "Remove header %@": {
+      "localizations": {}
+    },
+    "Remove webhook URL": {
+      "localizations": {}
+    },
+    "Retry Now": {
+      "localizations": {}
+    },
+    "Send Test Ping": {
+      "localizations": {}
+    },
+    "Share full payload": {
+      "localizations": {}
+    },
+    "Share payload": {
+      "localizations": {}
+    },
+    "Statistics": {
+      "localizations": {}
+    },
+    "Sync Health Data": {
+      "localizations": {}
+    },
+    "Sync Interval": {
+      "localizations": {}
+    },
+    "Sync Now": {
+      "localizations": {}
+    },
+    "Sync failed: %@": {
+      "localizations": {}
+    },
+    "Synced %lld health records to your webhook.": {
+      "localizations": {}
+    },
+    "Syncing...": {
+      "localizations": {}
+    },
+    "Syncs your Apple Health data to your own webhook endpoints for automated life tracking.": {
+      "localizations": {}
+    },
+    "This device does not support HealthKit.": {
+      "localizations": {}
+    },
+    "This will permanently delete the selected logs.": {
+      "localizations": {}
+    },
+    "Value": {
+      "localizations": {}
+    },
+    "Version %@": {
+      "localizations": {}
+    },
+    "Webhook URLs": {
+      "localizations": {}
+    },
+    "Webhook sync is failing": {
+      "localizations": {}
+    },
+    "When set, every request includes X-Signature: sha256=HMAC-SHA256(secret, body) so your server can verify the sender.": {
+      "localizations": {}
+    },
+    "You found the secret": {
+      "localizations": {}
+    },
+    "https://your-webhook.com/health": {
+      "shouldTranslate": false
+    },
+    "min": {
+      "shouldTranslate": false
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }
