@@ -24,6 +24,11 @@
 		B1000010 /* HealthKitScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000010 /* HealthKitScreen.swift */; };
 		B1000012 /* LogsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000012 /* LogsScreen.swift */; };
 		B1000017 /* WebhookSigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000017 /* WebhookSigner.swift */; };
+		6834543E155CE8FC8B45ED25 /* MqttPacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF73E5D5E207F8C511EF06F5 /* MqttPacket.swift */; };
+		CF775D282F2EDF1259F96E3B /* MqttSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FBDAA116A38516E98827EFA /* MqttSupport.swift */; };
+		A6EF25DF6E9049216FEDF0BC /* MqttPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EAE9DB642137B4DAEE89D40 /* MqttPublisher.swift */; };
+		DC3F56B7B12AAB0A0F646E19 /* MqttPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7844ED7AB1F0D76FD282CC18 /* MqttPacketTests.swift */; };
+		71995D4DCF9914D64779CC97 /* MqttSupportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B7F64070EB24778B41A051B /* MqttSupportTests.swift */; };
 		B1000018 /* WebhookRetryPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000018 /* WebhookRetryPolicy.swift */; };
 		B1000019 /* SleepSessionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000019 /* SleepSessionBuilder.swift */; };
 		B100001A /* WebhookSignerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001A /* WebhookSignerTests.swift */; };
@@ -97,6 +102,11 @@
 		F1000013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F1000014 /* LifeDashboardCompanion.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LifeDashboardCompanion.entitlements; sourceTree = "<group>"; };
 		F1000017 /* WebhookSigner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookSigner.swift; sourceTree = "<group>"; };
+		EF73E5D5E207F8C511EF06F5 /* MqttPacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttPacket.swift; sourceTree = "<group>"; };
+		7FBDAA116A38516E98827EFA /* MqttSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttSupport.swift; sourceTree = "<group>"; };
+		5EAE9DB642137B4DAEE89D40 /* MqttPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttPublisher.swift; sourceTree = "<group>"; };
+		7844ED7AB1F0D76FD282CC18 /* MqttPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttPacketTests.swift; sourceTree = "<group>"; };
+		4B7F64070EB24778B41A051B /* MqttSupportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttSupportTests.swift; sourceTree = "<group>"; };
 		F1000018 /* WebhookRetryPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookRetryPolicy.swift; sourceTree = "<group>"; };
 		F1000019 /* SleepSessionBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSessionBuilder.swift; sourceTree = "<group>"; };
 		F100001A /* WebhookSignerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookSignerTests.swift; sourceTree = "<group>"; };
@@ -206,6 +216,9 @@
 				F1000015 /* PendingSyncStore.swift */,
 				F1000016 /* NetworkMonitor.swift */,
 				F1000017 /* WebhookSigner.swift */,
+				EF73E5D5E207F8C511EF06F5 /* MqttPacket.swift */,
+				7FBDAA116A38516E98827EFA /* MqttSupport.swift */,
+				5EAE9DB642137B4DAEE89D40 /* MqttPublisher.swift */,
 				F1000018 /* WebhookRetryPolicy.swift */,
 				F1000019 /* SleepSessionBuilder.swift */,
 				F100001D /* SyncLimits.swift */,
@@ -243,6 +256,8 @@
 			isa = PBXGroup;
 			children = (
 				F100001A /* WebhookSignerTests.swift */,
+				7844ED7AB1F0D76FD282CC18 /* MqttPacketTests.swift */,
+				4B7F64070EB24778B41A051B /* MqttSupportTests.swift */,
 				F100001B /* WebhookRetryPolicyTests.swift */,
 				F100001C /* SleepSessionBuilderTests.swift */,
 				F1000026 /* SyncLimitsTests.swift */,
@@ -396,6 +411,9 @@
 				B1000010 /* HealthKitScreen.swift in Sources */,
 				B1000012 /* LogsScreen.swift in Sources */,
 				B1000017 /* WebhookSigner.swift in Sources */,
+				6834543E155CE8FC8B45ED25 /* MqttPacket.swift in Sources */,
+				CF775D282F2EDF1259F96E3B /* MqttSupport.swift in Sources */,
+				A6EF25DF6E9049216FEDF0BC /* MqttPublisher.swift in Sources */,
 				B1000018 /* WebhookRetryPolicy.swift in Sources */,
 				B1000019 /* SleepSessionBuilder.swift in Sources */,
 				B100001D /* SyncLimits.swift in Sources */,
@@ -423,6 +441,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				B100001A /* WebhookSignerTests.swift in Sources */,
+				DC3F56B7B12AAB0A0F646E19 /* MqttPacketTests.swift in Sources */,
+				71995D4DCF9914D64779CC97 /* MqttSupportTests.swift in Sources */,
 				B100001B /* WebhookRetryPolicyTests.swift in Sources */,
 				B100001C /* SleepSessionBuilderTests.swift in Sources */,
 				B1000026 /* SyncLimitsTests.swift in Sources */,

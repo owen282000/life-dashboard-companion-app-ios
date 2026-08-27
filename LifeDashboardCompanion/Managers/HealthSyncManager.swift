@@ -36,6 +36,10 @@ final class HealthSyncManager: Sendable {
             payload["app_version"] = appVersion
             payload["source"] = "healthkit_ios"
 
+            // Publish latest values to MQTT (Home Assistant Discovery) when configured;
+            // failures never block the webhook sync and surface in the MQTT section status.
+            await MqttPublisher.shared.publish(healthPayload: healthData)
+
             var syncCounts: [HealthDataType: Int] = [:]
             let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
 
