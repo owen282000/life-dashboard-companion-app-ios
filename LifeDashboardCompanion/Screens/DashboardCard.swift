@@ -76,12 +76,14 @@ private struct SparklineView: View {
                 let range = CGFloat(max(maxValue - minValue, 1))
                 let stepX = geo.size.width / CGFloat(max(values.count - 1, 1))
                 for (index, value) in values.enumerated() {
-                    let x = CGFloat(index) * stepX
-                    let y = geo.size.height - CGFloat(value - minValue) / range * geo.size.height
+                    let point = CGPoint(
+                        x: CGFloat(index) * stepX,
+                        y: geo.size.height - CGFloat(value - minValue) / range * geo.size.height
+                    )
                     if index == 0 {
-                        path.move(to: CGPoint(x: x, y: y))
+                        path.move(to: point)
                     } else {
-                        path.addLine(to: CGPoint(x: x, y: y))
+                        path.addLine(to: point)
                     }
                 }
             }
