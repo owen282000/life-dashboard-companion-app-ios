@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-27
+
+### Added
+
+- MQTT publishing with Home Assistant Discovery: every enabled data type appears automatically as a sensor in Home Assistant, via a dependency-free built-in MQTT 3.1.1 client
+- At-a-glance dashboard card on the Health screen: records today, lifetime records, last sync status, and a 7-day steps sparkline from HealthKit daily statistics
+
+### Changed
+
+- App Transport Security now permits plain HTTP to local network hosts only, so self-hosted receivers and brokers on the LAN work without TLS; internet traffic stays HTTPS
+
+### Removed
+
+- The half-finished Dutch localization; the app is English-only, matching the Android companion app
+
 ## [1.2.0] - 2026-08-26
 
 ### Added
