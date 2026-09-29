@@ -187,7 +187,7 @@ struct LogRow: View {
                             .fill(log.success ? Color.green : Color.red)
                             .frame(width: 8, height: 8)
 
-                        Text(log.logType.displayName)
+                        Text(log.isMqtt ? "MQTT" : log.logType.displayName)
                             .font(.caption)
                             .fontWeight(.medium)
                             .padding(.horizontal, 6)
@@ -202,7 +202,7 @@ struct LogRow: View {
                         }
 
                         if let recordCount = log.recordCount, recordCount > 0 {
-                            Text("\(recordCount) rec")
+                            Text(log.isMqtt ? "\(recordCount) sensors" : "\(recordCount) rec")
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
@@ -248,7 +248,7 @@ struct LogRow: View {
                         DetailRow(label: "Error", value: error)
                     }
                     if let recordCount = log.recordCount {
-                        DetailRow(label: "Records", value: "\(recordCount)")
+                        DetailRow(label: log.isMqtt ? "Sensors" : "Records", value: "\(recordCount)")
                     }
                     if let dataType = log.dataType {
                         DetailRow(label: "Type", value: dataType)

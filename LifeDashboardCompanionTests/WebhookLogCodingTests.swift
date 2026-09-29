@@ -29,6 +29,85 @@ final class WebhookLogCodingTests: XCTestCase {
         XCTAssertEqual(logs.map(\.id), ["A"])
     }
 
+    func testRowFrom130WithoutDestinationIsAWebhook() throws {
+        let log = try XCTUnwrap(decode("[\(row130)]").first)
+        XCTAssertNil(log.destination)
+        XCTAssertEqual(log.syncKind, .webhook)
+        XCTAssertTrue(log.countsTowardLifetime)
+    }
+
+    func testUnknownDestinationDecodesAndCountsNowhere() throws {
+        let row = row130.replacingOccurrences(of: "\"logType\"", with: "\"destination\":\"FAX\",\"logType\"")
+        let log = try XCTUnwrap(decode("[\(row)]").first)
+        XCTAssertEqual(log.destination, "FAX")
+        XCTAssertEqual(log.syncKind, .other)
+        XCTAssertFalse(log.countsTowardLifetime)
+    }
+
+    func testMqttRowRoundTrips() throws {
+        let log = WebhookLog(
+            url: "mqtt://broker.local:1883/lifedashboard",
+            success: true,
+            dataType: "mqtt",
+            recordCount: 12,
+            logType: .healthConnect,
+            destination: .mqtt
+        )
+        let json = try XCTUnwrap(String(bytes: JSONEncoder().encode([log]), encoding: .utf8))
+        XCTAssertTrue(json.contains("\"destination\":\"MQTT\""))
+        let decoded = try XCTUnwrap(decode(json).first)
+        XCTAssertEqual(decoded.syncKind, .mqtt)
+        XCTAssertEqual(decoded.recordCount, 12)
+    }
+
+    func testNewWebhookRowsNameTheirDestination() {
+        let log = WebhookLog(url: "https://example.com", success: true, recordCount: 1, logType: .healthConnect)
+        XCTAssertEqual(log.destination, "WEBHOOK")
+    }
+
+    func testMarkedReadFailure() {
+        let marked = WebhookLog(
+            url: "Apple Health", success: false, errorMessage: "Protected data unavailable",
+            dataType: WebhookLog.readFailureDataType, logType: .healthConnect
+        )
+        XCTAssertEqual(marked.syncKind, .readFailure)
+        XCTAssertFalse(marked.countsTowardLifetime)
+    }
+
+    func testLegacyReadFailureIsRecognisedByMissingRecordCount() throws {
+        // 1.3.0 wrote the read failure with the first webhook URL and no record count.
+        let legacy = #"""
+        {"id":"R","timestamp":780000000,"url":"https://example.com/hook","success":false,        "errorMessage":"Read failed","dataType":"health_connect","logType":"HEALTH_CONNECT"}
+        """#
+        XCTAssertEqual(try XCTUnwrap(decode("[\(legacy)]").first).syncKind, .readFailure)
+
+        let failedDelivery = legacy.replacingOccurrences(of: "\"logType\"", with: "\"recordCount\":10,\"logType\"")
+        XCTAssertEqual(try XCTUnwrap(decode("[\(failedDelivery)]").first).syncKind, .webhook)
+    }
+
+    func testFailedRowsFromThisBuildAreNotReadFailures() {
+        let failedPublish = WebhookLog(
+            url: "mqtt://broker.local:1883/lifedashboard", success: false, dataType: "mqtt",
+            logType: .healthConnect, destination: .mqtt
+        )
+        XCTAssertEqual(failedPublish.syncKind, .mqtt)
+
+        let failedWithoutCount = WebhookLog(url: "https://example.com", success: false, logType: .healthConnect)
+        XCTAssertEqual(failedWithoutCount.syncKind, .webhook)
+    }
+
+    func testOnlyDeliveredWebhookRowsCountTowardLifetime() {
+        let delivered = WebhookLog(url: "https://example.com", success: true, recordCount: 5, logType: .healthConnect)
+        let failed = WebhookLog(url: "https://example.com", success: false, recordCount: 5, logType: .healthConnect)
+        let published = WebhookLog(
+            url: "mqtt://broker.local:1883/lifedashboard", success: true, recordCount: 12,
+            logType: .healthConnect, destination: .mqtt
+        )
+        XCTAssertTrue(delivered.countsTowardLifetime)
+        XCTAssertFalse(failed.countsTowardLifetime)
+        XCTAssertFalse(published.countsTowardLifetime)
+    }
+
     func testDecodeLogsOfGarbageIsEmpty() {
         XCTAssertTrue(decode("not json").isEmpty)
         XCTAssertTrue(decode("{\"id\":\"A\"}").isEmpty)

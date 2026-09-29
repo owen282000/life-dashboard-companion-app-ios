@@ -89,11 +89,13 @@ final class HealthSyncManager: Sendable {
                 return .failure(error: "Webhook failed - queued for retry")
             }
         } catch {
+            // Reading failed before anything was sent, so the row names Apple Health and not
+            // a webhook URL that was never contacted.
             let log = WebhookLog(
-                url: webhookUrls.first ?? "unknown",
+                url: "Apple Health",
                 success: false,
                 errorMessage: error.localizedDescription,
-                dataType: "health_connect",
+                dataType: WebhookLog.readFailureDataType,
                 logType: .healthConnect
             )
             prefs.addWebhookLog(log)

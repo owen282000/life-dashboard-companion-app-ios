@@ -49,7 +49,7 @@ final class LogStore: @unchecked Sendable {
     /// Lifetime counters shown in the hidden Nerd Stats card on the About screen.
     /// Counted per delivery (one log entry per webhook URL).
     private func updateLifetimeStats(_ log: WebhookLog) {
-        guard log.success else { return }
+        guard log.countsTowardLifetime else { return }
         let defaults = UserDefaults.standard
         defaults.set(defaults.integer(forKey: "stats_total_deliveries") + 1, forKey: "stats_total_deliveries")
         if let count = log.recordCount {

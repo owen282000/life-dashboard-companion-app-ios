@@ -51,10 +51,26 @@ final class MqttPublisher: @unchecked Sendable {
                 try await self.send(MqttPacket.disconnect(), over: connection)
             }
             prefs.mqttLastStatus = "OK: \(sensors.count) sensors published at \(Date().iso8601String)"
+            logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: nil)
         } catch {
             logger.error("MQTT publish failed: \(error.localizedDescription)")
             prefs.mqttLastStatus = "Error: \(error.localizedDescription)"
+            logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: error.localizedDescription)
         }
+    }
+
+    /// One Logs tab row per publish, shaped like Android's: the broker and topic as the URL,
+    /// the sensor count as the record count, no payload.
+    private func logPublish(prefs: PreferencesManager, baseTopic: String, sensors: Int, error: String?) {
+        prefs.addWebhookLog(WebhookLog(
+            url: "mqtt://\(prefs.mqttHost):\(prefs.mqttPort)/\(baseTopic)",
+            success: error == nil,
+            errorMessage: error,
+            dataType: "mqtt",
+            recordCount: sensors,
+            logType: .healthConnect,
+            destination: .mqtt
+        ))
     }
 
     // MARK: - Connection plumbing
