@@ -18,8 +18,12 @@ final class BackgroundSyncManager {
 
     private var observerQueries: [HKObserverQuery] = []
     private var pendingDataTypes: Set<HealthDataType> = []
+    private var pendingCompletions: [ObserverCompletion] = []
     private var debounceTask: Task<Void, Never>?
     private let debounceSeconds: UInt64 = 5
+    /// How long a HealthKit wakeup may keep HealthKit waiting: the debounce, one read and one
+    /// delivery fit comfortably, and it stays under the roughly 30 seconds iOS gives.
+    private let observerBudgetSeconds: UInt64 = 25
 
     private init() {}
 
@@ -73,13 +77,17 @@ final class BackgroundSyncManager {
                     sampleType: sampleType,
                     predicate: nil
                 ) { _, completionHandler, error in
-                    // MUST call completionHandler on every path or HealthKit
-                    // permanently stops delivering background updates.
-                    defer { completionHandler() }
-
-                    guard error == nil else { return }
+                    // HealthKit keeps the app running until the completion handler is called,
+                    // and stops background delivery for an app that never calls it. So it is
+                    // called once on every path: after the sync it triggered, or at the latest
+                    // when the time budget runs out, never before the work.
+                    let completion = ObserverCompletion(completionHandler)
+                    guard error == nil else {
+                        completion.call()
+                        return
+                    }
                     Task { @MainActor in
-                        BackgroundSyncManager.shared.handleHealthKitUpdate(for: dataType)
+                        BackgroundSyncManager.shared.handleHealthKitUpdate(for: dataType, completion: completion)
                     }
                 }
 
@@ -111,9 +119,18 @@ final class BackgroundSyncManager {
     // MARK: - Debounced Sync Trigger
 
     /// Handles a HealthKit observer callback by collecting the data type and debouncing.
-    /// Multiple observer callbacks within the debounce window are batched into a single sync.
-    private func handleHealthKitUpdate(for dataType: HealthDataType) {
+    /// Multiple observer callbacks within the debounce window are batched into a single sync,
+    /// and their completion handlers are called when that sync ends.
+    private func handleHealthKitUpdate(for dataType: HealthDataType, completion: ObserverCompletion) {
         pendingDataTypes.insert(dataType)
+        pendingCompletions.append(completion)
+
+        // The budget: a sync that is still running then carries on for as long as iOS allows,
+        // but HealthKit is not kept waiting for it.
+        Task { [observerBudgetSeconds] in
+            try? await Task.sleep(nanoseconds: observerBudgetSeconds * 1_000_000_000)
+            completion.call()
+        }
 
         debounceTask?.cancel()
         debounceTask = Task {
@@ -121,7 +138,10 @@ final class BackgroundSyncManager {
             guard !Task.isCancelled else { return }
 
             let typesToSync = self.pendingDataTypes
+            let completions = self.pendingCompletions
             self.pendingDataTypes.removeAll()
+            self.pendingCompletions.removeAll()
+            defer { completions.forEach { $0.call() } }
 
             guard !typesToSync.isEmpty else { return }
 
@@ -227,4 +247,23 @@ final class BackgroundSyncManager {
         }
     }
 
+}
+
+/// An HKObserverQuery completion handler that runs once, however many paths reach it: the end
+/// of the sync and the time budget both call it, and only the first call gets through.
+final class ObserverCompletion: @unchecked Sendable {
+    private let lock = NSLock()
+    private var handler: (() -> Void)?
+
+    init(_ handler: @escaping () -> Void) {
+        self.handler = handler
+    }
+
+    func call() {
+        lock.lock()
+        let pending = handler
+        handler = nil
+        lock.unlock()
+        pending?()
+    }
 }

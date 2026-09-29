@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import UIKit
 import WidgetKit
 
 final class HealthSyncManager: Sendable {
@@ -22,6 +23,20 @@ final class HealthSyncManager: Sendable {
 
         guard !enabledTypes.isEmpty, !webhookUrls.isEmpty else {
             return .noData
+        }
+
+        // A locked iPhone keeps Health data encrypted, and every read then comes back empty,
+        // which used to read as "no data". Say what it is instead, in the result and the log.
+        guard await MainActor.run(body: { UIApplication.shared.isProtectedDataAvailable }) else {
+            let message = "iPhone is locked, Health data can't be read"
+            prefs.addWebhookLog(WebhookLog(
+                url: webhookUrls.first ?? "unknown",
+                success: false,
+                errorMessage: message,
+                dataType: "health_connect",
+                logType: .healthConnect
+            ))
+            return .failure(error: message)
         }
 
         do {
