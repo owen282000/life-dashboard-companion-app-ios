@@ -74,15 +74,17 @@ final class WebhookLogCodingTests: XCTestCase {
         XCTAssertFalse(marked.countsTowardLifetime)
     }
 
-    func testLegacyReadFailureIsRecognisedByMissingRecordCount() throws {
+    func testLegacyReadFailureIsRecognisedByMissingRecordCount() {
         // 1.3.0 wrote the read failure with the first webhook URL and no record count.
         let legacy = #"""
-        {"id":"R","timestamp":780000000,"url":"https://example.com/hook","success":false,        "errorMessage":"Read failed","dataType":"health_connect","logType":"HEALTH_CONNECT"}
+        {"id":"R","timestamp":780000000,"url":"https://example.com/hook","success":false,"errorMessage":"Read failed","dataType":"health_connect","logType":"HEALTH_CONNECT"}
         """#
-        XCTAssertEqual(try XCTUnwrap(decode("[\(legacy)]").first).syncKind, .readFailure)
+        let legacyRows = decode("[\(legacy)]")
+        XCTAssertEqual(legacyRows.count, 1)
+        XCTAssertEqual(legacyRows.first?.syncKind, .readFailure)
 
         let failedDelivery = legacy.replacingOccurrences(of: "\"logType\"", with: "\"recordCount\":10,\"logType\"")
-        XCTAssertEqual(try XCTUnwrap(decode("[\(failedDelivery)]").first).syncKind, .webhook)
+        XCTAssertEqual(decode("[\(failedDelivery)]").first?.syncKind, .webhook)
     }
 
     func testFailedRowsFromThisBuildAreNotReadFailures() {

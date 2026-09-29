@@ -82,6 +82,9 @@
 		18DD5CECDB84654192BECE02 /* PairingLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7F82E34A9A6016BACEFD2B5 /* PairingLinkTests.swift */; };
 		A1034D6271A9AAF51EC89672 /* PairingApplyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1C740614BFF69060EAE315 /* PairingApplyTests.swift */; };
 		B245FE77AA68002A4EFCEBEC /* WebhookLogCodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8B7BE1BD86868C3A951B716 /* WebhookLogCodingTests.swift */; };
+		2E4E8AD8F82E06F18F7E5627 /* SyncStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA83B71D8F9C56A0C1C11CA /* SyncStats.swift */; };
+		CD633342D71B7343BE6D42BF /* SyncStatsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0A76F35656FC9BBDF0216A /* SyncStatsCard.swift */; };
+		681C2DAA9427B02EA5D9277F /* SyncStatsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA530B152D776D79491AAF31 /* SyncStatsTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -196,6 +199,9 @@
 		B7F82E34A9A6016BACEFD2B5 /* PairingLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingLinkTests.swift; sourceTree = "<group>"; };
 		CC1C740614BFF69060EAE315 /* PairingApplyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingApplyTests.swift; sourceTree = "<group>"; };
 		D8B7BE1BD86868C3A951B716 /* WebhookLogCodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookLogCodingTests.swift; sourceTree = "<group>"; };
+		6AA83B71D8F9C56A0C1C11CA /* SyncStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStats.swift; sourceTree = "<group>"; };
+		8A0A76F35656FC9BBDF0216A /* SyncStatsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatsCard.swift; sourceTree = "<group>"; };
+		CA530B152D776D79491AAF31 /* SyncStatsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatsTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -268,6 +274,7 @@
 				F1000006 /* SyncResult.swift */,
 				5331291E0EF6DF56C191229F /* PairingApply.swift */,
 				6075335CB0ADDDC85D0AEE7B /* PairingLink.swift */,
+				6AA83B71D8F9C56A0C1C11CA /* SyncStats.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -321,6 +328,7 @@
 				018102528A19E8A6D938C8D8 /* SettingsBackupSection.swift */,
 				F1000040 /* DashboardCard.swift */,
 				6DF59FC78BB30C4555721CEB /* SyncScheduleSection.swift */,
+				8A0A76F35656FC9BBDF0216A /* SyncStatsCard.swift */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -347,6 +355,7 @@
 				38A0B3417331E8F6C4B4D39C /* SettingsBackupTests.swift */,
 				5044D8F8014A310603CBB122 /* SettingsBackupCryptoTests.swift */,
 				F100001B /* WebhookRetryPolicyTests.swift */,
+				CA530B152D776D79491AAF31 /* SyncStatsTests.swift */,
 				D8B7BE1BD86868C3A951B716 /* WebhookLogCodingTests.swift */,
 				F100001C /* SleepSessionBuilderTests.swift */,
 				F1000026 /* SyncLimitsTests.swift */,
@@ -493,6 +502,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CD633342D71B7343BE6D42BF /* SyncStatsCard.swift in Sources */,
+				2E4E8AD8F82E06F18F7E5627 /* SyncStats.swift in Sources */,
 				B1000001 /* LifeDashboardCompanionApp.swift in Sources */,
 				B1000002 /* ContentView.swift in Sources */,
 				B1000004 /* HealthDataType.swift in Sources */,
@@ -555,6 +566,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				681C2DAA9427B02EA5D9277F /* SyncStatsTests.swift in Sources */,
 				B245FE77AA68002A4EFCEBEC /* WebhookLogCodingTests.swift in Sources */,
 				B100001A /* WebhookSignerTests.swift in Sources */,
 				A1034D6271A9AAF51EC89672 /* PairingApplyTests.swift in Sources */,

@@ -12,11 +12,12 @@ struct LogsScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                statsSection
+                SyncStatsCard(stats: SyncStats(logs: logs))
                 logsListSection
             }
             .padding()
         }
+        .refreshable { refreshLogs() }
         .onAppear { refreshLogs() }
         .sheet(isPresented: $showExportSheet) {
             if let url = exportFileURL {
@@ -30,32 +31,11 @@ struct LogsScreen: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will permanently delete the selected logs.")
+            Text("Deletes every log entry. The sync history above is counted from these entries, so it starts over.")
         }
     }
 
     // MARK: - Sections
-
-    private var statsSection: some View {
-        let successCount = logs.filter(\.success).count
-        let failureCount = logs.filter { !$0.success }.count
-        let totalRecords = logs.compactMap(\.recordCount).reduce(0, +)
-
-        return VStack(alignment: .leading, spacing: 8) {
-            Label("Statistics", systemImage: "chart.bar.fill")
-                .font(.headline)
-
-            HStack(spacing: 16) {
-                StatCard(title: "Total", value: "\(logs.count)", color: .blue)
-                StatCard(title: "Success", value: "\(successCount)", color: .green)
-                StatCard(title: "Failed", value: "\(failureCount)", color: .red)
-                StatCard(title: "Records", value: "\(totalRecords)", color: .purple)
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-    }
 
     private var logsListSection: some View {
         VStack(alignment: .leading, spacing: 8) {
