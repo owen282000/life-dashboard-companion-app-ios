@@ -18,6 +18,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         static let healthEnabledDataTypes = "health_enabled_data_types"
         static let healthWebhookHeaders = "health_webhook_headers"
         static let healthSigningSecret = "health_signing_secret"
+        static let includeDailyTotals = "include_daily_totals"
         static let webhookLogs = "webhook_logs"
         static let failureNotificationsEnabled = "failure_notifications_enabled"
         static let failureNotificationThreshold = "failure_notification_threshold"
@@ -69,6 +70,11 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
 
     @Published var healthSigningSecret: String {
         didSet { KeychainStore.setString(healthSigningSecret, forKey: Keys.healthSigningSecret) }
+    }
+
+    /// Same key and default as the Android app, so a settings backup maps it one to one.
+    @Published var includeDailyTotals: Bool {
+        didSet { defaults.set(includeDailyTotals, forKey: Keys.includeDailyTotals) }
     }
 
     @Published var failureNotificationsEnabled: Bool {
@@ -158,6 +164,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         } else {
             self.healthSigningSecret = ""
         }
+        self.includeDailyTotals = defaults.object(forKey: Keys.includeDailyTotals) as? Bool ?? true
 
         self.mqttEnabled = defaults.object(forKey: Keys.mqttEnabled) as? Bool ?? false
         self.mqttHost = defaults.string(forKey: Keys.mqttHost) ?? ""

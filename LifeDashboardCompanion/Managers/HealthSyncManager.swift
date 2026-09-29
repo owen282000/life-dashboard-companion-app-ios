@@ -55,6 +55,7 @@ final class HealthSyncManager: Sendable {
             payload["app_version"] = appVersion
             payload["source"] = "healthkit_ios"
             let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
+            let totalsDay = await attachDailyTotals(to: &payload, types: enabledTypes)
 
             // Publish latest values to MQTT (Home Assistant Discovery) when configured;
             // failures never block the webhook sync and surface in the MQTT section status.
@@ -82,7 +83,7 @@ final class HealthSyncManager: Sendable {
                 await deletionStore.remove(deletions.carried)
                 return .success(syncCounts: syncCounts)
             } else {
-                if enqueueBody(body, urls: webhookUrls, headers: headers, totalRecords: totalRecords) {
+                if enqueueBody(queuedBody(body, payload: payload, totalsDay: totalsDay), urls: webhookUrls, headers: headers, totalRecords: totalRecords) {
                     await deletionStore.remove(deletions.carried)
                 }
                 return .failure(error: "Webhook failed - queued for retry")
@@ -142,6 +143,7 @@ final class HealthSyncManager: Sendable {
                 payload["app_version"] = appVersion
                 payload["source"] = "healthkit_ios"
                 let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
+                let totalsDay = await attachDailyTotals(to: &payload, types: prefs.healthEnabledDataTypes)
 
                 var syncCounts: [HealthDataType: Int] = [:]
                 let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
@@ -165,7 +167,7 @@ final class HealthSyncManager: Sendable {
                     await deletionStore.remove(deletions.carried)
                     return .success(syncCounts: syncCounts)
                 } else {
-                    if enqueueBody(body, urls: webhookUrls, headers: headers, totalRecords: totalRecords) {
+                    if enqueueBody(queuedBody(body, payload: payload, totalsDay: totalsDay), urls: webhookUrls, headers: headers, totalRecords: totalRecords) {
                         await deletionStore.remove(deletions.carried)
                     }
                     return .failure(error: "Webhook failed - queued for retry")
@@ -234,6 +236,7 @@ final class HealthSyncManager: Sendable {
         payload["timestamp"] = Date().iso8601String
         payload["app_version"] = appVersion
         payload["source"] = "healthkit_ios"
+        await attachDailyTotals(to: &payload, types: enabledTypes)
 
         return payload
     }
@@ -288,6 +291,33 @@ final class HealthSyncManager: Sendable {
             await deletionStore.remove(deletions.carried)
         }
         return .failure(error: "Webhook failed - queued for retry")
+    }
+
+    // MARK: - Daily Totals
+
+    /// Puts the totals of today and the two days before on the payload when the setting is on,
+    /// for every enabled type, not only the ones whose observer fired. Returns the day they were
+    /// built on, nil when the payload carries none.
+    @discardableResult
+    private func attachDailyTotals(to payload: inout [String: Any], types: Set<HealthDataType>) async -> String? {
+        guard prefs.includeDailyTotals else { return nil }
+        let calendar = DailyTotals.calendar()
+        let now = Date()
+        let totals = await healthKit.readDailyTotals(
+            in: DailyTotals.window(now: now, calendar: calendar),
+            enabledTypes: types,
+            calendar: calendar
+        )
+        guard !totals.isEmpty else { return nil }
+        payload[DailyTotals.payloadKey] = totals
+        return DailyTotals.dateString(now, calendar: calendar)
+    }
+
+    /// The body a failed payload waits in the retry queue with, see DailyTotals.forQueue.
+    private func queuedBody(_ body: Data, payload: [String: Any], totalsDay: String?) -> Data {
+        guard let totalsDay else { return body }
+        let queued = DailyTotals.forQueue(payload, builtOn: totalsDay)
+        return (try? JSONSerialization.data(withJSONObject: queued, options: [.sortedKeys])) ?? body
     }
 
     // MARK: - Private Helpers

@@ -41,6 +41,7 @@
 		4A789195CF646BC598EE3895 /* HealthBackfill.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE10A6EA3D001E3511511497 /* HealthBackfill.swift */; };
 		4B362D4265214953E4922095 /* BackfillController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF33929F5514CE184DEC6C /* BackfillController.swift */; };
 		B100001D /* SyncLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001D /* SyncLimits.swift */; };
+		5FD4BA2492A1C35EFA84CDF9 /* DailyTotals.swift in Sources */ = {isa = PBXBuildFile; fileRef = C888638AD21A073D47F7FF06 /* DailyTotals.swift */; };
 		B100001E /* MenstruationPeriodBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001E /* MenstruationPeriodBuilder.swift */; };
 		B100001F /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001F /* KeychainStore.swift */; };
 		B1000022 /* LogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000022 /* LogStore.swift */; };
@@ -134,6 +135,7 @@
 		FE10A6EA3D001E3511511497 /* HealthBackfill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthBackfill.swift; sourceTree = "<group>"; };
 		8ADF33929F5514CE184DEC6C /* BackfillController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackfillController.swift; sourceTree = "<group>"; };
 		F100001D /* SyncLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncLimits.swift; sourceTree = "<group>"; };
+		C888638AD21A073D47F7FF06 /* DailyTotals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTotals.swift; sourceTree = "<group>"; };
 		F100001E /* MenstruationPeriodBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenstruationPeriodBuilder.swift; sourceTree = "<group>"; };
 		F100001F /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		F1000022 /* LogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStore.swift; sourceTree = "<group>"; };
@@ -250,6 +252,7 @@
 				F100001D /* SyncLimits.swift */,
 				8ADF33929F5514CE184DEC6C /* BackfillController.swift */,
 				FE10A6EA3D001E3511511497 /* HealthBackfill.swift */,
+				C888638AD21A073D47F7FF06 /* DailyTotals.swift */,
 				F100001E /* MenstruationPeriodBuilder.swift */,
 				F100001F /* KeychainStore.swift */,
 				F1000022 /* LogStore.swift */,
@@ -458,6 +461,7 @@
 				B100001D /* SyncLimits.swift in Sources */,
 				4B362D4265214953E4922095 /* BackfillController.swift in Sources */,
 				4A789195CF646BC598EE3895 /* HealthBackfill.swift in Sources */,
+				5FD4BA2492A1C35EFA84CDF9 /* DailyTotals.swift in Sources */,
 				B100001E /* MenstruationPeriodBuilder.swift in Sources */,
 				B100001F /* KeychainStore.swift in Sources */,
 				B1000022 /* LogStore.swift in Sources */,
