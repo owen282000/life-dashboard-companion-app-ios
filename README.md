@@ -46,6 +46,7 @@ Looking for an open source alternative to Health Auto Export? This app covers th
 - **Bounded payloads** - High-volume types are capped per sync (1000 records for heart rate and steps, 500 for HRV and respiratory rate, 200 for the rest), oldest first, so later syncs catch up without skipping records
 - **Fault isolation** - A read failure in one data type skips only that type instead of failing the whole sync
 - **Deleted records** - A record deleted in Apple Health is named in `deleted_records`, in the same shape as the Android app, so a receiver can drop it (see [Deletions](#deletions))
+- **Daily totals** - Per-day steps, distance and calories as the Health app counts them, with overlapping iPhone and Watch data counted once, in the same `daily_totals` format as the Android app (can be switched off)
 
 ### Types the Android app sends and iOS cannot
 
@@ -155,6 +156,7 @@ Every payload has these top-level fields:
   "timestamp": "2026-02-05T12:00:00Z",
   "app_version": "1.0.0",
   "source": "healthkit_ios",
+  "daily_totals": [],
   "steps": [],
   "sleep": [],
   "heart_rate": [],
@@ -432,6 +434,23 @@ Where this differs from the Android app:
 - Tracking starts with the first sync of a type after installing or updating the app, so deletions from before that are not reported. The same holds after a reinstall or a restore onto another iPhone; after a restore the enabled types are named once in `deletions_unavailable`.
 - A deletion and the record that replaced it usually arrive together, but a type with more new records than one sync sends can deliver the replacement a sync or two later.
 - iOS payloads carry no `sequence`.
+
+### Daily Totals
+
+When an iPhone and a Watch both record steps, Apple Health holds each stretch twice, and adding up the raw records counts it twice. Every payload therefore also carries `daily_totals`, computed with HealthKit's statistics queries, which count overlapping samples from different sources once by the order set in the Health app (Browse, a data type, Data Sources & Access). The figures match what the Health app shows.
+
+```json
+"daily_totals": [
+  { "date": "2026-02-05", "steps": 8421, "distance_meters": 6210.4, "active_calories": 412.0, "total_calories": 2231.5 }
+]
+```
+
+The array has the same schema as the Android app's: one entry per local day in the phone's time zone, for today and the two days before, only for enabled types. A field is left out for a day without data rather than sent as 0, and a day without any field is left out. Where it differs from Android:
+
+- `distance_meters` is walking and running distance, the samples the Distance type reads; Health Connect's distance covers every activity
+- `total_calories` is resting plus active energy, since HealthKit has no total energy type, and is only sent on days with resting energy. An iPhone without an Apple Watch usually records none, so it is usually absent there
+
+Use `daily_totals` for day totals and the raw records for detail. The setting **Daily totals in payload** switches it off.
 
 ## Delivery, Retries and Signing
 
