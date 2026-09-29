@@ -11,6 +11,7 @@ final class HealthSyncManager: Sendable {
     private let healthKit = HealthKitManager.shared
     private let pendingStore = PendingSyncStore.shared
     private let incrementalGate = SingleFlight<HealthDataType>()
+    private let deletionStore = DeletionStore.shared
     private let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
 
     private init() {}
@@ -40,17 +41,20 @@ final class HealthSyncManager: Sendable {
             return .failure(error: message)
         }
 
+        let readGeneration = await DeletionStep.run(for: enabledTypes)
+
         do {
             let healthData = try await healthKit.readHealthData(for: enabledTypes)
 
             guard !healthData.isEmpty else {
-                return .noData
+                return await postDeletionsOnly(readGeneration: readGeneration, urls: webhookUrls, headers: headers) ?? .noData
             }
 
             var payload: [String: Any] = healthData
             payload["timestamp"] = Date().iso8601String
             payload["app_version"] = appVersion
             payload["source"] = "healthkit_ios"
+            let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
 
             // Publish latest values to MQTT (Home Assistant Discovery) when configured;
             // failures never block the webhook sync and surface in the MQTT section status.
@@ -75,9 +79,12 @@ final class HealthSyncManager: Sendable {
             updateWidgetStatus(success: success, records: totalRecords)
 
             if success {
+                await deletionStore.remove(deletions.carried)
                 return .success(syncCounts: syncCounts)
             } else {
-                enqueueBody(body, urls: webhookUrls, headers: headers, totalRecords: totalRecords)
+                if enqueueBody(body, urls: webhookUrls, headers: headers, totalRecords: totalRecords) {
+                    await deletionStore.remove(deletions.carried)
+                }
                 return .failure(error: "Webhook failed - queued for retry")
             }
         } catch {
@@ -117,6 +124,10 @@ final class HealthSyncManager: Sendable {
 
         guard !types.isEmpty, !webhookUrls.isEmpty else { return .noData }
 
+        // Deletions are read for every enabled type, not only the ones an observer named: the
+        // step costs milliseconds, and every read shortens the time HealthKit could forget one.
+        let readGeneration = await DeletionStep.run(for: prefs.healthEnabledDataTypes.union(types))
+
         do {
             let readResult = try await healthKit.readIncrementalData(for: types)
 
@@ -124,12 +135,13 @@ final class HealthSyncManager: Sendable {
             case .protectedDataUnavailable:
                 return .failure(error: "Device locked - data encrypted")
             case .empty:
-                return .noData
+                return await postDeletionsOnly(readGeneration: readGeneration, urls: webhookUrls, headers: headers) ?? .noData
             case .data(let healthData):
                 var payload: [String: Any] = healthData
                 payload["timestamp"] = Date().iso8601String
                 payload["app_version"] = appVersion
                 payload["source"] = "healthkit_ios"
+                let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
 
                 var syncCounts: [HealthDataType: Int] = [:]
                 let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
@@ -150,9 +162,12 @@ final class HealthSyncManager: Sendable {
                 updateWidgetStatus(success: success, records: totalRecords)
 
                 if success {
+                    await deletionStore.remove(deletions.carried)
                     return .success(syncCounts: syncCounts)
                 } else {
-                    enqueueBody(body, urls: webhookUrls, headers: headers, totalRecords: totalRecords)
+                    if enqueueBody(body, urls: webhookUrls, headers: headers, totalRecords: totalRecords) {
+                        await deletionStore.remove(deletions.carried)
+                    }
                     return .failure(error: "Webhook failed - queued for retry")
                 }
             }
@@ -223,15 +238,68 @@ final class HealthSyncManager: Sendable {
         return payload
     }
 
+    // MARK: - Deletions
+
+    /// Puts the pending deletions on a payload, minus any uuid the payload carries as a record.
+    /// They leave the store only once the payload is delivered or in the outbox.
+    private func attachDeletions(
+        to payload: inout [String: Any],
+        records: [String: Any],
+        readGeneration: Int
+    ) async -> DeletionPlan {
+        let plan = await deletionStore.plan(
+            readIds: DeletionTracking.recordUUIDs(in: records),
+            readGeneration: readGeneration
+        )
+        payload.merge(DeletionTracking.payloadFields(plan.summary)) { current, _ in current }
+        return plan
+    }
+
+    /// A deletion is often the only change, as when a meal is removed and nothing is added.
+    /// Such a sync sends a payload with the deletions and no records, and reports it as a
+    /// delivery of 0 records. Nil when there is nothing to send.
+    private func postDeletionsOnly(readGeneration: Int, urls: [String], headers: [String: String]) async -> HealthSyncResult? {
+        var payload: [String: Any] = [
+            "timestamp": Date().iso8601String,
+            "app_version": appVersion,
+            "source": "healthkit_ios"
+        ]
+        let deletions = await attachDeletions(to: &payload, records: [:], readGeneration: readGeneration)
+        guard !deletions.summary.isEmpty,
+              let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
+            return nil
+        }
+
+        let success = await WebhookManager.shared.post(
+            body: body,
+            urls: urls,
+            headers: headers,
+            logType: .healthConnect,
+            dataType: "health_connect",
+            recordCount: 0
+        )
+        updateWidgetStatus(success: success, records: 0)
+
+        if success {
+            await deletionStore.remove(deletions.carried)
+            return .success(syncCounts: [:])
+        }
+        if enqueueBody(body, urls: urls, headers: headers, totalRecords: 0) {
+            await deletionStore.remove(deletions.carried)
+        }
+        return .failure(error: "Webhook failed - queued for retry")
+    }
+
     // MARK: - Private Helpers
 
+    @discardableResult
     private func enqueueBody(
         _ body: Data,
         urls: [String],
         headers: [String: String],
         totalRecords: Int
-    ) {
-        pendingStore.enqueue(
+    ) -> Bool {
+        let queued = pendingStore.enqueue(
             payload: body,
             urls: urls,
             headers: headers,
@@ -241,6 +309,7 @@ final class HealthSyncManager: Sendable {
         )
 
         logger.info("Enqueued failed sync payload (\(totalRecords) records) for retry")
+        return queued
     }
 
     private func countRecords(in data: [String: Any], syncCounts: inout [HealthDataType: Int]) -> Int {

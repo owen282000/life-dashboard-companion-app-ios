@@ -38,6 +38,8 @@ final class PendingSyncStore: @unchecked Sendable {
 
     // MARK: - Public API
 
+    /// True once the item is on disk, which is what lets a caller forget what it carries.
+    @discardableResult
     func enqueue(
         payload: Data,
         urls: [String],
@@ -45,7 +47,7 @@ final class PendingSyncStore: @unchecked Sendable {
         logType: String,
         dataType: String,
         recordCount: Int
-    ) {
+    ) -> Bool {
         let item = PendingSyncItem(
             id: UUID().uuidString,
             createdAt: Date(),
@@ -61,8 +63,12 @@ final class PendingSyncStore: @unchecked Sendable {
         )
 
         let fileURL = directory.appendingPathComponent("\(item.id).json")
-        if let data = try? encoder.encode(item) {
-            try? data.write(to: fileURL, options: .atomic)
+        guard let data = try? encoder.encode(item) else { return false }
+        do {
+            try data.write(to: fileURL, options: .atomic)
+            return true
+        } catch {
+            return false
         }
     }
 
