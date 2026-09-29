@@ -19,6 +19,8 @@ All notable changes to this project are documented in this file. The format is b
 - Sync schedule, as in the Android app: every X minutes or at fixed times, a weekday filter and quiet hours, stored in the Android app's format. iOS decides when an app runs in the background, so a fixed time means "not before this time": it syncs once, at the first chance iOS gives after it, and a time missed until quiet hours or a day that is off is skipped, not moved. The screen says so, warns when a combination never syncs, and a status line under Sync Now says why automatic syncs are waiting
 - "Need an exact time?" explains how a Shortcuts Time of Day automation runs Sync Health Data at a set time
 - Settings backup and restore under About: export the webhook URLs, which of them get no custom headers, the headers and signing secret, the sync schedule, every MQTT setting, the data-type toggles and the daily totals switch as a JSON file and import it again, on an iPhone or in the Android app. The file uses the Android app's format, and an export with secrets is encrypted with a password exactly as Android does it (AES-256-GCM, PBKDF2-HMAC-SHA256), so an encrypted Android export opens on the iPhone and the other way round. An export without secrets can be shared without handing over access. Importing shows a preview of the servers and of what is kept, cleared or skipped first; sync progress and logs are left out. Documented in `docs/settings-backup.md`
+- Sync history on the Logs tab: success rate, deliveries and records over the entries the log keeps, with the time it starts, the last success, and the three latest failures grouped by receiver and error. A webhook is named by its host only
+- MQTT publishes appear in the Logs tab next to webhook deliveries, with the broker, the number of sensors and the error when the broker could not be reached
 
 ### Changed
 
@@ -42,6 +44,9 @@ All notable changes to this project are documented in this file. The format is b
 - A full sync on a locked iPhone said "No data to sync"; it now says the iPhone is locked
 - A type with more new records than one sync may send (1000 heart rate or step samples, 200 of most other types) lost the rest: the sync moved past them and never read them again. The next sync now continues where the last one stopped, until it has caught up. Total calories, blood pressure and nutrition, which combine several HealthKit types, now keep a sync position for each of them instead of one shared position that could skip records of the others
 - Two incremental syncs that started close together, for instance when the app opened while HealthKit reported new data, could both save their sync position and leave the later one without the point where the other had to continue, which skipped those records. Only one incremental sync runs at a time now, and one that is asked for meanwhile is added to it
+- The Logs tab counted the records of failed deliveries as sent
+- A failed Apple Health read showed up under the first webhook URL, which was never contacted; the entry now says Apple Health
+- One log entry the app could not read emptied the whole log
 
 ### Security
 
