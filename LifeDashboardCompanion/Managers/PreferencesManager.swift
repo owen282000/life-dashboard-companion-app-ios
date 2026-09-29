@@ -48,6 +48,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
             if let data = try? encoder.encode(healthWebhookUrls) {
                 defaults.set(data, forKey: Keys.healthWebhookUrls)
             }
+            pruneUrlsWithoutHeaders()
         }
     }
 

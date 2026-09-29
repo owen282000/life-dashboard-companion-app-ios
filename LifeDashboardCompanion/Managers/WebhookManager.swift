@@ -19,6 +19,10 @@ actor WebhookManager {
     /// dictionary so the payload crosses the actor boundary as a Sendable value.
     /// `logSuccess: false` logs only the URLs that failed: a backfill posts hundreds of chunks,
     /// which would push every other entry out of the log, and writes one summary row instead.
+    ///
+    /// Which URL gets the custom headers is decided here, per URL, at send time, so every
+    /// caller obeys it: an address pairing added gets none. Any new way of posting must go
+    /// through this method for that reason.
     func post(
         body jsonData: Data,
         urls: [String],
@@ -30,20 +34,31 @@ actor WebhookManager {
     ) async -> Bool {
         guard !urls.isEmpty else { return false }
 
-        var allHeaders = headers
-        let signingSecret = PreferencesManager.shared.healthSigningSecret
-        if !signingSecret.isEmpty {
-            allHeaders["X-Signature"] = WebhookSigner.signatureHeader(for: jsonData, secret: signingSecret)
-        }
+        let prefs = PreferencesManager.shared
+        let signingSecret = prefs.healthSigningSecret
+        let signature = signingSecret.isEmpty
+            ? nil
+            : WebhookSigner.signatureHeader(for: jsonData, secret: signingSecret)
+        let configuredUrls = prefs.healthWebhookUrls
+        let urlsWithoutHeaders = prefs.healthUrlsWithoutHeaders
 
         let rawPayload = String(data: jsonData, encoding: .utf8)
         var anySuccess = false
 
         for url in urls {
+            var urlHeaders = PairingApply.headers(
+                for: url,
+                custom: headers,
+                configuredUrls: configuredUrls,
+                urlsWithoutHeaders: urlsWithoutHeaders
+            )
+            if let signature {
+                urlHeaders["X-Signature"] = signature
+            }
             let result = await postWithRetry(
                 data: jsonData,
                 urlString: url,
-                headers: allHeaders
+                headers: urlHeaders
             )
 
             if result.success {
@@ -65,6 +80,62 @@ actor WebhookManager {
         }
 
         return anySuccess
+    }
+
+    static let atsRefusal = "iOS blocks plain HTTP to this host. Use its IP address or https."
+
+    /// One signed request to one address, for the check right after pairing: no custom headers,
+    /// one attempt, a short timeout, nothing queued. Logged like a Test Ping.
+    func probe(body: Data, url urlString: String, secret: String) async -> PairingPingOutcome {
+        let signature = WebhookSigner.signatureHeader(for: body, secret: secret)
+        var statusCode: Int?
+        var answer = Data()
+        var answerSignature: String?
+        var failure: String?
+
+        if let url = URL(string: urlString) {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.httpBody = body
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(signature, forHTTPHeaderField: "X-Signature")
+            request.timeoutInterval = 10
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                if let http = response as? HTTPURLResponse {
+                    statusCode = http.statusCode
+                    answerSignature = http.value(forHTTPHeaderField: "X-Signature")
+                }
+                answer = data
+            } catch let error as URLError where error.code == .appTransportSecurityRequiresSecureConnection {
+                failure = WebhookManager.atsRefusal
+            } catch {
+                failure = error.localizedDescription
+            }
+        } else {
+            failure = "Invalid URL"
+        }
+
+        let outcome = PairingPingOutcome.from(
+            statusCode: statusCode,
+            body: answer,
+            answerSignature: answerSignature,
+            requestSignature: signature,
+            secret: secret,
+            error: failure
+        )
+        let delivered = outcome == .confirmed || outcome == .deliveredUnconfirmed
+        PreferencesManager.shared.addWebhookLog(WebhookLog(
+            url: urlString,
+            statusCode: statusCode,
+            success: delivered,
+            errorMessage: delivered ? nil : (failure ?? statusCode.map { "HTTP \($0)" }),
+            dataType: "test",
+            recordCount: 0,
+            rawPayload: String(data: body, encoding: .utf8),
+            logType: .healthConnect
+        ))
+        return outcome
     }
 
     private func postWithRetry(
@@ -114,6 +185,10 @@ actor WebhookManager {
                         }
                     }
                 }
+            } catch let error as URLError where error.code == .appTransportSecurityRequiresSecureConnection {
+                // No retry can change this: iOS refuses plain HTTP to this host on every attempt.
+                lastError = WebhookManager.atsRefusal
+                break
             } catch {
                 lastError = error.localizedDescription
             }

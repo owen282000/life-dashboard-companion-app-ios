@@ -204,9 +204,16 @@ final class HealthSyncManager: Sendable {
         logger.info("Draining pending sync queue: \(items.count) item(s)")
 
         for item in items {
+            // An address removed since this was queued gets nothing more; with none left, the
+            // item is done. The next full sync resends its window anyway.
+            let urls = PairingApply.deliverable(item.urls, configuredUrls: prefs.healthWebhookUrls)
+            guard !urls.isEmpty else {
+                pendingStore.remove(id: item.id)
+                continue
+            }
             let success = await WebhookManager.shared.post(
                 body: item.payload,
-                urls: item.urls,
+                urls: urls,
                 headers: item.headers,
                 logType: LogType(rawValue: item.logType) ?? .healthConnect,
                 dataType: item.dataType,
