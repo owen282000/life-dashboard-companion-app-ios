@@ -137,38 +137,76 @@ final class PendingSyncStore: @unchecked Sendable {
     }
 }
 
-/// Lets one piece of async work run at a time. A caller that arrives while it runs waits for
-/// that run and does not start a second one. The retry queue is drained from app launch,
-/// becoming active, the network coming back, both background tasks and Retry Now; the store
-/// hands every drain the same files, so two drains at once posted each payload twice.
+/// Lets one run of a job go at a time. A caller that finds a run under way does not start a
+/// second one: it hands its items to that run, which takes them in one more round before it
+/// ends. Two jobs use it.
 ///
-/// A caller that arrives mid-run also asks for one more run once this one ends, so an item
-/// queued after the running drain listed the files is not left for the next trigger. Cancelling
-/// the caller that started the work cancels the work, as a background task that runs out of
-/// time does; a caller that only waits leaves it running.
-actor SingleFlight {
-    private var current: Task<Void, Never>?
+/// The retry queue drain goes through `run`. It is started from app launch, becoming active,
+/// the network coming back, both background tasks and Retry Now; the store hands every drain
+/// the same files, so two drains at once posted each payload twice. A caller that arrives
+/// mid-drain waits until the run is over, including the one more round its arrival asked for,
+/// so an item queued after the running drain listed the files is not left for the next
+/// trigger. Cancelling the caller that started the work cancels the work, as a background task
+/// that runs out of time does; a caller that only waits leaves it running.
+///
+/// The incremental sync goes through `enter` and `next`: a second caller hands over its data
+/// types and returns at once, and the running sync reads them in one more round.
+actor SingleFlight<Item: Hashable & Sendable> {
+    private var running = false
     private var rerunRequested = false
+    private var pending: Set<Item> = []
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    /// True when the caller may run now. False when a run is under way; `items` are then
+    /// handed to it through `next()`.
+    func enter(_ items: Set<Item> = []) -> Bool {
+        if running {
+            pending.formUnion(items)
+            rerunRequested = true
+            return false
+        }
+        running = true
+        return true
+    }
+
+    /// What was handed over while the current round ran, for one more round, or nil when no
+    /// caller arrived: the run is then over and the next `enter` starts a new one.
+    func next() -> Set<Item>? {
+        guard rerunRequested else {
+            finish()
+            return nil
+        }
+        rerunRequested = false
+        defer { pending.removeAll() }
+        return pending
+    }
 
     /// Runs `work`, or waits for the run already in flight. True when this call ran it.
     @discardableResult
     func run(_ work: @escaping @Sendable () async -> Void) async -> Bool {
-        if let current {
-            rerunRequested = true
-            await current.value
+        guard enter() else {
+            await withCheckedContinuation { waiters.append($0) }
             return false
         }
         repeat {
-            rerunRequested = false
             let task = Task { await work() }
-            current = task
             await withTaskCancellationHandler {
                 await task.value
             } onCancel: {
                 task.cancel()
             }
-            current = nil
-        } while rerunRequested && !Task.isCancelled
+        } while !Task.isCancelled && next() != nil
+        // Cancelled: the rounds asked for are dropped, as the whole drain is.
+        if running { finish() }
         return true
+    }
+
+    private func finish() {
+        running = false
+        rerunRequested = false
+        pending.removeAll()
+        let released = waiters
+        waiters.removeAll()
+        released.forEach { $0.resume() }
     }
 }

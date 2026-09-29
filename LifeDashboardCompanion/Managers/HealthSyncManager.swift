@@ -10,6 +10,7 @@ final class HealthSyncManager: Sendable {
     private let prefs = PreferencesManager.shared
     private let healthKit = HealthKitManager.shared
     private let pendingStore = PendingSyncStore.shared
+    private let incrementalGate = SingleFlight<HealthDataType>()
     private let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
 
     private init() {}
@@ -94,7 +95,23 @@ final class HealthSyncManager: Sendable {
 
     // MARK: - Incremental Sync (anchor-based, triggered by HKObserverQuery)
 
+    /// One incremental sync at a time. The observer debounce, the refresh task and the
+    /// foreground catch-up can all start one; two at once read the same anchors and catch-up
+    /// cursors and save them over each other, and a newer anchor without its cursor skips
+    /// the records past the cap for good. A caller that finds a sync running hands its types
+    /// to it and returns: the running sync reads them in one more round before it ends.
     func performIncrementalSync(types: Set<HealthDataType>) async -> HealthSyncResult {
+        guard await incrementalGate.enter(types) else { return .noData }
+        var round = types
+        var result = HealthSyncResult.noData
+        while true {
+            result = result.merged(with: await runIncrementalSync(types: round))
+            guard let pending = await incrementalGate.next() else { return result }
+            round = pending
+        }
+    }
+
+    private func runIncrementalSync(types: Set<HealthDataType>) async -> HealthSyncResult {
         let webhookUrls = prefs.healthWebhookUrls
         let headers = prefs.healthWebhookHeaders
 
@@ -154,7 +171,7 @@ final class HealthSyncManager: Sendable {
 
     // MARK: - Pending Queue Drain
 
-    private let drainFlight = SingleFlight()
+    private let drainFlight = SingleFlight<Never>()
 
     /// Delivers what earlier syncs queued, oldest first, one drain at a time.
     func drainPendingQueue() async {
@@ -235,5 +252,19 @@ final class HealthSyncManager: Sendable {
             }
         }
         return total
+    }
+}
+
+extension HealthSyncResult {
+    /// Combines the results of the rounds of one sync: a failure wins, record counts add up.
+    func merged(with other: HealthSyncResult) -> HealthSyncResult {
+        switch (self, other) {
+        case (.failure, _): return self
+        case (_, .failure): return other
+        case (.noData, _): return other
+        case (_, .noData): return self
+        case let (.success(first), .success(second)):
+            return .success(syncCounts: first.merging(second, uniquingKeysWith: +))
+        }
     }
 }

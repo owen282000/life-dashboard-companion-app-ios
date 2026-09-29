@@ -30,7 +30,7 @@ final class SingleFlightTests: XCTestCase {
     }
 
     func testCallersThatArriveDuringARunWaitForItAndItRunsOnceMore() async {
-        let flight = SingleFlight()
+        let flight = SingleFlight<Never>()
         let counter = Counter()
         let latch = Latch()
         let work = work(counter, latch)
@@ -58,7 +58,7 @@ final class SingleFlightTests: XCTestCase {
     }
 
     func testARunAfterTheLastOneFinishedRunsAgain() async {
-        let flight = SingleFlight()
+        let flight = SingleFlight<Never>()
         let counter = Counter()
         let latch = Latch()
         await latch.open()
@@ -73,7 +73,7 @@ final class SingleFlightTests: XCTestCase {
     }
 
     func testCancellingTheCallerThatStartedTheWorkCancelsTheWork() async {
-        let flight = SingleFlight()
+        let flight = SingleFlight<Never>()
         let counter = Counter()
         let latch = Latch()
 
@@ -86,5 +86,54 @@ final class SingleFlightTests: XCTestCase {
 
         let sawCancellation = await counter.sawCancellation
         XCTAssertTrue(sawCancellation)
+    }
+
+    // MARK: - Handing over (the incremental sync)
+
+    func testFirstCallerRunsAndALaterOneHandsOver() async {
+        let gate = SingleFlight<String>()
+        let first = await gate.enter(["steps"])
+        let second = await gate.enter(["heart_rate"])
+        XCTAssertTrue(first)
+        XCTAssertFalse(second)
+    }
+
+    func testTheRunningCallerGetsWhatWasHandedOverOnce() async {
+        let gate = SingleFlight<String>()
+        _ = await gate.enter(["steps"])
+        _ = await gate.enter(["heart_rate"])
+        _ = await gate.enter(["heart_rate", "sleep"])
+        let round = await gate.next()
+        XCTAssertEqual(round, ["heart_rate", "sleep"])
+        let after = await gate.next()
+        XCTAssertNil(after)
+    }
+
+    func testAFinishedRunLetsTheNextCallerIn() async {
+        let gate = SingleFlight<String>()
+        _ = await gate.enter(["steps"])
+        _ = await gate.next()
+        let again = await gate.enter(["steps"])
+        XCTAssertTrue(again)
+    }
+
+    func testTypesHandedOverDuringTheExtraRoundGetAnotherOne() async {
+        let gate = SingleFlight<String>()
+        _ = await gate.enter(["steps"])
+        _ = await gate.enter(["sleep"])
+        _ = await gate.next()
+        let late = await gate.enter(["weight"])
+        XCTAssertFalse(late)
+        let round = await gate.next()
+        XCTAssertEqual(round, ["weight"])
+    }
+
+    func testResultsOfRoundsCombine() {
+        let one = HealthSyncResult.success(syncCounts: [.steps: 3])
+        let two = HealthSyncResult.success(syncCounts: [.steps: 2, .sleep: 1])
+        guard case .success(let counts) = one.merged(with: two) else { return XCTFail("expected success") }
+        XCTAssertEqual(counts, [.steps: 5, .sleep: 1])
+        guard case .failure = one.merged(with: .failure(error: "down")) else { return XCTFail("expected failure") }
+        guard case .success = HealthSyncResult.noData.merged(with: one) else { return XCTFail("expected success") }
     }
 }
