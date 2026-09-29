@@ -57,6 +57,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             BackgroundSyncManager.shared.scheduleHealthRefresh()
         }
 
+        // Loads an unfinished backfill and picks it up when the app becomes active
+        _ = BackfillController.shared
+
         // Start network monitoring - drains pending queue when connectivity returns
         _ = NetworkMonitor.shared
 

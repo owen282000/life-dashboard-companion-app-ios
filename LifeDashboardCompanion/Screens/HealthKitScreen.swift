@@ -4,6 +4,7 @@ import HealthKit
 struct HealthKitScreen: View {
     @ObservedObject private var prefs = PreferencesManager.shared
     @ObservedObject private var healthKit = HealthKitManager.shared
+    @ObservedObject private var backfill = BackfillController.shared
 
     @State private var syncIntervalText: String = ""
     @State private var newWebhookUrl: String = ""
@@ -496,6 +497,8 @@ struct HealthKitScreen: View {
             .buttonStyle(.bordered)
             .disabled(prefs.healthEnabledDataTypes.isEmpty || isLoadingPreview)
 
+            BackfillSection(prefs: prefs)
+
             // Sync Now
             Button {
                 isSyncing = true
@@ -520,7 +523,7 @@ struct HealthKitScreen: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(prefs.healthWebhookUrls.isEmpty || prefs.healthEnabledDataTypes.isEmpty || isSyncing)
+            .disabled(prefs.healthWebhookUrls.isEmpty || prefs.healthEnabledDataTypes.isEmpty || isSyncing || backfill.isRunning)
 
             if let message = syncMessage {
                 Text(message)

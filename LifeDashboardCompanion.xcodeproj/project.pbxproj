@@ -24,6 +24,7 @@
 		B1000015 /* PendingSyncStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000015 /* PendingSyncStore.swift */; };
 		B1000016 /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000016 /* NetworkMonitor.swift */; };
 		B100000F /* ExportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000F /* ExportManager.swift */; };
+		A2EAAFD5F263D012811C9334 /* BackfillSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = C62EECEBEC625EDD72812A24 /* BackfillSection.swift */; };
 		B1000010 /* HealthKitScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000010 /* HealthKitScreen.swift */; };
 		B1000012 /* LogsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000012 /* LogsScreen.swift */; };
 		B1000017 /* WebhookSigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000017 /* WebhookSigner.swift */; };
@@ -38,6 +39,7 @@
 		B100001B /* WebhookRetryPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001B /* WebhookRetryPolicyTests.swift */; };
 		B100001C /* SleepSessionBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001C /* SleepSessionBuilderTests.swift */; };
 		4A789195CF646BC598EE3895 /* HealthBackfill.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE10A6EA3D001E3511511497 /* HealthBackfill.swift */; };
+		4B362D4265214953E4922095 /* BackfillController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF33929F5514CE184DEC6C /* BackfillController.swift */; };
 		B100001D /* SyncLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001D /* SyncLimits.swift */; };
 		B100001E /* MenstruationPeriodBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001E /* MenstruationPeriodBuilder.swift */; };
 		B100001F /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001F /* KeychainStore.swift */; };
@@ -107,6 +109,7 @@
 		F1000015 /* PendingSyncStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingSyncStore.swift; sourceTree = "<group>"; };
 		F1000016 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		F100000F /* ExportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportManager.swift; sourceTree = "<group>"; };
+		C62EECEBEC625EDD72812A24 /* BackfillSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackfillSection.swift; sourceTree = "<group>"; };
 		F1000010 /* HealthKitScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitScreen.swift; sourceTree = "<group>"; };
 		F1000012 /* LogsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogsScreen.swift; sourceTree = "<group>"; };
 		F1000013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -125,6 +128,7 @@
 		F1000020 /* LifeDashboardCompanion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LifeDashboardCompanion.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F1000021 /* LifeDashboardCompanionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LifeDashboardCompanionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FE10A6EA3D001E3511511497 /* HealthBackfill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthBackfill.swift; sourceTree = "<group>"; };
+		8ADF33929F5514CE184DEC6C /* BackfillController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackfillController.swift; sourceTree = "<group>"; };
 		F100001D /* SyncLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncLimits.swift; sourceTree = "<group>"; };
 		F100001E /* MenstruationPeriodBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenstruationPeriodBuilder.swift; sourceTree = "<group>"; };
 		F100001F /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
@@ -236,6 +240,7 @@
 				F1000018 /* WebhookRetryPolicy.swift */,
 				F1000019 /* SleepSessionBuilder.swift */,
 				F100001D /* SyncLimits.swift */,
+				8ADF33929F5514CE184DEC6C /* BackfillController.swift */,
 				FE10A6EA3D001E3511511497 /* HealthBackfill.swift */,
 				F100001E /* MenstruationPeriodBuilder.swift */,
 				F100001F /* KeychainStore.swift */,
@@ -251,6 +256,7 @@
 			isa = PBXGroup;
 			children = (
 				F1000010 /* HealthKitScreen.swift */,
+				C62EECEBEC625EDD72812A24 /* BackfillSection.swift */,
 				F1000012 /* LogsScreen.swift */,
 				F1000023 /* AboutScreen.swift */,
 				F1000040 /* DashboardCard.swift */,
@@ -429,6 +435,7 @@
 				B100000E /* BackgroundSyncManager.swift in Sources */,
 				B100000F /* ExportManager.swift in Sources */,
 				B1000010 /* HealthKitScreen.swift in Sources */,
+				A2EAAFD5F263D012811C9334 /* BackfillSection.swift in Sources */,
 				B1000012 /* LogsScreen.swift in Sources */,
 				B1000017 /* WebhookSigner.swift in Sources */,
 				6834543E155CE8FC8B45ED25 /* MqttPacket.swift in Sources */,
@@ -437,6 +444,7 @@
 				B1000018 /* WebhookRetryPolicy.swift in Sources */,
 				B1000019 /* SleepSessionBuilder.swift in Sources */,
 				B100001D /* SyncLimits.swift in Sources */,
+				4B362D4265214953E4922095 /* BackfillController.swift in Sources */,
 				4A789195CF646BC598EE3895 /* HealthBackfill.swift in Sources */,
 				B100001E /* MenstruationPeriodBuilder.swift in Sources */,
 				B100001F /* KeychainStore.swift in Sources */,
