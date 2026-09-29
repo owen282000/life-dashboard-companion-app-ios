@@ -39,4 +39,13 @@ final class SyncLimitsTests: XCTestCase {
         XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .respiratoryRate), 500)
         XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .weight), 200)
     }
+
+    func testTypesAddedForAndroidParityShareAndroidsDefaultCap() {
+        let added: [HealthDataType] = [
+            .vo2Max, .basalBodyTemperature, .intermenstrualBleeding, .ovulationTest, .cervicalMucus, .sexualActivity
+        ]
+        for type in added {
+            XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: type), 200, "\(type)")
+        }
+    }
 }

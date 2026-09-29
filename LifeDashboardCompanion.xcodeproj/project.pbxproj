@@ -46,6 +46,7 @@
 		B1000024 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F1000024 /* PrivacyInfo.xcprivacy */; };
 		B1000025 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F1000025 /* Localizable.xcstrings */; };
 		B1000026 /* SyncLimitsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000026 /* SyncLimitsTests.swift */; };
+		7C6E6187A82E4D3D2DE1052E /* HealthRecordMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E54DAE6449747C349A981F33 /* HealthRecordMappingTests.swift */; };
 		B1000027 /* MenstruationPeriodBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000027 /* MenstruationPeriodBuilderTests.swift */; };
 		B1000028 /* LifeDashboardWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F100002A /* LifeDashboardWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B1000029 /* LifeDashboardWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000028 /* LifeDashboardWidget.swift */; };
@@ -130,6 +131,7 @@
 		F1000024 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F1000025 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		F1000026 /* SyncLimitsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncLimitsTests.swift; sourceTree = "<group>"; };
+		E54DAE6449747C349A981F33 /* HealthRecordMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthRecordMappingTests.swift; sourceTree = "<group>"; };
 		F1000027 /* MenstruationPeriodBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenstruationPeriodBuilderTests.swift; sourceTree = "<group>"; };
 		F1000028 /* LifeDashboardWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeDashboardWidget.swift; sourceTree = "<group>"; };
 		F1000029 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -273,6 +275,7 @@
 				E7EC97C166A63DD57CE1085A /* TestSupport.swift */,
 				63586CAA6E654362E6E26BD8 /* ObserverBatcherTests.swift */,
 				3A94954C43B4B0A9258AEB89 /* SingleFlightTests.swift */,
+				E54DAE6449747C349A981F33 /* HealthRecordMappingTests.swift */,
 				F1000027 /* MenstruationPeriodBuilderTests.swift */,
 			);
 			path = LifeDashboardCompanionTests;
@@ -461,6 +464,7 @@
 				A7DFF04D8CCCC1B0F82F046E /* TestSupport.swift in Sources */,
 				C59971F6E3A10DC254EC4F88 /* ObserverBatcherTests.swift in Sources */,
 				EA1793276A33E27643284C4C /* SingleFlightTests.swift in Sources */,
+				7C6E6187A82E4D3D2DE1052E /* HealthRecordMappingTests.swift in Sources */,
 				B1000027 /* MenstruationPeriodBuilderTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
