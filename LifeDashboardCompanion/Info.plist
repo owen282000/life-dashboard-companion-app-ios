@@ -11,6 +11,13 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Used to deliver your health data to webhook servers and MQTT brokers on your own local network.</string>
+	<!-- BGTaskScheduler refuses app refresh requests without fetch and processing requests
+	     without processing, however the identifiers below are listed. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>com.owen282000.lifedashboard.healthsync</string>

@@ -86,10 +86,12 @@ final class BackgroundSyncManager {
                 healthKitManager.healthStore.execute(query)
                 observerQueries.append(query)
 
-                // Enable background delivery (pairs with the observer query above)
+                // Enable background delivery (pairs with the observer query above). Immediate:
+                // HealthKit still holds some types, such as steps, to hourly on its own, and
+                // the others wake the app as soon as new samples are saved.
                 healthKitManager.healthStore.enableBackgroundDelivery(
                     for: sampleType,
-                    frequency: .hourly
+                    frequency: .immediate
                 ) { [logger] _, error in
                     if let error = error {
                         logger.error("Background delivery error for \(dataType.displayName): \(error)")
@@ -137,11 +139,7 @@ final class BackgroundSyncManager {
         request.earliestBeginDate = Date(timeIntervalSinceNow: interval)
         request.requiresNetworkConnectivity = true
 
-        do {
-            try BGTaskScheduler.shared.submit(request)
-        } catch {
-            logger.error("Failed to schedule health sync: \(error)")
-        }
+        submit(request, name: "health sync")
     }
 
     /// Schedule BGAppRefreshTask - runs every ~1 hour, 30s window, no charging needed
@@ -149,10 +147,29 @@ final class BackgroundSyncManager {
         let request = BGAppRefreshTaskRequest(identifier: BackgroundSyncManager.healthRefreshTaskId)
         request.earliestBeginDate = Date(timeIntervalSinceNow: 3600) // 1 hour
 
+        submit(request, name: "health refresh")
+    }
+
+    /// Submits a background task request and says why when iOS refuses it. `notPermitted` is a
+    /// build problem (a missing background mode or identifier) and would otherwise go unnoticed;
+    /// `unavailable` is expected in the Simulator and when Background App Refresh is off.
+    private func submit(_ request: BGTaskRequest, name: String) {
         do {
             try BGTaskScheduler.shared.submit(request)
+            logger.info("Scheduled \(name, privacy: .public) for \(request.earliestBeginDate?.description ?? "now", privacy: .public)")
+        } catch let error as BGTaskScheduler.Error {
+            switch error.code {
+            case .notPermitted:
+                logger.fault("iOS refused the \(name, privacy: .public) task: background mode or identifier missing from Info.plist")
+            case .unavailable:
+                logger.notice("Background tasks unavailable for \(name, privacy: .public): Simulator, or Background App Refresh is off")
+            case .tooManyPendingTaskRequests:
+                logger.error("Too many pending background task requests for \(name, privacy: .public)")
+            default:
+                logger.error("Failed to schedule \(name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            }
         } catch {
-            logger.error("Failed to schedule health refresh: \(error)")
+            logger.error("Failed to schedule \(name, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
     }
 
