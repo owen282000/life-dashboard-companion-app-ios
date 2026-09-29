@@ -45,6 +45,7 @@ Looking for an open source alternative to Health Auto Export? This app covers th
 - Configurable sync interval (minimum 15 minutes)
 - **Bounded payloads** - High-volume types are capped per sync (1000 records for heart rate and steps, 500 for HRV and respiratory rate, 200 for the rest), oldest first, so later syncs catch up without skipping records
 - **Fault isolation** - A read failure in one data type skips only that type instead of failing the whole sync
+- **Deleted records** - A record deleted in Apple Health is named in `deleted_records`, in the same shape as the Android app, so a receiver can drop it (see [Deletions](#deletions))
 
 ### Types the Android app sends and iOS cannot
 
@@ -186,7 +187,7 @@ Every payload has these top-level fields:
 }
 ```
 
-Only enabled data types with records are included. Every record additionally contains a `uuid` (the stable HealthKit sample identifier, useful for server-side deduplication since full syncs re-send the last 7 days) and a `source` (the name of the app or device that wrote the record). These are omitted from the examples below for brevity. Each array contains records with the following fields:
+Only enabled data types with records are included. Every record additionally contains a `uuid` (the stable HealthKit sample identifier, useful for server-side deduplication since full syncs re-send the last 7 days; an edited record arrives under a new `uuid`, and the old one is named in `deleted_records`) and a `source` (the name of the app or device that wrote the record). These are omitted from the examples below for brevity. Each array contains records with the following fields:
 
 ### Activity
 
@@ -323,7 +324,7 @@ Only enabled data types with records are included. Every record additionally con
 }
 ```
 
-Possible stage values: `in_bed`, `sleeping`, `light`, `deep`, `rem`, `awake`, `unknown`. These match the Android companion app's stage naming.
+Possible stage values: `in_bed`, `sleeping`, `light`, `deep`, `rem`, `awake`, `unknown`. These match the Android companion app's stage naming. Sessions are built from the stage samples on every read and carry no `uuid` of their own; each stage carries its sample's `uuid` and `source`.
 
 ### Nutrition
 
@@ -402,6 +403,35 @@ The `protection_used` field is `protected` or `unprotected` when the writing app
 ```json
 { "celsius": 36.4, "time": "2026-02-12T06:30:00Z" }
 ```
+
+### Deletions
+
+A record deleted in Apple Health leaves nothing for a sync to read, so a receiver that stores records would keep it. HealthKit never changes a record in place either: an app that edits one deletes it and saves a new one under a new `uuid`, so every edit would leave the old record on the receiver next to the new one. The app follows HealthKit's own record of deletions and names the records that are gone, in the same shape as the Android app:
+
+```json
+"deleted_records": [
+  { "type": "nutrition", "uuid": "84E37E8A-1C2D-4E5F-8A9B-0C1D2E3F4A5B" }
+]
+```
+
+`type` is the key the record arrived under and `uuid` is the `uuid` it was delivered with, so drop that `uuid` from that collection. The field is absent when nothing was deleted, and a payload never names a `uuid` it also carries as a record. When a deletion is the only change, the sync sends a payload with `deleted_records` and no record arrays, logged as a delivery of 0 records. Deletions are kept on the phone until a payload carrying them was delivered or queued for retry, so a receiver can get one twice but never lose one.
+
+Types whose deletions a payload cannot vouch for are named in `deletions_unavailable`, a list of payload keys: when HealthKit did not answer in time (five seconds per type, twenty in total, eight in the background), when a type could not be read, and when a type was last read more than 7 days ago. HealthKit may forget a deletion after a while and does not say when, so the 7 days is an estimate, not a HealthKit signal. Reconcile those types against a fresh read of the range instead of trusting the incremental payload.
+
+```json
+"deletions_unavailable": ["heart_rate"]
+```
+
+Where this differs from the Android app:
+
+- Heart rate and every other sample have their own `uuid`; match it exactly. Android's `<uuid>#<epoch millis>` rule for heart rate samples does not apply.
+- An active energy sample is part of both `active_calories` and `total_calories`, so its deletion is named under both when both are enabled.
+- A blood pressure reading is named by its systolic sample and a meal by its energy sample. A diastolic value, or protein, carbs or fat inside a meal, deleted on their own are not reported. A protein record that was sent on its own is.
+- A sleep deletion names the stage (`stages[].uuid`), because sessions have no `uuid`. Drop that stage, or replace the sessions a newer payload covers; do not drop the whole night.
+- `menstruation_period` is derived from flow days and never appears in `deleted_records`; replace the periods a payload covers.
+- Tracking starts with the first sync of a type after installing or updating the app, so deletions from before that are not reported. The same holds after a reinstall or a restore onto another iPhone; after a restore the enabled types are named once in `deletions_unavailable`.
+- A deletion and the record that replaced it usually arrive together, but a type with more new records than one sync sends can deliver the replacement a sync or two later.
+- iOS payloads carry no `sequence`.
 
 ## Delivery, Retries and Signing
 
