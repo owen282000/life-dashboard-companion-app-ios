@@ -36,6 +36,9 @@ enum MqttSupport {
         var scale: Double = 1
     }
 
+    // Event-like types (exercise, nutrition, mindfulness, cycle tracking, sexual activity) are
+    // not mapped, as in the Android app: they do not fit a single-value sensor, and a retained
+    // topic on the broker is no place for reproductive data. They remain webhook-only.
     private static let mappings: [Mapping] = [
         Mapping(payloadKey: "steps", sensorKey: "steps", name: "Steps (latest record)",
                 valueField: "count", timeField: "end_time", unit: "steps", deviceClass: nil),
@@ -57,6 +60,8 @@ enum MqttSupport {
                 valueField: "percentage", timeField: "time", unit: "%", deviceClass: nil),
         Mapping(payloadKey: "body_temperature", sensorKey: "body_temperature", name: "Body Temperature",
                 valueField: "celsius", timeField: "time", unit: "°C", deviceClass: "temperature"),
+        Mapping(payloadKey: "basal_body_temperature", sensorKey: "basal_body_temperature", name: "Basal Body Temperature",
+                valueField: "celsius", timeField: "time", unit: "°C", deviceClass: "temperature"),
         Mapping(payloadKey: "respiratory_rate", sensorKey: "respiratory_rate", name: "Respiratory Rate",
                 valueField: "rate", timeField: "time", unit: "breaths/min", deviceClass: nil),
         Mapping(payloadKey: "distance", sensorKey: "distance", name: "Distance (latest record)",
@@ -70,7 +75,9 @@ enum MqttSupport {
         Mapping(payloadKey: "body_fat", sensorKey: "body_fat", name: "Body Fat",
                 valueField: "percentage", timeField: "time", unit: "%", deviceClass: nil),
         Mapping(payloadKey: "lean_body_mass", sensorKey: "lean_body_mass", name: "Lean Body Mass",
-                valueField: "kilograms", timeField: "time", unit: "kg", deviceClass: "weight")
+                valueField: "kilograms", timeField: "time", unit: "kg", deviceClass: "weight"),
+        Mapping(payloadKey: "vo2_max", sensorKey: "vo2_max", name: "VO2 Max",
+                valueField: "vo2_ml_per_min_per_kg", timeField: "time", unit: "mL/min/kg", deviceClass: nil)
     ]
 
     static func sensors(from payload: [String: Any]) -> [MqttSensor] {

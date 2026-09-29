@@ -39,6 +39,38 @@ final class MqttSupportTests: XCTestCase {
         XCTAssertEqual(sensor.state, "450")
     }
 
+    func testBasalBodyTemperatureAndVo2MaxMatchAndroidSensors() {
+        let payload: [String: Any] = [
+            "basal_body_temperature": [["celsius": 36.45, "time": "2026-01-01T06:30:00Z"]],
+            "vo2_max": [["vo2_ml_per_min_per_kg": 42.5, "time": "2026-01-01T09:00:00Z"]]
+        ]
+        let sensors = Dictionary(uniqueKeysWithValues: MqttSupport.sensors(from: payload).map { ($0.key, $0) })
+        XCTAssertEqual(sensors.count, 2)
+
+        let temperature = sensors["basal_body_temperature"]
+        XCTAssertEqual(temperature?.name, "Basal Body Temperature")
+        XCTAssertEqual(temperature?.state, "36.45")
+        XCTAssertEqual(temperature?.unit, "°C")
+        XCTAssertEqual(temperature?.deviceClass, "temperature")
+
+        let vo2Max = sensors["vo2_max"]
+        XCTAssertEqual(vo2Max?.name, "VO2 Max")
+        XCTAssertEqual(vo2Max?.state, "42.5")
+        XCTAssertEqual(vo2Max?.unit, "mL/min/kg")
+        XCTAssertNil(vo2Max?.deviceClass)
+    }
+
+    func testCycleTrackingStaysWebhookOnly() {
+        let payload: [String: Any] = [
+            "menstruation_flow": [["flow": "light", "time": "2026-01-01T00:00:00Z"]],
+            "intermenstrual_bleeding": [["time": "2026-01-02T00:00:00Z"]],
+            "ovulation_test": [["result": "positive", "time": "2026-01-03T08:00:00Z"]],
+            "cervical_mucus": [["appearance": "egg_white", "sensation": "unknown", "time": "2026-01-03T08:00:00Z"]],
+            "sexual_activity": [["protection_used": "unknown", "time": "2026-01-03T22:00:00Z"]]
+        ]
+        XCTAssertEqual(MqttSupport.sensors(from: payload), [])
+    }
+
     func testTopicsFollowTheExpectedShape() {
         XCTAssertEqual(MqttSupport.stateTopic(baseTopic: "lifedashboard-ios", key: "weight"),
                        "lifedashboard-ios/weight/state")
