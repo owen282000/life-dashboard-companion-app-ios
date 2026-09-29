@@ -1,0 +1,117 @@
+# Settings backup and restore
+
+Export your configuration to a file and import it again, on this iPhone, another iPhone, or in the Android app. Find it under **About > Backup & restore**.
+
+## When you need it
+
+Moving from one iPhone to another usually needs nothing from this app: the settings and the Keychain items that hold the secrets travel with an encrypted iPhone backup and with Quick Start. The export is for everything else: moving between the Android app and the iPhone app, setting the app up again after deleting it, or handing a setup to someone else without your credentials.
+
+## What is included
+
+| Included | Not included |
+|---|---|
+| Webhook URLs | HealthKit anchors (how far this install has read) |
+| Custom headers (with secrets) | Webhook logs and raw payloads |
+| HMAC signing secret (with secrets) | The pending queue |
+| Sync interval | HealthKit permissions |
+| The data-type toggles | The last MQTT status line |
+| MQTT broker, port, TLS, switch and base topic | |
+| MQTT username and password (with secrets) | |
+| Failure notifications and their threshold | |
+
+Sync progress is left out on purpose, as on Android: the anchors describe how far this install has read from HealthKit, and restoring them on another phone would make it skip everything written before them. HealthKit permissions are granted by iOS, so the app asks for them again after an import.
+
+## Exporting
+
+1. Open **About > Backup & restore > Export**
+2. Choose whether to **include secrets** (on by default)
+3. With secrets, enter a password twice, at least 8 characters
+4. Pick where to save the file: iCloud Drive, On My iPhone, or any other location in Files
+
+**With secrets** the file is encrypted with AES-256-GCM under a key derived from your password (PBKDF2-HMAC-SHA256, 210,000 iterations), exactly as the Android app does it, and saved as `life-dashboard-config.encrypted.json`. There is no recovery if you lose the password.
+
+**Without secrets** the file is plain JSON (`life-dashboard-config.json`) with the URLs, MQTT host, topic and options, but no headers, signing secret or MQTT credentials. It still contains your webhook URLs, and a URL can be a credential in itself: a Home Assistant `/api/webhook/<id>` address accepts anything posted to it. Share the file only with someone you would give that access to.
+
+The file goes straight to the place you pick; the app keeps no copy of it. To send it to an Android phone, share it from the Files app.
+
+## Importing
+
+1. Open **About > Backup & restore > Import**
+2. Pick the file
+3. Enter the password when the file is encrypted
+4. Check the preview: the webhook servers, the MQTT broker, the number of data types, whether the file carries secrets, and what is kept, cleared or skipped
+5. Tap **Import**
+
+Nothing changes before you tap Import. A file with a value of the wrong type, a header with a line break in it, or an MQTT port outside 1 to 65535 is refused as a whole, so a damaged file never half-applies. Keys the app does not know are ignored, so a file from a newer version still imports what this one understands; the preview says when a file comes from a newer version.
+
+What an import keeps from the iPhone:
+
+- **Signing secret:** a file without one keeps the one on the iPhone.
+- **Custom headers:** a file without headers keeps the ones on the iPhone only when every webhook in the file goes to a server (scheme, host and port) the iPhone already sends to. Otherwise they are removed, so a token never reaches a server it was not set for. Note that services that host many users' webhooks on one address (Home Assistant Cloud's `hooks.nabu.casa`, for example) count as one server here.
+- **MQTT username and password:** kept only when the file has no secrets at all and points at the same broker, meaning the same host, port and TLS setting. Otherwise the file's credentials apply, or none, so they never go to a server they were not set for, or out in plain text where they had TLS.
+
+Other rules:
+
+- Webhook URLs must use HTTPS, or plain HTTP to a host on your own network (a private address, a name without a dot, or a `.local`, `.lan`, `.home`, `.internal` or `.ts.net` name). Other URLs are skipped and listed in the preview.
+- The sync interval is kept between 15 and 1440 minutes, and the failure threshold becomes the nearest of 3, 5 or 10.
+- Settings apply immediately. Background sync is scheduled again and the app asks for HealthKit access to the imported data types.
+
+## Moving between Android and iPhone
+
+Both apps write and read the same format, so a file from one opens in the other, encrypted or not.
+
+**From Android to iPhone:** the webhook URLs, signing secret, sync interval, data types, MQTT broker and failure threshold carry over. Screen Time, the Receive options, series resolutions and the other Android-only settings are skipped. Android data types the iPhone has no counterpart for are skipped and counted in the preview. When the Android file uses Android's default MQTT topic `lifedashboard`, the iPhone keeps its own default `lifedashboard-ios`, so the two phones do not publish to the same sensors; a custom topic is copied as it is.
+
+Custom headers from Android come with a list of URLs that get none of them (the ones QR pairing added). The iPhone app sends its headers to every URL and cannot honour that list yet, so when a file has such URLs its headers are not imported; add them again under Health if sending them to every URL is fine.
+
+**From iPhone to Android:** Android reads the file, but its importer resets what the file does not mention. Importing an iPhone file on an Android phone that also syncs Screen Time clears its Screen Time webhooks, switches Screen Time MQTT off, resets the Android-only options (full payloads, the day boundary, daily totals) and turns off the data types the iPhone does not have. On a fresh Android phone this does not matter.
+
+## File format
+
+The same JSON as the Android app, with `"platform": "ios"` added so the importer can tell the two apart (Android ignores it):
+
+```json
+{
+  "app_version" : "1.4.0",
+  "exported_at" : "2026-09-30T12:00:00Z",
+  "health" : {
+    "sync_interval_minutes" : 60,
+    "webhook_urls" : [
+      "https://example.com/health"
+    ]
+  },
+  "mqtt" : {
+    "health_base_topic" : "lifedashboard-ios",
+    "health_enabled" : true,
+    "health_use_shared" : true,
+    "shared" : {
+      "host" : "mqtt.local",
+      "port" : 1883,
+      "use_tls" : false
+    }
+  },
+  "options" : {
+    "allow_http_webhooks" : false,
+    "enabled_data_types" : [
+      "HEART_RATE",
+      "MENSTRUATION_FLOW",
+      "MENSTRUATION_PERIOD",
+      "STEPS"
+    ],
+    "failure_notification_threshold" : 3,
+    "failure_notifications_enabled" : true
+  },
+  "platform" : "ios",
+  "version" : 1
+}
+```
+
+- The iPhone's one MQTT broker is Android's shared broker. From an Android file whose health section uses its own broker, that broker is taken instead, host and credentials together.
+- Cycle tracking is one toggle on iPhone and two record types on Android, so it is written as `MENSTRUATION_FLOW` and `MENSTRUATION_PERIOD` and read back from either.
+- `allow_http_webhooks` is for Android: it is true when one of the URLs uses plain HTTP, so Android does not block the same local webhook. The iPhone ignores it and lets iOS decide.
+- `failure_notifications_enabled` is iPhone-only for now, under the name Android uses for the same setting.
+- With secrets, the file is Android's encrypted envelope around this JSON (`type`, `version`, `kdf`, `iterations`, `salt`, `iv`, `ciphertext`), with the salt and IV random per export.
+
+## Keeping an export safe
+
+An export with secrets grants full access to your webhook endpoints and MQTT broker. Treat the file like a password: use a strong password, avoid leaving the file in a chat thread or a shared folder, and delete it once the new phone is set up. When you only need to move non-secret settings, export without secrets.
