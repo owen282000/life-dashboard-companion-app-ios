@@ -66,6 +66,51 @@ final class SleepSessionBuilderTests: XCTestCase {
         XCTAssertEqual(stage?["duration_seconds"] as? Int, 90 * 60)
     }
 
+    func testASessionCarriesAStableUuidOfItsOwn() {
+        let night = [
+            sample(stage: "light", startMinute: 0, endMinute: 60),
+            sample(stage: "deep", startMinute: 60, endMinute: 120)
+        ]
+        let first = SleepSessionBuilder.sessions(from: night)[0]["uuid"] as? String
+        let again = SleepSessionBuilder.sessions(from: night.reversed())[0]["uuid"] as? String
+
+        XCTAssertNotNil(first)
+        XCTAssertEqual(first, again)
+        XCTAssertNotNil(first.flatMap(UUID.init(uuidString:)))
+        XCTAssertFalse(["uuid-0", "uuid-60"].contains(first ?? ""))
+    }
+
+    func testTheUuidHoldsWhileTheNightGrows() {
+        // A sync during the night, then the whole night: Home Assistant must see one session.
+        let partial = SleepSessionBuilder.sessions(from: [sample(stage: "light", startMinute: 0, endMinute: 60)])
+        let whole = SleepSessionBuilder.sessions(from: [
+            sample(stage: "light", startMinute: 0, endMinute: 60),
+            sample(stage: "rem", startMinute: 60, endMinute: 150)
+        ])
+        XCTAssertEqual(partial[0]["uuid"] as? String, whole[0]["uuid"] as? String)
+    }
+
+    func testDifferentNightsGetDifferentUuids() {
+        let sessions = SleepSessionBuilder.sessions(from: [
+            sample(stage: "deep", startMinute: 0, endMinute: 60),
+            sample(stage: "light", startMinute: 1440, endMinute: 1500)
+        ])
+        XCTAssertNotEqual(sessions[0]["uuid"] as? String, sessions[1]["uuid"] as? String)
+    }
+
+    func testNoStageUuidMeansNoSessionUuid() {
+        let sessions = SleepSessionBuilder.sessions(from: [
+            SleepStageSample(stage: "deep", start: date(0), end: date(60), uuid: nil, source: nil)
+        ])
+        XCTAssertNil(sessions[0]["uuid"])
+    }
+
+    func testStagesStartingTogetherPickTheSameEarliestStage() {
+        let one = SleepStageSample(stage: "awake", start: date(0), end: date(10), uuid: "B", source: nil)
+        let two = SleepStageSample(stage: "light", start: date(0), end: date(30), uuid: "A", source: nil)
+        XCTAssertEqual(SleepSessionBuilder.sessionUuid(for: [one, two]), SleepSessionBuilder.sessionUuid(for: [two, one]))
+    }
+
     func testEmptyInputProducesNoSessions() {
         XCTAssertTrue(SleepSessionBuilder.sessions(from: []).isEmpty)
     }

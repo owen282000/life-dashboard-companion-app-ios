@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// A single sleep stage sample, decoupled from HealthKit so session grouping is unit-testable.
@@ -48,11 +49,39 @@ enum SleepSessionBuilder {
                 return stage
             }
 
-            return [
+            var session: [String: Any] = [
                 "session_end_time": sessionEnd.iso8601String,
                 "duration_seconds": Int(sessionEnd.timeIntervalSince(sessionStart)),
                 "stages": stages
             ]
+            if let uuid = sessionUuid(for: group) { session["uuid"] = uuid }
+            return session
         }
+    }
+
+    /// A stable id for a night, so a receiver can replace a session it already has when the
+    /// night comes back longer (read before it ended, or cut by the sample limit) instead of
+    /// counting both. Home Assistant keys a session without one by its end and duration, and
+    /// those change as the night grows.
+    ///
+    /// Derived from the earliest stage, which stays the same while a night grows at the end,
+    /// and hashed so it never equals the uuid of one of its own stages. None when that stage
+    /// has no uuid. A night clipped at its start by the read window still gets a new id; that
+    /// needs a read that starts early enough to see whole nights.
+    static func sessionUuid(for group: [SleepStageSample]) -> String? {
+        let earliest = group.min { lhs, rhs in
+            lhs.start != rhs.start ? lhs.start < rhs.start : (lhs.uuid ?? "") < (rhs.uuid ?? "")
+        }
+        guard let stageUuid = earliest?.uuid else { return nil }
+
+        var bytes = Array(SHA256.hash(data: Data("sleep-session:\(stageUuid)".utf8)).prefix(16))
+        // Shaped as an RFC 4122 name-based UUID (version 5 bits), uppercase like HealthKit's.
+        bytes[6] = (bytes[6] & 0x0F) | 0x50
+        bytes[8] = (bytes[8] & 0x3F) | 0x80
+        let uuid = UUID(uuid: (
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]
+        ))
+        return uuid.uuidString
     }
 }
