@@ -1,3 +1,4 @@
+import BackgroundTasks
 import Foundation
 import HealthKit
 import OSLog
@@ -17,6 +18,9 @@ final class BackfillController: ObservableObject {
     @Published private(set) var progress: BackfillProgress?
     /// Pause was asked for; the chunk in flight finishes first.
     @Published private(set) var isStopping = false
+    /// iOS 26 runs the backfill as a continued processing task, which goes on after the user
+    /// leaves the app and shows its progress in the system UI.
+    @Published private(set) var runsInBackground = false
 
     var isRunning: Bool { job?.status == .running }
 
@@ -29,6 +33,8 @@ final class BackfillController: ObservableObject {
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var segmentStart = 0
     private var segmentStartWindow = 0
+    private var continuedTask: BGTask?
+    private var passesInWindow = 0
 
     private init() {
         if var saved = store.load() {
@@ -99,6 +105,7 @@ final class BackfillController: ObservableObject {
         store.save(running)
         progress = BackfillProgress(windowsDone: start.nextWindow, windowCount: start.windowCount, recordsSent: start.recordsSent)
         beginKeepAlive()
+        submitContinuedTask(for: token, job: running)
 
         let prefs = prefs
         let engine = BackfillEngine(
@@ -127,7 +134,7 @@ final class BackfillController: ObservableObject {
         if let stopReason { return stopReason }
         // Before iOS lets the app go, stop at a pass boundary instead of being cut off mid-post.
         let app = UIApplication.shared
-        if app.applicationState == .background, app.backgroundTimeRemaining < 10 {
+        if continuedTask == nil, app.applicationState == .background, app.backgroundTimeRemaining < 10 {
             return .background
         }
         return nil
@@ -135,7 +142,9 @@ final class BackfillController: ObservableObject {
 
     private func report(_ progress: BackfillProgress, for token: UUID) {
         guard token == runToken else { return }
+        passesInWindow = progress.windowsDone == self.progress?.windowsDone ? passesInWindow + 1 : 1
         self.progress = progress
+        updateContinuedTask(progress)
     }
 
     private func commit(_ committed: BackfillJob, windowRecords: Int, for token: UUID) {
@@ -161,6 +170,7 @@ final class BackfillController: ObservableObject {
         }
         WidgetCenter.shared.reloadAllTimelines()
         logSegment(final)
+        completeContinuedTask(success: final.status == .done)
         endKeepAlive()
         logger.info("Backfill \(final.status.rawValue) after \(final.nextWindow) of \(final.windowCount) windows, \(final.recordsSent) records")
         continueIfBack(final)
@@ -237,7 +247,10 @@ final class BackfillController: ObservableObject {
         backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Backfill") {
             MainActor.assumeIsolated {
                 let controller = BackfillController.shared
-                controller.requestStop(.background)
+                // A continued processing task keeps the run going past this.
+                if controller.continuedTask == nil {
+                    controller.requestStop(.background)
+                }
                 controller.endBackgroundTask()
             }
         }
@@ -252,6 +265,71 @@ final class BackfillController: ObservableObject {
         guard backgroundTask != .invalid else { return }
         UIApplication.shared.endBackgroundTask(backgroundTask)
         backgroundTask = .invalid
+    }
+
+    // MARK: - iOS 26: continued processing
+
+    static let continuedTaskPrefix = "com.owen282000.lifedashboard.backfill."
+
+    /// Asks iOS 26 to keep the run going when the user leaves the app. The request has to be
+    /// made while the app is in front, and is registered under an identifier of its own each
+    /// time: iOS stops the app when one identifier gets a second handler. When iOS says no, the
+    /// run carries on as on older versions.
+    private func submitContinuedTask(for token: UUID, job: BackfillJob) {
+        #if compiler(>=6.2)
+        guard #available(iOS 26.0, *), UIApplication.shared.applicationState == .active else { return }
+        let identifier = BackfillController.continuedTaskPrefix + token.uuidString
+        let registered = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: .main) { task in
+            MainActor.assumeIsolated { BackfillController.shared.attach(task, for: token) }
+        }
+        guard registered else { return }
+        let request = BGContinuedProcessingTaskRequest(
+            identifier: identifier,
+            title: "Backfill History",
+            subtitle: "Backfilling \(job.nextWindow)/\(job.windowCount)..."
+        )
+        request.strategy = .fail
+        do {
+            try BGTaskScheduler.shared.submit(request)
+        } catch {
+            logger.info("Backfill runs in the foreground only: \(error.localizedDescription)")
+        }
+        #endif
+    }
+
+    private func attach(_ task: BGTask, for token: UUID) {
+        guard token == runToken, isRunning else {
+            task.setTaskCompleted(success: false)
+            return
+        }
+        continuedTask = task
+        runsInBackground = true
+        task.expirationHandler = {
+            // iOS ended it, or the user stopped it from the system UI: the two look the same.
+            Task { @MainActor in
+                let controller = BackfillController.shared
+                controller.requestStop(.system)
+                controller.completeContinuedTask(success: false)
+            }
+        }
+        if let progress { updateContinuedTask(progress) }
+    }
+
+    /// The system expires a continued task whose progress looks stalled, so it moves on every
+    /// pass: a hundred units per window, and one per pass inside it.
+    private func updateContinuedTask(_ progress: BackfillProgress) {
+        #if compiler(>=6.2)
+        guard #available(iOS 26.0, *), let task = continuedTask as? BGContinuedProcessingTask else { return }
+        task.progress.totalUnitCount = Int64(max(progress.windowCount, 1) * 100)
+        task.progress.completedUnitCount = Int64(progress.windowsDone * 100 + min(passesInWindow, 99))
+        task.updateTitle("Backfill History", subtitle: "Backfilling \(progress.windowsDone)/\(progress.windowCount)...")
+        #endif
+    }
+
+    private func completeContinuedTask(success: Bool) {
+        continuedTask?.setTaskCompleted(success: success)
+        continuedTask = nil
+        runsInBackground = false
     }
 
     static func describe(_ failure: BackfillJob.Failure) -> String {

@@ -154,7 +154,9 @@ struct BackfillSection: View {
     private func caption(_ job: BackfillJob) -> String? {
         switch job.status {
         case .running:
-            return "Keep the app open. The screen stays on until the backfill is done."
+            return backfill.runsInBackground
+                ? "You can switch apps. Keep your iPhone unlocked."
+                : "Keep the app open. The screen stays on until the backfill is done."
         case .paused:
             switch job.pauseReason {
             case .background: return "iOS pauses the backfill shortly after you leave the app."

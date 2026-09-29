@@ -22,6 +22,7 @@
 	<array>
 		<string>com.owen282000.lifedashboard.healthsync</string>
 		<string>com.owen282000.lifedashboard.healthrefresh</string>
+		<string>com.owen282000.lifedashboard.backfill.*</string>
 	</array>
 </dict>
 </plist>
