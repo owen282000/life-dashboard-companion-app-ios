@@ -6,7 +6,8 @@ import HealthKit
 final class PreferencesManager: ObservableObject, @unchecked Sendable {
     static let shared = PreferencesManager()
 
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
+    private let secrets: any SecretStore
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
@@ -107,13 +108,13 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
     @Published var healthWebhookHeaders: [String: String] {
         didSet {
             if let data = try? encoder.encode(healthWebhookHeaders) {
-                KeychainStore.setData(data, forKey: Keys.healthWebhookHeaders)
+                secrets.setData(data, forKey: Keys.healthWebhookHeaders)
             }
         }
     }
 
     @Published var healthSigningSecret: String {
-        didSet { KeychainStore.setString(healthSigningSecret, forKey: Keys.healthSigningSecret) }
+        didSet { secrets.setString(healthSigningSecret, forKey: Keys.healthSigningSecret) }
     }
 
     /// Same key and default as the Android app, so a settings backup maps it one to one.
@@ -148,11 +149,11 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
     }
 
     @Published var mqttUsername: String {
-        didSet { KeychainStore.setString(mqttUsername, forKey: Keys.mqttUsername) }
+        didSet { secrets.setString(mqttUsername, forKey: Keys.mqttUsername) }
     }
 
     @Published var mqttPassword: String {
-        didSet { KeychainStore.setString(mqttPassword, forKey: Keys.mqttPassword) }
+        didSet { secrets.setString(mqttPassword, forKey: Keys.mqttPassword) }
     }
 
     @Published var mqttBaseTopic: String {
@@ -165,7 +166,11 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
 
     // MARK: - Init
 
-    private init() {
+    /// The app uses `shared`; tests pass an isolated defaults suite and an in-memory secret store.
+    init(defaults: UserDefaults = .standard, secrets: any SecretStore = KeychainSecretStore()) {
+        self.defaults = defaults
+        self.secrets = secrets
+
         self.healthSyncSchedule = PreferencesManager.loadSchedule(from: defaults)
         // An install from before the schedule counts its fixed times from its first launch with it
         if defaults.object(forKey: Keys.healthScheduleChangedAt) == nil {
@@ -187,13 +192,13 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         }
 
         // Secrets live in the Keychain; migrate any values older versions kept in UserDefaults.
-        if let data = KeychainStore.data(forKey: Keys.healthWebhookHeaders),
+        if let data = secrets.data(forKey: Keys.healthWebhookHeaders),
            let headers = try? JSONDecoder().decode([String: String].self, from: data) {
             self.healthWebhookHeaders = headers
         } else if let data = defaults.data(forKey: Keys.healthWebhookHeaders),
                   let headers = try? JSONDecoder().decode([String: String].self, from: data) {
             self.healthWebhookHeaders = headers
-            KeychainStore.setData(data, forKey: Keys.healthWebhookHeaders)
+            secrets.setData(data, forKey: Keys.healthWebhookHeaders)
             defaults.removeObject(forKey: Keys.healthWebhookHeaders)
         } else {
             self.healthWebhookHeaders = [:]
@@ -202,11 +207,11 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         self.failureNotificationsEnabled = defaults.object(forKey: Keys.failureNotificationsEnabled) as? Bool ?? true
         self.failureNotificationThreshold = defaults.object(forKey: Keys.failureNotificationThreshold) as? Int ?? 3
 
-        if let secret = KeychainStore.string(forKey: Keys.healthSigningSecret) {
+        if let secret = secrets.string(forKey: Keys.healthSigningSecret) {
             self.healthSigningSecret = secret
         } else if let secret = defaults.string(forKey: Keys.healthSigningSecret) {
             self.healthSigningSecret = secret
-            KeychainStore.setString(secret, forKey: Keys.healthSigningSecret)
+            secrets.setString(secret, forKey: Keys.healthSigningSecret)
             defaults.removeObject(forKey: Keys.healthSigningSecret)
         } else {
             self.healthSigningSecret = ""
@@ -217,8 +222,8 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         self.mqttHost = defaults.string(forKey: Keys.mqttHost) ?? ""
         self.mqttPort = defaults.object(forKey: Keys.mqttPort) as? Int ?? 1883
         self.mqttUseTls = defaults.object(forKey: Keys.mqttUseTls) as? Bool ?? false
-        self.mqttUsername = KeychainStore.string(forKey: Keys.mqttUsername) ?? ""
-        self.mqttPassword = KeychainStore.string(forKey: Keys.mqttPassword) ?? ""
+        self.mqttUsername = secrets.string(forKey: Keys.mqttUsername) ?? ""
+        self.mqttPassword = secrets.string(forKey: Keys.mqttPassword) ?? ""
         self.mqttBaseTopic = defaults.string(forKey: Keys.mqttBaseTopic) ?? MqttSupport.defaultBaseTopic
         self.mqttLastStatus = defaults.string(forKey: Keys.mqttLastStatus) ?? ""
     }

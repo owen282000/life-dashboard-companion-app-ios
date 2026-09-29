@@ -50,3 +50,24 @@ enum KeychainStore {
         SecItemDelete(query as CFDictionary)
     }
 }
+
+/// Where PreferencesManager keeps its secrets: the Keychain in the app, memory in tests.
+protocol SecretStore: Sendable {
+    func data(forKey key: String) -> Data?
+    func setData(_ value: Data, forKey key: String)
+}
+
+extension SecretStore {
+    func string(forKey key: String) -> String? {
+        data(forKey: key).flatMap { String(data: $0, encoding: .utf8) }
+    }
+
+    func setString(_ value: String, forKey key: String) {
+        setData(Data(value.utf8), forKey: key)
+    }
+}
+
+struct KeychainSecretStore: SecretStore {
+    func data(forKey key: String) -> Data? { KeychainStore.data(forKey: key) }
+    func setData(_ value: Data, forKey key: String) { KeychainStore.setData(value, forKey: key) }
+}
