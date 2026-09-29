@@ -141,20 +141,34 @@ final class PendingSyncStore: @unchecked Sendable {
 /// that run and does not start a second one. The retry queue is drained from app launch,
 /// becoming active, the network coming back, both background tasks and Retry Now; the store
 /// hands every drain the same files, so two drains at once posted each payload twice.
+///
+/// A caller that arrives mid-run also asks for one more run once this one ends, so an item
+/// queued after the running drain listed the files is not left for the next trigger. Cancelling
+/// the caller that started the work cancels the work, as a background task that runs out of
+/// time does; a caller that only waits leaves it running.
 actor SingleFlight {
     private var current: Task<Void, Never>?
+    private var rerunRequested = false
 
     /// Runs `work`, or waits for the run already in flight. True when this call ran it.
     @discardableResult
     func run(_ work: @escaping @Sendable () async -> Void) async -> Bool {
         if let current {
+            rerunRequested = true
             await current.value
             return false
         }
-        let task = Task { await work() }
-        current = task
-        await task.value
-        current = nil
+        repeat {
+            rerunRequested = false
+            let task = Task { await work() }
+            current = task
+            await withTaskCancellationHandler {
+                await task.value
+            } onCancel: {
+                task.cancel()
+            }
+            current = nil
+        } while rerunRequested && !Task.isCancelled
         return true
     }
 }

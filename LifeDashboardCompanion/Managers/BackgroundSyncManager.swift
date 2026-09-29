@@ -18,12 +18,12 @@ final class BackgroundSyncManager {
 
     private var observerQueries: [HKObserverQuery] = []
     private var pendingDataTypes: Set<HealthDataType> = []
-    private var pendingCompletions: [ObserverCompletion] = []
-    private var debounceTask: Task<Void, Never>?
-    private let debounceSeconds: UInt64 = 5
+    private lazy var observerBatcher = ObserverBatcher { [weak self] in
+        await self?.syncPendingTypes()
+    }
     /// How long a HealthKit wakeup may keep HealthKit waiting: the debounce, one read and one
     /// delivery fit comfortably, and it stays under the roughly 30 seconds iOS gives.
-    private let observerBudgetSeconds: UInt64 = 25
+    nonisolated static let observerBudgetSeconds: TimeInterval = 25
 
     private init() {}
 
@@ -81,10 +81,15 @@ final class BackgroundSyncManager {
                     // and stops background delivery for an app that never calls it. So it is
                     // called once on every path: after the sync it triggered, or at the latest
                     // when the time budget runs out, never before the work.
-                    let completion = ObserverCompletion(completionHandler)
+                    let completion = OnceCallback { _ in completionHandler() }
                     guard error == nil else {
-                        completion.call()
+                        completion.call(true)
                         return
+                    }
+                    // The budget runs from HealthKit's own callback, not from whenever the main
+                    // actor gets to it during a busy background launch.
+                    DispatchQueue.global().asyncAfter(deadline: .now() + BackgroundSyncManager.observerBudgetSeconds) {
+                        completion.call(false)
                     }
                     Task { @MainActor in
                         BackgroundSyncManager.shared.handleHealthKitUpdate(for: dataType, completion: completion)
@@ -118,36 +123,20 @@ final class BackgroundSyncManager {
 
     // MARK: - Debounced Sync Trigger
 
-    /// Handles a HealthKit observer callback by collecting the data type and debouncing.
-    /// Multiple observer callbacks within the debounce window are batched into a single sync,
-    /// and their completion handlers are called when that sync ends.
-    private func handleHealthKitUpdate(for dataType: HealthDataType, completion: ObserverCompletion) {
+    /// Handles a HealthKit observer callback: the type joins the next batch, and the wakeup's
+    /// completion handler is called when the sync that batch goes into has ended.
+    private func handleHealthKitUpdate(for dataType: HealthDataType, completion: OnceCallback) {
         pendingDataTypes.insert(dataType)
-        pendingCompletions.append(completion)
+        observerBatcher.add(completion)
+    }
 
-        // The budget: a sync that is still running then carries on for as long as iOS allows,
-        // but HealthKit is not kept waiting for it.
-        Task { [observerBudgetSeconds] in
-            try? await Task.sleep(nanoseconds: observerBudgetSeconds * 1_000_000_000)
-            completion.call()
-        }
+    private func syncPendingTypes() async {
+        let typesToSync = pendingDataTypes
+        pendingDataTypes.removeAll()
+        guard !typesToSync.isEmpty else { return }
 
-        debounceTask?.cancel()
-        debounceTask = Task {
-            try? await Task.sleep(nanoseconds: debounceSeconds * 1_000_000_000)
-            guard !Task.isCancelled else { return }
-
-            let typesToSync = self.pendingDataTypes
-            let completions = self.pendingCompletions
-            self.pendingDataTypes.removeAll()
-            self.pendingCompletions.removeAll()
-            defer { completions.forEach { $0.call() } }
-
-            guard !typesToSync.isEmpty else { return }
-
-            logger.info("HealthKit observer triggered sync for: \(typesToSync.map { $0.displayName })")
-            _ = await HealthSyncManager.shared.performIncrementalSync(types: typesToSync)
-        }
+        logger.info("HealthKit observer triggered sync for: \(typesToSync.map { $0.displayName })")
+        _ = await HealthSyncManager.shared.performIncrementalSync(types: typesToSync)
     }
 
     // MARK: - Background Task Scheduling
@@ -199,22 +188,12 @@ final class BackgroundSyncManager {
         // Schedule next sync
         scheduleHealthSync()
 
-        let syncTask = Task {
+        runBackgroundTask(task) {
             // First drain any pending items from the retry queue
             await HealthSyncManager.shared.drainPendingQueue()
 
             // Then do a full catch-up sync
-            let result = await HealthSyncManager.shared.performSync()
-            switch result {
-            case .noData, .success:
-                task.setTaskCompleted(success: true)
-            case .failure:
-                task.setTaskCompleted(success: false)
-            }
-        }
-
-        task.expirationHandler = {
-            syncTask.cancel()
+            return await HealthSyncManager.shared.performSync()
         }
     }
 
@@ -228,42 +207,150 @@ final class BackgroundSyncManager {
             return
         }
 
-        let syncTask = Task {
+        runBackgroundTask(task) {
             // Drain pending queue first (quick)
             await HealthSyncManager.shared.drainPendingQueue()
 
             // Incremental sync (anchor-based, fast - fits in 30s window)
-            let result = await HealthSyncManager.shared.performIncrementalSync(types: enabledTypes)
+            return await HealthSyncManager.shared.performIncrementalSync(types: enabledTypes)
+        }
+    }
+
+    /// Runs the work of a background task and completes the task exactly once: when the work
+    /// ends, or when iOS says the time is up, whichever comes first. A HealthKit query or a
+    /// webhook that does not answer then cannot keep the task open until the system kills the app.
+    private func runBackgroundTask(_ task: BGTask, work: @escaping @MainActor () async -> HealthSyncResult) {
+        let completion = OnceCallback { success in task.setTaskCompleted(success: success) }
+        let holder = TaskHolder()
+        task.expirationHandler = {
+            holder.cancel()
+            completion.call(false)
+        }
+        holder.task = Task { @MainActor in
+            let result = await work()
             switch result {
             case .noData, .success:
-                task.setTaskCompleted(success: true)
+                completion.call(true)
             case .failure:
-                task.setTaskCompleted(success: false)
+                completion.call(false)
             }
-        }
-
-        task.expirationHandler = {
-            syncTask.cancel()
         }
     }
 
 }
 
-/// An HKObserverQuery completion handler that runs once, however many paths reach it: the end
-/// of the sync and the time budget both call it, and only the first call gets through.
-final class ObserverCompletion: @unchecked Sendable {
+/// A completion that runs once, however many paths reach it. An HKObserverQuery completion is
+/// called by the end of its sync and by the time budget; a background task is completed by its
+/// work and by its expiration handler. Only the first call gets through.
+final class OnceCallback: @unchecked Sendable {
     private let lock = NSLock()
-    private var handler: (() -> Void)?
+    private var handler: ((Bool) -> Void)?
 
-    init(_ handler: @escaping () -> Void) {
+    init(_ handler: @escaping (Bool) -> Void) {
         self.handler = handler
     }
 
-    func call() {
+    func call(_ success: Bool) {
         lock.lock()
         let pending = handler
         handler = nil
         lock.unlock()
-        pending?()
+        pending?(success)
+    }
+}
+
+/// Lets an expiration handler, which iOS may call on any thread, cancel the work task.
+private final class TaskHolder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+    private var current: Task<Void, Never>?
+
+    var task: Task<Void, Never>? {
+        get { lock.withLock { current } }
+        set {
+            let cancelNow = lock.withLock { () -> Bool in
+                current = newValue
+                return cancelled
+            }
+            if cancelNow { newValue?.cancel() }
+        }
+    }
+
+    func cancel() {
+        let task = lock.withLock { () -> Task<Void, Never>? in
+            cancelled = true
+            return current
+        }
+        task?.cancel()
+    }
+}
+
+/// Batches HealthKit wakeups into one sync. A wakeup waits for the debounce, restarted by each
+/// later one, but never longer than `maxWait` after the first of the batch, so a steady stream
+/// of samples during a workout still syncs. The timers only decide when to start; the sync runs
+/// in a task of its own that no later wakeup cancels. Wakeups that arrive while it runs form the
+/// next batch, which starts when this one ends.
+@MainActor
+final class ObserverBatcher {
+    typealias Sleep = @Sendable (TimeInterval) async -> Void
+
+    private let debounce: TimeInterval
+    private let maxWait: TimeInterval
+    private let sleep: Sleep
+    private let run: @MainActor () async -> Void
+
+    private var pending: [OnceCallback] = []
+    private var debounceTimer: Task<Void, Never>?
+    private var maxWaitTimer: Task<Void, Never>?
+    private var isRunning = false
+
+    init(
+        debounce: TimeInterval = 5,
+        maxWait: TimeInterval = 10,
+        sleep: @escaping Sleep = { try? await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000)) },
+        run: @escaping @MainActor () async -> Void
+    ) {
+        self.debounce = debounce
+        self.maxWait = maxWait
+        self.sleep = sleep
+        self.run = run
+    }
+
+    func add(_ completion: OnceCallback) {
+        pending.append(completion)
+        guard !isRunning else { return }
+        debounceTimer?.cancel()
+        debounceTimer = timer(after: debounce)
+        if maxWaitTimer == nil {
+            maxWaitTimer = timer(after: maxWait)
+        }
+    }
+
+    private func timer(after delay: TimeInterval) -> Task<Void, Never> {
+        Task { [sleep] in
+            await sleep(delay)
+            guard !Task.isCancelled else { return }
+            self.fire()
+        }
+    }
+
+    private func fire() {
+        debounceTimer?.cancel()
+        maxWaitTimer?.cancel()
+        debounceTimer = nil
+        maxWaitTimer = nil
+        guard !isRunning, !pending.isEmpty else { return }
+
+        let batch = pending
+        pending.removeAll()
+        isRunning = true
+        Task {
+            await self.run()
+            batch.forEach { $0.call(true) }
+            self.isRunning = false
+            if !self.pending.isEmpty {
+                self.fire()
+            }
+        }
     }
 }
