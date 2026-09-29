@@ -81,6 +81,7 @@
 		EE2771E197D3086DF413FBED /* PairingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 817D238D6011A0731C53A2BC /* PairingSheet.swift */; };
 		18DD5CECDB84654192BECE02 /* PairingLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7F82E34A9A6016BACEFD2B5 /* PairingLinkTests.swift */; };
 		A1034D6271A9AAF51EC89672 /* PairingApplyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1C740614BFF69060EAE315 /* PairingApplyTests.swift */; };
+		B245FE77AA68002A4EFCEBEC /* WebhookLogCodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8B7BE1BD86868C3A951B716 /* WebhookLogCodingTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -194,6 +195,7 @@
 		817D238D6011A0731C53A2BC /* PairingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingSheet.swift; sourceTree = "<group>"; };
 		B7F82E34A9A6016BACEFD2B5 /* PairingLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingLinkTests.swift; sourceTree = "<group>"; };
 		CC1C740614BFF69060EAE315 /* PairingApplyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingApplyTests.swift; sourceTree = "<group>"; };
+		D8B7BE1BD86868C3A951B716 /* WebhookLogCodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookLogCodingTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -345,6 +347,7 @@
 				38A0B3417331E8F6C4B4D39C /* SettingsBackupTests.swift */,
 				5044D8F8014A310603CBB122 /* SettingsBackupCryptoTests.swift */,
 				F100001B /* WebhookRetryPolicyTests.swift */,
+				D8B7BE1BD86868C3A951B716 /* WebhookLogCodingTests.swift */,
 				F100001C /* SleepSessionBuilderTests.swift */,
 				F1000026 /* SyncLimitsTests.swift */,
 				D19ED8BFFC097743BD11F082 /* SyncCoordinatorTests.swift */,
@@ -552,6 +555,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B245FE77AA68002A4EFCEBEC /* WebhookLogCodingTests.swift in Sources */,
 				B100001A /* WebhookSignerTests.swift in Sources */,
 				A1034D6271A9AAF51EC89672 /* PairingApplyTests.swift in Sources */,
 				18DD5CECDB84654192BECE02 /* PairingLinkTests.swift in Sources */,

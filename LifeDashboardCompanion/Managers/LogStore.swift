@@ -87,11 +87,24 @@ final class LogStore: @unchecked Sendable {
     // MARK: - Private
 
     private func readAll() -> [WebhookLog] {
-        guard let data = try? Data(contentsOf: fileURL),
-              let logs = try? decoder.decode([WebhookLog].self, from: data) else {
-            return []
+        guard let data = try? Data(contentsOf: fileURL) else { return [] }
+        return LogStore.decodeLogs(from: data, decoder: decoder)
+    }
+
+    /// Decodes row by row, so a row this build cannot read costs that row and not the log:
+    /// decoding the array in one go returned nothing on a single bad row, and the next add
+    /// then wrote the file over with only the new row.
+    static func decodeLogs(from data: Data, decoder: JSONDecoder) -> [WebhookLog] {
+        guard let rows = try? decoder.decode([LossyLog].self, from: data) else { return [] }
+        return rows.compactMap(\.log)
+    }
+
+    private struct LossyLog: Decodable {
+        let log: WebhookLog?
+
+        init(from decoder: Decoder) throws {
+            log = try? WebhookLog(from: decoder)
         }
-        return logs
     }
 
     private func writeAll(_ logs: [WebhookLog]) {
@@ -118,7 +131,8 @@ final class LogStore: @unchecked Sendable {
     private func migrateFromUserDefaultsIfNeeded() {
         let key = "webhook_logs"
         guard let data = UserDefaults.standard.data(forKey: key) else { return }
-        if readAll().isEmpty, let logs = try? decoder.decode([WebhookLog].self, from: data) {
+        if readAll().isEmpty {
+            let logs = LogStore.decodeLogs(from: data, decoder: decoder)
             writeAll(Array(logs.prefix(LogStore.maxLogs)).map(truncated))
         }
         UserDefaults.standard.removeObject(forKey: key)
