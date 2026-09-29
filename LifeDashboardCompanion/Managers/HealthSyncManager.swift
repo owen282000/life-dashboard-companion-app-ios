@@ -228,21 +228,8 @@ final class HealthSyncManager: Sendable {
 
     private func countRecords(in data: [String: Any], syncCounts: inout [HealthDataType: Int]) -> Int {
         var total = 0
-        let keyToType: [String: HealthDataType] = [
-            "steps": .steps, "sleep": .sleep, "heart_rate": .heartRate,
-            "distance": .distance, "active_calories": .activeCalories,
-            "total_calories": .totalCalories, "weight": .weight, "height": .height,
-            "blood_pressure": .bloodPressure, "blood_glucose": .bloodGlucose,
-            "oxygen_saturation": .oxygenSaturation, "body_temperature": .bodyTemperature,
-            "respiratory_rate": .respiratoryRate, "resting_heart_rate": .restingHeartRate,
-            "exercise": .exercise, "hydration": .hydration, "nutrition": .nutrition,
-            "mindfulness": .mindfulness, "body_fat": .bodyFat,
-            "lean_body_mass": .leanBodyMass, "heart_rate_variability": .heartRateVariability,
-            "menstruation_flow": .menstruation
-        ]
-
-        for (key, type) in keyToType {
-            if let records = data[key] as? [Any] {
+        for type in HealthDataType.allCases {
+            if let records = data[type.countedPayloadKey] as? [Any] {
                 syncCounts[type] = records.count
                 total += records.count
             }

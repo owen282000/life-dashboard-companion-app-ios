@@ -36,14 +36,6 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
 
     // MARK: - Permissions
 
-    var allReadTypes: Set<HKObjectType> {
-        var types = Set<HKObjectType>()
-        for dataType in HealthDataType.allCases {
-            types.formUnion(dataType.hkReadTypes)
-        }
-        return types
-    }
-
     func readTypesFor(_ types: Set<HealthDataType>) -> Set<HKObjectType> {
         var hkTypes = Set<HKObjectType>()
         for dataType in types {
@@ -56,11 +48,6 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         let readTypes = readTypesFor(types)
         guard !readTypes.isEmpty else { return }
         try await healthStore.requestAuthorization(toShare: [], read: readTypes)
-        await updateAuthorizationStatus()
-    }
-
-    func requestAllAuthorization() async throws {
-        try await healthStore.requestAuthorization(toShare: [], read: allReadTypes)
         await updateAuthorizationStatus()
     }
 
@@ -649,6 +636,60 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 from: flowSamples.map { FlowSample(start: $0.0.startDate, end: $0.0.endDate) }
             )
             return [("menstruation_flow", mapped), ("menstruation_period", periods)]
+
+        case .vo2Max:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.vo2Max),
+                start: start, end: end,
+                limit: limit
+            )
+            let mapped = records.map { record(HealthRecordMapping.vo2MaxFields($0), from: $0) }
+            return mapped.isEmpty ? nil : [(dataType.countedPayloadKey, mapped)]
+
+        case .basalBodyTemperature:
+            let records = try await readQuantitySamples(
+                type: HKQuantityType(.basalBodyTemperature),
+                start: start, end: end,
+                limit: limit
+            )
+            let mapped = records.map { record(HealthRecordMapping.basalBodyTemperatureFields($0), from: $0) }
+            return mapped.isEmpty ? nil : [(dataType.countedPayloadKey, mapped)]
+
+        case .intermenstrualBleeding:
+            let records = try await readCategorySamples(
+                type: HKCategoryType(.intermenstrualBleeding),
+                start: start, end: end,
+                limit: limit
+            )
+            let mapped = records.map { record(HealthRecordMapping.intermenstrualBleedingFields($0), from: $0) }
+            return mapped.isEmpty ? nil : [(dataType.countedPayloadKey, mapped)]
+
+        case .ovulationTest:
+            let records = try await readCategorySamples(
+                type: HKCategoryType(.ovulationTestResult),
+                start: start, end: end,
+                limit: limit
+            )
+            let mapped = records.map { record(HealthRecordMapping.ovulationTestFields($0), from: $0) }
+            return mapped.isEmpty ? nil : [(dataType.countedPayloadKey, mapped)]
+
+        case .cervicalMucus:
+            let records = try await readCategorySamples(
+                type: HKCategoryType(.cervicalMucusQuality),
+                start: start, end: end,
+                limit: limit
+            )
+            let mapped = records.map { record(HealthRecordMapping.cervicalMucusFields($0), from: $0) }
+            return mapped.isEmpty ? nil : [(dataType.countedPayloadKey, mapped)]
+
+        case .sexualActivity:
+            let records = try await readCategorySamples(
+                type: HKCategoryType(.sexualActivity),
+                start: start, end: end,
+                limit: limit
+            )
+            let mapped = records.map { record(HealthRecordMapping.sexualActivityFields($0), from: $0) }
+            return mapped.isEmpty ? nil : [(dataType.countedPayloadKey, mapped)]
         }
     }
 
