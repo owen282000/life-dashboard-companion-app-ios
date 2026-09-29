@@ -21,6 +21,7 @@ All notable changes to this project are documented in this file. The format is b
 - A retried payload that got through did not count for the widget and did not end the failure streak
 - A background task that ran out of time could stay open until iOS ended the app
 - A full sync on a locked iPhone said "No data to sync"; it now says the iPhone is locked
+- A type with more new records than one sync may send (1000 heart rate or step samples, 200 of most other types) lost the rest: the sync moved past them and never read them again. The next sync now continues where the last one stopped, until it has caught up. Total calories, blood pressure and nutrition, which combine several HealthKit types, now keep a sync position for each of them instead of one shared position that could skip records of the others
 
 ## [1.3.0] - 2026-08-27
 

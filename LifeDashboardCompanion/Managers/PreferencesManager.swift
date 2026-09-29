@@ -171,19 +171,41 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
 
     // MARK: - HKQueryAnchor Persistence
 
-    func saveAnchor(_ anchor: HKQueryAnchor, for type: HealthDataType) {
+    /// One anchor per HealthKit sample type: types such as total calories or blood pressure
+    /// read several, and an anchor from one sample type skips the other's samples. Versions
+    /// up to 1.3.0 kept one per payload type, which is still read until the first save.
+    func saveAnchor(_ anchor: HKQueryAnchor, for type: HealthDataType, sampleType: HKSampleType) {
         let data = try? NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: true)
-        defaults.set(data, forKey: "hk_anchor_\(type.rawValue)")
+        defaults.set(data, forKey: anchorKey(type, sampleType))
     }
 
-    func loadAnchor(for type: HealthDataType) -> HKQueryAnchor? {
-        guard let data = defaults.data(forKey: "hk_anchor_\(type.rawValue)") else { return nil }
+    func loadAnchor(for type: HealthDataType, sampleType: HKSampleType) -> HKQueryAnchor? {
+        guard let data = defaults.data(forKey: anchorKey(type, sampleType))
+            ?? defaults.data(forKey: "hk_anchor_\(type.rawValue)") else { return nil }
         return try? NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: data)
+    }
+
+    private func anchorKey(_ type: HealthDataType, _ sampleType: HKSampleType) -> String {
+        "hk_anchor_\(type.rawValue)_\(sampleType.identifier)"
+    }
+
+    /// Where an incremental read of a type has to continue because the previous one stopped
+    /// at the per-type cap. Nil when everything up to the last sync was read.
+    func saveCatchUpCursor(_ date: Date?, for type: HealthDataType) {
+        defaults.set(date, forKey: "hk_catchup_\(type.rawValue)")
+    }
+
+    func loadCatchUpCursor(for type: HealthDataType) -> Date? {
+        defaults.object(forKey: "hk_catchup_\(type.rawValue)") as? Date
     }
 
     func clearAllAnchors() {
         for type in HealthDataType.allCases {
             defaults.removeObject(forKey: "hk_anchor_\(type.rawValue)")
+            defaults.removeObject(forKey: "hk_catchup_\(type.rawValue)")
+            for sampleType in type.hkSampleTypes {
+                defaults.removeObject(forKey: anchorKey(type, sampleType))
+            }
         }
     }
 

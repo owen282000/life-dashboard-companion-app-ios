@@ -48,4 +48,69 @@ final class SyncLimitsTests: XCTestCase {
             XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: type), 200, "\(type)")
         }
     }
+
+    // MARK: - Slices
+
+    private func minute(_ value: Int) -> Date {
+        Date(timeIntervalSince1970: TimeInterval(value * 60))
+    }
+
+    func testSliceUnderTheCapReachesTheEnd() {
+        let slice = SyncLimits.sliceEnd(
+            probedStartDates: [minute(1), minute(2)], limit: 3, from: minute(0), to: minute(60)
+        )
+        XCTAssertEqual(slice.end, minute(60))
+        XCTAssertTrue(slice.exact)
+    }
+
+    func testSliceAtTheCapEndsAtTheLastProbedSample() {
+        // Three found with a limit of three: the third opens the next slice, so this one
+        // holds two, and a capped read of it cannot drop anything.
+        let slice = SyncLimits.sliceEnd(
+            probedStartDates: [minute(9), minute(3), minute(5)], limit: 3, from: minute(0), to: minute(60)
+        )
+        XCTAssertEqual(slice.end, minute(9))
+        XCTAssertTrue(slice.exact)
+    }
+
+    func testSliceMergesTheSampleTypesOfACombinedType() {
+        // Total calories reads active and basal energy and caps the combined list, so the
+        // boundary is the limit-th oldest across both probes.
+        let active = [minute(1), minute(4), minute(7)]
+        let basal = [minute(2), minute(3), minute(8)]
+        let slice = SyncLimits.sliceEnd(probedStartDates: active + basal, limit: 3, from: minute(0), to: minute(60))
+        XCTAssertEqual(slice.end, minute(3))
+    }
+
+    func testSlicesWalkEverySampleExactlyOnce() {
+        let samples = (0..<250).map { minute($0 / 2) }  // two samples per minute, ties included
+        var start = minute(0)
+        let end = minute(200)
+        var read: [Date] = []
+        while start < end {
+            let probed = Array(samples.filter { $0 >= start && $0 < end }.prefix(40))
+            let slice = SyncLimits.sliceEnd(probedStartDates: probed, limit: 40, from: start, to: end)
+            let inSlice = samples.filter { $0 >= start && $0 < slice.end }
+            XCTAssertLessThan(inSlice.count, 36)
+            read += inSlice
+            start = slice.end
+        }
+        XCTAssertEqual(read, samples)
+    }
+
+    func testSliceLeavesATenthOfTheCapForConcurrentWrites() {
+        let probed = (1...100).map(minute)
+        let slice = SyncLimits.sliceEnd(probedStartDates: probed, limit: 100, from: minute(0), to: minute(500))
+        // Ends at the 90th sample, so the slice holds 89 and eleven more may arrive meanwhile.
+        XCTAssertEqual(slice.end, minute(90))
+    }
+
+    func testSliceThatCannotBeSplitSaysSo() {
+        let slice = SyncLimits.sliceEnd(
+            probedStartDates: Array(repeating: minute(5), count: 3), limit: 3, from: minute(5), to: minute(60)
+        )
+        XCTAssertFalse(slice.exact)
+        XCTAssertGreaterThan(slice.end, minute(5))
+        XCTAssertLessThan(slice.end, minute(6))
+    }
 }

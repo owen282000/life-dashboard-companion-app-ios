@@ -204,85 +204,120 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     }
 
     /// Reads incremental data for a single type using HKAnchoredObjectQuery.
+    ///
+    /// New samples are found through the anchors, then the type is re-read by time from an
+    /// hour before the earliest of them, which reuses the type-specific formatting. That read
+    /// stops at the per-type cap (see `nextSlice`), and whatever lies past the cap is left to
+    /// the catch-up cursor: the next sync continues there, so no record is skipped because
+    /// the anchor already moved past it. Anchors and cursor are saved once the read is done.
     private func readIncrementalDataForType(
         _ dataType: HealthDataType,
         prefs: PreferencesManager
     ) async throws -> [(String, Any)]? {
-        let anchor = prefs.loadAnchor(for: dataType)
+        let now = Date()
+        var readFrom = prefs.loadCatchUpCursor(for: dataType)
+        var newAnchors: [(HKSampleType, HKQueryAnchor)] = []
 
-        // If no anchor exists, fall back to full 7-day read
-        guard anchor != nil else {
-            let startDate = Calendar.current.date(
-                byAdding: .day,
-                value: -HealthKitManager.lookbackDays,
-                to: Date()
-            )!
-            let result = try await readDataForType(dataType, start: startDate, end: Date())
-            // Save anchor after first full read
-            for sampleType in dataType.hkSampleTypes {
-                let newAnchor = try await queryAnchor(for: sampleType)
-                prefs.saveAnchor(newAnchor, for: dataType)
-            }
-            return result
-        }
-
-        // Use anchored queries for each sample type
-        var allNewSamples: [HKSample] = []
         for sampleType in dataType.hkSampleTypes {
-            let (samples, newAnchor) = try await anchoredQuery(
-                sampleType: sampleType,
-                anchor: anchor
-            )
-            allNewSamples.append(contentsOf: samples)
-            prefs.saveAnchor(newAnchor, for: dataType)
+            if let anchor = prefs.loadAnchor(for: dataType, sampleType: sampleType) {
+                let (earliestNew, newAnchor) = try await anchoredQuery(sampleType: sampleType, anchor: anchor)
+                newAnchors.append((sampleType, newAnchor))
+                if let earliest = earliestNew {
+                    readFrom = min(readFrom ?? .distantFuture, earliest.addingTimeInterval(-3600))
+                }
+            } else {
+                // First sync of this sample type: read the lookback window. The anchor is taken
+                // before that read, so a sample written in between is read now or next time.
+                newAnchors.append((sampleType, try await queryAnchor(for: sampleType)))
+                let lookback = Calendar.current.date(byAdding: .day, value: -HealthKitManager.lookbackDays, to: now)!
+                readFrom = min(readFrom ?? .distantFuture, lookback)
+            }
         }
 
-        guard !allNewSamples.isEmpty else { return nil }
+        var result: [(String, Any)]?
+        var cursor: Date?
+        if let start = readFrom, start < now {
+            let slice = try await nextSlice(for: dataType, from: start, to: now)
+            if !slice.exact {
+                logger.error("More than the cap of \(dataType.rawValue) samples share \(start.iso8601String); the excess is not sent")
+            }
+            result = try await readDataForType(dataType, start: start, end: slice.end)
+            cursor = slice.end < now ? slice.end : nil
+        }
 
-        // Use the full 7-day read for this type to get properly formatted data
-        // (anchored queries return raw samples; re-reading a short window is simpler
-        //  than duplicating all the type-specific formatting logic)
-        let earliest = allNewSamples.map(\.startDate).min() ?? Date()
-        let start = Calendar.current.date(byAdding: .hour, value: -1, to: earliest)!
-        return try await readDataForType(dataType, start: start, end: Date())
+        for (sampleType, anchor) in newAnchors {
+            prefs.saveAnchor(anchor, for: dataType, sampleType: sampleType)
+        }
+        prefs.saveCatchUpCursor(cursor, for: dataType)
+        return result
     }
 
-    /// Performs an HKAnchoredObjectQuery and returns new samples + updated anchor.
+    /// Where a read of `dataType` from `start` has to stop to stay under its cap, so that
+    /// nothing is cut off: a probe reads the start dates of the oldest samples of every
+    /// sample type the payload type combines, and `SyncLimits.sliceEnd` picks the boundary.
+    func nextSlice(for dataType: HealthDataType, from start: Date, to end: Date) async throws -> (end: Date, exact: Bool) {
+        let limit = SyncLimits.maxRecordsPerSync(for: dataType)
+        var startDates: [Date] = []
+        for sampleType in dataType.hkSampleTypes {
+            startDates += try await readSamples(type: sampleType, start: start, end: end, limit: limit).map(\.startDate)
+        }
+        return SyncLimits.sliceEnd(probedStartDates: startDates, limit: limit, from: start, to: end)
+    }
+
+    /// Samples per page of an anchored query. Only the earliest start date of a page is kept,
+    /// so a type's whole history can go through without being held in memory at once.
+    private static let anchorPageSize = 5000
+
+    /// Walks the anchored query from `anchor` to the end of the store in pages, and returns
+    /// the earliest start date among the samples added since `anchor` with the final anchor.
     private func anchoredQuery(
         sampleType: HKSampleType,
         anchor: HKQueryAnchor?
-    ) async throws -> ([HKSample], HKQueryAnchor) {
+    ) async throws -> (earliest: Date?, anchor: HKQueryAnchor) {
+        var current = anchor
+        var earliest: Date?
+        while true {
+            let page = try await anchoredPage(sampleType: sampleType, anchor: current)
+            if let date = page.earliest { earliest = min(earliest ?? date, date) }
+            current = page.anchor
+            if page.count < HealthKitManager.anchorPageSize { break }
+        }
+        return (earliest, current ?? HKQueryAnchor(fromValue: 0))
+    }
+
+    /// The current anchor of a sample type, for the first sync of it. A limit of 0 is
+    /// HKObjectQueryNoLimit, which loaded the type's entire history at once; paging does not.
+    private func queryAnchor(for sampleType: HKSampleType) async throws -> HKQueryAnchor {
+        try await anchoredQuery(sampleType: sampleType, anchor: nil).anchor
+    }
+
+    private struct AnchoredPage {
+        let earliest: Date?
+        let count: Int
+        let anchor: HKQueryAnchor?
+    }
+
+    private func anchoredPage(
+        sampleType: HKSampleType,
+        anchor: HKQueryAnchor?
+    ) async throws -> AnchoredPage {
         try await withCheckedThrowingContinuation { continuation in
             let query = HKAnchoredObjectQuery(
                 type: sampleType,
                 predicate: nil,
                 anchor: anchor,
-                limit: HKObjectQueryNoLimit
+                limit: HealthKitManager.anchorPageSize
             ) { _, addedSamples, _, newAnchor, error in
                 if let error = error {
                     continuation.resume(throwing: error)
                     return
                 }
-                continuation.resume(returning: (addedSamples ?? [], newAnchor ?? HKQueryAnchor(fromValue: 0)))
-            }
-            healthStore.execute(query)
-        }
-    }
-
-    /// Gets the current anchor for a sample type (used for initial anchor save after full read).
-    private func queryAnchor(for sampleType: HKSampleType) async throws -> HKQueryAnchor {
-        try await withCheckedThrowingContinuation { continuation in
-            let query = HKAnchoredObjectQuery(
-                type: sampleType,
-                predicate: nil,
-                anchor: nil,
-                limit: 0  // We don't need the samples, just the anchor
-            ) { _, _, _, newAnchor, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                continuation.resume(returning: newAnchor ?? HKQueryAnchor(fromValue: 0))
+                let samples = addedSamples ?? []
+                continuation.resume(returning: AnchoredPage(
+                    earliest: samples.map(\.startDate).min(),
+                    count: samples.count,
+                    anchor: newAnchor ?? anchor
+                ))
             }
             healthStore.execute(query)
         }
@@ -694,6 +729,33 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     }
 
     // MARK: - Query Helpers
+
+    /// Reads at most `limit` samples of any type in `[start, end)`, oldest first.
+    private func readSamples(
+        type: HKSampleType,
+        start: Date,
+        end: Date,
+        limit: Int
+    ) async throws -> [HKSample] {
+        try await withCheckedThrowingContinuation { continuation in
+            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+
+            let query = HKSampleQuery(
+                sampleType: type,
+                predicate: predicate,
+                limit: limit,
+                sortDescriptors: [sortDescriptor]
+            ) { _, samples, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume(returning: samples ?? [])
+            }
+            healthStore.execute(query)
+        }
+    }
 
     /// Reads at most `limit` samples, oldest first (ascending sort + query limit), so payload
     /// size stays bounded and later syncs catch up without skipping records.
