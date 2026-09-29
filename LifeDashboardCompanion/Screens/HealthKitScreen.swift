@@ -5,6 +5,7 @@ struct HealthKitScreen: View {
     @ObservedObject private var prefs = PreferencesManager.shared
     @ObservedObject private var healthKit = HealthKitManager.shared
     @ObservedObject private var backfill = BackfillController.shared
+    @EnvironmentObject private var pairing: PairingCoordinator
 
     @State private var syncIntervalText: String = ""
     @State private var newWebhookUrl: String = ""
@@ -45,6 +46,8 @@ struct HealthKitScreen: View {
         .sheet(isPresented: $showPreview) {
             previewSheet
         }
+        // A pairing link needs the root sheet, which cannot show over this one.
+        .onChange(of: pairing.incoming) { _, _ in showPreview = false }
     }
 
     // MARK: - Sections
@@ -199,12 +202,26 @@ struct HealthKitScreen: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
 
+            Button {
+                pairing.startScan()
+            } label: {
+                Label("Scan a pairing code", systemImage: "qrcode.viewfinder")
+                    .font(.subheadline)
+            }
+
             ForEach(Array(prefs.healthWebhookUrls.enumerated()), id: \.offset) { index, url in
                 HStack {
-                    Text(url)
-                        .font(.caption)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(url)
+                            .font(.caption)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        if !prefs.healthWebhookHeaders.isEmpty && prefs.healthUrlsWithoutHeaders.contains(url) {
+                            Text("Paired by QR code: custom headers are not sent here")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                     Spacer()
                     Button {
                         var urls = prefs.healthWebhookUrls
@@ -229,7 +246,7 @@ struct HealthKitScreen: View {
                 Button {
                     let trimmed = newWebhookUrl.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !trimmed.isEmpty {
-                        prefs.healthWebhookUrls.append(trimmed)
+                        prefs.addTypedHealthWebhookUrl(trimmed)
                         newWebhookUrl = ""
                     }
                 } label: {

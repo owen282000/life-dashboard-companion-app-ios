@@ -259,4 +259,28 @@ final class PairingLinkTests: XCTestCase {
             XCTAssertEqual(PairingReach.of(url), expected, url)
         }
     }
+
+    // MARK: - Info.plist
+
+    func testTheAppDeclaresItsSchemeCameraStringAndNoArbitraryLoads() {
+        let info = Bundle.main.infoDictionary ?? [:]
+        let types = info["CFBundleURLTypes"] as? [[String: Any]] ?? []
+        let schemes = types.flatMap { $0["CFBundleURLSchemes"] as? [String] ?? [] }
+        XCTAssertTrue(schemes.contains("lifedashboard"))
+        XCTAssertNotNil(info["NSCameraUsageDescription"] as? String)
+        let ats = info["NSAppTransportSecurity"] as? [String: Any] ?? [:]
+        XCTAssertEqual(ats["NSAllowsLocalNetworking"] as? Bool, true)
+        XCTAssertNil(ats["NSAllowsArbitraryLoads"])
+    }
+
+    // MARK: - Scanner zoom
+
+    func testZoomOnlyWhenTheLensCannotFocusCloseEnough() {
+        XCTAssertEqual(QRCaptureController.recommendedZoom(minimumFocusDistance: -1, fieldOfView: 70, maxZoom: 10), 1)
+        XCTAssertEqual(QRCaptureController.recommendedZoom(minimumFocusDistance: 30, fieldOfView: 70, maxZoom: 10), 1)
+        let pro = QRCaptureController.recommendedZoom(minimumFocusDistance: 200, fieldOfView: 70, maxZoom: 10)
+        XCTAssertGreaterThan(pro, 1)
+        XCTAssertLessThanOrEqual(pro, 10)
+        XCTAssertEqual(QRCaptureController.recommendedZoom(minimumFocusDistance: 5000, fieldOfView: 70, maxZoom: 3), 3)
+    }
 }

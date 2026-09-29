@@ -9,6 +9,21 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.owen282000.lifedashboard.pair</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>lifedashboard</string>
+			</array>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+		</dict>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Used only to scan the pairing code from the Life Dashboard integration in Home Assistant. Frames are decoded on the phone and are never stored or sent.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Used to deliver your health data to webhook servers and MQTT brokers on your own local network.</string>
 	<!-- BGTaskScheduler refuses app refresh requests without fetch and processing requests

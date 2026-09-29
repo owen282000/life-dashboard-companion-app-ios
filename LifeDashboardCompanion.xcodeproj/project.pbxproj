@@ -66,6 +66,8 @@
 		7AA8E7028F1BB6112158C0F0 /* DeletionReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DBD5DF309D33D6889B0B8FF /* DeletionReaderTests.swift */; };
 		3C0F76F1FC156FA48DA0418C /* PairingLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6075335CB0ADDDC85D0AEE7B /* PairingLink.swift */; };
 		72E15F3C261BA014AD920B35 /* PairingApply.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5331291E0EF6DF56C191229F /* PairingApply.swift */; };
+		10C8120B1617017CE4599C14 /* PairingScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E134C26ED525B347764FD494 /* PairingScannerView.swift */; };
+		EE2771E197D3086DF413FBED /* PairingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 817D238D6011A0731C53A2BC /* PairingSheet.swift */; };
 		18DD5CECDB84654192BECE02 /* PairingLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7F82E34A9A6016BACEFD2B5 /* PairingLinkTests.swift */; };
 		A1034D6271A9AAF51EC89672 /* PairingApplyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1C740614BFF69060EAE315 /* PairingApplyTests.swift */; };
 /* End PBXBuildFile section */
@@ -166,6 +168,8 @@
 		2DBD5DF309D33D6889B0B8FF /* DeletionReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeletionReaderTests.swift; sourceTree = "<group>"; };
 		6075335CB0ADDDC85D0AEE7B /* PairingLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingLink.swift; sourceTree = "<group>"; };
 		5331291E0EF6DF56C191229F /* PairingApply.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingApply.swift; sourceTree = "<group>"; };
+		E134C26ED525B347764FD494 /* PairingScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingScannerView.swift; sourceTree = "<group>"; };
+		817D238D6011A0731C53A2BC /* PairingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingSheet.swift; sourceTree = "<group>"; };
 		B7F82E34A9A6016BACEFD2B5 /* PairingLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingLinkTests.swift; sourceTree = "<group>"; };
 		CC1C740614BFF69060EAE315 /* PairingApplyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingApplyTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -282,6 +286,8 @@
 			children = (
 				F1000010 /* HealthKitScreen.swift */,
 				C62EECEBEC625EDD72812A24 /* BackfillSection.swift */,
+				817D238D6011A0731C53A2BC /* PairingSheet.swift */,
+				E134C26ED525B347764FD494 /* PairingScannerView.swift */,
 				F1000012 /* LogsScreen.swift */,
 				F1000023 /* AboutScreen.swift */,
 				F1000040 /* DashboardCard.swift */,
@@ -468,6 +474,8 @@
 				B100000F /* ExportManager.swift in Sources */,
 				B1000010 /* HealthKitScreen.swift in Sources */,
 				A2EAAFD5F263D012811C9334 /* BackfillSection.swift in Sources */,
+				EE2771E197D3086DF413FBED /* PairingSheet.swift in Sources */,
+				10C8120B1617017CE4599C14 /* PairingScannerView.swift in Sources */,
 				B1000012 /* LogsScreen.swift in Sources */,
 				B1000017 /* WebhookSigner.swift in Sources */,
 				6834543E155CE8FC8B45ED25 /* MqttPacket.swift in Sources */,
