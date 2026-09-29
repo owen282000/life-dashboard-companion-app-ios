@@ -167,6 +167,10 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
 
     private init() {
         self.healthSyncSchedule = PreferencesManager.loadSchedule(from: defaults)
+        // An install from before the schedule counts its fixed times from its first launch with it
+        if defaults.object(forKey: Keys.healthScheduleChangedAt) == nil {
+            defaults.set(Date(), forKey: Keys.healthScheduleChangedAt)
+        }
 
         if let data = defaults.data(forKey: Keys.healthWebhookUrls),
            let urls = try? JSONDecoder().decode([String].self, from: data) {

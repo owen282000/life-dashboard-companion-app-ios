@@ -6,9 +6,6 @@ struct LifeDashboardCompanionApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.scenePhase) private var scenePhase
 
-    /// Timestamp of last foreground catch-up sync (throttle to max 1x per 5 min)
-    @State private var lastForegroundSync: Date = .distantPast
-
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -16,21 +13,12 @@ struct LifeDashboardCompanionApp: App {
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active else { return }
 
-            let prefs = PreferencesManager.shared
-            guard !prefs.healthWebhookUrls.isEmpty,
-                  !prefs.healthEnabledDataTypes.isEmpty else { return }
-
-            // Throttle: max once every 5 minutes
-            guard Date().timeIntervalSince(lastForegroundSync) > 300 else { return }
-            lastForegroundSync = Date()
-
+            // Opening the app is one more chance for the scheduled sync, not a sync of its own:
+            // outside quiet hours and when the schedule says it is due, it catches up what
+            // background delivery missed. Sync Now is there for everything else.
             Task {
-                // Drain pending queue first
-                await HealthSyncManager.shared.drainPendingQueue()
-
-                // Incremental sync catches anything background delivery missed
-                let enabledTypes = prefs.healthEnabledDataTypes
-                _ = await HealthSyncManager.shared.performIncrementalSync(types: enabledTypes)
+                _ = await SyncCoordinator.shared.runAutomatic(.foreground)
+                BackgroundSyncManager.shared.replan()
             }
         }
     }
@@ -50,12 +38,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             // Set up HKObserverQuery-based background sync (primary mechanism)
             BackgroundSyncManager.shared.setupHealthKitObservers()
 
-            // Schedule BGProcessingTask as fallback/catch-up (idle + charging)
-            BackgroundSyncManager.shared.scheduleHealthSync()
-
-            // Schedule BGAppRefreshTask - runs more frequently, no charging needed
-            BackgroundSyncManager.shared.scheduleHealthRefresh()
+            // Aim both background tasks at the next moment the schedule allows a sync
+            BackgroundSyncManager.shared.replan()
         }
+        BackgroundSyncManager.shared.startObservingScheduleChanges()
 
         // Loads an unfinished backfill and picks it up when the app becomes active
         _ = BackfillController.shared
@@ -66,9 +52,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // Quiet notification authorization for sync-failure alerts (no prompt)
         SyncFailureNotifier.shared.requestProvisionalAuthorization()
 
-        // Drain any pending sync items from previous session
+        // Retry what the previous session queued, unless it is quiet hours
         Task {
-            await HealthSyncManager.shared.drainPendingQueue()
+            await SyncCoordinator.shared.drain(automatic: true)
         }
 
         return true

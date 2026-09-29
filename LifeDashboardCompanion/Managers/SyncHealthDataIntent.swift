@@ -1,4 +1,5 @@
 import AppIntents
+import UIKit
 
 /// Exposes "Sync Health Data" to the Shortcuts app and Siri, so syncs can be
 /// automated (time of day, arriving home, charger connected) or triggered by voice.
@@ -8,8 +9,16 @@ struct SyncHealthDataIntent: AppIntent {
         "Reads your enabled Apple Health data types and delivers them to your configured webhooks."
     )
 
+    /// Runs at the time a Shortcuts automation sets, which may well be while the iPhone is
+    /// locked; Health data is unreadable then, and the answer says so. Otherwise it sends what
+    /// is queued and the records since the last sync, like a scheduled sync but without asking
+    /// the schedule, as Sync Now does not either.
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let result = await HealthSyncManager.shared.performSync()
+        let unlocked = await MainActor.run { UIApplication.shared.isProtectedDataAvailable }
+        guard unlocked else {
+            return .result(dialog: "Your iPhone is locked, so Health data can't be read. The next sync catches up.")
+        }
+        let result = await SyncCoordinator.shared.runManual(full: false)
         switch result {
         case .success(let syncCounts):
             let total = syncCounts.values.reduce(0, +)

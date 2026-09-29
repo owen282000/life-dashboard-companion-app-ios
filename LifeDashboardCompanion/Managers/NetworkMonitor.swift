@@ -31,7 +31,7 @@ final class NetworkMonitor: ObservableObject, @unchecked Sendable {
             if connected && self.wasDisconnected {
                 self.wasDisconnected = false
                 Task {
-                    await HealthSyncManager.shared.drainPendingQueue()
+                    await SyncCoordinator.shared.drain(automatic: true)
                 }
             }
 

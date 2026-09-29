@@ -443,7 +443,7 @@ struct HealthKitScreen: View {
                     Spacer()
                     Button("Retry Now") {
                         Task {
-                            await HealthSyncManager.shared.drainPendingQueue()
+                            await SyncCoordinator.shared.drain(automatic: false)
                         }
                     }
                     .font(.caption)
@@ -530,7 +530,7 @@ struct HealthKitScreen: View {
                 isSyncing = true
                 syncMessage = nil
                 Task {
-                    let result = await HealthSyncManager.shared.performSync()
+                    let result = await SyncCoordinator.shared.runManual(full: true)
                     await MainActor.run {
                         isSyncing = false
                         switch result {

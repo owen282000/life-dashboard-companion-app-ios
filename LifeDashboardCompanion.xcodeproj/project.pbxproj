@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		748D53113F6AB7F126F98E44 /* SyncCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19ED8BFFC097743BD11F082 /* SyncCoordinatorTests.swift */; };
+		B3A21BB267D691F7A6B79947 /* SyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE9C139AF65123944A54194F /* SyncCoordinator.swift */; };
 		A7DFF04D8CCCC1B0F82F046E /* TestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7EC97C166A63DD57CE1085A /* TestSupport.swift */; };
 		C59971F6E3A10DC254EC4F88 /* ObserverBatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63586CAA6E654362E6E26BD8 /* ObserverBatcherTests.swift */; };
 		EA1793276A33E27643284C4C /* SingleFlightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A94954C43B4B0A9258AEB89 /* SingleFlightTests.swift */; };
@@ -106,6 +108,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		D19ED8BFFC097743BD11F082 /* SyncCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinatorTests.swift; sourceTree = "<group>"; };
+		BE9C139AF65123944A54194F /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
 		E7EC97C166A63DD57CE1085A /* TestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestSupport.swift; sourceTree = "<group>"; };
 		63586CAA6E654362E6E26BD8 /* ObserverBatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObserverBatcherTests.swift; sourceTree = "<group>"; };
 		3A94954C43B4B0A9258AEB89 /* SingleFlightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleFlightTests.swift; sourceTree = "<group>"; };
@@ -273,6 +277,7 @@
 				8ADF33929F5514CE184DEC6C /* BackfillController.swift */,
 				FE10A6EA3D001E3511511497 /* HealthBackfill.swift */,
 				C888638AD21A073D47F7FF06 /* DailyTotals.swift */,
+				BE9C139AF65123944A54194F /* SyncCoordinator.swift */,
 				9471E366C4A2C6F56FEA371E /* SyncSchedule.swift */,
 				F100001E /* MenstruationPeriodBuilder.swift */,
 				F100001F /* KeychainStore.swift */,
@@ -321,6 +326,7 @@
 				F100001B /* WebhookRetryPolicyTests.swift */,
 				F100001C /* SleepSessionBuilderTests.swift */,
 				F1000026 /* SyncLimitsTests.swift */,
+				D19ED8BFFC097743BD11F082 /* SyncCoordinatorTests.swift */,
 				E7EC97C166A63DD57CE1085A /* TestSupport.swift */,
 				63586CAA6E654362E6E26BD8 /* ObserverBatcherTests.swift */,
 				3A94954C43B4B0A9258AEB89 /* SingleFlightTests.swift */,
@@ -493,6 +499,7 @@
 				4B362D4265214953E4922095 /* BackfillController.swift in Sources */,
 				4A789195CF646BC598EE3895 /* HealthBackfill.swift in Sources */,
 				5FD4BA2492A1C35EFA84CDF9 /* DailyTotals.swift in Sources */,
+				B3A21BB267D691F7A6B79947 /* SyncCoordinator.swift in Sources */,
 				3926DFCA91F5E32EEA0CF958 /* SyncSchedule.swift in Sources */,
 				B100001E /* MenstruationPeriodBuilder.swift in Sources */,
 				B100001F /* KeychainStore.swift in Sources */,
@@ -528,6 +535,7 @@
 				B100001B /* WebhookRetryPolicyTests.swift in Sources */,
 				B100001C /* SleepSessionBuilderTests.swift in Sources */,
 				B1000026 /* SyncLimitsTests.swift in Sources */,
+				748D53113F6AB7F126F98E44 /* SyncCoordinatorTests.swift in Sources */,
 				A7DFF04D8CCCC1B0F82F046E /* TestSupport.swift in Sources */,
 				C59971F6E3A10DC254EC4F88 /* ObserverBatcherTests.swift in Sources */,
 				EA1793276A33E27643284C4C /* SingleFlightTests.swift in Sources */,

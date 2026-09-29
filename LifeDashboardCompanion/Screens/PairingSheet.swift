@@ -251,8 +251,7 @@ struct PairingSheet: View {
         // first address that arrives by pairing has to do it here.
         if wasEmpty && !prefs.healthEnabledDataTypes.isEmpty {
             BackgroundSyncManager.shared.setupHealthKitObservers()
-            BackgroundSyncManager.shared.scheduleHealthSync()
-            BackgroundSyncManager.shared.scheduleHealthRefresh()
+            BackgroundSyncManager.shared.replan()
         }
 
         Task { await check() }
