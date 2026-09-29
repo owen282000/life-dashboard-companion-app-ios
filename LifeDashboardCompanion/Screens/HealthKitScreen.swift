@@ -185,6 +185,15 @@ struct HealthKitScreen: View {
 
             Divider()
 
+            // Daily totals
+            Toggle("Daily totals in payload", isOn: $prefs.includeDailyTotals)
+                .font(.subheadline)
+            Text("Per-day totals (steps, distance, calories) as the Health app counts them, with overlapping iPhone and Watch data counted once")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            Divider()
+
             // Webhook URLs
             Text("Webhook URLs")
                 .font(.subheadline)
