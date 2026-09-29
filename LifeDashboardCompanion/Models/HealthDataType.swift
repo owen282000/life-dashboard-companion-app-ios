@@ -205,6 +205,59 @@ enum HealthDataType: String, CaseIterable, Codable, Identifiable {
     var hkReadTypes: Set<HKObjectType> {
         Set(hkSampleTypes.map { $0 as HKObjectType })
     }
+
+    /// The sample types whose deletions `deleted_records` names for this type: only those whose
+    /// own uuid reaches the payload. A diastolic value, or carbs and fat merged into a meal, are
+    /// never named, because naming the record they belong to would delete one that still exists.
+    var deletionSampleTypes: [HKSampleType] {
+        switch self {
+        case .bloodPressure:
+            return [HKQuantityType(.bloodPressureSystolic)]
+        case .nutrition:
+            return [HKQuantityType(.dietaryEnergyConsumed), HKQuantityType(.dietaryProtein)]
+        case .steps, .sleep, .heartRate, .distance, .activeCalories, .totalCalories, .weight,
+             .height, .bloodGlucose, .oxygenSaturation, .bodyTemperature, .respiratoryRate,
+             .restingHeartRate, .exercise, .hydration, .mindfulness, .bodyFat, .leanBodyMass,
+             .heartRateVariability, .vo2Max, .menstruation, .basalBodyTemperature,
+             .intermenstrualBleeding, .ovulationTest, .cervicalMucus, .sexualActivity:
+            return hkSampleTypes
+        }
+    }
+
+    /// The payload key a deletion of this type is named under. Menstruation names flow days;
+    /// `menstruation_period` is derived from them and has no uuid to name.
+    var deletionPayloadKey: String {
+        switch self {
+        case .steps: return "steps"
+        case .sleep: return "sleep"
+        case .heartRate: return "heart_rate"
+        case .distance: return "distance"
+        case .activeCalories: return "active_calories"
+        case .totalCalories: return "total_calories"
+        case .weight: return "weight"
+        case .height: return "height"
+        case .bloodPressure: return "blood_pressure"
+        case .bloodGlucose: return "blood_glucose"
+        case .oxygenSaturation: return "oxygen_saturation"
+        case .bodyTemperature: return "body_temperature"
+        case .respiratoryRate: return "respiratory_rate"
+        case .restingHeartRate: return "resting_heart_rate"
+        case .exercise: return "exercise"
+        case .hydration: return "hydration"
+        case .nutrition: return "nutrition"
+        case .mindfulness: return "mindfulness"
+        case .bodyFat: return "body_fat"
+        case .leanBodyMass: return "lean_body_mass"
+        case .heartRateVariability: return "heart_rate_variability"
+        case .vo2Max: return "vo2_max"
+        case .menstruation: return "menstruation_flow"
+        case .basalBodyTemperature: return "basal_body_temperature"
+        case .intermenstrualBleeding: return "intermenstrual_bleeding"
+        case .ovulationTest: return "ovulation_test"
+        case .cervicalMucus: return "cervical_mucus"
+        case .sexualActivity: return "sexual_activity"
+        }
+    }
 }
 
 // MARK: - Payload mapping
