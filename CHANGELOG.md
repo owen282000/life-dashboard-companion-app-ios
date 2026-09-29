@@ -13,10 +13,15 @@ All notable changes to this project are documented in this file. The format is b
 - A sync whose only change is a deletion, which is what removing a meal without adding one looks like, sends a payload carrying the deletion and no records, and reports it as a delivery of 0 records instead of saying there was no new data. Deletions are kept until a payload carrying them has been delivered or queued for retry
 - Types whose deletions a payload cannot vouch for, because HealthKit did not answer in time, could not be read, or was last read more than a week ago, are named in `deletions_unavailable`
 - Every health payload with records carries `daily_totals` with the Android app's schema: per local day, for today and the two days before, the steps, distance, active and total calories as the Health app counts them, with overlapping iPhone and Watch samples counted once. A backfill payload carries every whole day of its window. A day or field without data is left out, never sent as 0. On iOS `distance_meters` is walking and running distance, and `total_calories` is resting plus active energy, only sent on days with resting energy (usually an Apple Watch). A switch, **Daily totals in payload**, turns it off; it is on by default
+- Pairing with the Life Dashboard integration for Home Assistant (integration 0.7.0 or newer): tap **Scan a pairing code** under Webhook URLs, or point the iPhone camera at the code and tap **Open in the app** on the page it opens. A sheet shows who is asking, at which address and what changes, and nothing is saved until **Pair**; pairing fills in only the address and the signing secret
+- After pairing, one test ping goes to the new address, and the sheet says whether Home Assistant confirmed it, which a plain 200 cannot prove
+- Sleep sessions carry a `uuid` derived from their first stage, so a receiver can replace a night that comes back longer instead of counting it twice
 
 ### Changed
 
 - The "Cycle Tracking" toggle is now called "Menstruation", since the other cycle types have toggles of their own
+- A plain `http://` address that iOS will refuse (a name like `ha.lan` rather than an IP address or a `.local` name) cannot be paired, and the sheet says what to use instead; a delivery that iOS refuses for plain HTTP is no longer retried
+- Adding a webhook URL that is already in the list no longer adds it twice
 
 ### Fixed
 
@@ -28,6 +33,10 @@ All notable changes to this project are documented in this file. The format is b
 - A full sync on a locked iPhone said "No data to sync"; it now says the iPhone is locked
 - A type with more new records than one sync may send (1000 heart rate or step samples, 200 of most other types) lost the rest: the sync moved past them and never read them again. The next sync now continues where the last one stopped, until it has caught up. Total calories, blood pressure and nutrition, which combine several HealthKit types, now keep a sync position for each of them instead of one shared position that could skip records of the others
 - Two incremental syncs that started close together, for instance when the app opened while HealthKit reported new data, could both save their sync position and leave the later one without the point where the other had to continue, which skipped those records. Only one incremental sync runs at a time now, and one that is asked for meanwhile is added to it
+
+### Security
+
+- An address added by pairing gets none of the custom headers, and queued payloads no longer go to an address that has been removed since
 
 ## [1.3.0] - 2026-08-27
 
