@@ -23,7 +23,7 @@ Looking for an open source alternative to Health Auto Export? This app covers th
 
 - **Own Your Data** - Send health data to your own server, not third-party clouds
 - **Flexible Webhooks** - Works with any backend that accepts JSON POST requests
-- **22 Health Data Types** - Supports all major HealthKit data types
+- **28 Health Data Types** - Every HealthKit type that has a counterpart in the Android app
 - **Real Background Sync** - HealthKit wakes the app when new data arrives, no polling needed
 - **Modern UI** - Built with SwiftUI
 
@@ -32,19 +32,32 @@ Looking for an open source alternative to Health Auto Export? This app covers th
 ### HealthKit Integration
 
 - Syncs data from Apple Health to your webhook
-- **22 supported data types**:
+- **28 supported data types**:
   - **Activity**: Steps, Distance, Active Calories, Total Calories, Exercise Sessions
-  - **Body**: Weight, Height, Body Temperature
+  - **Body**: Weight, Height, Body Temperature, Basal Body Temperature
   - **Body Composition**: Body Fat %, Lean Body Mass
-  - **Vitals**: Heart Rate, Resting Heart Rate, Heart Rate Variability (HRV), Blood Pressure, Blood Glucose, Oxygen Saturation, Respiratory Rate
+  - **Vitals**: Heart Rate, Resting Heart Rate, Heart Rate Variability (HRV), Blood Pressure, Blood Glucose, Oxygen Saturation, Respiratory Rate, VO2 Max
   - **Sleep**: Sleep sessions with stages (light, deep, REM, awake)
   - **Nutrition**: Hydration, Nutrition records (calories, protein, carbs, fat)
   - **Mindfulness**: Meditation sessions (from apps that write mindful minutes to Apple Health)
-  - **Cycle Tracking**: Menstruation Flow, plus Menstruation Periods derived from consecutive flow days (logged data from cycle apps that write to Apple Health)
-- Per-data-type toggle and permission management
+  - **Cycle Tracking**: Menstruation Flow, plus Menstruation Periods derived from consecutive flow days, Intermenstrual Bleeding, Ovulation Test, Cervical Mucus, Sexual Activity, Basal Body Temperature (logged data from cycle apps that write to Apple Health)
+- Per-data-type toggle and permission management: every type is off until you switch it on, and iOS asks for each one the first time
 - Configurable sync interval (minimum 15 minutes)
 - **Bounded payloads** - High-volume types are capped per sync (1000 records for heart rate and steps, 500 for HRV and respiratory rate, 200 for the rest), oldest first, so later syncs catch up without skipping records
 - **Fault isolation** - A read failure in one data type skips only that type instead of failing the whole sync
+
+### Types the Android app sends and iOS cannot
+
+The payload uses the Android app's keys and fields, so one backend serves both. The 28 types cover 29 of the Android app's 33 (menstruation sends flow and periods); four stay out because Apple Health has nothing that means the same:
+
+| Android type | Why iOS does not send it |
+|---|---|
+| Bone Mass | Apple Health has no bone mass type |
+| Body Water Mass | Apple Health has no body water type |
+| Skin Temperature | Apple Health stores the absolute sleeping wrist temperature, not the change against a baseline that `delta_celsius` carries |
+| Basal Metabolic Rate | Apple Health stores resting energy burned per interval, not a rate in kcal per day; it goes out as part of Total Calories |
+
+HealthKit records no sensation for cervical mucus, so `sensation` is always `unknown`, the value the Android app sends when none was logged.
 
 ### No Screen Time?
 
@@ -67,7 +80,8 @@ Three complementary mechanisms keep your data flowing without opening the app:
 - **Offline queue** - Failed payloads are stored on-device and re-sent automatically when connectivity returns or on the next background task
 
 ### Home Assistant / MQTT
-- **MQTT publishing with Home Assistant Discovery** - Point the app at your MQTT broker and the latest value of every synced data type appears in Home Assistant automatically as sensors, grouped under one device. No server-side configuration needed.
+- **MQTT publishing with Home Assistant Discovery** - Point the app at your MQTT broker and the latest value of every synced measurement appears in Home Assistant automatically as sensors, grouped under one device. No server-side configuration needed.
+- Exercise, nutrition, mindfulness and cycle tracking are event-like and stay webhook-only, as in the Android app
 - Implemented with an in-process MQTT 3.1.1 client over Network.framework, so the app stays free of third-party dependencies
 - States and discovery configs are published retained; optional TLS and username/password (stored in the Keychain)
 - Uses its own device id and default base topic (`lifedashboard-ios`), so it never collides with the Android app's sensors in mixed households
@@ -124,7 +138,7 @@ git config core.hooksPath .githooks
 ## Setup
 
 1. Install the app on your iPhone
-2. **Grant HealthKit permissions** - Tap "Grant" and select the data types you want to sync
+2. **Choose data types** - Switch on the types you want to sync; iOS asks for permission for each one the first time
 3. **Configure webhook URLs** - Enter your server endpoint(s)
 4. **Add webhook headers** (optional) - Configure auth tokens or API keys
 5. **Set an HMAC signing secret** (optional, under Custom Headers) - Adds an `X-Signature` header to every request
@@ -161,8 +175,14 @@ Every payload has these top-level fields:
   "body_fat": [],
   "lean_body_mass": [],
   "heart_rate_variability": [],
+  "vo2_max": [],
   "menstruation_flow": [],
-  "menstruation_period": []
+  "menstruation_period": [],
+  "basal_body_temperature": [],
+  "intermenstrual_bleeding": [],
+  "ovulation_test": [],
+  "cervical_mucus": [],
+  "sexual_activity": []
 }
 ```
 
@@ -278,6 +298,12 @@ Only enabled data types with records are included. Every record additionally con
 { "rate": 16.0, "time": "2026-02-05T07:00:00Z" }
 ```
 
+**VO2 Max**
+
+```json
+{ "vo2_ml_per_min_per_kg": 42.5, "time": "2026-02-05T09:00:00Z" }
+```
+
 ### Sleep
 
 **Sleep Sessions** (samples are grouped into sessions; a gap of more than 1 hour starts a new session)
@@ -340,6 +366,42 @@ The `flow` field is one of `light`, `medium`, `heavy`, or `unknown`.
 ```
 
 HealthKit has no period record type, so periods are derived from consecutive flow days (a gap of up to 48 hours tolerates one missed logging day). These records carry no `uuid` or `source`.
+
+**Intermenstrual Bleeding**
+
+```json
+{ "time": "2026-02-10T00:00:00Z" }
+```
+
+**Ovulation Test**
+
+```json
+{ "result": "positive", "time": "2026-02-12T08:00:00Z" }
+```
+
+The `result` field is one of `positive` (LH surge), `high` (estrogen surge), `negative`, `inconclusive`, or `unknown`.
+
+**Cervical Mucus**
+
+```json
+{ "appearance": "egg_white", "sensation": "unknown", "time": "2026-02-12T08:00:00Z" }
+```
+
+The `appearance` field is one of `dry`, `sticky`, `creamy`, `watery`, `egg_white`, or `unknown`. HealthKit records no sensation, so `sensation` is always `unknown`.
+
+**Sexual Activity**
+
+```json
+{ "protection_used": "protected", "time": "2026-02-11T00:00:00Z" }
+```
+
+The `protection_used` field is `protected` or `unprotected` when the writing app recorded it, and `unknown` otherwise.
+
+**Basal Body Temperature**
+
+```json
+{ "celsius": 36.4, "time": "2026-02-12T06:30:00Z" }
+```
 
 ## Delivery, Retries and Signing
 
@@ -409,6 +471,7 @@ This app:
 - **Does not send data anywhere** except your configured webhook URLs
 - **Does not include any analytics** or tracking
 - **Stores settings locally** on your device only
+- **Reads only what you switch on** - Every data type starts off and asks for its own permission; cycle tracking and sexual activity never go to MQTT
 - **Keeps secrets in the iOS Keychain** - Webhook headers and the HMAC signing secret are stored in the Keychain, not in plaintext preferences
 - **Protects logs at rest** - Webhook logs (which contain payload snapshots) are stored with iOS file protection and capped in size
 - **Ships a privacy manifest** (`PrivacyInfo.xcprivacy`): no tracking, no collected data types

@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Six more data types, with the Android app's payload keys and fields: VO2 Max, Basal Body Temperature, Intermenstrual Bleeding, Ovulation Test, Cervical Mucus and Sexual Activity. Each starts off and asks for its own permission
+- MQTT sensors for VO2 Max and Basal Body Temperature, named as in the Android app; the cycle tracking types stay webhook-only
+
+### Changed
+
+- The "Cycle Tracking" toggle is now called "Menstruation", since the other cycle types have toggles of their own
+
 ### Fixed
 
 - The background refresh and processing tasks were never scheduled, because the background modes they need were missing; iOS refused every request without a visible error
