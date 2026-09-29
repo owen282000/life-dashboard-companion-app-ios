@@ -335,7 +335,10 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     /// Reads data for a single HealthDataType. Returns (payloadKey, data) pairs or nil if empty.
     /// Most types produce one pair; menstruation produces both flow records and derived periods.
     /// Reads are capped oldest-first per type (see SyncLimits) to bound payload size.
-    private func readDataForType(
+    /// The incremental sync and the backfill slice reads with `nextSlice`, which relies on
+    /// every case reading only the type's `hkSampleTypes`, by start date in `[start, end)`,
+    /// at most `SyncLimits.maxRecordsPerSync` per sample type.
+    func readDataForType(
         _ dataType: HealthDataType,
         start: Date,
         end: Date
@@ -731,7 +734,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     // MARK: - Query Helpers
 
     /// Reads at most `limit` samples of any type in `[start, end)`, oldest first.
-    private func readSamples(
+    func readSamples(
         type: HKSampleType,
         start: Date,
         end: Date,
@@ -811,7 +814,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         }
     }
 
-    private func readSleepData(start: Date, end: Date, limit: Int) async throws -> [[String: Any]] {
+    func readSleepData(start: Date, end: Date, limit: Int) async throws -> [[String: Any]] {
         let samples = try await readCategorySamples(
             type: HKCategoryType(.sleepAnalysis),
             start: start, end: end,

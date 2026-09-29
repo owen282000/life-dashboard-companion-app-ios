@@ -17,13 +17,16 @@ actor WebhookManager {
 
     /// Posts a pre-serialized JSON body to every URL. Takes Data rather than a
     /// dictionary so the payload crosses the actor boundary as a Sendable value.
+    /// `logSuccess: false` logs only the URLs that failed: a backfill posts hundreds of chunks,
+    /// which would push every other entry out of the log, and writes one summary row instead.
     func post(
         body jsonData: Data,
         urls: [String],
         headers: [String: String],
         logType: LogType,
         dataType: String,
-        recordCount: Int
+        recordCount: Int,
+        logSuccess: Bool = true
     ) async -> Bool {
         guard !urls.isEmpty else { return false }
 
@@ -43,6 +46,11 @@ actor WebhookManager {
                 headers: allHeaders
             )
 
+            if result.success {
+                anySuccess = true
+                if !logSuccess { continue }
+            }
+
             let log = WebhookLog(
                 url: url,
                 statusCode: result.statusCode,
@@ -54,10 +62,6 @@ actor WebhookManager {
                 logType: logType
             )
             PreferencesManager.shared.addWebhookLog(log)
-
-            if result.success {
-                anySuccess = true
-            }
         }
 
         return anySuccess
