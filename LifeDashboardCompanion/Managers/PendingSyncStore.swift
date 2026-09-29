@@ -136,3 +136,25 @@ final class PendingSyncStore: @unchecked Sendable {
         }
     }
 }
+
+/// Lets one piece of async work run at a time. A caller that arrives while it runs waits for
+/// that run and does not start a second one. The retry queue is drained from app launch,
+/// becoming active, the network coming back, both background tasks and Retry Now; the store
+/// hands every drain the same files, so two drains at once posted each payload twice.
+actor SingleFlight {
+    private var current: Task<Void, Never>?
+
+    /// Runs `work`, or waits for the run already in flight. True when this call ran it.
+    @discardableResult
+    func run(_ work: @escaping @Sendable () async -> Void) async -> Bool {
+        if let current {
+            await current.value
+            return false
+        }
+        let task = Task { await work() }
+        current = task
+        await task.value
+        current = nil
+        return true
+    }
+}

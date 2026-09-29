@@ -154,7 +154,16 @@ final class HealthSyncManager: Sendable {
 
     // MARK: - Pending Queue Drain
 
+    private let drainFlight = SingleFlight()
+
+    /// Delivers what earlier syncs queued, oldest first, one drain at a time.
     func drainPendingQueue() async {
+        await drainFlight.run { [self] in
+            await drainPendingQueueOnce()
+        }
+    }
+
+    private func drainPendingQueueOnce() async {
         let items = pendingStore.dequeueAll()
         guard !items.isEmpty else { return }
 
@@ -172,6 +181,9 @@ final class HealthSyncManager: Sendable {
 
             if success {
                 pendingStore.remove(id: item.id)
+                // A delivered retry is a delivered sync: the widget counts its records and the
+                // failure streak ends. A failed retry was already counted when it was queued.
+                updateWidgetStatus(success: true, records: item.recordCount)
                 logger.info("Pending sync item \(item.id) delivered successfully")
             } else {
                 pendingStore.updateAttempt(id: item.id, error: "Retry failed")
