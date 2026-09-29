@@ -60,6 +60,8 @@
 		B100002D /* SyncFailureNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002E /* SyncFailureNotifier.swift */; };
 		106BE3200AC58D34A2473C0F /* DeletionTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E74421EFCA6E10E29CEA8B7 /* DeletionTracking.swift */; };
 		1716CBA806DF1618DA6BFFF7 /* DeletionReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D8CB76EA9F45A445798D403 /* DeletionReader.swift */; };
+		623D3B9E95C84EB505CBA3F3 /* DeletionTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B63FAA3ECB0756ADFB83A8D5 /* DeletionTrackingTests.swift */; };
+		7AA8E7028F1BB6112158C0F0 /* DeletionReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DBD5DF309D33D6889B0B8FF /* DeletionReaderTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -152,6 +154,8 @@
 		F100002E /* SyncFailureNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncFailureNotifier.swift; sourceTree = "<group>"; };
 		7E74421EFCA6E10E29CEA8B7 /* DeletionTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeletionTracking.swift; sourceTree = "<group>"; };
 		4D8CB76EA9F45A445798D403 /* DeletionReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeletionReader.swift; sourceTree = "<group>"; };
+		B63FAA3ECB0756ADFB83A8D5 /* DeletionTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeletionTrackingTests.swift; sourceTree = "<group>"; };
+		2DBD5DF309D33D6889B0B8FF /* DeletionReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeletionReaderTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -295,6 +299,8 @@
 				E54DAE6449747C349A981F33 /* HealthRecordMappingTests.swift */,
 				241D957FDC723CAC6D7963F5 /* HealthBackfillTests.swift */,
 				F1000027 /* MenstruationPeriodBuilderTests.swift */,
+				B63FAA3ECB0756ADFB83A8D5 /* DeletionTrackingTests.swift */,
+				2DBD5DF309D33D6889B0B8FF /* DeletionReaderTests.swift */,
 			);
 			path = LifeDashboardCompanionTests;
 			sourceTree = "<group>";
@@ -490,6 +496,8 @@
 				7C6E6187A82E4D3D2DE1052E /* HealthRecordMappingTests.swift in Sources */,
 				C645491B9A672343848E7F72 /* HealthBackfillTests.swift in Sources */,
 				B1000027 /* MenstruationPeriodBuilderTests.swift in Sources */,
+				623D3B9E95C84EB505CBA3F3 /* DeletionTrackingTests.swift in Sources */,
+				7AA8E7028F1BB6112158C0F0 /* DeletionReaderTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
