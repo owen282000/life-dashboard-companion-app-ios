@@ -53,7 +53,11 @@ struct AboutScreen: View {
                 AboutSectionCard(icon: "shield.fill", tint: .green, title: "Privacy & Security") {
                     FeatureRow(icon: "lock.fill", text: "No third-party data sharing")
                     FeatureRow(icon: "key.fill", text: "Secrets stored in the Keychain")
-                    FeatureRow(icon: "internaldrive.fill", text: "Settings stay on your device")
+                    FeatureRow(icon: "internaldrive.fill", text: "Settings stay on your device unless you export them")
+                }
+
+                AboutSectionCard(icon: "arrow.up.arrow.down.circle.fill", tint: .blue, title: "Backup & restore") {
+                    SettingsBackupSection()
                 }
 
                 VStack(spacing: 10) {

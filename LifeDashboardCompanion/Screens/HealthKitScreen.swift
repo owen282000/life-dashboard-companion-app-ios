@@ -40,6 +40,7 @@ struct HealthKitScreen: View {
             .padding()
         }
         .onAppear {
+            mqttPortText = String(prefs.mqttPort)
             // Expanded on first run so new users see the data types; collapsed once configured
             showDataTypes = prefs.healthEnabledDataTypes.isEmpty
         }

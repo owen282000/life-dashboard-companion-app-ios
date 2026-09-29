@@ -56,6 +56,7 @@
 		B100001F /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001F /* KeychainStore.swift */; };
 		B1000022 /* LogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000022 /* LogStore.swift */; };
 		B1000023 /* AboutScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000023 /* AboutScreen.swift */; };
+		5421F067D17AD5AB87506A15 /* SettingsBackupSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018102528A19E8A6D938C8D8 /* SettingsBackupSection.swift */; };
 		B1000040 /* DashboardCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000040 /* DashboardCard.swift */; };
 		B1000024 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F1000024 /* PrivacyInfo.xcprivacy */; };
 		B1000025 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F1000025 /* Localizable.xcstrings */; };
@@ -167,6 +168,7 @@
 		F100001F /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		F1000022 /* LogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStore.swift; sourceTree = "<group>"; };
 		F1000023 /* AboutScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutScreen.swift; sourceTree = "<group>"; };
+		018102528A19E8A6D938C8D8 /* SettingsBackupSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBackupSection.swift; sourceTree = "<group>"; };
 		F1000040 /* DashboardCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardCard.swift; sourceTree = "<group>"; };
 		F1000024 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F1000025 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
@@ -314,6 +316,7 @@
 				E134C26ED525B347764FD494 /* PairingScannerView.swift */,
 				F1000012 /* LogsScreen.swift */,
 				F1000023 /* AboutScreen.swift */,
+				018102528A19E8A6D938C8D8 /* SettingsBackupSection.swift */,
 				F1000040 /* DashboardCard.swift */,
 				6DF59FC78BB30C4555721CEB /* SyncScheduleSection.swift */,
 			);
@@ -525,6 +528,7 @@
 				B100001F /* KeychainStore.swift in Sources */,
 				B1000022 /* LogStore.swift in Sources */,
 				B1000023 /* AboutScreen.swift in Sources */,
+				5421F067D17AD5AB87506A15 /* SettingsBackupSection.swift in Sources */,
 				B1000040 /* DashboardCard.swift in Sources */,
 				281FA2D70D2BF104CD99B6F4 /* SyncScheduleSection.swift in Sources */,
 				B100002A /* SharedSyncStatus.swift in Sources */,
