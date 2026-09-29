@@ -16,12 +16,19 @@ All notable changes to this project are documented in this file. The format is b
 - Pairing with the Life Dashboard integration for Home Assistant (integration 0.7.0 or newer): tap **Scan a pairing code** under Webhook URLs, or point the iPhone camera at the code and tap **Open in the app** on the page it opens. A sheet shows who is asking, at which address and what changes, and nothing is saved until **Pair**; pairing fills in only the address and the signing secret
 - After pairing, one test ping goes to the new address, and the sheet says whether Home Assistant confirmed it, which a plain 200 cannot prove
 - Sleep sessions carry a `uuid` derived from their first stage, so a receiver can replace a night that comes back longer instead of counting it twice
+- Sync schedule, as in the Android app: every X minutes or at fixed times, a weekday filter and quiet hours, stored in the Android app's format. iOS decides when an app runs in the background, so a fixed time means "not before this time": it syncs once, at the first chance iOS gives after it, and a time missed until quiet hours or a day that is off is skipped, not moved. The screen says so, warns when a combination never syncs, and a status line under Sync Now says why automatic syncs are waiting
+- "Need an exact time?" explains how a Shortcuts Time of Day automation runs Sync Health Data at a set time
 
 ### Changed
 
 - The "Cycle Tracking" toggle is now called "Menstruation", since the other cycle types have toggles of their own
 - A plain `http://` address that iOS will refuse (a name like `ha.lan` rather than an IP address or a `.local` name) cannot be paired, and the sheet says what to use instead; a delivery that iOS refuses for plain HTTP is no longer retried
 - Adding a webhook URL that is already in the list no longer adds it twice
+- The interval is the minimum time between automatic syncs, HealthKit-triggered ones included; before, it only moved the nightly background task
+- Opening the app no longer syncs every time: it syncs when the schedule says a sync is due, and never in quiet hours. Sync Now always syncs
+- The nightly background task sends what is new instead of the last seven days; Sync Now keeps the full resend
+- The Sync Health Data action sends what is queued and what is new instead of the last seven days, and on a locked iPhone says it is locked instead of "No new health data to sync". It no longer publishes to MQTT; Sync Now does
+- A queued payload is retried automatically outside quiet hours only; Retry Now always retries
 
 ### Fixed
 
