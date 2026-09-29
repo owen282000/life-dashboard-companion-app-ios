@@ -14,6 +14,16 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
 
     private enum Keys {
         static let healthSyncInterval = "health_sync_interval_minutes"
+        // The Android app's keys for the rest of the schedule, same text formats
+        static let healthScheduleMode = "health_schedule_mode"
+        static let healthScheduleTimes = "health_schedule_times"
+        static let healthScheduleDays = "health_schedule_days"
+        static let healthScheduleQuietFrom = "health_schedule_quiet_from"
+        static let healthScheduleQuietTo = "health_schedule_quiet_to"
+        static let healthScheduleLastRun = "health_schedule_last_run"
+        // iOS only, sync state rather than settings
+        static let healthScheduleLastSlot = "health_schedule_last_slot"
+        static let healthScheduleChangedAt = "health_schedule_changed_at"
         static let healthWebhookUrls = "health_webhook_urls"
         static let healthEnabledDataTypes = "health_enabled_data_types"
         static let healthWebhookHeaders = "health_webhook_headers"
@@ -34,13 +44,46 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
 
     // MARK: - Constants
 
-    static let defaultSyncIntervalMinutes = 60
+    static let defaultSyncIntervalMinutes = SyncSchedule.defaultIntervalMinutes
     static let maxLogs = 100
 
     // MARK: - Health Connect Settings
 
-    @Published var healthSyncIntervalMinutes: Int {
-        didSet { defaults.set(healthSyncIntervalMinutes, forKey: Keys.healthSyncInterval) }
+    /// When background syncs may run. The interval keeps its long-standing key, so an install
+    /// that never opens the schedule syncs exactly as before.
+    ///
+    /// A real change (not the same schedule written again) stamps `changedAt`, so times earlier
+    /// today do not run, and tells the background sync manager to aim its requests anew.
+    @Published var healthSyncSchedule: SyncSchedule {
+        didSet {
+            storeSchedule(healthSyncSchedule)
+            guard healthSyncSchedule.normalized != oldValue.normalized else { return }
+            defaults.set(Date(), forKey: Keys.healthScheduleChangedAt)
+            NotificationCenter.default.post(name: .healthSyncScheduleDidChange, object: nil)
+        }
+    }
+
+    var healthSyncIntervalMinutes: Int {
+        get { healthSyncSchedule.intervalMinutes }
+        set { healthSyncSchedule.intervalMinutes = newValue }
+    }
+
+    /// What the schedule gate remembers: when the last scheduled sync started, the configured
+    /// time it ran for, and when the schedule last changed. Written by SyncCoordinator only.
+    var healthScheduleState: ScheduleState {
+        get {
+            ScheduleState(
+                lastRun: defaults.object(forKey: Keys.healthScheduleLastRun) as? Date,
+                lastSlot: (defaults.object(forKey: Keys.healthScheduleLastSlot) as? Int)
+                    .map { LocalDateTime(day: 0, second: $0) },
+                changedAt: defaults.object(forKey: Keys.healthScheduleChangedAt) as? Date
+            )
+        }
+        set {
+            defaults.set(newValue.lastRun, forKey: Keys.healthScheduleLastRun)
+            defaults.set(newValue.lastSlot.map { $0.day * 86_400 + $0.second }, forKey: Keys.healthScheduleLastSlot)
+            defaults.set(newValue.changedAt, forKey: Keys.healthScheduleChangedAt)
+        }
     }
 
     @Published var healthWebhookUrls: [String] {
@@ -123,8 +166,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
     // MARK: - Init
 
     private init() {
-        self.healthSyncIntervalMinutes = defaults.object(forKey: Keys.healthSyncInterval) as? Int
-            ?? PreferencesManager.defaultSyncIntervalMinutes
+        self.healthSyncSchedule = PreferencesManager.loadSchedule(from: defaults)
 
         if let data = defaults.data(forKey: Keys.healthWebhookUrls),
            let urls = try? JSONDecoder().decode([String].self, from: data) {
@@ -175,6 +217,31 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         self.mqttPassword = KeychainStore.string(forKey: Keys.mqttPassword) ?? ""
         self.mqttBaseTopic = defaults.string(forKey: Keys.mqttBaseTopic) ?? MqttSupport.defaultBaseTopic
         self.mqttLastStatus = defaults.string(forKey: Keys.mqttLastStatus) ?? ""
+    }
+
+    // MARK: - Sync schedule
+
+    private static func loadSchedule(from defaults: UserDefaults) -> SyncSchedule {
+        var schedule = SyncSchedule()
+        schedule.intervalMinutes = defaults.object(forKey: Keys.healthSyncInterval) as? Int
+            ?? PreferencesManager.defaultSyncIntervalMinutes
+        schedule.mode = defaults.string(forKey: Keys.healthScheduleMode).flatMap(SyncMode.init(rawValue:)) ?? .interval
+        schedule.times = SyncSchedule.parseTimes(defaults.string(forKey: Keys.healthScheduleTimes) ?? "")
+        schedule.days = SyncSchedule.parseDays(defaults.string(forKey: Keys.healthScheduleDays))
+        if let from = defaults.string(forKey: Keys.healthScheduleQuietFrom).flatMap(TimeOfDay.init),
+           let to = defaults.string(forKey: Keys.healthScheduleQuietTo).flatMap(TimeOfDay.init) {
+            schedule.quietWindow = QuietWindow(from: from, to: to)
+        }
+        return schedule
+    }
+
+    private func storeSchedule(_ schedule: SyncSchedule) {
+        defaults.set(schedule.intervalMinutes, forKey: Keys.healthSyncInterval)
+        defaults.set(schedule.mode.rawValue, forKey: Keys.healthScheduleMode)
+        defaults.set(SyncSchedule.formatTimes(schedule.times), forKey: Keys.healthScheduleTimes)
+        defaults.set(SyncSchedule.formatDays(schedule.days), forKey: Keys.healthScheduleDays)
+        defaults.set(schedule.quietWindow?.from.text, forKey: Keys.healthScheduleQuietFrom)
+        defaults.set(schedule.quietWindow?.to.text, forKey: Keys.healthScheduleQuietTo)
     }
 
     // MARK: - HKQueryAnchor Persistence
@@ -237,4 +304,9 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         LogStore.shared.delete(id: id)
         DispatchQueue.main.async { self.objectWillChange.send() }
     }
+}
+
+extension Notification.Name {
+    /// Posted when the health sync schedule really changed, so background work is re-aimed.
+    static let healthSyncScheduleDidChange = Notification.Name("healthSyncScheduleDidChange")
 }
