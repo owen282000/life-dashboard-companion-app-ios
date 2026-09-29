@@ -450,6 +450,44 @@ final class SyncScheduleTests: XCTestCase {
         XCTAssertNotEqual(one.normalized, SyncSchedule(mode: .times, times: [time("08:00")]).normalized)
     }
 
+    // MARK: - Summary and status line
+
+    func testTheSummaryNamesTheModeTheDaysAndTheQuietHours() {
+        let quiet = QuietWindow(from: time("23:00"), to: time("07:00"))
+        let interval = SyncSchedule(mode: .interval, intervalMinutes: 60, days: Weekday.workdays, quietWindow: quiet)
+        let days = Weekday.workdays.sorted { Weekday.allCases.firstIndex(of: $0)! < Weekday.allCases.firstIndex(of: $1)! }
+            .map(\.shortName).joined(separator: " ")
+        XCTAssertEqual(
+            interval.summary,
+            "Every 60 min · \(days) · quiet \(time("23:00").formatted) to \(time("07:00").formatted)"
+        )
+        let times = SyncSchedule(mode: .times, times: [time("21:00"), time("08:00")])
+        XCTAssertEqual(times.summary, "After \(time("08:00").formatted), \(time("21:00").formatted)")
+        XCTAssertEqual(SyncSchedule(mode: .times).summary, "No sync times yet")
+    }
+
+    func testTheStatusLineExplainsWhyAutomaticSyncsWait() {
+        let schedule = SyncSchedule(days: Weekday.workdays, quietWindow: QuietWindow(from: time("23:00"), to: time("07:00")))
+        let line = { (now: String, webhooks: Int) in
+            ScheduleStatusLine.text(schedule: schedule, webhookCount: webhooks, now: self.instant(now), timeZone: self.utc)
+        }
+        XCTAssertEqual(line("2026-09-14T12:00:00Z", 0), "\(schedule.summary), no destination yet")
+        XCTAssertEqual(line("2026-09-14T12:00:00Z", 1), "\(schedule.summary) to 1 webhook")
+        XCTAssertEqual(line("2026-09-14T12:00:00Z", 2), "\(schedule.summary) to 2 webhooks")
+        XCTAssertEqual(line("2026-09-14T23:30:00Z", 1), "Quiet hours until \(time("07:00").formatted). Sync Now still works.")
+        XCTAssertEqual(line("2026-09-19T12:00:00Z", 1), "No automatic syncs today. Sync Now still works.")
+        XCTAssertEqual(
+            ScheduleStatusLine.text(schedule: SyncSchedule(days: []), webhookCount: 1, now: instant("2026-09-14T12:00:00Z"), timeZone: utc),
+            "Automatic syncs are off. Sync Now still works."
+        )
+    }
+
+    func testWeekdayNamesStartOnMonday() {
+        let symbols = Calendar.current.shortStandaloneWeekdaySymbols
+        XCTAssertEqual(Weekday.monday.shortName, symbols[1])
+        XCTAssertEqual(Weekday.sunday.shortName, symbols[0])
+    }
+
     // MARK: - Text formats
 
     func testTimesRoundTripThroughText() {

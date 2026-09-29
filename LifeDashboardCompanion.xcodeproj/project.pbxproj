@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		281FA2D70D2BF104CD99B6F4 /* SyncScheduleSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DF59FC78BB30C4555721CEB /* SyncScheduleSection.swift */; };
 		748D53113F6AB7F126F98E44 /* SyncCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19ED8BFFC097743BD11F082 /* SyncCoordinatorTests.swift */; };
 		B3A21BB267D691F7A6B79947 /* SyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE9C139AF65123944A54194F /* SyncCoordinator.swift */; };
 		A7DFF04D8CCCC1B0F82F046E /* TestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7EC97C166A63DD57CE1085A /* TestSupport.swift */; };
@@ -108,6 +109,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		6DF59FC78BB30C4555721CEB /* SyncScheduleSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncScheduleSection.swift; sourceTree = "<group>"; };
 		D19ED8BFFC097743BD11F082 /* SyncCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinatorTests.swift; sourceTree = "<group>"; };
 		BE9C139AF65123944A54194F /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
 		E7EC97C166A63DD57CE1085A /* TestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestSupport.swift; sourceTree = "<group>"; };
@@ -301,6 +303,7 @@
 				F1000012 /* LogsScreen.swift */,
 				F1000023 /* AboutScreen.swift */,
 				F1000040 /* DashboardCard.swift */,
+				6DF59FC78BB30C4555721CEB /* SyncScheduleSection.swift */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -506,6 +509,7 @@
 				B1000022 /* LogStore.swift in Sources */,
 				B1000023 /* AboutScreen.swift in Sources */,
 				B1000040 /* DashboardCard.swift in Sources */,
+				281FA2D70D2BF104CD99B6F4 /* SyncScheduleSection.swift in Sources */,
 				B100002A /* SharedSyncStatus.swift in Sources */,
 				B100002C /* SyncHealthDataIntent.swift in Sources */,
 				B100002D /* SyncFailureNotifier.swift in Sources */,

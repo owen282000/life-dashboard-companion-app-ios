@@ -7,7 +7,7 @@ struct HealthKitScreen: View {
     @ObservedObject private var backfill = BackfillController.shared
     @EnvironmentObject private var pairing: PairingCoordinator
 
-    @State private var syncIntervalText: String = ""
+    @State private var showSchedule = false
     @State private var newWebhookUrl: String = ""
     @State private var showPreview = false
     @State private var previewPayload: String = ""
@@ -30,6 +30,7 @@ struct HealthKitScreen: View {
                 } else {
                     DashboardCard()
                     dataTypesSection
+                    SyncScheduleSection(schedule: $prefs.healthSyncSchedule, isExpanded: $showSchedule)
                     configurationSection
                     headersSection
                     mqttSection
@@ -39,7 +40,6 @@ struct HealthKitScreen: View {
             .padding()
         }
         .onAppear {
-            syncIntervalText = String(prefs.healthSyncIntervalMinutes)
             // Expanded on first run so new users see the data types; collapsed once configured
             showDataTypes = prefs.healthEnabledDataTypes.isEmpty
         }
@@ -132,27 +132,6 @@ struct HealthKitScreen: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Configuration", systemImage: "gearshape.fill")
                 .font(.headline)
-
-            // Sync Interval
-            HStack {
-                Text("Sync Interval")
-                    .font(.subheadline)
-                Spacer()
-                TextField("60", text: $syncIntervalText)
-                    .keyboardType(.numberPad)
-                    .frame(width: 60)
-                    .textFieldStyle(.roundedBorder)
-                    .onChange(of: syncIntervalText) { _, newValue in
-                        if let minutes = Int(newValue), minutes >= 15 {
-                            prefs.healthSyncIntervalMinutes = minutes
-                        }
-                    }
-                Text("min")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-
-            Divider()
 
             // Failure notifications
             Toggle("Notify after failed syncs", isOn: Binding(
@@ -557,6 +536,8 @@ struct HealthKitScreen: View {
                     .foregroundColor(message.contains("failed") || message.contains("Error") ? .red : .green)
                     .frame(maxWidth: .infinity)
             }
+
+            ScheduleStatusLine(schedule: prefs.healthSyncSchedule, webhookCount: prefs.healthWebhookUrls.count)
         }
         .padding()
         .background(Color(.systemGray6))
