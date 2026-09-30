@@ -26,6 +26,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         static let healthScheduleLastSlot = "health_schedule_last_slot"
         static let healthScheduleChangedAt = "health_schedule_changed_at"
         static let healthWebhookUrls = "health_webhook_urls"
+        static let healthUrlsWithoutHeaders = "health_webhook_urls_without_headers"
         static let healthEnabledDataTypes = "health_enabled_data_types"
         static let healthWebhookHeaders = "health_webhook_headers"
         static let healthSigningSecret = "health_signing_secret"
@@ -94,6 +95,29 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
             }
             pruneUrlsWithoutHeaders()
         }
+    }
+
+    /// URLs that get none of the custom headers: the ones QR pairing added. Android's key and
+    /// format, so a settings backup carries the same field on both platforms.
+    @Published var healthUrlsWithoutHeaders: Set<String> {
+        didSet {
+            if healthUrlsWithoutHeaders.isEmpty {
+                defaults.removeObject(forKey: Keys.healthUrlsWithoutHeaders)
+            } else if let data = try? encoder.encode(healthUrlsWithoutHeaders.sorted()) {
+                defaults.set(data, forKey: Keys.healthUrlsWithoutHeaders)
+            }
+        }
+    }
+
+    /// The same list read back from UserDefaults, which is thread-safe. WebhookManager reads it
+    /// off the main actor at every send, while pairing or an import may be writing it.
+    var storedUrlsWithoutHeaders: Set<String> {
+        PreferencesManager.decodeUrls(defaults.data(forKey: Keys.healthUrlsWithoutHeaders))
+    }
+
+    private static func decodeUrls(_ data: Data?) -> Set<String> {
+        guard let data, let urls = try? JSONDecoder().decode([String].self, from: data) else { return [] }
+        return Set(urls)
     }
 
     @Published var healthEnabledDataTypes: Set<HealthDataType> {
@@ -183,6 +207,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         } else {
             self.healthWebhookUrls = []
         }
+        self.healthUrlsWithoutHeaders = PreferencesManager.decodeUrls(defaults.data(forKey: Keys.healthUrlsWithoutHeaders))
 
         if let data = defaults.data(forKey: Keys.healthEnabledDataTypes),
            let rawValues = try? JSONDecoder().decode([String].self, from: data) {

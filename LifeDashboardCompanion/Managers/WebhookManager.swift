@@ -40,7 +40,7 @@ actor WebhookManager {
             ? nil
             : WebhookSigner.signatureHeader(for: jsonData, secret: signingSecret)
         let configuredUrls = prefs.healthWebhookUrls
-        let urlsWithoutHeaders = prefs.healthUrlsWithoutHeaders
+        let urlsWithoutHeaders = prefs.storedUrlsWithoutHeaders
 
         let rawPayload = String(data: jsonData, encoding: .utf8)
         var anySuccess = false

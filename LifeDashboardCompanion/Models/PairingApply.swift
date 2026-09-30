@@ -118,27 +118,6 @@ enum PairingPingOutcome: Equatable, Sendable {
 // MARK: - Storage
 
 extension PreferencesManager {
-    /// Android's key, so a settings export can carry the same field on both platforms.
-    static let urlsWithoutHeadersKey = "health_webhook_urls_without_headers"
-
-    /// URLs that get none of the custom headers. Read straight from UserDefaults, which is
-    /// thread-safe, because WebhookManager reads it off the main actor at every send.
-    var healthUrlsWithoutHeaders: Set<String> {
-        get {
-            guard let data = UserDefaults.standard.data(forKey: Self.urlsWithoutHeadersKey),
-                  let urls = try? JSONDecoder().decode([String].self, from: data) else { return [] }
-            return Set(urls)
-        }
-        set {
-            if newValue.isEmpty {
-                UserDefaults.standard.removeObject(forKey: Self.urlsWithoutHeadersKey)
-            } else if let data = try? JSONEncoder().encode(newValue.sorted()) {
-                UserDefaults.standard.set(data, forKey: Self.urlsWithoutHeadersKey)
-            }
-            DispatchQueue.main.async { self.objectWillChange.send() }
-        }
-    }
-
     var healthSection: SectionWebhook {
         SectionWebhook(
             urls: healthWebhookUrls,
