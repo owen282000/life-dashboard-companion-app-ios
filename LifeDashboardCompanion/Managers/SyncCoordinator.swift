@@ -54,8 +54,19 @@ actor SyncCoordinator {
     private var flight: Task<Void, Never>?
     private var flightNumber = 0
 
-    init(environment: Environment) {
+    /// Where this actor's code runs. In the app that is a plain actor's own queue, as for any
+    /// actor; a test passes an executor of its own to decide which caller gets in first.
+    private let executor: (any SerialExecutor)?
+    private let lane = Lane()
+    private actor Lane {}
+
+    nonisolated var unownedExecutor: UnownedSerialExecutor {
+        executor?.asUnownedSerialExecutor() ?? lane.unownedExecutor
+    }
+
+    init(environment: Environment, executor: (any SerialExecutor)? = nil) {
         self.env = environment
+        self.executor = executor
     }
 
     // MARK: - Automatic

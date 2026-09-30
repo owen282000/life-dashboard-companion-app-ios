@@ -76,3 +76,80 @@ final class InMemorySecretStore: SecretStore, @unchecked Sendable {
         lock.withLock { values[key] = value }
     }
 }
+
+/// A serial executor for one actor that runs each job right away on a serial queue of its own,
+/// except those of one task it is told to hold: they wait until `release`. A test keeps one
+/// caller out of the actor this way and lets the others in, so the order in which they get in
+/// is the test's choice instead of the scheduler's.
+final class HoldingExecutor: SerialExecutor, @unchecked Sendable {
+    private let queue = DispatchQueue(label: "HoldingExecutor", qos: .userInitiated)
+    private let lock = NSLock()
+    private var watching = false
+    private var watchedTask: UnsafeRawPointer?
+    private var holding = false
+    private var held: [UnownedJob] = []
+    private var watchers: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
+
+    /// The next job to come in starts the task `hold` will keep out. Call it on the actor right
+    /// before creating that task, so no other job comes in between. The task is known by that
+    /// job: neither its priority, which can rise, nor any other field tells it apart from the
+    /// others, but a task is the job it enqueues every time it comes back.
+    func watchNextTask() {
+        lock.withLock { watching = true }
+    }
+
+    func hold() {
+        lock.withLock { holding = true }
+    }
+
+    /// Suspends until `count` jobs of the watched task are held.
+    func held(_ count: Int) async {
+        await withCheckedContinuation { continuation in
+            let now = lock.withLock { () -> Bool in
+                if held.count >= count { return true }
+                watchers.append((count, continuation))
+                return false
+            }
+            if now { continuation.resume() }
+        }
+    }
+
+    /// Lets the held jobs in, in the order they came, and says how many there were.
+    @discardableResult
+    func release() -> Int {
+        lock.withLock {
+            holding = false
+            held.forEach(run)
+            defer { held.removeAll() }
+            return held.count
+        }
+    }
+
+    func enqueue(_ job: consuming ExecutorJob) {
+        let job = UnownedJob(job)
+        let task = unsafeBitCast(job, to: UnsafeRawPointer.self)
+        let (hold, arrived) = lock.withLock { () -> (Bool, [CheckedContinuation<Void, Never>]) in
+            if watching {
+                watchedTask = task
+                watching = false
+            }
+            guard holding, task == watchedTask else { return (false, []) }
+            held.append(job)
+            let arrived = watchers.filter { $0.count <= held.count }.map(\.continuation)
+            watchers.removeAll { $0.count <= held.count }
+            return (true, arrived)
+        }
+        arrived.forEach { $0.resume() }
+        if !hold { run(job) }
+    }
+
+    func asUnownedSerialExecutor() -> UnownedSerialExecutor {
+        UnownedSerialExecutor(ordinary: self)
+    }
+
+    private func run(_ job: UnownedJob) {
+        queue.async(qos: .userInitiated, flags: .enforceQoS) {
+            job.runSynchronously(on: self.asUnownedSerialExecutor())
+        }
+    }
+}
