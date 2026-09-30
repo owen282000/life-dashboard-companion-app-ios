@@ -21,6 +21,7 @@ enum AppDiagnostic: String, CaseIterable {
     case brokerTimeout = "Broker did not respond within 10 seconds"
     case brokerRefused = "Broker refused the connection (check credentials)"
     case brokerCancelled = "Connection cancelled"
+    case interrupted = "Interrupted"
 
     var localized: String {
         switch self {
@@ -37,6 +38,7 @@ enum AppDiagnostic: String, CaseIterable {
         case .brokerTimeout: return String(localized: "Broker did not respond within 10 seconds")
         case .brokerRefused: return String(localized: "Broker refused the connection (check credentials)")
         case .brokerCancelled: return String(localized: "Connection cancelled")
+        case .interrupted: return String(localized: "Interrupted")
         }
     }
 

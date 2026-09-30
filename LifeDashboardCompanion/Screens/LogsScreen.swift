@@ -164,6 +164,7 @@ struct LogRow: View {
     }
 
     private var pill: StatusPill {
+        if log.isInterrupted { return StatusPill(title: "Interrupted", tone: .info) }
         if !log.success { return StatusPill(title: "Failed", tone: .failure) }
         return log.isMqtt ? StatusPill(title: "Published", tone: .success) : StatusPill(title: "Delivered", tone: .success)
     }
@@ -189,7 +190,7 @@ struct LogRow: View {
             subtitle
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            if !log.success, let error = log.errorMessage {
+            if !log.success, !log.isInterrupted, let error = log.errorMessage {
                 Text(verbatim: AppDiagnostic.display(error))
                     .font(.footnote)
                     .foregroundStyle(Brand.errorInk)

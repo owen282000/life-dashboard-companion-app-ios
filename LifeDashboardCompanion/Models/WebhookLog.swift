@@ -51,6 +51,11 @@ struct WebhookLog: Codable, Identifiable {
 
     var isMqtt: Bool { syncKind == .mqtt }
 
+    /// Cancelled before it could finish, as when iOS ends a background task: not delivered,
+    /// and not a failure of the receiver either. Stored as the error message, so the row keeps
+    /// the shape Android and earlier versions read, where it shows as a failure.
+    var isInterrupted: Bool { !success && errorMessage == AppDiagnostic.interrupted.rawValue }
+
     var syncKind: SyncRowKind {
         // Rows from before the marker are recognised by their missing record count: every
         // webhook row carries one, only the read failure did not.

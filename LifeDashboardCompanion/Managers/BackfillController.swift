@@ -432,7 +432,7 @@ struct WebhookBackfillSink: BackfillDelivering {
             dataType: BackfillController.logDataType,
             recordCount: recordCount,
             logSuccess: false
-        )
+        ).delivered
     }
 }
 

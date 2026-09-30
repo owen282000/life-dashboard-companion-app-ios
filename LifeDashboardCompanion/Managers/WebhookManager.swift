@@ -13,6 +13,26 @@ actor WebhookManager {
         let statusCode: Int?
         let success: Bool
         let errorMessage: String?
+        var interrupted = false
+    }
+
+    /// How a post to every URL ended. Interrupted is neither a delivery nor a failure: the
+    /// request was cancelled, as when iOS ends a background task, and says nothing about the
+    /// receiver. The caller queues the payload as for a failure.
+    enum Outcome: Equatable {
+        case delivered
+        case failed
+        case interrupted
+
+        var delivered: Bool { self == .delivered }
+    }
+
+    /// A cancelled task, as opposed to a receiver or network that failed. URLSession reports a
+    /// cancelled task as URLError.cancelled; that code without a cancelled task stays a failure.
+    static func isInterruption(_ error: Error, taskCancelled: Bool) -> Bool {
+        if error is CancellationError { return true }
+        if let urlError = error as? URLError, urlError.code == .cancelled { return taskCancelled }
+        return false
     }
 
     /// Posts a pre-serialized JSON body to every URL. Takes Data rather than a
@@ -31,8 +51,8 @@ actor WebhookManager {
         dataType: String,
         recordCount: Int,
         logSuccess: Bool = true
-    ) async -> Bool {
-        guard !urls.isEmpty else { return false }
+    ) async -> Outcome {
+        guard !urls.isEmpty else { return .failed }
 
         let prefs = PreferencesManager.shared
         let signingSecret = prefs.healthSigningSecret
@@ -44,6 +64,8 @@ actor WebhookManager {
 
         let rawPayload = String(data: jsonData, encoding: .utf8)
         var anySuccess = false
+        var anyFailed = false
+        var anyInterrupted = false
 
         for url in urls {
             var urlHeaders = PairingApply.headers(
@@ -65,12 +87,17 @@ actor WebhookManager {
                 anySuccess = true
                 if !logSuccess { continue }
             }
+            if result.interrupted {
+                anyInterrupted = true
+            } else if !result.success {
+                anyFailed = true
+            }
 
             let log = WebhookLog(
                 url: url,
                 statusCode: result.statusCode,
                 success: result.success,
-                errorMessage: result.errorMessage,
+                errorMessage: result.interrupted ? AppDiagnostic.interrupted.rawValue : result.errorMessage,
                 dataType: dataType,
                 recordCount: recordCount,
                 rawPayload: rawPayload,
@@ -79,7 +106,9 @@ actor WebhookManager {
             PreferencesManager.shared.addWebhookLog(log)
         }
 
-        return anySuccess
+        // A URL that failed before the cut is a failure of the whole post, as its row says.
+        if anySuccess { return .delivered }
+        return anyInterrupted && !anyFailed ? .interrupted : .failed
     }
 
     static let atsRefusal = AppDiagnostic.plainHTTPBlocked.rawValue
@@ -189,6 +218,13 @@ actor WebhookManager {
                 // No retry can change this: iOS refuses plain HTTP to this host on every attempt.
                 lastError = WebhookManager.atsRefusal
                 break
+            } catch where WebhookManager.isInterruption(error, taskCancelled: Task.isCancelled) {
+                // Every attempt after this one would be cancelled as well. An attempt that
+                // already failed keeps this delivery a failure, with that attempt's error.
+                if let lastError {
+                    return WebhookResult(url: urlString, statusCode: lastStatusCode, success: false, errorMessage: lastError)
+                }
+                return WebhookResult(url: urlString, statusCode: nil, success: false, errorMessage: nil, interrupted: true)
             } catch {
                 lastError = error.localizedDescription
             }

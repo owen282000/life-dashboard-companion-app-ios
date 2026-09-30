@@ -78,7 +78,7 @@ final class HealthSyncManager: Sendable {
                 return .failure(error: AppDiagnostic.serializeFailed.rawValue)
             }
 
-            let success = await WebhookManager.shared.post(
+            let outcome = await WebhookManager.shared.post(
                 body: body,
                 urls: webhookUrls,
                 headers: headers,
@@ -87,9 +87,9 @@ final class HealthSyncManager: Sendable {
                 recordCount: totalRecords
             )
 
-            updateWidgetStatus(success: success, records: totalRecords)
+            updateWidgetStatus(outcome, records: totalRecords)
 
-            if success {
+            if outcome.delivered {
                 await deletionStore.remove(deletions.carried)
                 return .success(syncCounts: syncCounts)
             } else {
@@ -130,11 +130,14 @@ final class HealthSyncManager: Sendable {
         var syncCounts: [HealthDataType: Int] = [:]
         let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
         if let error = await MqttPublisher.shared.publish(healthPayload: sensorData) {
-            SharedSyncStatus.record(success: false, records: 0)
-            WidgetCenter.shared.reloadAllTimelines()
+            // Cut off by iOS: the widget keeps the last sync that finished.
+            if error != AppDiagnostic.interrupted.rawValue {
+                SharedSyncStatus.record(success: false, records: 0)
+                WidgetCenter.shared.reloadAllTimelines()
+            }
             return .failure(error: error)
         }
-        updateWidgetStatus(success: true, records: totalRecords)
+        updateWidgetStatus(.delivered, records: totalRecords)
         return .success(syncCounts: syncCounts)
     }
 
@@ -206,7 +209,7 @@ final class HealthSyncManager: Sendable {
                     return .failure(error: AppDiagnostic.serializeFailed.rawValue)
                 }
 
-                let success = await WebhookManager.shared.post(
+                let outcome = await WebhookManager.shared.post(
                     body: body,
                     urls: webhookUrls,
                     headers: headers,
@@ -215,10 +218,10 @@ final class HealthSyncManager: Sendable {
                     recordCount: totalRecords
                 )
 
-                updateWidgetStatus(success: success, records: totalRecords)
+                updateWidgetStatus(outcome, records: totalRecords)
 
                 let result: HealthSyncResult
-                if success {
+                if outcome.delivered {
                     await deletionStore.remove(deletions.carried)
                     result = .success(syncCounts: syncCounts)
                 } else {
@@ -253,8 +256,11 @@ final class HealthSyncManager: Sendable {
     }
 
     /// Pushes the latest sync result to the app group so the home screen widget stays
-    /// current, and tracks the failure streak for the local failure notification.
-    private func updateWidgetStatus(success: Bool, records: Int) {
+    /// current, and tracks the failure streak for the local failure notification. An
+    /// interrupted delivery changes neither: it is queued, and its retry counts.
+    private func updateWidgetStatus(_ outcome: WebhookManager.Outcome, records: Int) {
+        guard outcome != .interrupted else { return }
+        let success = outcome.delivered
         SharedSyncStatus.record(success: success, records: success ? records : 0)
         WidgetCenter.shared.reloadAllTimelines()
         SyncFailureNotifier.shared.recordResult(success: success, lastError: nil)
@@ -287,7 +293,7 @@ final class HealthSyncManager: Sendable {
                 pendingStore.remove(id: item.id)
                 continue
             }
-            let success = await WebhookManager.shared.post(
+            let outcome = await WebhookManager.shared.post(
                 body: item.payload,
                 urls: urls,
                 headers: item.headers,
@@ -296,16 +302,21 @@ final class HealthSyncManager: Sendable {
                 recordCount: item.recordCount
             )
 
-            if success {
+            switch outcome {
+            case .delivered:
                 pendingStore.remove(id: item.id)
                 // A delivered retry is a delivered sync: the widget counts its records and the
                 // failure streak ends. A failed retry was already counted when it was queued.
-                updateWidgetStatus(success: true, records: item.recordCount)
+                updateWidgetStatus(.delivered, records: item.recordCount)
                 logger.info("Pending sync item \(item.id) delivered successfully")
-            } else {
+            case .interrupted:
+                // Not an attempt: the item keeps its 20 tries for a receiver that answers.
+                logger.info("Pending sync retry interrupted, stopping drain")
+                return
+            case .failed:
                 pendingStore.updateAttempt(id: item.id, error: AppDiagnostic.retryFailed.rawValue)
                 logger.info("Pending sync retry failed, stopping drain")
-                break
+                return
             }
         }
     }
@@ -356,7 +367,7 @@ final class HealthSyncManager: Sendable {
             return nil
         }
 
-        let success = await WebhookManager.shared.post(
+        let outcome = await WebhookManager.shared.post(
             body: body,
             urls: urls,
             headers: headers,
@@ -364,9 +375,9 @@ final class HealthSyncManager: Sendable {
             dataType: "health_connect",
             recordCount: 0
         )
-        updateWidgetStatus(success: success, records: 0)
+        updateWidgetStatus(outcome, records: 0)
 
-        if success {
+        if outcome.delivered {
             await deletionStore.remove(deletions.carried)
             return .success(syncCounts: [:])
         }

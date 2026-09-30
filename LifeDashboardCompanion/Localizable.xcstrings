@@ -3641,6 +3641,22 @@
         }
       }
     },
+    "Interrupted" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unterbrochen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onderbroken"
+          }
+        }
+      }
+    },
     "Invalid broker port" : {
       "localizations" : {
         "de" : {

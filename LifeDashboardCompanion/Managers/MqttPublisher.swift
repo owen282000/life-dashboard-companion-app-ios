@@ -56,8 +56,15 @@ final class MqttPublisher: @unchecked Sendable {
             prefs.mqttLastStatus = MqttStatus.published(sensors: sensors.count, at: Date())
             logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: nil)
             return nil
+        } catch where Task.isCancelled || WebhookManager.isInterruption(error, taskCancelled: false) {
+            // Cancelled with the sync, as when iOS ends a background task: the broker did
+            // nothing wrong, so the MQTT status keeps its last publish.
+            let message = AppDiagnostic.interrupted.rawValue
+            logger.info("MQTT publish interrupted")
+            logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: message)
+            return message
         } catch {
-            let message = error is CancellationError ? AppDiagnostic.brokerCancelled.rawValue : error.localizedDescription
+            let message = error.localizedDescription
             logger.error("MQTT publish failed: \(message)")
             prefs.mqttLastStatus = MqttStatus.failed(message)
             logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: message)

@@ -51,7 +51,9 @@ struct SyncStats: Equatable {
 
         for log in logs {
             let kind = log.syncKind
-            guard kind != .other else { continue }
+            // An interrupted delivery says nothing about the receiver; its payload is queued
+            // and counts when the retry goes out.
+            guard kind != .other, !log.isInterrupted else { continue }
             since = min(since ?? log.timestamp, log.timestamp)
             if !log.success { failures.append(log) }
 
