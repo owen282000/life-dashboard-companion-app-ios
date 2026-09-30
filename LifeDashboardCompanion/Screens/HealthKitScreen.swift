@@ -150,8 +150,10 @@ struct HealthKitScreen: View {
                         } else {
                             prefs.healthEnabledDataTypes.remove(dataType)
                         }
-                        // Reconfigure observer queries for changed data types
+                        // Reconfigure observer queries for changed data types, and the background
+                        // tasks, which the first type (or the last one gone) starts or stops
                         BackgroundSyncManager.shared.reconfigureObservers()
+                        BackgroundSyncManager.shared.replan()
                     }
                 )) {
                     Label {
@@ -428,7 +430,7 @@ struct HealthKitScreen: View {
                 isSyncing ? Text("Syncing...") : Text("Sync Now")
             }
                 .buttonStyle(PrimaryButtonStyle(isBusy: isSyncing))
-                .disabled(prefs.healthWebhookUrls.isEmpty || prefs.healthEnabledDataTypes.isEmpty || isSyncing || backfill.isRunning)
+                .disabled(!prefs.healthSyncConfigured || isSyncing || backfill.isRunning)
 
             ActionTileRow {
                 ActionTile(title: "View", systemImage: "eye", isBusy: isLoadingPreview, action: loadPreview)
@@ -459,7 +461,7 @@ struct HealthKitScreen: View {
                 }
             }
 
-            ScheduleStatusLine(schedule: prefs.healthSyncSchedule, webhookCount: prefs.healthWebhookUrls.count)
+            ScheduleStatusLine(schedule: prefs.healthSyncSchedule, webhookCount: prefs.healthWebhookUrls.count, mqtt: prefs.mqttConfigured)
         }
     }
 
@@ -584,7 +586,7 @@ enum SyncOutcome: Equatable {
         switch self {
         case .synced(let records): return Text("Synced \(records) records")
         case .noData: return Text("No data to sync")
-        case .failed(let reason): return Text("Sync failed (queued for retry): \(reason)")
+        case .failed(let reason): return Text("Sync failed: \(reason)")
         case .pingDelivered: return Text("Test ping delivered")
         case .pingFailed: return Text("Test ping failed, check the logs")
         }
@@ -594,7 +596,7 @@ enum SyncOutcome: Equatable {
         switch self {
         case .synced(let records): return String(localized: "Synced \(records) records")
         case .noData: return String(localized: "No data to sync")
-        case .failed(let reason): return String(localized: "Sync failed (queued for retry): \(reason)")
+        case .failed(let reason): return String(localized: "Sync failed: \(reason)")
         case .pingDelivered: return String(localized: "Test ping delivered")
         case .pingFailed: return String(localized: "Test ping failed, check the logs")
         }

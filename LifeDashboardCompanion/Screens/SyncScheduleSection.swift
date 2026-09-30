@@ -352,10 +352,13 @@ struct ShortcutsHelpSheet: View {
 struct ScheduleStatusLine: View {
     let schedule: SyncSchedule
     let webhookCount: Int
+    let mqtt: Bool
 
     var body: some View {
         TimelineView(.everyMinute) { context in
-            Text(ScheduleStatusLine.text(schedule: schedule, webhookCount: webhookCount, now: context.date, timeZone: .autoupdatingCurrent))
+            Text(ScheduleStatusLine.text(
+                schedule: schedule, webhookCount: webhookCount, mqtt: mqtt, now: context.date, timeZone: .autoupdatingCurrent
+            ))
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -364,10 +367,10 @@ struct ScheduleStatusLine: View {
     }
 
     /// No destination first (then "Sync Now still works" would not be true), then why automatic
-    /// syncs are held, then the schedule itself. MQTT is not named: only Sync Now publishes it.
-    nonisolated static func text(schedule: SyncSchedule, webhookCount: Int, now: Date, timeZone: TimeZone) -> String {
+    /// syncs are held, then the schedule itself, with where it goes: webhooks, MQTT or both.
+    nonisolated static func text(schedule: SyncSchedule, webhookCount: Int, mqtt: Bool, now: Date, timeZone: TimeZone) -> String {
         let cadence = schedule.summary
-        guard webhookCount > 0 else {
+        guard webhookCount > 0 || mqtt else {
             return String(localized: "\(cadence), no destination yet")
         }
         switch schedule.hold(at: now, timeZone: timeZone) {
@@ -378,6 +381,8 @@ struct ScheduleStatusLine: View {
         case .dayOff:
             return String(localized: "No automatic syncs today. Sync Now still works.")
         case nil:
+            if webhookCount == 0 { return String(localized: "\(cadence) to MQTT") }
+            if mqtt { return String(localized: "\(cadence) to \(webhookCount) webhooks and MQTT") }
             return String(localized: "\(cadence) to \(webhookCount) webhooks")
         }
     }

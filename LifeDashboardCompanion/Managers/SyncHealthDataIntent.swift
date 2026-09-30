@@ -6,13 +6,14 @@ import UIKit
 struct SyncHealthDataIntent: AppIntent {
     static let title: LocalizedStringResource = "Sync Health Data"
     static let description = IntentDescription(
-        "Reads your enabled Apple Health data types and delivers them to your configured webhooks."
+        "Reads your enabled Apple Health data types and delivers them to your webhooks and MQTT broker."
     )
 
     /// Runs at the time a Shortcuts automation sets, which may well be while the iPhone is
     /// locked; Health data is unreadable then, and the answer says so. Otherwise it sends what
     /// is queued and the records since the last sync, like a scheduled sync but without asking
-    /// the schedule, as Sync Now does not either.
+    /// the schedule, as Sync Now does not either. The new records go to MQTT too, and with only
+    /// a broker set up, to MQTT alone.
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let unlocked = await MainActor.run { UIApplication.shared.isProtectedDataAvailable }
         guard unlocked else {
@@ -22,7 +23,7 @@ struct SyncHealthDataIntent: AppIntent {
         switch result {
         case .success(let syncCounts):
             let total = syncCounts.values.reduce(0, +)
-            return .result(dialog: "Synced \(total) health records to your webhook.")
+            return .result(dialog: "Synced \(total) health records.")
         case .noData:
             return .result(dialog: "No new health data to sync.")
         case .failure(let error):
