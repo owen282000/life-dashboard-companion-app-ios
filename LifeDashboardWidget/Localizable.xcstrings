@@ -17,18 +17,18 @@
         }
       }
     },
-    "Last sync result and records delivered today." : {
+    "Last sync result and records delivered today, with a button that syncs now." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ergebnis der letzten Synchronisierung und die heute zugestellten Datensätze."
+            "value" : "Ergebnis der letzten Synchronisierung und die heute zugestellten Datensätze, mit einem Button zum sofortigen Synchronisieren."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Resultaat van de laatste synchronisatie en de records die vandaag zijn afgeleverd."
+            "value" : "Resultaat van de laatste synchronisatie en de records die vandaag zijn afgeleverd, met een knop om nu te synchroniseren."
           }
         }
       }
@@ -68,6 +68,38 @@
         }
       }
     },
+    "Open Life Dashboard to sync." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffne Life Dashboard, um zu synchronisieren."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Life Dashboard om te synchroniseren."
+          }
+        }
+      }
+    },
+    "Reads your enabled Apple Health data types and delivers them to your webhooks and MQTT broker." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liest die aktivierten Datentypen aus Apple Health und stellt sie an deine Webhooks und deinen MQTT-Broker zu."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leest de ingeschakelde datatypes uit Apple Gezondheid en levert ze af bij je webhooks en je MQTT-broker."
+          }
+        }
+      }
+    },
     "record today" : {
       "localizations" : {
         "de" : {
@@ -96,6 +128,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "records vandaag"
+          }
+        }
+      }
+    },
+    "Sync Health Data" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gesundheitsdaten synchronisieren"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gezondheidsdata synchroniseren"
+          }
+        }
+      }
+    },
+    "Sync Life Dashboard" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard synchronisieren"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard synchroniseren"
+          }
+        }
+      }
+    },
+    "Sync Now" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jetzt synchronisieren"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nu synchroniseren"
           }
         }
       }
@@ -144,6 +224,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gesynct op %@"
+          }
+        }
+      }
+    },
+    "Syncs your health data to your webhooks and MQTT broker." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisiert deine Gesundheitsdaten mit deinen Webhooks und deinem MQTT-Broker."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchroniseert je gezondheidsdata naar je webhooks en je MQTT-broker."
           }
         }
       }

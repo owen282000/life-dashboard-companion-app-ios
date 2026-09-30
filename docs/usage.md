@@ -78,6 +78,14 @@ iOS decides in advance which plain `http://` addresses an app may use: an IP add
 
 The sensors hold the latest record of each type; [features.md](features.md#home-assistant-and-mqtt) lists them. MQTT has no retry queue and gets no deleted records or backfill. If you add a webhook URL later, it gets what is new from then on; **Sync Now** or **Backfill** sends what came before. Values are published retained, so they survive a Home Assistant restart. The Logs tab shows every publish, with the broker's answer when it fails.
 
+## Syncing without opening the app
+
+- **Home screen widget.** Touch and hold the home screen, tap **Edit** > **Add Widget** and pick Life Dashboard. It shows the last sync and the records delivered today, and the round button in its corner syncs now.
+- **Control Center** (iOS 18 and later). Open Control Center, tap **+** > **Add a Control**, search for Life Dashboard and pick **Sync Now**. It is the Android app's Quick Settings tile.
+- **Shortcuts and Siri.** The **Sync Health Data** action, in a shortcut, an automation or by voice.
+
+All three run the same action: it sends what is queued and what is new since the last sync, where **Sync Now** in the app sends the last 7 days again. Health data cannot be read while the iPhone is locked, so unlock it first; a control on the Lock Screen syncs nothing until then. Together they sync at most once a minute, like the Android app's sync broadcast, so a second tap within a minute does nothing.
+
 ## Troubleshooting
 
 ### Background syncs are late, or do not happen

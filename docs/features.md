@@ -93,7 +93,9 @@ Each sends only what is new. Health data cannot be read while the iPhone is lock
 ## Automation
 
 - **Shortcuts and Siri** - a **Sync Health Data** action, for a Shortcuts automation at a set time, on arriving home, or by voice. It sends what is queued and what is new, to the webhooks and the MQTT broker
-- **Home screen widget** - the last sync result, records delivered today, and a status mark, so a failing background sync shows
+- **Home screen widget** - the last sync result, records delivered today, and a status mark, so a failing background sync shows. Its button syncs now
+- **Control Center** - on iOS 18 and later, a **Sync Now** control for Control Center, the Android app's Quick Settings tile. It needs an unlocked iPhone, as every sync does
+- The widget button, the control and the Shortcuts action run **Sync Health Data**, and together sync at most once a minute, like the Android app's sync broadcast: a tap within a minute of the last accepted one does nothing
 - **Failure notifications** - a local notification after a number of failed syncs in a row, which you choose
 
 ## Data tools
@@ -135,6 +137,6 @@ The payload is the Android app's, but an iPhone is not an Android phone. Where i
 - **BackgroundTasks** - app refresh, processing and, on iOS 26, continued processing tasks
 - **URLSession** - webhook delivery with retries
 - **Network framework** - the MQTT client and connectivity monitoring
-- **App Intents and WidgetKit** - the Shortcuts action and the home screen widget
+- **App Intents and WidgetKit** - the Shortcuts action, the home screen widget and the Control Center control
 - **CryptoKit and CommonCrypto** - HMAC signing and the encrypted settings backup
 - **AVFoundation** - the pairing code scanner

@@ -1353,6 +1353,22 @@
         }
       }
     },
+    "A sync started less than a minute ago. Try again in a minute." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vor weniger als einer Minute wurde eine Synchronisierung gestartet. Versuche es in einer Minute erneut."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Er is minder dan een minuut geleden een synchronisatie gestart. Probeer het over een minuut opnieuw."
+          }
+        }
+      }
+    },
     "About" : {
       "localizations" : {
         "de" : {

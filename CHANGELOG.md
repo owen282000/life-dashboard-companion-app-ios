@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Sync Now outside the app, as the Android app's Quick Settings tile: a button on the home screen widget, and on iOS 18 and later a Sync Now control for Control Center. Both run the Sync Health Data action, which sends what is queued and what is new since the last sync. The widget, the control and the Shortcuts action together sync at most once a minute, like the Android app's sync broadcast; a tap within a minute of the last accepted one does nothing, and the action says so in Shortcuts
+
 ## [1.4.1] - 2026-09-30
 
 ### Fixed

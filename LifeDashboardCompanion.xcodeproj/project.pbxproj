@@ -70,6 +70,7 @@
 		B100002A /* SharedSyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002C /* SharedSyncStatus.swift */; };
 		B100002B /* SharedSyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002C /* SharedSyncStatus.swift */; };
 		B100002C /* SyncHealthDataIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002D /* SyncHealthDataIntent.swift */; };
+		295C6D7A467F64ED8D6470D6 /* SyncHealthDataIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002D /* SyncHealthDataIntent.swift */; };
 		B100002D /* SyncFailureNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002E /* SyncFailureNotifier.swift */; };
 		106BE3200AC58D34A2473C0F /* DeletionTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E74421EFCA6E10E29CEA8B7 /* DeletionTracking.swift */; };
 		1716CBA806DF1618DA6BFFF7 /* DeletionReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D8CB76EA9F45A445798D403 /* DeletionReader.swift */; };
@@ -605,6 +606,7 @@
 				E96D61DED3B577885E3D582D /* Brand.swift in Sources */,
 				B1000029 /* LifeDashboardWidget.swift in Sources */,
 				B100002B /* SharedSyncStatus.swift in Sources */,
+				295C6D7A467F64ED8D6470D6 /* SyncHealthDataIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -854,6 +856,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.owen282000.lifedashboard.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "WIDGET_EXTENSION $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -880,6 +883,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.owen282000.lifedashboard.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "WIDGET_EXTENSION $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

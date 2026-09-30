@@ -1,3 +1,4 @@
+import AppIntents
 import WidgetKit
 import SwiftUI
 
@@ -53,6 +54,8 @@ struct SyncStatusView: View {
                     .fontWeight(.semibold)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
+                Spacer(minLength: 0)
+                SyncNowButton()
             }
 
             Spacer()
@@ -63,6 +66,8 @@ struct SyncStatusView: View {
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
                 .widgetAccentable()
+                // Dimmed from a tap on Sync Now until the sync reloads the widget.
+                .invalidatableContent()
             // Picked here because the number above is styled on its own and a plural form must
             // contain it. Right for English, Dutch and German, where only 1 is singular.
             Text(entry.recordsToday == 1 ? "record today" : "records today")
@@ -84,8 +89,42 @@ struct SyncStatusView: View {
             .foregroundStyle(.secondary)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
+            .invalidatableContent()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+}
+
+/// Android's Quick Settings tile on the home screen: runs Sync Health Data in the app, which
+/// reloads the widget when the sync is done.
+struct SyncNowButton: View {
+    var body: some View {
+        Button(intent: SyncHealthDataIntent()) {
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Brand.onGreen)
+                .frame(width: 28, height: 28)
+                .background(Brand.green, in: Circle())
+                .widgetAccentable()
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("Sync Now"))
+    }
+}
+
+/// The Control Center control (iOS 18): one tap runs Sync Health Data, like the Android app's
+/// Quick Settings tile. It can be added to the Lock Screen as well, but Health data can't be
+/// read while the iPhone is locked, so there it syncs nothing until the iPhone is unlocked.
+@available(iOS 18.0, *)
+struct SyncNowControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: "com.owen282000.lifedashboard.syncnow") {
+            ControlWidgetButton(action: SyncHealthDataIntent()) {
+                Label("Sync Life Dashboard", systemImage: "arrow.triangle.2.circlepath")
+            }
+        }
+        .displayName("Sync Now")
+        .description("Syncs your health data to your webhooks and MQTT broker.")
     }
 }
 
@@ -99,7 +138,7 @@ struct SyncStatusWidget: Widget {
                 .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Sync Status")
-        .description("Last sync result and records delivered today.")
+        .description("Last sync result and records delivered today, with a button that syncs now.")
         .supportedFamilies([.systemSmall])
     }
 }
@@ -108,5 +147,8 @@ struct SyncStatusWidget: Widget {
 struct LifeDashboardWidgetBundle: WidgetBundle {
     var body: some Widget {
         SyncStatusWidget()
+        if #available(iOS 18.0, *) {
+            SyncNowControl()
+        }
     }
 }
