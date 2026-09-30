@@ -636,16 +636,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 start: start, end: end,
                 limit: limit
             )
-            let flowSamples = records.compactMap { sample -> (HKCategorySample, String)? in
-                guard let value = HKCategoryValueMenstrualFlow(rawValue: sample.value) else { return nil }
-                switch value {
-                case .light: return (sample, "light")
-                case .medium: return (sample, "medium")
-                case .heavy: return (sample, "heavy")
-                case .unspecified: return (sample, "unknown")
-                default: return nil  // .none means no bleeding: skip
-                }
-            }
+            let flowSamples = records.compactMap { sample in Self.menstrualFlow(sample).map { (sample, $0) } }
             let mapped = flowSamples.map { sample, flow in
                 record([
                     "flow": flow,
@@ -655,9 +646,19 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
             guard !mapped.isEmpty else { return nil }
 
             // HealthKit has no period record type; derive periods from consecutive flow
-            // days so the payload matches the Android app's menstruation_period records.
+            // days so the payload matches the Android app's menstruation_period records. The
+            // days before the read count too, so a period that began earlier keeps the uuid of
+            // its first day when a sync reads only the day just logged.
+            let earlier = try await readCategorySamples(
+                type: HKCategoryType(.menstrualFlow),
+                start: start.addingTimeInterval(-MenstruationPeriodBuilder.lookback), end: start,
+                limit: limit
+            ).filter { Self.menstrualFlow($0) != nil }
             let periods = MenstruationPeriodBuilder.periods(
-                from: flowSamples.map { FlowSample(start: $0.0.startDate, end: $0.0.endDate) }
+                from: (earlier + flowSamples.map(\.0)).map {
+                    FlowSample(start: $0.startDate, end: $0.endDate, uuid: $0.uuid.uuidString, source: $0.sourceRevision.source.name)
+                },
+                reaching: start
             )
             return [("menstruation_flow", mapped), ("menstruation_period", periods)]
 
@@ -714,6 +715,18 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
             )
             let mapped = records.map { record(HealthRecordMapping.sexualActivityFields($0), from: $0) }
             return mapped.isEmpty ? nil : [(dataType.countedPayloadKey, mapped)]
+        }
+    }
+
+    /// The payload's flow value; nil for a day logged as no flow, which is no bleeding.
+    private static func menstrualFlow(_ sample: HKCategorySample) -> String? {
+        guard let value = HKCategoryValueMenstrualFlow(rawValue: sample.value) else { return nil }
+        switch value {
+        case .light: return "light"
+        case .medium: return "medium"
+        case .heavy: return "heavy"
+        case .unspecified: return "unknown"
+        default: return nil
         }
     }
 

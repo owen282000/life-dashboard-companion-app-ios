@@ -8,6 +8,8 @@ All notable changes to this project are documented in this file. The format is b
 
 - Distance covers every activity, as on Android: cycling, swimming, wheelchair and downhill snow sports distance next to walking and running, and from iOS 18 rowing, paddling, cross-country skiing and skating. The `distance` records and `daily_totals`' `distance_meters` include them. Distance asks Health for access to them, so with Distance on, the Health tab shows Grant once after the update, and the first sync after it sends the last 7 days of distance again
 - Nutrition records carry the food's name and 34 more nutrients under the Android app's keys, from fibre, sugars and the fat types to sodium, the vitamins and caffeine, as far as the app that logged the food wrote them. Nutrition asks Health for access to them, so with Nutrition on, the Health tab shows Grant once after the update
+- Sleep sessions carry a `source`, the app or device that recorded most of the night's sleep stages, as Android's sessions do
+- Menstruation periods carry a `uuid`, derived from their first flow day like a sleep session's, and the `source` of that day, so a receiver can replace a period that comes back longer instead of keeping both
 
 ### Fixed
 
