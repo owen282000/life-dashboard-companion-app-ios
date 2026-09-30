@@ -3,8 +3,8 @@ name: Build
 on:
   push:
     branches: [main]
+  # Every pull request, whatever branch it targets, so a stacked branch is checked too.
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   lint:
-    runs-on: macos-latest
+    runs-on: macos-26
     permissions:
       contents: read
     steps:
@@ -29,12 +29,19 @@ jobs:
         run: swiftlint --strict --reporter github-actions-logging
 
   build:
-    runs-on: macos-latest
+    runs-on: macos-26
     permissions:
       contents: read
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Pinned, not the image default: the translation check reads what this Xcode's compiler
+      # extracts. Move it on purpose, after scripts/l10n.sh check passes on the new version.
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app
+          xcodebuild -version
 
       - name: Build app (unsigned, simulator SDK)
         run: |
@@ -46,16 +53,30 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-      - name: Run unit tests
+      - name: Build for testing
         run: |
           DEVICE=$(xcrun simctl list devices available | grep -oE 'iPhone [^(]+' | head -1 | sed 's/ *$//')
           echo "Using simulator: $DEVICE"
+          echo "DESTINATION=platform=iOS Simulator,name=$DEVICE" >> "$GITHUB_ENV"
           xcodebuild \
             -project LifeDashboardCompanion.xcodeproj \
             -scheme LifeDashboardCompanion \
             -destination "platform=iOS Simulator,name=$DEVICE" \
+            -derivedDataPath build/tests \
             CODE_SIGNING_ALLOWED=NO \
-            test
+            build-for-testing
+
+      # The tests read English text, whatever language the runner is in.
+      - name: Run unit tests
+        run: |
+          xcodebuild \
+            -project LifeDashboardCompanion.xcodeproj \
+            -scheme LifeDashboardCompanion \
+            -destination "$DESTINATION" \
+            -derivedDataPath build/tests \
+            -testLanguage en -testRegion US \
+            CODE_SIGNING_ALLOWED=NO \
+            test-without-building
 
       - name: Upload simulator app
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
