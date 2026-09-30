@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- A HealthKit query that never answered held the sync, and Sync Now and every later sync behind it, until iOS ended the app. Every record query now gets 10 seconds, like the deletion step's; a type whose query runs out of time is skipped for that sync and read again by the next one, and the other types go ahead
+
 ## [1.4.1] - 2026-09-30
 
 ### Fixed

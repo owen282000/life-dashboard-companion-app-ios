@@ -23,13 +23,6 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         case protectedDataUnavailable
     }
 
-    /// Payload fragments produced by reading a single data type, safe to move across
-    /// the task group boundary. @unchecked Sendable: the values are JSON value types
-    /// (String, Int, Double, arrays, dictionaries) freshly built per task.
-    private struct PayloadFragments: @unchecked Sendable {
-        let pairs: [(String, Any)]
-    }
-
     private init() {
         self.isAvailable = HKHealthStore.isHealthDataAvailable()
     }
@@ -95,34 +88,49 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         )!
         let endDate = Date()
 
-        // Run all type queries in parallel; a failure in one type only skips that type
-        let results = await withTaskGroup(
-            of: PayloadFragments?.self
-        ) { group -> [String: Any] in
-            for dataType in enabledTypes {
+        // Every type reads on its own; one that fails or does not answer in time is skipped.
+        let fragments = await HealthKitManager.gather(enabledTypes) { dataType in
+            try await self.readDataForType(dataType, start: startDate, end: endDate)
+        } failed: { dataType, error in
+            self.logger.error("Read failed for \(dataType.rawValue): \(error.localizedDescription)")
+        }
+        return HealthKitManager.merge(fragments.values)
+    }
+
+    /// Runs `read` for every type in a task of its own and returns what each one read. A type
+    /// that throws, a HealthKit query that ran out of time among others, is left out and passed
+    /// to `failed`; the other types go ahead.
+    static func gather<Fragment>(
+        _ types: Set<HealthDataType>,
+        read: @escaping @Sendable (HealthDataType) async throws -> Fragment?,
+        failed: @escaping @Sendable (HealthDataType, Error) -> Void
+    ) async -> [HealthDataType: Fragment] {
+        await withTaskGroup(of: (HealthDataType, Unchecked<Fragment>?).self) { group in
+            for dataType in types {
                 group.addTask {
                     do {
-                        guard let pairs = try await self.readDataForType(dataType, start: startDate, end: endDate) else {
-                            return nil
-                        }
-                        return PayloadFragments(pairs: pairs)
+                        return (dataType, try await read(dataType).map(Unchecked.init))
                     } catch {
-                        self.logger.error("Read failed for \(dataType.rawValue): \(error.localizedDescription)")
-                        return nil
+                        failed(dataType, error)
+                        return (dataType, nil)
                     }
                 }
             }
-
-            var payload: [String: Any] = [:]
-            for await result in group {
-                for (key, value) in result?.pairs ?? [] {
-                    payload[key] = value
-                }
+            var results: [HealthDataType: Fragment] = [:]
+            for await (dataType, fragment) in group {
+                if let fragment { results[dataType] = fragment.value }
             }
-            return payload
+            return results
         }
+    }
 
-        return results
+    /// The payload the per-type reads add up to.
+    static func merge<Pairs: Sequence>(_ fragments: Pairs) -> [String: Any] where Pairs.Element == [(String, Any)] {
+        var payload: [String: Any] = [:]
+        for pairs in fragments {
+            for (key, value) in pairs { payload[key] = value }
+        }
+        return payload
     }
 
     // MARK: - Daily Totals
@@ -174,31 +182,12 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
 
         let prefs = PreferencesManager.shared
 
-        let results = await withTaskGroup(
-            of: PayloadFragments?.self
-        ) { group -> [String: Any] in
-            for dataType in enabledTypes {
-                group.addTask {
-                    do {
-                        guard let pairs = try await self.readIncrementalDataForType(dataType, prefs: prefs) else {
-                            return nil
-                        }
-                        return PayloadFragments(pairs: pairs)
-                    } catch {
-                        self.logger.error("Incremental read failed for \(dataType.rawValue): \(error.localizedDescription)")
-                        return nil
-                    }
-                }
-            }
-
-            var payload: [String: Any] = [:]
-            for await result in group {
-                for (key, value) in result?.pairs ?? [] {
-                    payload[key] = value
-                }
-            }
-            return payload
+        let fragments = await HealthKitManager.gather(enabledTypes) { dataType in
+            try await self.readIncrementalDataForType(dataType, prefs: prefs)
+        } failed: { dataType, error in
+            self.logger.error("Incremental read failed for \(dataType.rawValue): \(error.localizedDescription)")
         }
+        let results = HealthKitManager.merge(fragments.values)
 
         return results.isEmpty ? .empty : .data(results)
     }
@@ -307,26 +296,31 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         sampleType: HKSampleType,
         anchor: HKQueryAnchor?
     ) async throws -> AnchoredPage {
-        try await withCheckedThrowingContinuation { continuation in
+        let store = healthStore
+        let begin = Unchecked(value: (sampleType, anchor))
+        let page: Unchecked<AnchoredPage> = try await BoundedCall.run(timeout: HealthKitManager.recordQueryTimeout) { finish in
             let query = HKAnchoredObjectQuery(
-                type: sampleType,
+                type: begin.value.0,
                 predicate: nil,
-                anchor: anchor,
+                anchor: begin.value.1,
                 limit: HealthKitManager.anchorPageSize
             ) { _, addedSamples, _, newAnchor, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
+                if let error {
+                    finish(.failure(error))
                     return
                 }
                 let samples = addedSamples ?? []
-                continuation.resume(returning: AnchoredPage(
+                finish(.success(Unchecked(value: AnchoredPage(
                     earliest: samples.map(\.startDate).min(),
                     count: samples.count,
-                    anchor: newAnchor ?? anchor
-                ))
+                    anchor: newAnchor ?? begin.value.1
+                ))))
             }
-            healthStore.execute(query)
+            store.execute(query)
+            let running = Unchecked(value: query as HKQuery)
+            return { store.stop(running.value) }
         }
+        return page.value
     }
 
     /// Adds the stable HealthKit UUID and the writing app/device to a payload record,
@@ -739,6 +733,11 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
 
     // MARK: - Query Helpers
 
+    /// How long one HealthKit record query may take. HealthKit answers in well under a second
+    /// normally; one that does not answer would otherwise hold the sync, and Sync Now behind it,
+    /// for good. The type it belongs to fails for this sync, as the deletion step's reads do.
+    static let recordQueryTimeout: Duration = .seconds(10)
+
     /// Reads at most `limit` samples of any type in `[start, end)`, oldest first.
     func readSamples(
         type: HKSampleType,
@@ -746,24 +745,11 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         end: Date,
         limit: Int
     ) async throws -> [HKSample] {
-        try await withCheckedThrowingContinuation { continuation in
-            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
-            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
-
-            let query = HKSampleQuery(
-                sampleType: type,
-                predicate: predicate,
-                limit: limit,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                continuation.resume(returning: samples ?? [])
-            }
-            healthStore.execute(query)
-        }
+        try await boundedSampleQuery(
+            type: type,
+            predicate: HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate),
+            limit: limit
+        )
     }
 
     /// Reads at most `limit` samples, oldest first (ascending sort + query limit), so payload
@@ -774,24 +760,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         end: Date,
         limit: Int
     ) async throws -> [HKQuantitySample] {
-        try await withCheckedThrowingContinuation { continuation in
-            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
-            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
-
-            let query = HKSampleQuery(
-                sampleType: type,
-                predicate: predicate,
-                limit: limit,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                continuation.resume(returning: (samples as? [HKQuantitySample]) ?? [])
-            }
-            healthStore.execute(query)
-        }
+        try await readSamples(type: type, start: start, end: end, limit: limit).compactMap { $0 as? HKQuantitySample }
     }
 
     private func readCategorySamples(
@@ -800,24 +769,46 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         end: Date,
         limit: Int
     ) async throws -> [HKCategorySample] {
-        try await withCheckedThrowingContinuation { continuation in
-            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
-            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+        try await readSamples(type: type, start: start, end: end, limit: limit).compactMap { $0 as? HKCategorySample }
+    }
 
+    /// One HKSampleQuery by start date, under `recordQueryTimeout`. A query that runs out of
+    /// time is stopped and throws `BoundedCall.TimedOut`; its late answer is dropped.
+    func boundedSampleQuery(
+        type: HKSampleType,
+        predicate: NSPredicate,
+        limit: Int,
+        newestFirst: Bool = false
+    ) async throws -> [HKSample] {
+        let store = healthStore
+        let begin = SampleQueryStart(type: type, predicate: predicate, limit: limit, ascending: !newestFirst)
+        let batch: Unchecked<[HKSample]> = try await BoundedCall.run(timeout: HealthKitManager.recordQueryTimeout) { finish in
             let query = HKSampleQuery(
-                sampleType: type,
-                predicate: predicate,
-                limit: limit,
-                sortDescriptors: [sortDescriptor]
+                sampleType: begin.type,
+                predicate: begin.predicate,
+                limit: begin.limit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: begin.ascending)]
             ) { _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
+                if let error {
+                    finish(.failure(error))
+                } else {
+                    finish(.success(Unchecked(value: samples ?? [])))
                 }
-                continuation.resume(returning: (samples as? [HKCategorySample]) ?? [])
             }
-            healthStore.execute(query)
+            store.execute(query)
+            let running = Unchecked(value: query as HKQuery)
+            return { store.stop(running.value) }
         }
+        return batch.value
+    }
+
+    /// @unchecked Sendable: HealthKit query parameters are immutable once built, and
+    /// HKHealthStore accepts them from any thread.
+    private struct SampleQueryStart: @unchecked Sendable {
+        let type: HKSampleType
+        let predicate: NSPredicate
+        let limit: Int
+        let ascending: Bool
     }
 
     func readSleepData(start: Date, end: Date, limit: Int) async throws -> [[String: Any]] {
@@ -853,24 +844,11 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     }
 
     private func readWorkouts(start: Date, end: Date, limit: Int) async throws -> [[String: Any]] {
-        let workouts: [HKWorkout] = try await withCheckedThrowingContinuation { continuation in
-            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
-            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
-
-            let query = HKSampleQuery(
-                sampleType: HKWorkoutType.workoutType(),
-                predicate: predicate,
-                limit: limit,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                continuation.resume(returning: (samples as? [HKWorkout]) ?? [])
-            }
-            healthStore.execute(query)
-        }
+        let workouts = try await readSamples(
+            type: HKWorkoutType.workoutType(),
+            start: start, end: end,
+            limit: limit
+        ).compactMap { $0 as? HKWorkout }
 
         return workouts.map { workout in
             record([
@@ -938,6 +916,13 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
 }
 
 // MARK: - Extensions
+
+/// Carries a value that is not Sendable across a task boundary it crosses exactly once, such as
+/// a HealthKit result handed from its callback to the caller, or one type's payload fragment
+/// from its read task to the merge.
+struct Unchecked<Value>: @unchecked Sendable {
+    let value: Value
+}
 
 extension Date {
     // ISO8601DateFormatter is documented as thread-safe, unlike DateFormatter
