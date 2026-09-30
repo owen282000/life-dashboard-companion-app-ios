@@ -24,6 +24,7 @@ All notable changes to this project are documented in this file. The format is b
 - A first-run setup for a fresh install, as in the Android app: what the app does, where the data goes (the Home Assistant pairing scanner, a webhook or an MQTT broker), which types (the essentials, all 28 or later) and Apple Health access. Every step can be skipped, and an update from an earlier version never shows it
 - A privacy policy in the app, under About, in the Android app's six sections and written for what the iPhone app does
 - About links to the documentation, the changelog, a new issue and the licence, like the Android app's About page. Builds run from Xcode also show Buy me a coffee; an archive for TestFlight or the App Store leaves it out, since App Review refuses tip links outside the US
+- Dutch and German, in the Android app's wording and with Apple's own names for the Health app, Shortcuts and Settings. The app, the widget, the Sync Health Data action and its Siri phrases, notifications, and the Health, camera and local network permission texts follow the iPhone's language, or the one set for Life Dashboard under Settings > Life Dashboard > Language; anything else stays English. The data types carry the names the Health app gives them. CI fails on a string without Dutch or German, so the app cannot ship half-translated as 1.2 did
 
 ### Changed
 
@@ -37,6 +38,8 @@ All notable changes to this project are documented in this file. The format is b
 - A queued payload is retried automatically outside quiet hours only; Retry Now always retries
 - The About screen says settings stay on your device unless you export them
 - The app looks like the Android app: its brand green and card layout, rows with a tinted symbol and a subtitle that says their state, a green header on the Health tab, the Sync Now pill with View, Test ping and Backfill tiles, and log rows with a Delivered, Published or Failed pill. Navigation, controls, type and backgrounds stay the iPhone's own, with Dynamic Type and dark mode. Green text uses a darker green than Android's, and text on green is dark instead of white, so both stay readable
+- Log rows, the Sync Now result, the sync history and the MQTT status still store the app's own messages in English, as the Android app does, so an export reads the same on every phone, but show them in the iPhone's language. Error text from a server or from iOS is shown as it came
+- The time in a CSV log export is written as `2026-09-30 14:05:00`, as the Android app writes it, instead of in the iPhone's date style
 - The Health tab follows the Android app's order in three cards: Data Types and Sync Schedule, Webhook (URLs, pairing scanner, custom headers and signing secret) and MQTT, Advanced (Daily totals in payload) and Notifications
 - About moved from the tab bar to an (i) button on the Health and Logs tabs, as in the Android app, and shows the Android app's About page: the heartbeat mark on the dark brand ground, Apple Health, Destinations, Privacy & Security and Backup & restore. The row that linked to the Android app is gone
 - The app icon is the Android app's heartbeat mark, with dark and tinted versions for iOS 18, rendered from `docs/brand/app-icon.html`
