@@ -46,6 +46,17 @@ enum SyncLimits {
         return (min(boundary, end), true)
     }
 
+    /// Where a read has to start to hold the newest records of a type under `limit`, given
+    /// the start dates a probe found newest first (the first `limit` of each HealthKit sample
+    /// type the payload type reads). Nil when the probe found fewer than a read may hold, so a
+    /// read of the whole range holds the newest ones already. Like `sliceEnd` it leaves a tenth
+    /// of the cap for samples that share the boundary or arrive in between.
+    static func tailStart(probedStartDates: [Date], limit: Int) -> Date? {
+        let fill = limit - limit / 10
+        guard fill > 0, probedStartDates.count >= fill else { return nil }
+        return probedStartDates.sorted(by: >)[fill - 1]
+    }
+
     /// Where the time read of an incremental sync starts: at the catch-up cursor the last read
     /// left, or at the lookback start of a sample type read for the first time, whichever is
     /// earlier. Nil when neither applies: the sync then reads only what the anchors report.

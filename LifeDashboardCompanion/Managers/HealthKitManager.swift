@@ -112,6 +112,55 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         return HealthKitManager.merge(fragments.values)
     }
 
+    /// What MQTT gets from a full read. The full read is capped oldest first, so for a type
+    /// with more records in the lookback week than its cap, heart rate and steps from an Apple
+    /// Watch among others, its newest record is days old, and a sensor would show that as the
+    /// current value. Such a type is read again from the newest end (see
+    /// `SyncLimits.tailStart`); a type whose probe or read fails is left out, as the sensor
+    /// then keeps what it had.
+    func newestRecords(for types: Set<HealthDataType>, in read: [String: Any]) async -> [String: Any] {
+        let end = Date()
+        let start = Calendar.current.date(byAdding: .day, value: -HealthKitManager.lookbackDays, to: end)!
+        let tails = await HealthKitManager.gather(types) { dataType -> NewestRead? in
+            let limit = SyncLimits.maxRecordsPerSync(for: dataType)
+            let range = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+            var starts: [Date] = []
+            for sampleType in dataType.hkSampleTypes {
+                starts += try await self.boundedSampleQuery(type: sampleType, predicate: range, limit: limit, newestFirst: true).map(\.startDate)
+            }
+            guard let tailStart = SyncLimits.tailStart(probedStartDates: starts, limit: limit) else { return .whole }
+            return .tail(try await self.readDataForType(dataType, start: tailStart, end: end) ?? [])
+        } failed: { dataType, error in
+            self.logger.error("Newest records of \(dataType.rawValue) failed: \(error.localizedDescription)")
+        }
+        return HealthKitManager.newest(in: read, types: types, reads: tails)
+    }
+
+    enum NewestRead {
+        /// The full read holds the type's newest records.
+        case whole
+        /// The newest records, read again from the newest end.
+        case tail([(String, Any)])
+    }
+
+    /// The full read with each type's records as `reads` says; a type missing from `reads`
+    /// failed and is left out.
+    static func newest(in read: [String: Any], types: Set<HealthDataType>, reads: [HealthDataType: NewestRead]) -> [String: Any] {
+        var payload = read
+        for type in types {
+            switch reads[type] {
+            case .whole:
+                continue
+            case .tail(let pairs):
+                payload.removeValue(forKey: type.countedPayloadKey)
+                for (key, value) in pairs { payload[key] = value }
+            case nil:
+                payload.removeValue(forKey: type.countedPayloadKey)
+            }
+        }
+        return payload
+    }
+
     /// Runs `read` for every type in a task of its own and returns what each one read. A type
     /// that throws, a HealthKit query that ran out of time among others, is left out and passed
     /// to `failed`; the other types go ahead.

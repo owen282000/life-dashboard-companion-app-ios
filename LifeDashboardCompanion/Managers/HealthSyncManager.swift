@@ -45,7 +45,7 @@ final class HealthSyncManager: Sendable {
         guard !webhookUrls.isEmpty else {
             do {
                 let healthData = try await healthKit.readHealthData(for: enabledTypes)
-                return await publishOnly(healthData, sensorsFrom: healthData)
+                return await publishOnly(healthData, sensorsFrom: await healthKit.newestRecords(for: enabledTypes, in: healthData))
             } catch {
                 return readFailed(error)
             }
@@ -69,7 +69,9 @@ final class HealthSyncManager: Sendable {
 
             // Publish latest values to MQTT (Home Assistant Discovery) when configured;
             // failures never block the webhook sync and surface in the MQTT section status.
-            await MqttPublisher.shared.publish(healthPayload: healthData)
+            if prefs.mqttConfigured {
+                await MqttPublisher.shared.publish(healthPayload: await healthKit.newestRecords(for: enabledTypes, in: healthData))
+            }
 
             var syncCounts: [HealthDataType: Int] = [:]
             let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)

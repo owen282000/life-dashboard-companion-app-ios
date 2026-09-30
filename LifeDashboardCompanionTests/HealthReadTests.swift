@@ -167,6 +167,34 @@ final class HealthReadTests: XCTestCase {
         // A probe that failed says nothing is known to be newest.
         XCTAssertFalse(IncrementalRead.holdsNewest(behind: false, timeReadReachedNow: false, byUuidStarts: [today], newestInStore: .distantFuture, now: now))
     }
+
+    // MARK: - Sync Now and MQTT
+
+    func testAWeekPastTheCapIsReadFromItsNewestEnd() {
+        let week = (0..<3000).map { base.addingTimeInterval(TimeInterval($0 * 200)) }
+        let newestFirst = Array(week.reversed().prefix(1000))
+        let start = SyncLimits.tailStart(probedStartDates: newestFirst, limit: 1000)
+        // The newest 900, a tenth of the cap left for what shares the boundary.
+        XCTAssertEqual(start, week[2100])
+        XCTAssertEqual(week.filter { $0 >= start! }.count, 900)
+        XCTAssertNil(SyncLimits.tailStart(probedStartDates: Array(week.prefix(899)), limit: 1000), "fits whole")
+    }
+
+    func testMqttGetsTheNewestRecordsOfACappedTypeAndNothingOfAFailedOne() {
+        let read: [String: Any] = [
+            "heart_rate": [["bpm": 60, "time": "days ago"]],
+            "weight": [["kilograms": 70.0]],
+            "steps": [["count": 10]]
+        ]
+        let payload = HealthKitManager.newest(
+            in: read,
+            types: [.heartRate, .weight, .steps],
+            reads: [.heartRate: .tail([("heart_rate", [["bpm": 72, "time": "now"]])]), .weight: .whole]
+        )
+        XCTAssertEqual((payload["heart_rate"] as? [[String: Any]])?.first?["bpm"] as? Int, 72)
+        XCTAssertNotNil(payload["weight"])
+        XCTAssertNil(payload["steps"], "a type whose probe failed keeps the sensor's value")
+    }
 }
 
 /// Collects values from any thread.
