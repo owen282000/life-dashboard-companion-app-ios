@@ -214,9 +214,8 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         _ dataType: HealthDataType,
         prefs: PreferencesManager
     ) async throws -> [(String, Any)]? {
-        let now = Date()
         var earliestAdded: [Date] = []
-        var firstReads: [Date] = []
+        var readsFirstTime = false
         var newAnchors: [(HKSampleType, HKQueryAnchor)] = []
 
         for sampleType in dataType.hkSampleTypes {
@@ -228,9 +227,15 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 // First sync of this sample type: read the lookback window. The anchor is taken
                 // before that read, so a sample written in between is read now or next time.
                 newAnchors.append((sampleType, try await queryAnchor(for: sampleType)))
-                firstReads.append(Calendar.current.date(byAdding: .day, value: -HealthKitManager.lookbackDays, to: now)!)
+                readsFirstTime = true
             }
         }
+        // The read ends after the anchored queries, which can page for seconds: a sample saved
+        // while they ran is behind the new anchors, so it has to fall inside this read.
+        let now = Date()
+        let firstReads = readsFirstTime
+            ? [Calendar.current.date(byAdding: .day, value: -HealthKitManager.lookbackDays, to: now)!]
+            : []
         let readFrom = SyncLimits.incrementalReadStart(
             cursor: prefs.loadCatchUpCursor(for: dataType), earliestAdded: earliestAdded, firstReads: firstReads
         )
