@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file. The format is b
 ### Added
 
 - Sync Now outside the app, as the Android app's Quick Settings tile: a button on the home screen widget, and on iOS 18 and later a Sync Now control for Control Center. Both run the Sync Health Data action, which sends what is queued and what is new since the last sync. The widget, the control and the Shortcuts action together sync at most once a minute, like the Android app's sync broadcast; a tap within a minute of the last accepted one does nothing, and the action says so in Shortcuts
+- Export on the Health tab, like the Android app's: the data View shows, as a JSON file or as a CSV table with a row per record, a column per field and the daily totals as rows of their own, through the share sheet. The file goes to the app's temporary folder, which is not backed up, and each export replaces the one before
 
 ## [1.4.1] - 2026-09-30
 

@@ -55,6 +55,101 @@ final class ExportManager {
         return writeToTempFile(content: jsonString, extension: "json", prefix: "webhook_logs")
     }
 
+    // MARK: - Health data export
+
+    enum HealthExportFormat: String {
+        case csv, json
+    }
+
+    enum HealthExportError: LocalizedError {
+        case notSerializable
+
+        var errorDescription: String? { AppDiagnostic.serializeFailed.localized }
+    }
+
+    /// The Health tab's Export: the preview payload (what View shows) as a file in the temporary
+    /// directory, which is not backed up, for the share sheet. Only the newest export is kept
+    /// there, since each one holds health data. Off the main actor: a week of heart rate is a
+    /// few megabytes of text.
+    nonisolated static func writeHealthExport(_ payload: [String: Any], format: HealthExportFormat, now: Date = Date()) throws -> URL {
+        let data: Data
+        switch format {
+        case .json:
+            guard JSONSerialization.isValidJSONObject(payload) else { throw HealthExportError.notSerializable }
+            data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+        case .csv:
+            data = Data(healthDataCSV(from: payload).utf8)
+        }
+        let directory = FileManager.default.temporaryDirectory
+        let previous = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+        for name in previous where name.hasPrefix(healthExportPrefix) {
+            try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
+        }
+        let timestamp = fixedFormatter("yyyy-MM-dd_HH-mm-ss").string(from: now)
+        let url = directory.appendingPathComponent("\(healthExportPrefix)\(timestamp).\(format.rawValue)")
+        try data.write(to: url, options: .atomic)
+        return url
+    }
+
+    nonisolated static let healthExportPrefix = "health_data_"
+
+    /// Leading columns, when the payload has them; the rest follow in alphabetical order.
+    private nonisolated static let leadingColumns = ["uuid", "date", "time", "start_time", "end_time", "session_end_time", "source"]
+
+    /// The payload as one table: a row per record, `data_type` first, and a column for every
+    /// field any record has, empty where a record lacks it. Numbers and booleans are written as
+    /// the JSON has them, and a nested value (sleep stages, nutrients) as compact JSON in its
+    /// cell. `daily_totals` rows carry `daily_totals` as their type. The payload's own fields
+    /// (timestamp, app_version, source) are not records and stay in the JSON export.
+    nonisolated static func healthDataCSV(from payload: [String: Any]) -> String {
+        var rows: [(type: String, record: [String: Any])] = []
+        for type in payload.keys.sorted() {
+            guard let records = payload[type] as? [[String: Any]] else { continue }
+            rows += records.map { (type, $0) }
+        }
+        let fields = Set(rows.flatMap(\.record.keys))
+        let leading = leadingColumns.filter(fields.contains)
+        let columns = leading + fields.subtracting(leading).sorted()
+
+        var csv = (["data_type"] + columns).map(csvField).joined(separator: ",") + "\n"
+        for row in rows {
+            let cells = [row.type] + columns.map { cellText(row.record[$0]) }
+            csv += cells.map(csvField).joined(separator: ",") + "\n"
+        }
+        return csv
+    }
+
+    private nonisolated static func cellText(_ value: Any?) -> String {
+        switch value {
+        case nil, is NSNull:
+            return ""
+        case let text as String:
+            return text
+        case let number as NSNumber:
+            if CFGetTypeID(number) == CFBooleanGetTypeID() { return number.boolValue ? "true" : "false" }
+            // JSONSerialization raises on NaN and infinity; the payload never carries them.
+            guard number.doubleValue.isFinite else { return "" }
+            return json(number, options: .fragmentsAllowed)
+        case let value?:
+            guard JSONSerialization.isValidJSONObject(value) else { return "" }
+            return json(value, options: [.sortedKeys, .withoutEscapingSlashes])
+        }
+    }
+
+    private nonisolated static func json(_ value: Any, options: JSONSerialization.WritingOptions) -> String {
+        let data = try? JSONSerialization.data(withJSONObject: value, options: options)
+        return data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+    }
+
+    private nonisolated static let csvSpecials = CharacterSet(charactersIn: ",\"\n\r")
+
+    private nonisolated static func csvField(_ value: String) -> String {
+        if value.rangeOfCharacter(from: csvSpecials) != nil {
+            return "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
+        }
+        return value
+    }
+
     nonisolated static func formatPayloadForPreview(_ payload: [String: Any]) -> String {
         guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]),
               let string = String(data: data, encoding: .utf8) else {

@@ -101,6 +101,7 @@ Each sends only what is new. Health data cannot be read while the iPhone is lock
 ## Data tools
 
 - **View** - the exact JSON payload before it is sent, with a share button for the full text
+- **Export** - what View shows, as a JSON file or as CSV with a row per record and a column per field, through the share sheet. The file is written to the app's temporary folder, which is not backed up, and only the newest export is kept there
 - **Logs** - every webhook delivery and MQTT publish with its status, error and payload, the last 100 entries
 - **Sync history** - on the Logs tab: success rate, deliveries and records, the last success, and the three latest failures grouped by receiver and error. A delivery that iOS cut off, as when it ends a background task, shows as Interrupted and counts as neither a success nor a failure; its payload is queued for retry like a failed one
 - **Export logs** - the log as CSV or JSON, through the share sheet
