@@ -21,6 +21,9 @@ All notable changes to this project are documented in this file. The format is b
 - Settings backup and restore under About: export the webhook URLs, which of them get no custom headers, the headers and signing secret, the sync schedule, every MQTT setting, the data-type toggles and the daily totals switch as a JSON file and import it again, on an iPhone or in the Android app. The file uses the Android app's format, and an export with secrets is encrypted with a password exactly as Android does it (AES-256-GCM, PBKDF2-HMAC-SHA256), so an encrypted Android export opens on the iPhone and the other way round. An export without secrets can be shared without handing over access. Importing shows a preview of the servers and of what is kept, cleared or skipped first; sync progress and logs are left out. Documented in `docs/settings-backup.md`
 - Sync history on the Logs tab: success rate, deliveries and records over the entries the log keeps, with the time it starts, the last success, and the three latest failures grouped by receiver and error. A webhook is named by its host only
 - MQTT publishes appear in the Logs tab next to webhook deliveries, with the broker, the number of sensors and the error when the broker could not be reached
+- A first-run setup for a fresh install, as in the Android app: what the app does, where the data goes (the Home Assistant pairing scanner, a webhook or an MQTT broker), which types (the essentials, all 28 or later) and Apple Health access. Every step can be skipped, and an update from an earlier version never shows it
+- A privacy policy in the app, under About, in the Android app's six sections and written for what the iPhone app does
+- About links to the documentation, the changelog, a new issue and the licence, like the Android app's About page. Builds run from Xcode also show Buy me a coffee; an archive for TestFlight or the App Store leaves it out, since App Review refuses tip links outside the US
 
 ### Changed
 
@@ -33,6 +36,12 @@ All notable changes to this project are documented in this file. The format is b
 - The Sync Health Data action sends what is queued and what is new instead of the last seven days, and on a locked iPhone says it is locked instead of "No new health data to sync". It no longer publishes to MQTT; Sync Now does
 - A queued payload is retried automatically outside quiet hours only; Retry Now always retries
 - The About screen says settings stay on your device unless you export them
+- The app looks like the Android app: its brand green and card layout, rows with a tinted symbol and a subtitle that says their state, a green header on the Health tab, the Sync Now pill with View, Test ping and Backfill tiles, and log rows with a Delivered, Published or Failed pill. Navigation, controls, type and backgrounds stay the iPhone's own, with Dynamic Type and dark mode. Green text uses a darker green than Android's, and text on green is dark instead of white, so both stay readable
+- The Health tab follows the Android app's order in three cards: Data Types and Sync Schedule, Webhook (URLs, pairing scanner, custom headers and signing secret) and MQTT, Advanced (Daily totals in payload) and Notifications
+- About moved from the tab bar to an (i) button on the Health and Logs tabs, as in the Android app, and shows the Android app's About page: the heartbeat mark on the dark brand ground, Apple Health, Destinations, Privacy & Security and Backup & restore. The row that linked to the Android app is gone
+- The app icon is the Android app's heartbeat mark, with dark and tinted versions for iOS 18, rendered from `docs/brand/app-icon.html`
+- The widget uses the brand colours, marks the last sync with a symbol and says "Synced 14:32" like the Android widget
+- A pairing link closes About and the settings backup's sheets, so the pairing sheet can open
 
 ### Fixed
 
