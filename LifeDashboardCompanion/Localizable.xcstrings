@@ -4975,22 +4975,6 @@
         }
       }
     },
-    "Pair with a receiver" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mit einem Empfänger koppeln"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Koppelen met een ontvanger"
-          }
-        }
-      }
-    },
     "Paired" : {
       "localizations" : {
         "de" : {
@@ -5019,6 +5003,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gekoppeld via QR-code: eigen headers gaan hier niet heen"
+          }
+        }
+      }
+    },
+    "Pairing" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopplung"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koppeling"
           }
         }
       }

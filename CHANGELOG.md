@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- The pairing sheet's title was cut off in Dutch ("Koppelen met een..."). It is now one word, Pairing, Koppeling or Kopplung, and shrinks a little before it is cut on a small iPhone with large text
+
 ## [1.4.0] - 2026-09-30
 
 ### Added
