@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- The pairing sheet's title was cut off in Dutch ("Koppelen met een..."). It is now one word, Pairing, Koppeling or Kopplung, and shrinks a little before it is cut on a small iPhone with large text
+- About says "No cloud in between", but the log, whose rows keep the payload they sent, and the payloads queued for retry were part of the iPhone's iCloud and computer backups. Both are now left out of backups, the files 1.4.0 wrote included, as the deletion tracking state already was. A restored or new iPhone starts without them; your settings and the sync progress are still in the backup, so a payload that was still queued when the backup was made is not sent again from the restored iPhone, and Backfill History is the way to resend it. The privacy policy says so
+- A delivery cancelled halfway, as when iOS ends a background task, counted as a failure: the sync history showed "cancelled (2 times)" under Recent failures, it lowered the success rate and added to the failure notification's streak. It now shows as Interrupted, in a neutral colour, and counts as neither a success nor a failure; a delivery with an attempt that had already failed stays a failure. Its payload is queued for retry as before; a retry from the queue that is interrupted does not use up one of its 20 attempts, and an interrupted MQTT publish leaves the MQTT status at its last publish. Rows logged by 1.4.0 keep their Failed status until they leave the log
+
 ## [1.4.0] - 2026-09-30
 
 ### Added

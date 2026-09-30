@@ -507,7 +507,7 @@ struct HealthKitScreen: View {
                 logType: .healthConnect,
                 dataType: "test",
                 recordCount: 0
-            )
+            ).delivered
             await MainActor.run {
                 isTestingWebhook = false
                 report(success ? .pingDelivered : .pingFailed)

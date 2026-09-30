@@ -100,7 +100,7 @@ and German.
 | payload | payload | der Payload |
 | permission | toestemming | Berechtigung |
 | queue, queued for retry | wachtrij, in de wachtrij voor een nieuwe poging | Warteschlange, für einen erneuten Versuch eingereiht |
-| Delivered, Published, Failed | Afgeleverd, Gepubliceerd, Mislukt | Zugestellt, Veröffentlicht, Fehlgeschlagen |
+| Delivered, Published, Failed, Interrupted | Afgeleverd, Gepubliceerd, Mislukt, Onderbroken | Zugestellt, Veröffentlicht, Fehlgeschlagen, Unterbrochen |
 | delivery | aflevering | Zustellung |
 | Backfill, Backfill History | Aanvullen, Geschiedenis aanvullen | Nachtragen, Verlauf nachtragen |
 | window, chunk (of a backfill) | blok | Block |

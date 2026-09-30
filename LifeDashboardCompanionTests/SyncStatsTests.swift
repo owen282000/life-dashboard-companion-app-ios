@@ -184,9 +184,87 @@ final class SyncStatsTests: XCTestCase {
         XCTAssertFalse(failures.contains { $0.source.contains("secret-id") })
     }
 
+    // MARK: - Interrupted
+
+    private func interrupted(_ minutes: Int) -> WebhookLog {
+        row(minutes, success: false, error: AppDiagnostic.interrupted.rawValue)
+    }
+
+    func testInterruptedRowIsNeitherADeliveryNorAFailure() {
+        let stats = SyncStats(logs: [row(0), interrupted(1), interrupted(2), row(3, success: false, error: "HTTP 502")])
+        XCTAssertEqual(stats.deliveries, 2)
+        XCTAssertEqual(stats.succeeded, 1)
+        XCTAssertEqual(stats.successPercent, 50)
+        XCTAssertEqual(stats.recentFailures.map(\.message), ["HTTP 502"])
+    }
+
+    func testOnlyInterruptedRowsLeaveTheCardEmpty() {
+        let stats = SyncStats(logs: [interrupted(0), interrupted(1)])
+        XCTAssertTrue(stats.isEmpty)
+        XCTAssertNil(stats.successPercent)
+        XCTAssertTrue(stats.recentFailures.isEmpty)
+    }
+
+    func testAnInterruptedMqttPublishIsNotAFailure() {
+        let publish = row(
+            0, success: false, url: "mqtt://broker.local:1883/lifedashboard", error: AppDiagnostic.interrupted.rawValue,
+            dataType: "mqtt", records: 12, destination: .mqtt
+        )
+        XCTAssertTrue(publish.isInterrupted)
+        XCTAssertTrue(SyncStats(logs: [publish, mqtt(1)]).recentFailures.isEmpty)
+        XCTAssertEqual(SyncStats(logs: [publish, mqtt(1)]).mqttDeliveries, 1)
+    }
+
+    func testOnlyTheInterruptedMarkerMakesARowInterrupted() {
+        XCTAssertTrue(interrupted(0).isInterrupted)
+        XCTAssertFalse(row(0, success: false, error: "cancelled").isInterrupted)
+        XCTAssertFalse(row(0, success: false, error: nil).isInterrupted)
+        // A delivered row never is, whatever its message.
+        XCTAssertFalse(row(0, success: true, error: AppDiagnostic.interrupted.rawValue).isInterrupted)
+    }
+
     func testFailureWithoutMessageKeepsNil() {
         let failures = SyncStats(logs: [row(0, success: false, error: nil)]).recentFailures
         XCTAssertEqual(failures.count, 1)
         XCTAssertNil(failures.first?.message)
+    }
+}
+
+/// A cancelled request, as when iOS ends a background task, is an interruption; a network that
+/// fails is not.
+final class DeliveryInterruptionTests: XCTestCase {
+
+    func testCancellationIsAnInterruption() {
+        XCTAssertTrue(WebhookManager.isInterruption(URLError(.cancelled), taskCancelled: true))
+        XCTAssertTrue(WebhookManager.isInterruption(CancellationError(), taskCancelled: true))
+        XCTAssertTrue(WebhookManager.isInterruption(CancellationError(), taskCancelled: false))
+    }
+
+    func testACancelledRequestWithoutACancelledTaskIsAFailure() {
+        XCTAssertFalse(WebhookManager.isInterruption(URLError(.cancelled), taskCancelled: false))
+    }
+
+    func testNetworkAndServerErrorsAreFailures() {
+        for code: URLError.Code in [.timedOut, .notConnectedToInternet, .cannotConnectToHost, .appTransportSecurityRequiresSecureConnection] {
+            XCTAssertFalse(WebhookManager.isInterruption(URLError(code), taskCancelled: false), "\(code)")
+            XCTAssertFalse(WebhookManager.isInterruption(URLError(code), taskCancelled: true), "\(code)")
+        }
+    }
+
+    func testACancelledPostIsInterruptedAndLoggedAsSuch() async {
+        let url = "https://interrupted.example.invalid/hook-\(UUID().uuidString)"
+        let outcome = await Task { () -> WebhookManager.Outcome in
+            withUnsafeCurrentTask { $0?.cancel() }
+            return await WebhookManager.shared.post(
+                body: Data("{}".utf8), urls: [url], headers: [:],
+                logType: .healthConnect, dataType: "health_connect", recordCount: 3
+            )
+        }.value
+        XCTAssertEqual(outcome, .interrupted)
+
+        let row = LogStore.shared.load().first { $0.url == url }
+        XCTAssertEqual(row?.isInterrupted, true)
+        XCTAssertEqual(row?.errorMessage, "Interrupted")
+        if let row { LogStore.shared.delete(id: row.id) }
     }
 }

@@ -93,7 +93,7 @@ struct PairingSheet: View {
                     resultContent
                 }
             }
-            .navigationTitle(phase == .confirm ? "Pair with a receiver" : "Paired")
+            .navigationTitle(phase == .confirm ? "Pairing" : "Paired")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
         }
@@ -239,6 +239,15 @@ struct PairingSheet: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
+        // Between two text buttons the bar leaves little room: on a small iPhone with large
+        // text even one word is cut, so the title shrinks a little before it is shortened.
+        ToolbarItem(placement: .principal) {
+            Text(phase == .confirm ? "Pairing" : "Paired")
+                .font(.headline)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .accessibilityAddTraits(.isHeader)
+        }
         if phase == .confirm {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
