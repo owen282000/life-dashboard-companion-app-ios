@@ -7,12 +7,17 @@ struct MqttSensor: Equatable {
     let unit: String?
     let deviceClass: String?
     let attributes: [String: String]
+    /// Home Assistant's state_class: a day total only grows until midnight, so HA's statistics
+    /// read a drop as a new day instead of a loss.
+    var stateClass = "measurement"
 }
 
 /// Pure MQTT/Home Assistant mapping logic over the shared webhook payload dictionary, kept
-/// free of networking so it is unit testable. Sensors represent the LATEST record per data
-/// type. The device id and default base topic are distinct from the Android app so mixed
-/// households never fight over the same Home Assistant entities.
+/// free of networking so it is unit testable. Point-in-time types (heart rate, weight) map to
+/// the LATEST record; steps, distance and calories map to TODAY'S TOTAL from `daily_totals`,
+/// as in the Android app, since a single steps record is a few dozen steps and means nothing on
+/// a dashboard. The device id and default base topic are distinct from the Android app so
+/// mixed households never fight over the same Home Assistant entities.
 enum MqttSupport {
 
     static let defaultBaseTopic = "lifedashboard-ios"
@@ -105,8 +110,30 @@ enum MqttSupport {
     /// sensors it published, the iPhone publishes only what a sync carries, so a rename clears
     /// every key the old device may hold.
     static var allSensorKeys: [String] {
-        mappings.map(\.sensorKey) + ["blood_pressure_systolic", "blood_pressure_diastolic"]
+        dayTotals.map(\.sensorKey) + mappings.map(\.sensorKey) + ["blood_pressure_systolic", "blood_pressure_diastolic"]
     }
+
+    /// Keys that versions up to 1.4.1 published as "(latest record)" sensors, replaced by the
+    /// day totals. Their retained discovery configs would keep a stale entity alive in Home
+    /// Assistant for good, so every publish empties their topics, as the Android app does.
+    static let retiredSensorKeys = ["steps", "distance", "active_calories", "total_calories"]
+
+    /// Today's totals, from the `daily_totals` entry of today, under the Android app's keys,
+    /// names and units. The date goes along as an attribute.
+    private struct DayTotal {
+        let field: String
+        let sensorKey: String
+        let name: String
+        let unit: String
+        let deviceClass: String?
+    }
+
+    private static let dayTotals: [DayTotal] = [
+        DayTotal(field: "steps", sensorKey: "steps_today", name: "Steps Today", unit: "steps", deviceClass: nil),
+        DayTotal(field: "distance_meters", sensorKey: "distance_today", name: "Distance Today", unit: "m", deviceClass: "distance"),
+        DayTotal(field: "active_calories", sensorKey: "active_calories_today", name: "Active Calories Today", unit: "kcal", deviceClass: nil),
+        DayTotal(field: "total_calories", sensorKey: "total_calories_today", name: "Total Calories Today", unit: "kcal", deviceClass: nil)
+    ]
 
     private struct Mapping {
         let payloadKey: String
@@ -123,8 +150,6 @@ enum MqttSupport {
     // not mapped, as in the Android app: they do not fit a single-value sensor, and a retained
     // topic on the broker is no place for reproductive data. They remain webhook-only.
     private static let mappings: [Mapping] = [
-        Mapping(payloadKey: "steps", sensorKey: "steps", name: "Steps (latest record)",
-                valueField: "count", timeField: "end_time", unit: "steps", deviceClass: nil),
         Mapping(payloadKey: "heart_rate", sensorKey: "heart_rate", name: "Heart Rate",
                 valueField: "bpm", timeField: "time", unit: "bpm", deviceClass: nil),
         Mapping(payloadKey: "resting_heart_rate", sensorKey: "resting_heart_rate", name: "Resting Heart Rate",
@@ -147,12 +172,6 @@ enum MqttSupport {
                 valueField: "celsius", timeField: "time", unit: "°C", deviceClass: "temperature"),
         Mapping(payloadKey: "respiratory_rate", sensorKey: "respiratory_rate", name: "Respiratory Rate",
                 valueField: "rate", timeField: "time", unit: "breaths/min", deviceClass: nil),
-        Mapping(payloadKey: "distance", sensorKey: "distance", name: "Distance (latest record)",
-                valueField: "meters", timeField: "end_time", unit: "m", deviceClass: "distance"),
-        Mapping(payloadKey: "active_calories", sensorKey: "active_calories", name: "Active Calories (latest record)",
-                valueField: "calories", timeField: "end_time", unit: "kcal", deviceClass: nil),
-        Mapping(payloadKey: "total_calories", sensorKey: "total_calories", name: "Total Calories (latest record)",
-                valueField: "calories", timeField: "end_time", unit: "kcal", deviceClass: nil),
         Mapping(payloadKey: "hydration", sensorKey: "hydration", name: "Hydration (latest record)",
                 valueField: "liters", timeField: "end_time", unit: "L", deviceClass: "volume"),
         Mapping(payloadKey: "body_fat", sensorKey: "body_fat", name: "Body Fat",
@@ -163,8 +182,26 @@ enum MqttSupport {
                 valueField: "vo2_ml_per_min_per_kg", timeField: "time", unit: "mL/min/kg", deviceClass: nil)
     ]
 
-    static func sensors(from payload: [String: Any]) -> [MqttSensor] {
+    /// `today` is the `yyyy-MM-dd` whose `daily_totals` entry becomes the day sensors; an entry
+    /// for another day is not today's total, and a type without one publishes no day sensor.
+    static func sensors(from payload: [String: Any], today: String? = nil) -> [MqttSensor] {
         var sensors: [MqttSensor] = []
+
+        if let today, let entries = payload[DailyTotals.payloadKey] as? [[String: Any]],
+           let entry = entries.first(where: { $0["date"] as? String == today }) {
+            for total in dayTotals {
+                guard let value = numericValue(entry[total.field]), value.isFinite, value.magnitude < 1e15 else { continue }
+                sensors.append(MqttSensor(
+                    key: total.sensorKey,
+                    name: total.name,
+                    state: String(Int(value.rounded())),
+                    unit: total.unit,
+                    deviceClass: total.deviceClass,
+                    attributes: ["date": today],
+                    stateClass: "total_increasing"
+                ))
+            }
+        }
 
         for mapping in mappings {
             guard let records = payload[mapping.payloadKey] as? [[String: Any]],
@@ -206,7 +243,7 @@ enum MqttSupport {
             "unique_id": "\(device)_\(sensor.key)",
             "state_topic": stateTopic(baseTopic: baseTopic, key: sensor.key, slug: slug),
             "json_attributes_topic": attributesTopic(baseTopic: baseTopic, key: sensor.key, slug: slug),
-            "state_class": "measurement",
+            "state_class": sensor.stateClass,
             "device": [
                 "identifiers": [device],
                 "name": deviceName(phoneName: slug == nil ? nil : phoneName),
@@ -217,7 +254,17 @@ enum MqttSupport {
         ]
         if let unit = sensor.unit { config["unit_of_measurement"] = unit }
         if let deviceClass = sensor.deviceClass { config["device_class"] = deviceClass }
+        // Home Assistant shows a sensor with a convertible device class (distance, weight,
+        // duration) with two decimals by default, which turns 5921 m into "5,921.00 m". The
+        // state carries the decimals it has, so HA is told to show exactly those.
+        if let precision = displayPrecision(sensor.state) { config["suggested_display_precision"] = precision }
         return (try? JSONSerialization.data(withJSONObject: config, options: [.sortedKeys])) ?? Data()
+    }
+
+    /// Decimals in a numeric state ("78.2" gives 1, "8002" gives 0), nil for text.
+    static func displayPrecision(_ state: String) -> Int? {
+        guard Double(state) != nil else { return nil }
+        return state.split(separator: ".", maxSplits: 1).dropFirst().first?.count ?? 0
     }
 
     static func attributesJSON(for sensor: MqttSensor) -> Data {

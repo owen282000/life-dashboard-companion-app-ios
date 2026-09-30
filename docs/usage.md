@@ -78,7 +78,7 @@ iOS decides in advance which plain `http://` addresses an app may use: an IP add
 
 Two iPhones on one broker: give each a **Phone name** at the bottom of the MQTT card, and each becomes a device of its own, with the name in its device, ids and topics. The Android app and the iPhone already use different devices and topics, so they need no name for each other. Leave it empty on a single iPhone: then nothing changes. After a rename, the next sync removes the old device's sensors from the broker.
 
-The sensors hold the latest record of each type; [features.md](features.md#home-assistant-and-mqtt) lists them. MQTT has no retry queue and gets no deleted records or backfill. If you add a webhook URL later, it gets what is new from then on; **Sync Now** or **Backfill** sends what came before. Values are published retained, so they survive a Home Assistant restart. The Logs tab shows every publish, with the broker's answer when it fails.
+Steps, distance and calories are today's totals, the other sensors hold the latest record of their type; [features.md](features.md#home-assistant-and-mqtt) lists them. MQTT has no retry queue and gets no deleted records or backfill. If you add a webhook URL later, it gets what is new from then on; **Sync Now** or **Backfill** sends what came before. Values are published retained, so they survive a Home Assistant restart. The Logs tab shows every publish, with the broker's answer when it fails.
 
 ## Syncing without opening the app
 
@@ -112,7 +112,7 @@ A sync or backfill that starts while the iPhone is locked cannot read Apple Heal
 
 ### MQTT sensors do not update
 
-Every sync publishes the types with new records, so a sensor only changes when its type has new data; a type that is still catching up on a long backlog is published once it has caught up. A broker that does not answer within 10 seconds, such as a home address dialled from outside the home network, fails the sync. If a publish fails, the Logs tab shows the broker's error; `NOT_AUTHORIZED` means the username or password is wrong.
+Every sync publishes today's totals and the types with new records, so any other sensor only changes when its type has new data; a type that is still catching up on a long backlog is published once it has caught up. A broker that does not answer within 10 seconds, such as a home address dialled from outside the home network, fails the sync. If a publish fails, the Logs tab shows the broker's error; `NOT_AUTHORIZED` means the username or password is wrong.
 
 ### Queued payloads disappear
 

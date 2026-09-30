@@ -195,10 +195,88 @@ final class MqttSupportTests: XCTestCase {
             "body_fat": [["percentage": 20, "time": "2026-01-01T08:00:00Z"]],
             "lean_body_mass": [["kilograms": 60, "time": "2026-01-01T08:00:00Z"]],
             "vo2_max": [["vo2_ml_per_min_per_kg": 42, "time": "2026-01-01T08:00:00Z"]],
-            "blood_pressure": [["systolic": 120, "diastolic": 80, "time": "2026-01-01T08:00:00Z"]]
+            "blood_pressure": [["systolic": 120, "diastolic": 80, "time": "2026-01-01T08:00:00Z"]],
+            "daily_totals": [["date": "2026-01-01", "steps": 10, "distance_meters": 100, "active_calories": 10, "total_calories": 20]]
         ]
-        let published = Set(MqttSupport.sensors(from: payload).map(\.key))
+        let published = Set(MqttSupport.sensors(from: payload, today: "2026-01-01").map(\.key))
+        XCTAssertTrue(published.isDisjoint(with: MqttSupport.retiredSensorKeys))
         XCTAssertFalse(published.isEmpty)
         XCTAssertTrue(published.isSubset(of: Set(MqttSupport.allSensorKeys)), "missing \(published.subtracting(MqttSupport.allSensorKeys))")
+    }
+    // MARK: - Today's totals
+
+    private let totals: [String: Any] = [
+        "steps": [["count": 40, "start_time": "2026-09-30T08:00:00Z", "end_time": "2026-09-30T08:10:00Z"]],
+        "distance": [["meters": 31.5, "start_time": "2026-09-30T08:00:00Z", "end_time": "2026-09-30T08:10:00Z"]],
+        "daily_totals": [
+            ["date": "2026-09-29", "steps": 12_000, "distance_meters": 9000.0, "active_calories": 600.0, "total_calories": 2400.0],
+            ["date": "2026-09-30", "steps": 8002, "distance_meters": 5920.6, "active_calories": 312.4, "total_calories": 1890.5]
+        ]
+    ]
+
+    /// Android's four day sensors, from today's entry, and no latest-record sensor for the raw
+    /// steps and distance records.
+    func testTodaysTotalsBecomeTheAndroidAppsDaySensors() throws {
+        let sensors = Dictionary(uniqueKeysWithValues: MqttSupport.sensors(from: totals, today: "2026-09-30").map { ($0.key, $0) })
+        XCTAssertEqual(Set(sensors.keys), ["steps_today", "distance_today", "active_calories_today", "total_calories_today"])
+
+        let steps = try XCTUnwrap(sensors["steps_today"])
+        XCTAssertEqual(steps.name, "Steps Today")
+        XCTAssertEqual(steps.state, "8002")
+        XCTAssertEqual(steps.unit, "steps")
+        XCTAssertNil(steps.deviceClass)
+        XCTAssertEqual(steps.stateClass, "total_increasing")
+        XCTAssertEqual(steps.attributes, ["date": "2026-09-30"])
+
+        let distance = try XCTUnwrap(sensors["distance_today"])
+        XCTAssertEqual(distance.name, "Distance Today")
+        XCTAssertEqual(distance.state, "5921")
+        XCTAssertEqual(distance.unit, "m")
+        XCTAssertEqual(distance.deviceClass, "distance")
+
+        XCTAssertEqual(sensors["active_calories_today"]?.name, "Active Calories Today")
+        XCTAssertEqual(sensors["active_calories_today"]?.state, "312")
+        XCTAssertEqual(sensors["active_calories_today"]?.unit, "kcal")
+        XCTAssertEqual(sensors["total_calories_today"]?.name, "Total Calories Today")
+        XCTAssertEqual(sensors["total_calories_today"]?.state, "1891")
+    }
+
+    /// Yesterday's entry is not today's total: shortly after midnight it would pass for one.
+    func testNoEntryForTodayPublishesNoDaySensors() {
+        XCTAssertEqual(MqttSupport.sensors(from: totals, today: "2026-10-01"), [])
+        XCTAssertEqual(MqttSupport.sensors(from: totals), [])
+    }
+
+    /// A day without distance has no distance field, and gets no sensor rather than a 0.
+    func testAMissingFieldGivesNoSensor() {
+        let payload: [String: Any] = ["daily_totals": [["date": "2026-09-30", "steps": 120]]]
+        XCTAssertEqual(MqttSupport.sensors(from: payload, today: "2026-09-30").map(\.key), ["steps_today"])
+    }
+
+    func testTheRetiredKeysAreTheOnesAndroidRetired() {
+        XCTAssertEqual(MqttSupport.retiredSensorKeys, ["steps", "distance", "active_calories", "total_calories"])
+        XCTAssertTrue(Set(MqttSupport.allSensorKeys).isDisjoint(with: MqttSupport.retiredSensorKeys))
+    }
+
+    func testDiscoveryConfigCarriesStateClassAndDisplayPrecision() throws {
+        func config(_ sensor: MqttSensor) throws -> [String: Any] {
+            let data = MqttSupport.discoveryConfigJSON(for: sensor, baseTopic: "lifedashboard-ios", appVersion: "1.4.1")
+            return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        }
+        let distance = try config(MqttSensor(key: "distance_today", name: "Distance Today", state: "5921", unit: "m",
+                                             deviceClass: "distance", attributes: ["date": "2026-09-30"], stateClass: "total_increasing"))
+        XCTAssertEqual(distance["state_class"] as? String, "total_increasing")
+        XCTAssertEqual(distance["suggested_display_precision"] as? Int, 0)
+
+        let weight = try config(MqttSensor(key: "weight", name: "Weight", state: "78.2", unit: "kg", deviceClass: "weight", attributes: [:]))
+        XCTAssertEqual(weight["state_class"] as? String, "measurement")
+        XCTAssertEqual(weight["suggested_display_precision"] as? Int, 1)
+    }
+
+    func testDisplayPrecisionCountsTheStatesDecimals() {
+        XCTAssertEqual(MqttSupport.displayPrecision("5921"), 0)
+        XCTAssertEqual(MqttSupport.displayPrecision("78.2"), 1)
+        XCTAssertEqual(MqttSupport.displayPrecision("5.55"), 2)
+        XCTAssertNil(MqttSupport.displayPrecision("Life Dashboard"))
     }
 }

@@ -5365,18 +5365,18 @@
         }
       }
     },
-    "Publishes the latest value of each synced data type to your MQTT broker with Home Assistant Discovery: sensors appear automatically, no server-side setup needed." : {
+    "Publishes today's steps, distance and calories and the latest value of every other synced data type to your MQTT broker with Home Assistant Discovery: sensors appear automatically, no server-side setup needed." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Veröffentlicht den letzten Wert jedes synchronisierten Datentyps über Home Assistant Discovery auf deinem MQTT-Broker: Sensoren erscheinen automatisch, ohne Einrichtung auf dem Server."
+            "value" : "Veröffentlicht die heutigen Schritte, die Distanz und die Kalorien und den letzten Wert jedes anderen synchronisierten Datentyps über Home Assistant Discovery auf deinem MQTT-Broker: Sensoren erscheinen automatisch, ohne Einrichtung auf dem Server."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Publiceert de laatste waarde van elk gesynchroniseerd datatype naar je MQTT-broker met Home Assistant Discovery: sensors verschijnen automatisch, zonder installatie aan de serverkant."
+            "value" : "Publiceert de stappen, afstand en calorieën van vandaag en de laatste waarde van elk ander gesynchroniseerd datatype naar je MQTT-broker met Home Assistant Discovery: sensors verschijnen automatisch, zonder installatie aan de serverkant."
           }
         }
       }

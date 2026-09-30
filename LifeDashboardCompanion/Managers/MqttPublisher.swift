@@ -21,7 +21,7 @@ final class MqttPublisher: @unchecked Sendable {
         let prefs = PreferencesManager.shared
         guard prefs.mqttConfigured else { return nil }
 
-        let sensors = MqttSupport.sensors(from: healthPayload)
+        let sensors = await MqttSupport.sensors(from: withTodaysTotals(healthPayload, prefs: prefs), today: today())
         guard !sensors.isEmpty else { return nil }
 
         let baseTopic = prefs.mqttBaseTopic.isEmpty ? MqttSupport.defaultBaseTopic : prefs.mqttBaseTopic
@@ -31,14 +31,16 @@ final class MqttPublisher: @unchecked Sendable {
         let slug = MqttSupport.phoneSlug(phoneName)
         // The topics are retained, so a renamed iPhone would leave its old device on the broker
         // with frozen values. The first publish after a rename clears it, and the slug is
-        // recorded once a publish went through.
+        // recorded once a publish went through. The sensors 1.4.1 and earlier published for
+        // the latest steps, distance and calories record are cleared on every publish, as
+        // Android does, so Home Assistant drops them wherever they were left.
         let clearFirst = MqttSupport.topicsToClearOnRename(
             baseTopic: baseTopic,
             discoveryPrefix: prefix,
-            keys: MqttSupport.allSensorKeys,
+            keys: MqttSupport.allSensorKeys + MqttSupport.retiredSensorKeys,
             previousSlug: prefs.mqttPublishedSlug,
             currentSlug: slug
-        )
+        ) + MqttSupport.topicsFor(baseTopic: baseTopic, discoveryPrefix: prefix, keys: MqttSupport.retiredSensorKeys, slug: slug)
 
         do {
             try await withConnection(host: prefs.mqttHost, port: prefs.mqttPort, useTls: prefs.mqttUseTls) { connection in
@@ -89,6 +91,26 @@ final class MqttPublisher: @unchecked Sendable {
             logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: message)
             return message
         }
+    }
+
+    /// Today's totals come from the payload when the sync put them there, and are read here
+    /// otherwise: with Daily totals in payload switched off, and on the paths that hand over
+    /// the records alone. One statistics query per type, for today only.
+    private func withTodaysTotals(_ payload: [String: Any], prefs: PreferencesManager) async -> [String: Any] {
+        guard payload[DailyTotals.payloadKey] == nil else { return payload }
+        let calendar = DailyTotals.calendar()
+        let totals = await HealthKitManager.shared.readDailyTotals(
+            in: DailyTotals.window(days: 0, calendar: calendar),
+            enabledTypes: prefs.healthEnabledDataTypes,
+            calendar: calendar
+        )
+        var copy = payload
+        if !totals.isEmpty { copy[DailyTotals.payloadKey] = totals }
+        return copy
+    }
+
+    private func today() -> String {
+        DailyTotals.dateString(Date(), calendar: DailyTotals.calendar())
     }
 
     /// One Logs tab row per publish, shaped like Android's: the broker and topic as the URL,

@@ -303,7 +303,7 @@ struct HealthKitScreen: View {
             subtitleColor: prefs.mqttEnabled ? Brand.ink : .secondary,
             isExpanded: $showMqtt
         ) {
-            Text("Publishes the latest value of each synced data type to your MQTT broker with Home Assistant Discovery: sensors appear automatically, no server-side setup needed.")
+            Text("Publishes today's steps, distance and calories and the latest value of every other synced data type to your MQTT broker with Home Assistant Discovery: sensors appear automatically, no server-side setup needed.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 

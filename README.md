@@ -68,9 +68,9 @@ own. What an iPhone does not get there: screen time, and measurements written ba
 
 **MQTT** is the other way, for a setup that already runs a broker. Point the app at the MQTT
 broker Home Assistant uses, and MQTT Discovery creates one device with a sensor for 20 of the
-28 types, blood pressure as two. Each sensor holds the latest record, so steps, distance,
-calories and hydration show the last record, not the day's total. Workouts, meals, mindfulness
-and cycle tracking are events rather than values and stay webhook-only. States are retained, and
+28 types, blood pressure as two. Steps, distance and calories are today's totals, as on Android;
+the other sensors hold the latest record. Workouts, meals, mindfulness and cycle tracking are
+events rather than values and stay webhook-only. States are retained, and
 the app uses its own device and base topic (`lifedashboard-ios`), so an iPhone and an Android
 phone on one broker stay apart; two iPhones each get a phone name, as Android phones do. A
 broker alone is enough: every sync publishes, the automatic ones included, and a broker added

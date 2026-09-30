@@ -10,6 +10,10 @@ All notable changes to this project are documented in this file. The format is b
 - Export on the Health tab, like the Android app's: the data View shows, as a JSON file or as a CSV table with a row per record, a column per field and the daily totals as rows of their own, through the share sheet. The file goes to the app's temporary folder, which is not backed up, and each export replaces the one before
 - A phone name for MQTT, as in the Android app, so two iPhones can share one broker. It sits at the bottom of the MQTT card. Without a name nothing changes: the device id, the name and the topics stay exactly as they were, so an iPhone already set up needs to do nothing. With a name this iPhone publishes as a device of its own, `life_dashboard_companion_ios_<name>` with its topics under `lifedashboard-ios/<name>/`, and the first publish after a rename removes the old device's retained topics from the broker. The name goes into the settings backup under Android's key `phone_name`; a file from an Android phone leaves the iPhone's name alone
 
+### Changed
+
+- MQTT publishes today's steps, distance, active calories and total calories, as the Android app does, instead of the newest record of each, which was a few dozen steps and meant nothing on a dashboard. The sensors are Steps Today, Distance Today, Active Calories Today and Total Calories Today, with the Android app's keys, units and device classes, state class `total_increasing` and the day in a `date` attribute. They come from today's `daily_totals` entry, as the Health app counts it, and are read for MQTT even with Daily totals in payload switched off. Every publish removes the old Steps, Distance, Active Calories and Total Calories "(latest record)" sensors from the broker, so Home Assistant drops them; a dashboard card or automation that used them needs the new sensor. Sensors also carry `suggested_display_precision`, so Home Assistant shows 5921 m instead of 5,921.00 m
+
 ## [1.4.1] - 2026-09-30
 
 ### Fixed
