@@ -160,9 +160,9 @@ final class HealthSyncManager: Sendable {
                 case .empty(let commit):
                     commit.save()
                     return .noData
-                case .data(let healthData, let commit):
+                case .data(let healthData, let commit, let notCurrent):
                     commit.save()
-                    return await publishOnly(healthData, sensorsFrom: caughtUp(healthData, types: types))
+                    return await publishOnly(healthData, sensorsFrom: current(healthData, leaving: notCurrent))
                 }
             } catch {
                 return .failure(error: error.localizedDescription)
@@ -187,7 +187,7 @@ final class HealthSyncManager: Sendable {
                     return .noData
                 }
                 return result
-            case .data(let healthData, let commit):
+            case .data(let healthData, let commit, let notCurrent):
                 var payload: [String: Any] = healthData
                 payload["timestamp"] = Date().iso8601String
                 payload["app_version"] = appVersion
@@ -211,7 +211,7 @@ final class HealthSyncManager: Sendable {
                 // time budget is for that first. New records only, so a type without any keeps
                 // its retained value on the broker.
                 if !Task.isCancelled {
-                    await MqttPublisher.shared.publish(healthPayload: caughtUp(healthData, types: types))
+                    await MqttPublisher.shared.publish(healthPayload: current(healthData, leaving: notCurrent))
                 }
                 return result
             }
@@ -220,12 +220,13 @@ final class HealthSyncManager: Sendable {
         }
     }
 
-    /// What an incremental read gives MQTT: the types that have caught up. A type whose read
-    /// stopped at the cap, oldest first, has newer records still to come, and its sensor would
-    /// show an old value as the current one; it is published once the reads have caught up.
-    private func caughtUp(_ healthData: [String: Any], types: Set<HealthDataType>) -> [String: Any] {
+    /// What an incremental read gives MQTT: the types whose records include their newest
+    /// sample. A type whose read stopped at the cap has newer records still to come, and a
+    /// back-dated entry is older than what the sensor shows; either would put an old value on
+    /// the broker as the current one. Such a type is published once a read holds its newest.
+    private func current(_ healthData: [String: Any], leaving notCurrent: Set<HealthDataType>) -> [String: Any] {
         var payload = healthData
-        for type in types where prefs.loadCatchUpCursor(for: type) != nil {
+        for type in notCurrent {
             payload.removeValue(forKey: type.countedPayloadKey)
         }
         return payload

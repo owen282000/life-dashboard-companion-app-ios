@@ -46,15 +46,136 @@ enum SyncLimits {
         return (min(boundary, end), true)
     }
 
-    /// Where an incremental read of a type starts: at the catch-up cursor the last read left,
-    /// an hour before the earliest sample added since the anchors, or at the lookback start of
-    /// a sample type read for the first time, whichever is earliest. Nil when none applies.
-    static func incrementalReadStart(cursor: Date?, earliestAdded: [Date], firstReads: [Date]) -> Date? {
-        ([cursor].compactMap { $0 } + earliestAdded.map { $0.addingTimeInterval(-3600) } + firstReads).min()
+    /// Where the time read of an incremental sync starts: at the catch-up cursor the last read
+    /// left, or at the lookback start of a sample type read for the first time, whichever is
+    /// earlier. Nil when neither applies: the sync then reads only what the anchors report.
+    static func timeReadStart(cursor: Date?, firstRead: Date?) -> Date? {
+        [cursor, firstRead].compactMap { $0 }.min()
     }
 
     /// The catch-up cursor a read that stopped at `sliceEnd` leaves: nil once it reached `now`.
     static func catchUpCursor(afterSliceEndingAt sliceEnd: Date, now: Date) -> Date? {
         sliceEnd < now ? sliceEnd : nil
+    }
+}
+
+/// A sample an anchored query reported as added since the last sync.
+struct AddedSample: Hashable, Sendable {
+    let uuid: UUID
+    let start: Date
+    let end: Date
+}
+
+/// How an incremental sync reads a type, apart from HealthKit so it can be tested.
+///
+/// The anchors report the samples added since the last sync, and only those are sent. They
+/// used to be the start of a read by time, from an hour before the earliest of them to now,
+/// so one weight entered for last year, or an import, sent every record of the type since
+/// then again. The time read is still there for what the anchors cannot report: the lookback
+/// week of a type synced for the first time, continued through the catch-up cursor.
+enum IncrementalRead {
+    /// Added samples read per sample type in one sync. The type's cap is shared by the sample
+    /// types it combines, as total calories caps active and resting energy together, so a
+    /// page never holds more than one payload can carry. What is past it stays behind the
+    /// anchor for the next sync.
+    ///
+    /// While the type is catching up by time, its first week or the rest past a cursor, that
+    /// read takes up to nine tenths of the cap (see `SyncLimits.sliceEnd`), and the page gets
+    /// the tenth left, so one payload still carries no more than the cap of the type.
+    static func pageLimit(for type: HealthDataType, sampleTypeCount: Int, catchingUp: Bool = false) -> Int {
+        let cap = SyncLimits.maxRecordsPerSync(for: type)
+        return max(1, (catchingUp ? cap / 10 : cap) / max(1, sampleTypeCount))
+    }
+
+    /// Where the time read starts and which added samples go by uuid, from the cursor, the
+    /// lookback start of a first read, the added samples and the time of the read.
+    static func plan(cursor: Date?, firstRead: Date?, added: [AddedSample], now: Date) -> (timeReadStart: Date?, byUuid: [AddedSample]) {
+        let start = SyncLimits.timeReadStart(cursor: cursor, firstRead: firstRead)
+        return (start, byUuid(added, timeReadFrom: start, now: now))
+    }
+
+    /// The added samples to read by uuid: those the time read does not reach. From its start
+    /// on, the time read covers everything up to now, in this sync or through the cursor in
+    /// the next ones, so an added sample there would go out twice.
+    static func byUuid(_ added: [AddedSample], timeReadFrom start: Date?, now: Date) -> [AddedSample] {
+        guard let start else { return added }
+        return added.filter { $0.start < start || $0.start >= now }
+    }
+
+    /// Where a type whose records are built from several samples, sleep sessions from stages
+    /// and menstruation periods from flow days, is read around its added samples. Samples
+    /// closer than `gap` belong to the same session and form one group; each group is widened
+    /// by `padding` on both sides, so the session it belongs to is read whole, neighbours
+    /// included. Groups are not joined further, so a window never grows past its own group,
+    /// however many nights an import spreads its samples over.
+    static func sessionWindows(for added: [AddedSample], gap: TimeInterval, padding: TimeInterval) -> [DateInterval] {
+        var groups: [DateInterval] = []
+        for sample in added.sorted(by: { $0.start < $1.start }) {
+            let end = max(sample.end, sample.start)
+            if let last = groups.last, sample.start <= last.end.addingTimeInterval(gap) {
+                groups[groups.count - 1] = DateInterval(start: last.start, end: max(last.end, end))
+            } else {
+                groups.append(DateInterval(start: sample.start, end: end))
+            }
+        }
+        return groups.map {
+            DateInterval(start: $0.start.addingTimeInterval(-padding), end: $0.end.addingTimeInterval(padding))
+        }
+    }
+
+    /// The sleep sessions to send: those holding an added stage. A session read around one is
+    /// sent whole, its earlier stages included, under the uuid derived from its first stage.
+    static func sessions(_ sessions: [[String: Any]], holding added: Set<UUID>) -> [[String: Any]] {
+        let ids = Set(added.map(\.uuidString))
+        return sessions.filter { session in
+            (session["stages"] as? [[String: Any]] ?? []).contains { ($0["uuid"] as? String).map(ids.contains) ?? false }
+        }
+    }
+
+    /// The menstruation periods to send: those a newly added flow day falls in. The period's
+    /// times are whole seconds, so its end gets a second more for a flow day that starts and
+    /// ends at the same moment with a fraction of a second.
+    static func periods(_ periods: [[String: Any]], holding added: [AddedSample]) -> [[String: Any]] {
+        periods.filter { period in
+            guard let start = (period["start_time"] as? String).flatMap(BackfillController.parseDate),
+                  let end = (period["end_time"] as? String).flatMap(BackfillController.parseDate) else { return false }
+            return added.contains { $0.start >= start && $0.start < end.addingTimeInterval(1) }
+        }
+    }
+
+    /// The records of the time read and the uuid read together, each record once. A record is
+    /// known by its uuid; a period, which has none, by its start and end.
+    static func merge(_ first: [(String, Any)]?, _ second: [(String, Any)]?) -> [(String, Any)]? {
+        guard let second else { return first }
+        guard let first else { return second }
+        var keys: [String] = []
+        var records: [String: [[String: Any]]] = [:]
+        for (key, value) in first + second {
+            if records[key] == nil { keys.append(key) }
+            records[key, default: []] += value as? [[String: Any]] ?? []
+        }
+        return keys.map { key in
+            var seen = Set<String>()
+            let unique = (records[key] ?? []).filter { seen.insert(identity(of: $0)).inserted }
+            return (key, unique as Any)
+        }
+    }
+
+    private static func identity(of record: [String: Any]) -> String {
+        if let uuid = record["uuid"] as? String { return uuid }
+        return ["start_time", "end_time", "time"].map { record[$0] as? String ?? "" }.joined(separator: "|")
+    }
+
+    /// Whether the records read for a type hold its newest sample, so MQTT can publish them as
+    /// the current value. A sensor shows the latest record it is given, and a back-dated
+    /// entry would otherwise replace today's value with last year's.
+    /// `newestInStore` is the newest sample HealthKit holds up to `now`; a sample dated after
+    /// `now` is not a current value either way.
+    static func holdsNewest(behind: Bool, timeReadReachedNow: Bool, byUuidStarts: [Date], newestInStore: Date?, now: Date) -> Bool {
+        if behind { return false }
+        if timeReadReachedNow { return true }
+        guard let newestInStore else { return true }
+        guard let newestRead = byUuidStarts.filter({ $0 <= now }).max() else { return false }
+        return newestRead >= newestInStore
     }
 }
