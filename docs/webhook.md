@@ -64,7 +64,7 @@ The app has 28 data types. Menstruation sends two keys, so an iPhone can send 29
 | `heart_rate` | `bpm`, `time` | heart rate |
 | `resting_heart_rate` | `bpm`, `time` | resting heart rate |
 | `heart_rate_variability` | `heart_rate_variability_millis`, `time` | HRV (SDNN) |
-| `blood_pressure` | `systolic`, `diastolic`, `time` | systolic and diastolic samples |
+| `blood_pressure` | `systolic`, `diastolic`, `time` | blood pressure readings |
 | `blood_glucose` | `mmol_per_liter`, `time` | blood glucose |
 | `oxygen_saturation` | `percentage`, `time` | oxygen saturation |
 | `respiratory_rate` | `rate`, `time` | respiratory rate |
@@ -96,7 +96,7 @@ A type with more new records than one sync may send (1000 for heart rate and ste
 - **Heart rate variability** is SDNN, the measure Apple Health stores. Health Connect stores RMSSD. Both arrive in `heart_rate_variability_millis`, but the two are not the same number.
 - **Distance** is walking and running distance. Health Connect's distance covers every activity.
 - **Total calories** are resting plus active energy records, since HealthKit has no total energy type.
-- **Blood pressure** pairs a systolic sample with the diastolic sample recorded at the same time. When there is no diastolic sample, `diastolic` is left out. The Android schema requires it, so a strict validator rejects such a record.
+- **Blood pressure** is read per reading: the systolic and diastolic values an app saved together, as HealthKit keeps them. The rare app that saves the two values separately gets them paired when they come from that app within a second of each other. A value without its other half is not sent, since the Android schema requires both. `uuid` is the systolic sample's.
 - **Nutrition**: every nutrient field is optional and left out when the meal has no value for it.
 - **Sleep**: stage samples are grouped into sessions, and a gap of more than 1 hour starts a new session. Stage values are `in_bed`, `sleeping`, `light`, `deep`, `rem`, `awake` and `unknown`, as on Android. A session's `uuid` comes from its earliest stage, so it stays the same while a night grows at the end: replace the session when it comes back longer. Each stage carries its own sample's `uuid` and `source`.
 - **Menstruation period**: HealthKit has no period record, so periods are derived from consecutive flow days, where a gap of up to 48 hours bridges one missed day. They carry no `uuid` or `source`. Replace the periods a payload covers.

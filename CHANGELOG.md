@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- Blood pressure is read per reading, the systolic and diastolic values saved together, instead of by matching the two by time. Every record now carries `diastolic`, which the Android schema requires; a value without its other half is no longer sent. Two readings within a second no longer share one diastolic value. The uuid stays the systolic sample's, so a receiver deduplicates against what earlier versions sent
+
 ## [1.4.1] - 2026-09-30
 
 ### Fixed

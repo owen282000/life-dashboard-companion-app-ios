@@ -144,6 +144,119 @@ final class HealthRecordMappingTests: XCTestCase {
         )
     }
 
+    // MARK: - Blood pressure
+
+    private func pressure(_ identifier: HKQuantityTypeIdentifier, _ mmHg: Double, at offset: TimeInterval = 0) -> HKQuantitySample {
+        let time = start.addingTimeInterval(offset)
+        return HKQuantitySample(
+            type: HKQuantityType(identifier),
+            quantity: HKQuantity(unit: .millimeterOfMercury(), doubleValue: mmHg),
+            start: time, end: time
+        )
+    }
+
+    private func reading(_ systolic: HKQuantitySample, _ diastolic: HKQuantitySample) -> HKCorrelation {
+        HKCorrelation(
+            type: HKCorrelationType(.bloodPressure),
+            start: systolic.startDate, end: systolic.endDate,
+            objects: [systolic, diastolic]
+        )
+    }
+
+    private func pressureRecords(
+        _ correlations: [HKCorrelation],
+        systolic: [HKQuantitySample],
+        diastolic: [HKQuantitySample],
+        from windowStart: Date? = nil
+    ) -> [[String: Any]] {
+        HealthRecordMapping.bloodPressureRecords(
+            correlations: correlations,
+            systolic: systolic,
+            diastolic: diastolic,
+            start: windowStart ?? start,
+            end: start.addingTimeInterval(3600)
+        )
+    }
+
+    func testBloodPressureReadingsComeFromTheirCorrelation() {
+        // Two readings a moment apart: time matching could hand both the same diastolic.
+        let first = (pressure(.bloodPressureSystolic, 121), pressure(.bloodPressureDiastolic, 79))
+        let second = (pressure(.bloodPressureSystolic, 134, at: 0.4), pressure(.bloodPressureDiastolic, 88, at: 0.4))
+        let records = pressureRecords(
+            [reading(second.0, second.1), reading(first.0, first.1)],
+            systolic: [first.0, second.0],
+            diastolic: [second.1, first.1]
+        )
+        XCTAssertEqual(records.count, 2)
+        XCTAssertEqual(records[0]["systolic"] as? Double, 121)
+        XCTAssertEqual(records[0]["diastolic"] as? Double, 79)
+        XCTAssertEqual(records[1]["systolic"] as? Double, 134)
+        XCTAssertEqual(records[1]["diastolic"] as? Double, 88)
+        // The systolic sample's uuid, as 1.4 sent it and as deleted_records names it.
+        XCTAssertEqual(records[0]["uuid"] as? String, first.0.uuid.uuidString)
+        XCTAssertEqual(records[0]["time"] as? String, "2026-01-01T08:00:00Z")
+        XCTAssertNotNil(records[0]["source"] as? String)
+    }
+
+    func testBloodPressureRecordsAlwaysCarryWhatAndroidRequires() {
+        let lone = pressure(.bloodPressureSystolic, 118)
+        let pair = (pressure(.bloodPressureSystolic, 125, at: 600), pressure(.bloodPressureDiastolic, 81, at: 600))
+        let records = pressureRecords([reading(pair.0, pair.1)], systolic: [lone, pair.0], diastolic: [pair.1])
+        XCTAssertEqual(records.count, 1, "a systolic value without a diastolic one is not sent")
+        for record in records {
+            XCTAssertTrue(["systolic", "diastolic", "time"].allSatisfy { record[$0] != nil })
+        }
+        XCTAssertTrue(JSONSerialization.isValidJSONObject(records))
+    }
+
+    func testLoneBloodPressureValuesArePairedByTime() {
+        let high = pressure(.bloodPressureSystolic, 140)
+        let low = pressure(.bloodPressureDiastolic, 90, at: 0.3)
+        let lateHigh = pressure(.bloodPressureSystolic, 150, at: 60)
+        let lateLow = pressure(.bloodPressureDiastolic, 95, at: 62)
+        let records = pressureRecords([], systolic: [lateHigh, high], diastolic: [lateLow, low])
+        XCTAssertEqual(records.count, 1, "two seconds apart is two measurements")
+        XCTAssertEqual(records[0]["systolic"] as? Double, 140)
+        XCTAssertEqual(records[0]["diastolic"] as? Double, 90)
+        XCTAssertEqual(records[0]["uuid"] as? String, high.uuid.uuidString)
+    }
+
+    func testLoneBloodPressureValuesPairWithTheNearestAndOnlyOnce() {
+        let highs = [pressure(.bloodPressureSystolic, 120), pressure(.bloodPressureSystolic, 130, at: 0.6)]
+        let lows = [pressure(.bloodPressureDiastolic, 85, at: 0.5), pressure(.bloodPressureDiastolic, 80, at: 0.1)]
+        let records = pressureRecords([], systolic: highs, diastolic: lows)
+        XCTAssertEqual(records.map { $0["diastolic"] as? Double }, [80, 85])
+    }
+
+    func testALonePairAcrossASliceBoundIsSentByTheWindowOfItsSystolicValue() {
+        let high = pressure(.bloodPressureSystolic, 128, at: -0.5)
+        let low = pressure(.bloodPressureDiastolic, 84, at: 0.2)
+        let before = HealthRecordMapping.bloodPressureRecords(
+            correlations: [], systolic: [high], diastolic: [low],
+            start: start.addingTimeInterval(-60), end: start
+        )
+        let after = HealthRecordMapping.bloodPressureRecords(
+            correlations: [], systolic: [high], diastolic: [low],
+            start: start, end: start.addingTimeInterval(60)
+        )
+        XCTAssertEqual(before.count, 1)
+        XCTAssertEqual(before.first?["diastolic"] as? Double, 84)
+        XCTAssertTrue(after.isEmpty)
+    }
+
+    func testAReadingIsSentInTheWindowItsCorrelationStartsIn() {
+        let high = pressure(.bloodPressureSystolic, 120, at: 5)
+        let low = pressure(.bloodPressureDiastolic, 80, at: 5)
+        // The app dated the correlation a minute before its values.
+        let correlation = HKCorrelation(
+            type: HKCorrelationType(.bloodPressure),
+            start: start.addingTimeInterval(-55), end: start.addingTimeInterval(5),
+            objects: [high, low]
+        )
+        XCTAssertTrue(pressureRecords([correlation], systolic: [high], diastolic: [low]).isEmpty)
+        XCTAssertEqual(pressureRecords([correlation], systolic: [], diastolic: [], from: start.addingTimeInterval(-60)).count, 1)
+    }
+
     func testRecordsSerializeAsJSON() {
         let records: [[String: Any]] = [
             HealthRecordMapping.vo2MaxFields(quantitySample(.vo2Max, HKQuantity(unit: HealthRecordMapping.vo2MaxUnit, doubleValue: 40))),

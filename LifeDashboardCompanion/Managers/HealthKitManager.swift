@@ -332,10 +332,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     /// Adds the stable HealthKit UUID and the writing app/device to a payload record,
     /// so servers can deduplicate re-sent records and trace their origin.
     private func record(_ fields: [String: Any], from sample: HKSample) -> [String: Any] {
-        var record = fields
-        record["uuid"] = sample.uuid.uuidString
-        record["source"] = sample.sourceRevision.source.name
-        return record
+        HealthRecordMapping.record(fields, from: sample)
     }
 
     /// Reads data for a single HealthDataType. Returns (payloadKey, data) pairs or nil if empty.
@@ -343,7 +340,8 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     /// Reads are capped oldest-first per type (see SyncLimits) to bound payload size.
     /// The incremental sync and the backfill slice reads with `nextSlice`, which relies on
     /// every case reading only the type's `hkSampleTypes`, by start date in `[start, end)`,
-    /// at most `SyncLimits.maxRecordsPerSync` per sample type.
+    /// at most `SyncLimits.maxRecordsPerSync` per sample type. Blood pressure and nutrition also
+    /// read the correlations around the window, but only those starting in it become records.
     func readDataForType(
         _ dataType: HealthDataType,
         start: Date,
@@ -492,33 +490,26 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
             return mapped.isEmpty ? nil : [("heart_rate_variability", mapped)]
 
         case .bloodPressure:
+            // The lone values are read a pairing tolerance past the window, so a slice that ends
+            // between a systolic value and its diastolic one still sends the pair.
+            let margin = HealthRecordMapping.loosePressureTolerance
+            async let correlationRecords = readCorrelations(HKCorrelationType(.bloodPressure), around: start, end)
             async let systolicRecords = readQuantitySamples(
                 type: HKQuantityType(.bloodPressureSystolic),
-                start: start, end: end,
+                start: start.addingTimeInterval(-margin), end: end.addingTimeInterval(margin),
                 limit: limit
             )
             async let diastolicRecords = readQuantitySamples(
                 type: HKQuantityType(.bloodPressureDiastolic),
-                start: start, end: end,
+                start: start.addingTimeInterval(-margin), end: end.addingTimeInterval(margin),
                 limit: limit
             )
-            let systolic = try await systolicRecords
-            let diastolic = try await diastolicRecords
-            let mmHg = HKUnit.millimeterOfMercury()
-            var mapped: [[String: Any]] = []
-            for systolicSample in systolic {
-                let matchingDiastolic = diastolic.first {
-                    abs($0.startDate.timeIntervalSince(systolicSample.startDate)) < 1
-                }
-                var fields: [String: Any] = [
-                    "systolic": systolicSample.quantity.doubleValue(for: mmHg),
-                    "time": systolicSample.startDate.iso8601String
-                ]
-                if let diastolicSample = matchingDiastolic {
-                    fields["diastolic"] = diastolicSample.quantity.doubleValue(for: mmHg)
-                }
-                mapped.append(record(fields, from: systolicSample))
-            }
+            let mapped = try await HealthRecordMapping.bloodPressureRecords(
+                correlations: correlationRecords,
+                systolic: systolicRecords,
+                diastolic: diastolicRecords,
+                start: start, end: end
+            )
             return mapped.isEmpty ? nil : [("blood_pressure", mapped)]
 
         case .bloodGlucose:
@@ -792,6 +783,20 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
             }
             healthStore.execute(query)
         }
+    }
+
+    /// The correlations of `type` that start within `correlationMargin` of `[start, end)`, so
+    /// the caller can tell which samples of the window belong to one. No limit: the window was
+    /// sliced to hold at most the cap of samples, and every correlation holds at least one.
+    private func readCorrelations(_ type: HKCorrelationType, around start: Date, _ end: Date) async throws -> [HKCorrelation] {
+        let margin = HealthRecordMapping.correlationMargin
+        let samples = try await readSamples(
+            type: type,
+            start: start.addingTimeInterval(-margin),
+            end: end.addingTimeInterval(margin),
+            limit: HKObjectQueryNoLimit
+        )
+        return samples.compactMap { $0 as? HKCorrelation }
     }
 
     private func readCategorySamples(

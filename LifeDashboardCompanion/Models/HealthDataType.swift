@@ -346,4 +346,82 @@ enum HealthRecordMapping {
             "time": sample.startDate.iso8601String
         ]
     }
+
+    /// Adds the sample's HealthKit uuid and the name of the app that wrote it.
+    static func record(_ fields: [String: Any], from sample: HKSample) -> [String: Any] {
+        var record = fields
+        record["uuid"] = sample.uuid.uuidString
+        record["source"] = sample.sourceRevision.source.name
+        return record
+    }
+
+    /// How far outside a read window the correlations are fetched whose samples it may hold.
+    /// A sample and its correlation normally share their start; this covers an app that dates
+    /// them apart, so such a sample is still known to belong to a correlation.
+    static let correlationMargin: TimeInterval = 86_400
+
+    // MARK: Blood pressure
+
+    /// A second: the most a lone systolic and diastolic value from one app may lie apart to
+    /// still count as one reading.
+    static let loosePressureTolerance: TimeInterval = 1
+
+    /// Blood pressure records for the samples that start in `[start, end)`.
+    ///
+    /// A reading is a blood pressure correlation holding a systolic and a diastolic sample;
+    /// `correlations` may reach past the window (see `correlationMargin`), and only those that
+    /// start inside it become records. The few apps that save the two values without a
+    /// correlation are paired by source and time; `systolic` and `diastolic` may reach
+    /// `loosePressureTolerance` past the window, and a pair is sent by the window its systolic
+    /// value starts in. Android's schema requires `diastolic`, so a value without its other
+    /// half is not sent. The uuid is the systolic sample's, as before,
+    /// so a receiver keeps deduplicating against what earlier versions sent, and its deletion
+    /// is what `deleted_records` names.
+    static func bloodPressureRecords(
+        correlations: [HKCorrelation],
+        systolic: [HKQuantitySample],
+        diastolic: [HKQuantitySample],
+        start: Date,
+        end: Date
+    ) -> [[String: Any]] {
+        let systolicType = HKQuantityType(.bloodPressureSystolic)
+        let diastolicType = HKQuantityType(.bloodPressureDiastolic)
+        var pairs: [(systolic: HKQuantitySample, diastolic: HKQuantitySample)] = []
+        var inCorrelation = Set<UUID>()
+        for correlation in correlations {
+            inCorrelation.formUnion(correlation.objects.map(\.uuid))
+            guard correlation.startDate >= start, correlation.startDate < end,
+                  let high = firstByUuid(correlation.objects(for: systolicType)) as? HKQuantitySample,
+                  let low = firstByUuid(correlation.objects(for: diastolicType)) as? HKQuantitySample else { continue }
+            pairs.append((high, low))
+        }
+
+        var unpaired = diastolic.filter { !inCorrelation.contains($0.uuid) }
+        let loneSystolic = systolic.filter { !inCorrelation.contains($0.uuid) && $0.startDate >= start && $0.startDate < end }
+        for high in loneSystolic.sorted(by: { $0.startDate < $1.startDate }) {
+            let candidates = unpaired.enumerated().filter { _, low in
+                low.sourceRevision.source.bundleIdentifier == high.sourceRevision.source.bundleIdentifier
+                    && abs(low.startDate.timeIntervalSince(high.startDate)) < loosePressureTolerance
+            }
+            guard let match = candidates.min(by: {
+                abs($0.element.startDate.timeIntervalSince(high.startDate)) < abs($1.element.startDate.timeIntervalSince(high.startDate))
+            }) else { continue }
+            pairs.append((high, match.element))
+            unpaired.remove(at: match.offset)
+        }
+
+        let mmHg = HKUnit.millimeterOfMercury()
+        return pairs.sorted { $0.systolic.startDate < $1.systolic.startDate }.map { pair in
+            record([
+                "systolic": pair.systolic.quantity.doubleValue(for: mmHg),
+                "diastolic": pair.diastolic.quantity.doubleValue(for: mmHg),
+                "time": pair.systolic.startDate.iso8601String
+            ], from: pair.systolic)
+        }
+    }
+
+    /// The same sample of a set every time, should a correlation hold two of one type.
+    private static func firstByUuid(_ samples: Set<HKSample>) -> HKSample? {
+        samples.min { $0.uuid.uuidString < $1.uuid.uuidString }
+    }
 }
