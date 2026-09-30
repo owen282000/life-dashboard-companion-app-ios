@@ -116,6 +116,9 @@ struct OptionsConfig: Codable, Equatable {
     var failureNotificationThreshold: Int?
     /// iOS-only, under the name Android uses for the same preference (not in its backup yet).
     var failureNotificationsEnabled: Bool?
+    /// The phone's name for MQTT (Android 1.20.0). An export writes an empty string for a phone
+    /// without one, as Android does; absent, it leaves the name alone.
+    var phoneName: String?
 
     enum CodingKeys: String, CodingKey {
         case enabledDataTypes = "enabled_data_types"
@@ -123,6 +126,7 @@ struct OptionsConfig: Codable, Equatable {
         case allowHttpWebhooks = "allow_http_webhooks"
         case failureNotificationThreshold = "failure_notification_threshold"
         case failureNotificationsEnabled = "failure_notifications_enabled"
+        case phoneName = "phone_name"
     }
 }
 
@@ -159,6 +163,7 @@ struct SettingsSnapshot: Equatable, Sendable {
     var mqttUsername: String
     var mqttPassword: String
     var mqttBaseTopic: String
+    var phoneName: String
 }
 
 // MARK: - Export and file handling
@@ -235,7 +240,8 @@ enum SettingsBackup {
                 // URL (a local host, as ATS allows nothing else) would otherwise stop there.
                 allowHttpWebhooks: settings.healthWebhookUrls.contains { $0.lowercased().hasPrefix("http://") },
                 failureNotificationThreshold: settings.failureNotificationThreshold,
-                failureNotificationsEnabled: settings.failureNotificationsEnabled
+                failureNotificationsEnabled: settings.failureNotificationsEnabled,
+                phoneName: settings.phoneName.trimmingCharacters(in: .whitespacesAndNewlines)
             )
         )
     }
@@ -429,6 +435,7 @@ enum SettingsImport {
     static let maxSecretLength = 1024
     static let intervalRange = 15...1440
     static let thresholdChoices = [3, 5, 10]
+    static let maxPhoneNameLength = 64
 
     /// The device settings after importing `file`, and what the preview should say. Pure: it
     /// validates the whole file and writes nothing, so a file with one bad value changes nothing.
@@ -450,7 +457,7 @@ enum SettingsImport {
                          current: current, result: &result, notes: &notes)
         }
         if let options = file.options {
-            planOptions(options, result: &result, notes: &notes)
+            planOptions(options, fromIPhone: fromIPhone, result: &result, notes: &notes)
         }
 
         return ImportPlan(
@@ -608,7 +615,7 @@ enum SettingsImport {
         }
     }
 
-    private static func planOptions(_ options: OptionsConfig, result: inout SettingsSnapshot, notes: inout [ImportNote]) {
+    private static func planOptions(_ options: OptionsConfig, fromIPhone: Bool, result: inout SettingsSnapshot, notes: inout [ImportNote]) {
         if let names = options.enabledDataTypes {
             let (types, unknown) = SettingsBackup.dataTypes(from: names)
             result.healthEnabledDataTypes = types
@@ -622,6 +629,12 @@ enum SettingsImport {
             result.failureNotificationThreshold = snapped
         }
         if let enabled = options.failureNotificationsEnabled { result.failureNotificationsEnabled = enabled }
+        // An Android phone's name names that phone. On the iPhone it would publish a device
+        // called after it, next to the Android phone's own, so only a file from an iPhone
+        // brings a name.
+        if fromIPhone, let name = options.phoneName {
+            result.phoneName = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(maxPhoneNameLength))
+        }
     }
 
     /// Header names are HTTP tokens and values carry no line breaks: a header from a file must
@@ -677,7 +690,8 @@ extension PreferencesManager {
             mqttUseTls: mqttUseTls,
             mqttUsername: mqttUsername,
             mqttPassword: mqttPassword,
-            mqttBaseTopic: mqttBaseTopic
+            mqttBaseTopic: mqttBaseTopic,
+            phoneName: phoneName
         )
     }
 
@@ -711,6 +725,7 @@ extension PreferencesManager {
         if new.mqttPort != old.mqttPort { mqttPort = new.mqttPort }
         if new.mqttUseTls != old.mqttUseTls { mqttUseTls = new.mqttUseTls }
         if new.mqttBaseTopic != old.mqttBaseTopic { mqttBaseTopic = new.mqttBaseTopic }
+        if new.phoneName != old.phoneName { phoneName = new.phoneName }
 
         if new.healthWebhookHeaders != healthWebhookHeaders { healthWebhookHeaders = new.healthWebhookHeaders }
         if new.healthSigningSecret != healthSigningSecret { healthSigningSecret = new.healthSigningSecret }

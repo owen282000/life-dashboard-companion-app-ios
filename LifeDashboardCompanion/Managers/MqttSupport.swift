@@ -7,23 +7,138 @@ struct MqttSensor: Equatable {
     let unit: String?
     let deviceClass: String?
     let attributes: [String: String]
+    /// Home Assistant's state_class: a day total only grows until midnight, so HA's statistics
+    /// read a drop as a new day instead of a loss.
+    var stateClass = "measurement"
 }
 
 /// Pure MQTT/Home Assistant mapping logic over the shared webhook payload dictionary, kept
-/// free of networking so it is unit testable. Sensors represent the LATEST record per data
-/// type. The device id and default base topic are distinct from the Android app so mixed
-/// households never fight over the same Home Assistant entities.
+/// free of networking so it is unit testable. Point-in-time types (heart rate, weight) map to
+/// the LATEST record; steps, distance and calories map to TODAY'S TOTAL from `daily_totals`,
+/// as in the Android app, since a single steps record is a few dozen steps and means nothing on
+/// a dashboard. The device id and default base topic are distinct from the Android app so
+/// mixed households never fight over the same Home Assistant entities.
 enum MqttSupport {
 
     static let defaultBaseTopic = "lifedashboard-ios"
     static let defaultDiscoveryPrefix = "homeassistant"
     static let deviceId = "life_dashboard_companion_ios"
+    static let deviceName = "Life Dashboard Companion (iOS)"
 
-    static func stateTopic(baseTopic: String, key: String) -> String { "\(baseTopic)/\(key)/state" }
-    static func attributesTopic(baseTopic: String, key: String) -> String { "\(baseTopic)/\(key)/attributes" }
-    static func discoveryTopic(discoveryPrefix: String, key: String) -> String {
-        "\(discoveryPrefix)/sensor/\(deviceId)_\(key)/config"
+    /// The phone name as it appears in topics and ids, as the Android app makes it: lower case
+    /// letters, digits and underscores, nothing else. Accents are stripped rather than replaced,
+    /// so "Zoë" is "zoe". Nil for a blank name, which is the signal that this iPhone has no name
+    /// and everything stays exactly as it was before names existed.
+    static func phoneSlug(_ name: String?) -> String? {
+        guard let name else { return nil }
+        let plain = String(String.UnicodeScalarView(
+            name.trimmingCharacters(in: .whitespacesAndNewlines).decomposedStringWithCanonicalMapping.unicodeScalars
+                .filter { !markCategories.contains($0.properties.generalCategory) }
+        )).lowercased()
+        // Android's [^a-z0-9_]+ -> "_": a run of other characters becomes one underscore, and
+        // an underscore that was typed stays as it is.
+        var slug = ""
+        var inRun = false
+        for scalar in plain.unicodeScalars {
+            if ("a"..."z").contains(scalar) || ("0"..."9").contains(scalar) || scalar == "_" {
+                slug.unicodeScalars.append(scalar)
+                inRun = false
+            } else if !inRun {
+                slug += "_"
+                inRun = true
+            }
+        }
+        let trimmed = slug.trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        return trimmed.isEmpty ? nil : trimmed
     }
+
+    private static let markCategories: Set<Unicode.GeneralCategory> = [.nonspacingMark, .spacingMark, .enclosingMark]
+
+    /// The Home Assistant device id: the fixed one, or with the phone's slug behind it.
+    static func deviceId(slug: String?) -> String {
+        slug.map { "\(deviceId)_\($0)" } ?? deviceId
+    }
+
+    /// The device name Home Assistant shows: with the phone's name in it when it has one.
+    static func deviceName(phoneName: String?) -> String {
+        let name = phoneName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return name.isEmpty ? deviceName : "Life Dashboard Companion (iOS, \(name))"
+    }
+
+    /// Topics carry the phone's slug between the base topic and the sensor key, so two iPhones
+    /// on one broker never publish over each other. Without a slug they are the topics every
+    /// receiver has been reading.
+    static func stateTopic(baseTopic: String, key: String, slug: String? = nil) -> String {
+        "\(topicRoot(baseTopic, slug))/\(key)/state"
+    }
+    static func attributesTopic(baseTopic: String, key: String, slug: String? = nil) -> String {
+        "\(topicRoot(baseTopic, slug))/\(key)/attributes"
+    }
+    static func discoveryTopic(discoveryPrefix: String, key: String, slug: String? = nil) -> String {
+        "\(discoveryPrefix)/sensor/\(deviceId(slug: slug))_\(key)/config"
+    }
+
+    private static func topicRoot(_ baseTopic: String, _ slug: String?) -> String {
+        slug.map { "\(baseTopic)/\($0)" } ?? baseTopic
+    }
+
+    /// Every retained topic the sensors with `keys` occupy under `slug`: state and attributes
+    /// first, the discovery config last, the order that clears an entity cleanly (an empty
+    /// attributes payload on a living entity makes Home Assistant log "Erroneous JSON"; the
+    /// config clear removes it).
+    static func topicsFor(baseTopic: String, discoveryPrefix: String, keys: [String], slug: String?) -> [String] {
+        keys.flatMap { key in
+            [
+                stateTopic(baseTopic: baseTopic, key: key, slug: slug),
+                attributesTopic(baseTopic: baseTopic, key: key, slug: slug),
+                discoveryTopic(discoveryPrefix: discoveryPrefix, key: key, slug: slug)
+            ]
+        }
+    }
+
+    /// What to clear before publishing under `currentSlug` when the iPhone last published under
+    /// `previousSlug`: nothing while the name is unchanged, otherwise every topic of every
+    /// sensor the app can publish under the old slug, so the old device does not live on with
+    /// frozen values next to the new one. An iPhone that never recorded a slug published
+    /// nameless.
+    static func topicsToClearOnRename(
+        baseTopic: String,
+        discoveryPrefix: String,
+        keys: [String],
+        previousSlug: String?,
+        currentSlug: String?
+    ) -> [String] {
+        previousSlug == currentSlug ? [] : topicsFor(baseTopic: baseTopic, discoveryPrefix: discoveryPrefix, keys: keys, slug: previousSlug)
+    }
+
+    /// Every sensor key `sensors(from:)` can produce. Unlike the Android app, which keeps the
+    /// sensors it published, the iPhone publishes only what a sync carries, so a rename clears
+    /// every key the old device may hold.
+    static var allSensorKeys: [String] {
+        dayTotals.map(\.sensorKey) + mappings.map(\.sensorKey) + ["blood_pressure_systolic", "blood_pressure_diastolic"]
+    }
+
+    /// Keys that versions up to 1.4.1 published as "(latest record)" sensors, replaced by the
+    /// day totals. Their retained discovery configs would keep a stale entity alive in Home
+    /// Assistant for good, so every publish empties their topics, as the Android app does.
+    static let retiredSensorKeys = ["steps", "distance", "active_calories", "total_calories"]
+
+    /// Today's totals, from the `daily_totals` entry of today, under the Android app's keys,
+    /// names and units. The date goes along as an attribute.
+    private struct DayTotal {
+        let field: String
+        let sensorKey: String
+        let name: String
+        let unit: String
+        let deviceClass: String?
+    }
+
+    private static let dayTotals: [DayTotal] = [
+        DayTotal(field: "steps", sensorKey: "steps_today", name: "Steps Today", unit: "steps", deviceClass: nil),
+        DayTotal(field: "distance_meters", sensorKey: "distance_today", name: "Distance Today", unit: "m", deviceClass: "distance"),
+        DayTotal(field: "active_calories", sensorKey: "active_calories_today", name: "Active Calories Today", unit: "kcal", deviceClass: nil),
+        DayTotal(field: "total_calories", sensorKey: "total_calories_today", name: "Total Calories Today", unit: "kcal", deviceClass: nil)
+    ]
 
     private struct Mapping {
         let payloadKey: String
@@ -40,8 +155,6 @@ enum MqttSupport {
     // not mapped, as in the Android app: they do not fit a single-value sensor, and a retained
     // topic on the broker is no place for reproductive data. They remain webhook-only.
     private static let mappings: [Mapping] = [
-        Mapping(payloadKey: "steps", sensorKey: "steps", name: "Steps (latest record)",
-                valueField: "count", timeField: "end_time", unit: "steps", deviceClass: nil),
         Mapping(payloadKey: "heart_rate", sensorKey: "heart_rate", name: "Heart Rate",
                 valueField: "bpm", timeField: "time", unit: "bpm", deviceClass: nil),
         Mapping(payloadKey: "resting_heart_rate", sensorKey: "resting_heart_rate", name: "Resting Heart Rate",
@@ -64,12 +177,6 @@ enum MqttSupport {
                 valueField: "celsius", timeField: "time", unit: "°C", deviceClass: "temperature"),
         Mapping(payloadKey: "respiratory_rate", sensorKey: "respiratory_rate", name: "Respiratory Rate",
                 valueField: "rate", timeField: "time", unit: "breaths/min", deviceClass: nil),
-        Mapping(payloadKey: "distance", sensorKey: "distance", name: "Distance (latest record)",
-                valueField: "meters", timeField: "end_time", unit: "m", deviceClass: "distance"),
-        Mapping(payloadKey: "active_calories", sensorKey: "active_calories", name: "Active Calories (latest record)",
-                valueField: "calories", timeField: "end_time", unit: "kcal", deviceClass: nil),
-        Mapping(payloadKey: "total_calories", sensorKey: "total_calories", name: "Total Calories (latest record)",
-                valueField: "calories", timeField: "end_time", unit: "kcal", deviceClass: nil),
         Mapping(payloadKey: "hydration", sensorKey: "hydration", name: "Hydration (latest record)",
                 valueField: "liters", timeField: "end_time", unit: "L", deviceClass: "volume"),
         Mapping(payloadKey: "body_fat", sensorKey: "body_fat", name: "Body Fat",
@@ -80,8 +187,26 @@ enum MqttSupport {
                 valueField: "vo2_ml_per_min_per_kg", timeField: "time", unit: "mL/min/kg", deviceClass: nil)
     ]
 
-    static func sensors(from payload: [String: Any]) -> [MqttSensor] {
+    /// `today` is the `yyyy-MM-dd` whose `daily_totals` entry becomes the day sensors; an entry
+    /// for another day is not today's total, and a type without one publishes no day sensor.
+    static func sensors(from payload: [String: Any], today: String? = nil) -> [MqttSensor] {
         var sensors: [MqttSensor] = []
+
+        if let today, let entries = payload[DailyTotals.payloadKey] as? [[String: Any]],
+           let entry = entries.first(where: { $0["date"] as? String == today }) {
+            for total in dayTotals {
+                guard let value = numericValue(entry[total.field]), value.isFinite, value.magnitude < 1e15 else { continue }
+                sensors.append(MqttSensor(
+                    key: total.sensorKey,
+                    name: total.name,
+                    state: String(Int(value.rounded())),
+                    unit: total.unit,
+                    deviceClass: total.deviceClass,
+                    attributes: ["date": today],
+                    stateClass: "total_increasing"
+                ))
+            }
+        }
 
         for mapping in mappings {
             guard let records = payload[mapping.payloadKey] as? [[String: Any]],
@@ -113,16 +238,20 @@ enum MqttSupport {
         return sensors
     }
 
-    static func discoveryConfigJSON(for sensor: MqttSensor, baseTopic: String, appVersion: String) -> Data {
+    /// With a `phoneName` the unique ids, the topics and the device all carry it, so a second
+    /// iPhone becomes a second device instead of overwriting the first.
+    static func discoveryConfigJSON(for sensor: MqttSensor, baseTopic: String, appVersion: String, phoneName: String? = nil) -> Data {
+        let slug = phoneSlug(phoneName)
+        let device = deviceId(slug: slug)
         var config: [String: Any] = [
             "name": sensor.name,
-            "unique_id": "\(deviceId)_\(sensor.key)",
-            "state_topic": stateTopic(baseTopic: baseTopic, key: sensor.key),
-            "json_attributes_topic": attributesTopic(baseTopic: baseTopic, key: sensor.key),
-            "state_class": "measurement",
+            "unique_id": "\(device)_\(sensor.key)",
+            "state_topic": stateTopic(baseTopic: baseTopic, key: sensor.key, slug: slug),
+            "json_attributes_topic": attributesTopic(baseTopic: baseTopic, key: sensor.key, slug: slug),
+            "state_class": sensor.stateClass,
             "device": [
-                "identifiers": [deviceId],
-                "name": "Life Dashboard Companion (iOS)",
+                "identifiers": [device],
+                "name": deviceName(phoneName: slug == nil ? nil : phoneName),
                 "manufacturer": "owen282000",
                 "model": "iOS app",
                 "sw_version": appVersion
@@ -130,7 +259,17 @@ enum MqttSupport {
         ]
         if let unit = sensor.unit { config["unit_of_measurement"] = unit }
         if let deviceClass = sensor.deviceClass { config["device_class"] = deviceClass }
+        // Home Assistant shows a sensor with a convertible device class (distance, weight,
+        // duration) with two decimals by default, which turns 5921 m into "5,921.00 m". The
+        // state carries the decimals it has, so HA is told to show exactly those.
+        if let precision = displayPrecision(sensor.state) { config["suggested_display_precision"] = precision }
         return (try? JSONSerialization.data(withJSONObject: config, options: [.sortedKeys])) ?? Data()
+    }
+
+    /// Decimals in a numeric state ("78.2" gives 1, "8002" gives 0), nil for text.
+    static func displayPrecision(_ state: String) -> Int? {
+        guard Double(state) != nil else { return nil }
+        return state.split(separator: ".", maxSplits: 1).dropFirst().first?.count ?? 0
     }
 
     static func attributesJSON(for sensor: MqttSensor) -> Data {

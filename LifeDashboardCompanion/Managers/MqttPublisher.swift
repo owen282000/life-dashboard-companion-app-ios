@@ -21,11 +21,29 @@ final class MqttPublisher: @unchecked Sendable {
         let prefs = PreferencesManager.shared
         guard prefs.mqttConfigured else { return nil }
 
-        let sensors = MqttSupport.sensors(from: healthPayload)
+        let sensors = await MqttSupport.sensors(from: withTodaysTotals(healthPayload, prefs: prefs), today: today())
         guard !sensors.isEmpty else { return nil }
 
         let baseTopic = prefs.mqttBaseTopic.isEmpty ? MqttSupport.defaultBaseTopic : prefs.mqttBaseTopic
         let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        let prefix = MqttSupport.defaultDiscoveryPrefix
+        let phoneName = prefs.phoneName
+        let slug = MqttSupport.phoneSlug(phoneName)
+        // The topics are retained, so a renamed iPhone would leave its old device on the broker
+        // with frozen values. The first publish after a rename clears it, and the slug is
+        // recorded once a publish went through. An iPhone with no publish on record clears
+        // nothing, since the nameless topics may be another iPhone's. The sensors 1.4.1 and
+        // earlier published for
+        // the latest steps, distance and calories record are cleared on every publish, as Android
+        // does, so Home Assistant drops them wherever they were left.
+        let renamed = !prefs.mqttHasPublished ? [] : MqttSupport.topicsToClearOnRename(
+            baseTopic: baseTopic,
+            discoveryPrefix: prefix,
+            keys: MqttSupport.allSensorKeys + MqttSupport.retiredSensorKeys,
+            previousSlug: prefs.mqttPublishedSlug,
+            currentSlug: slug
+        )
+        let clearFirst = renamed + MqttSupport.topicsFor(baseTopic: baseTopic, discoveryPrefix: prefix, keys: MqttSupport.retiredSensorKeys, slug: slug)
 
         do {
             try await withConnection(host: prefs.mqttHost, port: prefs.mqttPort, useTls: prefs.mqttUseTls) { connection in
@@ -37,23 +55,29 @@ final class MqttPublisher: @unchecked Sendable {
                 guard try await self.awaitConnack(over: connection) else {
                     throw MqttError.connectionRefused
                 }
+                // An empty retained payload removes a retained topic, and on a discovery topic
+                // the entity with it.
+                for topic in clearFirst {
+                    try await self.send(MqttPacket.publish(topic: topic, payload: Data()), over: connection)
+                }
                 for sensor in sensors {
                     try await self.send(MqttPacket.publish(
-                        topic: MqttSupport.discoveryTopic(discoveryPrefix: MqttSupport.defaultDiscoveryPrefix, key: sensor.key),
-                        payload: MqttSupport.discoveryConfigJSON(for: sensor, baseTopic: baseTopic, appVersion: appVersion)
+                        topic: MqttSupport.discoveryTopic(discoveryPrefix: prefix, key: sensor.key, slug: slug),
+                        payload: MqttSupport.discoveryConfigJSON(for: sensor, baseTopic: baseTopic, appVersion: appVersion, phoneName: phoneName)
                     ), over: connection)
                     try await self.send(MqttPacket.publish(
-                        topic: MqttSupport.stateTopic(baseTopic: baseTopic, key: sensor.key),
+                        topic: MqttSupport.stateTopic(baseTopic: baseTopic, key: sensor.key, slug: slug),
                         payload: Data(sensor.state.utf8)
                     ), over: connection)
                     try await self.send(MqttPacket.publish(
-                        topic: MqttSupport.attributesTopic(baseTopic: baseTopic, key: sensor.key),
+                        topic: MqttSupport.attributesTopic(baseTopic: baseTopic, key: sensor.key, slug: slug),
                         payload: MqttSupport.attributesJSON(for: sensor)
                     ), over: connection)
                 }
                 try await self.send(MqttPacket.disconnect(), over: connection)
             }
             prefs.mqttLastStatus = MqttStatus.published(sensors: sensors.count, at: Date())
+            prefs.mqttPublishedSlug = slug
             logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: nil)
             return nil
         } catch where Task.isCancelled || WebhookManager.isInterruption(error, taskCancelled: false) {
@@ -70,6 +94,27 @@ final class MqttPublisher: @unchecked Sendable {
             logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: message)
             return message
         }
+    }
+
+    /// The syncs hand MQTT the records alone, without the payload's daily totals (and with Daily
+    /// totals in payload switched off there are none), so today's totals are read here: one
+    /// statistics query per enabled type, for today only. A payload that carries
+    /// `daily_totals` is used as it is.
+    private func withTodaysTotals(_ payload: [String: Any], prefs: PreferencesManager) async -> [String: Any] {
+        guard payload[DailyTotals.payloadKey] == nil else { return payload }
+        let calendar = DailyTotals.calendar()
+        let totals = await HealthKitManager.shared.readDailyTotals(
+            in: DailyTotals.window(days: 0, calendar: calendar),
+            enabledTypes: prefs.healthEnabledDataTypes,
+            calendar: calendar
+        )
+        var copy = payload
+        if !totals.isEmpty { copy[DailyTotals.payloadKey] = totals }
+        return copy
+    }
+
+    private func today() -> String {
+        DailyTotals.dateString(Date(), calendar: DailyTotals.calendar())
     }
 
     /// One Logs tab row per publish, shaped like Android's: the broker and topic as the URL,

@@ -172,6 +172,7 @@ final class UIParityTests: XCTestCase {
         // A failure is red whatever its text says, and a success whatever its text says.
         XCTAssertEqual(SyncOutcome.failed("timed out").tone, .failure)
         XCTAssertEqual(SyncOutcome.pingFailed.tone, .failure)
+        XCTAssertEqual(SyncOutcome.exportFailed("locked").tone, .failure)
     }
 
     // MARK: - Onboarding

@@ -271,3 +271,33 @@ final class SyncLimitsTests: XCTestCase {
         XCTAssertEqual(sent, [store.samples.last!])
     }
 }
+
+/// The widget button, the Control Center control and Shortcuts share one limit, as Android's
+/// sync broadcast has: one accepted sync a minute.
+final class SyncTriggerRateLimitTests: XCTestCase {
+    private let start = ContinuousClock.now
+
+    func testTheFirstTriggerIsAccepted() {
+        XCTAssertTrue(SyncTriggerRateLimit.allows(now: start, lastAcceptedAt: nil))
+        XCTAssertTrue(SyncTriggerRateLimit().tryAccept(now: start))
+    }
+
+    func testATriggerWithinAMinuteOfTheLastAcceptedOneIsIgnored() {
+        let limit = SyncTriggerRateLimit()
+        XCTAssertTrue(limit.tryAccept(now: start))
+        XCTAssertFalse(limit.tryAccept(now: start + .seconds(1)))
+        XCTAssertFalse(limit.tryAccept(now: start + .seconds(59)))
+        XCTAssertTrue(limit.tryAccept(now: start + .seconds(60)))
+    }
+
+    /// An ignored trigger does not move the window, so a steady stream of taps still gets one
+    /// sync a minute instead of none at all.
+    func testAnIgnoredTriggerDoesNotExtendTheWait() {
+        let limit = SyncTriggerRateLimit()
+        XCTAssertTrue(limit.tryAccept(now: start))
+        for second in stride(from: 10, to: 60, by: 10) {
+            XCTAssertFalse(limit.tryAccept(now: start + .seconds(second)))
+        }
+        XCTAssertTrue(limit.tryAccept(now: start + .seconds(61)))
+    }
+}

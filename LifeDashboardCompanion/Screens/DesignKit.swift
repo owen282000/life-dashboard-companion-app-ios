@@ -352,6 +352,7 @@ struct ActionTileLabel: View {
 
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .title3) private var iconHeight: CGFloat = 28
 
     var body: some View {
         let layout = dynamicTypeSize.isAccessibilitySize
@@ -367,7 +368,9 @@ struct ActionTileLabel: View {
                         .foregroundStyle(ink)
                 }
             }
-            .frame(minHeight: 24)
+            // Tall enough for the tallest symbol (the share arrow), so tiles side by side keep
+            // one height and their titles one line.
+            .frame(minHeight: iconHeight)
             .accessibilityHidden(true)
             Text(title)
                 .font(.caption.weight(.semibold))
