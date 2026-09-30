@@ -28,6 +28,7 @@ struct SettingsBackupDocument: FileDocument {
 /// Backup & restore: export every setting to a file, and import one from this app or the
 /// Android app. Self-contained, so it can move to another screen without touching the logic.
 struct SettingsBackupSection: View {
+    @EnvironmentObject private var pairing: PairingCoordinator
     @State private var showExport = false
     @State private var showImporter = false
     @State private var importStep: ImportStep?
@@ -78,6 +79,12 @@ struct SettingsBackupSection: View {
                 importedTypes = types
                 report("Settings imported")
             }
+        }
+        // A pairing link needs the root sheet, which cannot show over one of these.
+        .onChange(of: pairing.incoming) { _, _ in
+            showExport = false
+            showImporter = false
+            importStep = nil
         }
         .alert(alertMessage ?? "", isPresented: Binding(
             get: { alertMessage != nil },
