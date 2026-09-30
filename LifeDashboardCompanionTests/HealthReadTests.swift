@@ -25,9 +25,10 @@ final class HealthReadTests: XCTestCase {
         }
 
         func read() async throws -> [(String, Any)]? {
-            try await BoundedCall.run(timeout: .seconds(10), schedule: schedule) { _ in
+            let _: Int = try await BoundedCall.run(timeout: .seconds(10), schedule: schedule) { _ in
                 { self.lock.withLock { self.stops += 1 } }
             }
+            return nil
         }
     }
 
@@ -35,7 +36,7 @@ final class HealthReadTests: XCTestCase {
         let hanging = Hanging()
         let failures = Recorder<HealthDataType>()
         let task = Task {
-            await HealthKitManager.gather([.steps, .heartRate, .weight]) { type -> [(String, Any)]? in
+            Unchecked(value: await HealthKitManager.gather([.steps, .heartRate, .weight]) { type -> [(String, Any)]? in
                 switch type {
                 case .heartRate: return try await hanging.read()
                 case .weight: throw Stuck()
@@ -43,13 +44,13 @@ final class HealthReadTests: XCTestCase {
                 }
             } failed: { type, _ in
                 failures.add(type)
-            }
+            })
         }
         let armed = await settle { hanging.armed }
         XCTAssertTrue(armed)
         hanging.expire()
 
-        let fragments = await task.value
+        let fragments = await task.value.value
         XCTAssertEqual(Set(fragments.keys), [.steps])
         XCTAssertEqual(Set(failures.items), [.heartRate, .weight])
         XCTAssertEqual(hanging.stops, 1, "the query that ran out of time is stopped")
@@ -81,11 +82,44 @@ final class HealthReadTests: XCTestCase {
     }
 
     func testAPageNeverHoldsMoreThanOnePayloadCarries() {
-        XCTAssertEqual(IncrementalRead.pageLimit(for: .heartRate, sampleTypeCount: 1), 1000)
-        XCTAssertEqual(IncrementalRead.pageLimit(for: .totalCalories, sampleTypeCount: 2), 100)
-        XCTAssertEqual(IncrementalRead.pageLimit(for: .nutrition, sampleTypeCount: 300), 1)
+        XCTAssertEqual(IncrementalRead.pageBudget(for: .heartRate), 1000)
+        XCTAssertEqual(IncrementalRead.pageBudget(for: .distance), 200)
         // The first week takes nine tenths of the cap; the page gets the tenth left.
-        XCTAssertEqual(IncrementalRead.pageLimit(for: .heartRate, sampleTypeCount: 1, catchingUp: true), 100)
+        XCTAssertEqual(IncrementalRead.pageBudget(for: .heartRate, catchingUp: true), 100)
+        // The budget goes round the sample types, one further every minute.
+        XCTAssertEqual(IncrementalRead.rotated(["walk", "cycle", "swim"], by: 4), ["cycle", "swim", "walk"])
+        XCTAssertEqual(IncrementalRead.rotated(["walk"], by: -3), ["walk"])
+    }
+
+    func testAddedSamplesAreReadInSpansSoABackdatedOneDoesNotStretchTheRead() {
+        let samples = [added(1, hours: -8760), added(2, hours: -2), added(3, hours: -1), added(4, hours: -20)]
+        XCTAssertEqual(IncrementalRead.spans(of: samples, gap: 86_400, maxCount: 24), [
+            DateInterval(start: base.addingTimeInterval(-8760 * 3600), end: base.addingTimeInterval(-8760 * 3600)),
+            DateInterval(start: base.addingTimeInterval(-20 * 3600), end: base.addingTimeInterval(-3600))
+        ])
+        // Past the most spans, the closest ones are joined first: an hour apart makes three
+        // spans, of which the two closest become one.
+        XCTAssertEqual(IncrementalRead.spans(of: samples, gap: 1800, maxCount: 24).count, 4)
+        XCTAssertEqual(IncrementalRead.spans(of: samples, gap: 3600, maxCount: 2).count, 2)
+        XCTAssertEqual(
+            IncrementalRead.spans(of: samples, gap: 3600, maxCount: 2).last,
+            DateInterval(start: base.addingTimeInterval(-20 * 3600), end: base.addingTimeInterval(-3600))
+        )
+        XCTAssertTrue(IncrementalRead.spans(of: [], gap: 3600, maxCount: 2).isEmpty)
+    }
+
+    func testOnlyRecordsOfAddedSamplesAreSent() throws {
+        let new = added(1, hours: 0)
+        let old = added(2, hours: 0)
+        // A reading found through its correlation, whose systolic sample went out before.
+        let kept = try XCTUnwrap(IncrementalRead.records(
+            [("blood_pressure", [["uuid": new.uuid.uuidString], ["uuid": old.uuid.uuidString]] as [[String: Any]]),
+             ("nutrition", [["uuid": old.uuid.uuidString]] as [[String: Any]])],
+            withUuidIn: [new.uuid]
+        ))
+        XCTAssertEqual(kept.map(\.0), ["blood_pressure"])
+        XCTAssertEqual((kept.first?.1 as? [[String: Any]])?.count, 1)
+        XCTAssertNil(IncrementalRead.records([("steps", [["uuid": old.uuid.uuidString]] as [[String: Any]])], withUuidIn: [new.uuid]))
     }
 
     func testAddedSamplesTheTimeReadCoversAreNotReadTwice() {

@@ -266,8 +266,8 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
 
     /// Reads incremental data for a single type using HKAnchoredObjectQuery.
     ///
-    /// The anchored queries report the samples added since the last sync, a page of them per
-    /// sample type (see `IncrementalRead.pageLimit`); what is past the page stays behind the
+    /// The anchored queries report the samples added since the last sync, a page of them for
+    /// the type (see `IncrementalRead.pageBudget`); what is past the page stays behind the
     /// anchor for the next sync. Only those samples are sent, built by the same code as every
     /// other read (see `readAdded`), so a back-dated entry sends itself and not every record
     /// since its date.
@@ -284,20 +284,29 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         let sampleTypes = dataType.hkSampleTypes
         let catchingUp = prefs.loadCatchUpCursor(for: dataType) != nil
             || sampleTypes.contains { prefs.loadAnchor(for: dataType, sampleType: $0) == nil }
-        let pageLimit = IncrementalRead.pageLimit(for: dataType, sampleTypeCount: sampleTypes.count, catchingUp: catchingUp)
+        // One budget for all sample types of the payload type, which the readers cap together,
+        // spent in an order that turns every minute, so a busy one (walking distance) cannot
+        // keep a quiet one (cycling distance) waiting for good.
+        var budget = IncrementalRead.pageBudget(for: dataType, catchingUp: catchingUp)
         var added: [AddedSample] = []
         var addedIds: [String: Set<UUID>] = [:]
         var morePending = false
         var readsFirstTime = false
         var newAnchors: [(HKSampleType, HKQueryAnchor)] = []
 
-        for sampleType in sampleTypes {
+        for sampleType in IncrementalRead.rotated(sampleTypes, by: Int(Date().timeIntervalSince1970 / 60)) {
             if let anchor = prefs.loadAnchor(for: dataType, sampleType: sampleType) {
-                let page = try await anchoredPage(sampleType: sampleType, anchor: anchor, limit: pageLimit)
+                // Nothing left: this sample type keeps its anchor for the next sync.
+                guard budget > 0 else {
+                    morePending = true
+                    continue
+                }
+                let page = try await anchoredPage(sampleType: sampleType, anchor: anchor, limit: budget)
                 newAnchors.append((sampleType, page.anchor ?? anchor))
                 added += page.added
                 addedIds[sampleType.identifier, default: []].formUnion(page.added.map(\.uuid))
-                morePending = morePending || page.count >= pageLimit
+                morePending = morePending || page.count >= budget
+                budget -= page.count
             } else {
                 // First sync of this sample type: read the lookback window. The anchor is taken
                 // before that read, so a sample written in between is read now or next time.
@@ -392,9 +401,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         case .menstruation:
             // Flow days are records of their own and go by uuid; the periods built from them
             // need the days around them, read past the flow read's cap of 200.
-            let flow = try await HealthKitManager.$onlySamples.withValue(only) {
-                try await readByUuid(dataType, added)
-            }?.filter { $0.0 == "menstruation_flow" }
+            let flow = try await readByUuid(dataType, added, only: only)?.filter { $0.0 == "menstruation_flow" }
             let limit = HealthKitManager.sessionReadLimit
             var periods: [(String, Any)]?
             for window in IncrementalRead.sessionWindows(
@@ -406,28 +413,43 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 guard samples.count < limit else { throw SessionReadTooLarge() }
                 // As the flow reader does: a day logged as no flow is not part of a period.
                 let days = samples.compactMap { $0 as? HKCategorySample }
-                    .filter { HKCategoryValueMenstrualFlow(rawValue: $0.value).map { $0 != .none } ?? false }
-                    .map { FlowSample(start: $0.startDate, end: $0.endDate) }
+                    .filter { Self.menstrualFlow($0) != nil }
+                    .map { FlowSample(start: $0.startDate, end: $0.endDate, uuid: $0.uuid.uuidString, source: $0.sourceRevision.source.name) }
                 let holding = IncrementalRead.periods(MenstruationPeriodBuilder.periods(from: days), holding: added)
                 if !holding.isEmpty { periods = IncrementalRead.merge(periods, [("menstruation_period", holding)]) }
             }
             return IncrementalRead.merge(flow.flatMap { $0.isEmpty ? nil : $0 }, periods)
 
         default:
-            return try await HealthKitManager.$onlySamples.withValue(only) {
-                try await readByUuid(dataType, added)
-            }
+            return try await readByUuid(dataType, added, only: only)
         }
     }
 
-    /// Reads `dataType` over the time the added samples span, with `onlySamples` set by the
-    /// caller, so the type's own reader builds records for them and nothing else. A second on
-    /// either side, for the samples read by time that join them, which the readers match
-    /// within a second.
-    private func readByUuid(_ dataType: HealthDataType, _ added: [AddedSample]) async throws -> [(String, Any)]? {
-        guard let first = added.map(\.start).min(), let last = added.map(\.start).max() else { return nil }
-        return try await readDataForType(dataType, start: first.addingTimeInterval(-1), end: last.addingTimeInterval(1))
+    /// Reads `dataType` around the added samples with `onlySamples` set, so the type's own
+    /// reader builds records for them and nothing else, and keeps the records whose uuid is an
+    /// added sample's. That drops a blood pressure reading or a food the reader finds by its
+    /// correlation, which is not filtered, when its own sample was sent before or comes in a
+    /// later page. The samples are read in spans (see `IncrementalRead.spans`), each a second
+    /// wider on both sides for what the readers pair within a second, so a back-dated sample
+    /// does not make the unfiltered reads cover the year in between.
+    private func readByUuid(
+        _ dataType: HealthDataType,
+        _ added: [AddedSample],
+        only: [String: Set<UUID>]
+    ) async throws -> [(String, Any)]? {
+        var result: [(String, Any)]?
+        for span in IncrementalRead.spans(of: added, gap: 86_400, maxCount: HealthKitManager.maxSpans) {
+            let read = try await HealthKitManager.$onlySamples.withValue(only) {
+                try await readDataForType(dataType, start: span.start.addingTimeInterval(-1), end: span.end.addingTimeInterval(1))
+            }
+            result = IncrementalRead.merge(result, read)
+        }
+        return IncrementalRead.records(result, withUuidIn: Set(added.map(\.uuid)))
     }
+
+    /// Spans read per type in one sync, so an import scattered over a year costs a bounded
+    /// number of queries.
+    private static let maxSpans = 24
 
     /// Stages read per window around added sleep stages: a night holds a few dozen.
     private static let sessionReadLimit = 2000

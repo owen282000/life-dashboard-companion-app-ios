@@ -174,7 +174,7 @@ final class SyncLimitsTests: XCTestCase {
         /// What one sync sent.
         @discardableResult
         mutating func sync(_ store: inout Store, now: Date, duringRead: [Date] = [], ending: Ending = .none) -> [Sample] {
-            let pageLimit = IncrementalRead.pageLimit(for: .heartRate, sampleTypeCount: 1, catchingUp: anchor == nil || cursor != nil)
+            let pageLimit = IncrementalRead.pageBudget(for: .heartRate, catchingUp: anchor == nil || cursor != nil)
             var added: [Sample] = []
             let newAnchor: Int
             var firstRead: Date?

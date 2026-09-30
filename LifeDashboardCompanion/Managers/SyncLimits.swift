@@ -85,17 +85,53 @@ struct AddedSample: Hashable, Sendable {
 /// then again. The time read is still there for what the anchors cannot report: the lookback
 /// week of a type synced for the first time, continued through the catch-up cursor.
 enum IncrementalRead {
-    /// Added samples read per sample type in one sync. The type's cap is shared by the sample
-    /// types it combines, as total calories caps active and resting energy together, so a
-    /// page never holds more than one payload can carry. What is past it stays behind the
-    /// anchor for the next sync.
+    /// Added samples read in one sync, for all the sample types a payload type combines
+    /// together, since its reader caps them together (total calories caps active and resting
+    /// energy as one): a page never holds more than one payload can carry. What is past it
+    /// stays behind the anchor for the next sync.
     ///
     /// While the type is catching up by time, its first week or the rest past a cursor, that
     /// read takes up to nine tenths of the cap (see `SyncLimits.sliceEnd`), and the page gets
     /// the tenth left, so one payload still carries no more than the cap of the type.
-    static func pageLimit(for type: HealthDataType, sampleTypeCount: Int, catchingUp: Bool = false) -> Int {
+    static func pageBudget(for type: HealthDataType, catchingUp: Bool = false) -> Int {
         let cap = SyncLimits.maxRecordsPerSync(for: type)
-        return max(1, (catchingUp ? cap / 10 : cap) / max(1, sampleTypeCount))
+        return max(1, catchingUp ? cap / 10 : cap)
+    }
+
+    /// `items` starting at `offset`, wrapping around: the order a budget is spent in.
+    static func rotated<T>(_ items: [T], by offset: Int) -> [T] {
+        guard !items.isEmpty else { return items }
+        let start = ((offset % items.count) + items.count) % items.count
+        return Array(items[start...] + items[..<start])
+    }
+
+    /// The added samples in groups that lie within `gap` of each other, as the stretches of
+    /// time they span; at most `maxCount`, joined across the smallest gaps first.
+    static func spans(of added: [AddedSample], gap: TimeInterval, maxCount: Int) -> [DateInterval] {
+        let starts = added.map(\.start).sorted()
+        guard let first = starts.first else { return [] }
+        let gaps = zip(starts, starts.dropFirst()).enumerated()
+            .map { (index: $0.offset, length: $0.element.1.timeIntervalSince($0.element.0)) }
+            .filter { $0.length > gap }
+        let cuts = Set(gaps.sorted { $0.length > $1.length }.prefix(max(0, maxCount - 1)).map(\.index))
+        var spans: [DateInterval] = []
+        var spanStart = first
+        for (index, start) in starts.enumerated() where cuts.contains(index) {
+            spans.append(DateInterval(start: spanStart, end: start))
+            spanStart = starts[index + 1]
+        }
+        spans.append(DateInterval(start: spanStart, end: starts[starts.count - 1]))
+        return spans
+    }
+
+    /// The records whose uuid is in `ids`; keys left without a record are dropped.
+    static func records(_ pairs: [(String, Any)]?, withUuidIn ids: Set<UUID>) -> [(String, Any)]? {
+        let wanted = Set(ids.map(\.uuidString))
+        let kept = (pairs ?? []).compactMap { key, value -> (String, Any)? in
+            let records = (value as? [[String: Any]] ?? []).filter { ($0["uuid"] as? String).map(wanted.contains) ?? false }
+            return records.isEmpty ? nil : (key, records as Any)
+        }
+        return kept.isEmpty ? nil : kept
     }
 
     /// Where the time read starts and which added samples go by uuid, from the cursor, the
