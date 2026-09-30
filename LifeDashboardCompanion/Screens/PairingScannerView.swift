@@ -80,7 +80,7 @@ struct PairingScannerView: View {
                 .multilineTextAlignment(.center)
             if showSettings, let url = URL(string: UIApplication.openSettingsURLString) {
                 Button("Open Settings") { UIApplication.shared.open(url) }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(PrimaryButtonStyle())
             }
             Button("Close", action: onClose)
                 .foregroundColor(.white)

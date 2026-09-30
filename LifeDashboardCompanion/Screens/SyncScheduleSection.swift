@@ -320,7 +320,7 @@ struct ShortcutsHelpSheet: View {
                             Label("Open Shortcuts", systemImage: "arrow.up.forward.app")
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(PrimaryButtonStyle())
                     }
                 }
                 .padding()

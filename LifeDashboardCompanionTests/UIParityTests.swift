@@ -140,11 +140,50 @@ final class UIParityTests: XCTestCase {
         }
     }
 
+    // MARK: - About
+
+    /// Every link goes to the iOS repository. The Android slug is a prefix of the iOS one, so
+    /// the path is compared component by component.
+    func testAboutLinksPointAtTheIOSRepository() {
+        for url in AboutLinks.all {
+            XCTAssertEqual(url.host, "github.com", url.absoluteString)
+            XCTAssertEqual(Array(url.pathComponents.prefix(3)), ["/", "owen282000", "life-dashboard-companion-app-ios"], url.absoluteString)
+        }
+        XCTAssertEqual(AboutLinks.repository.lastPathComponent, AboutLinks.repositorySlug.components(separatedBy: "/").last)
+    }
+
+    func testTheTipLinkIsNotAmongTheLinksEveryBuildShows() {
+        XCTAssertFalse(AboutLinks.all.contains { $0.host?.contains("ko-fi") == true })
+        XCTAssertEqual(AboutLinks.tip.host, "ko-fi.com")
+    }
+
+    func testTheGrantChipShowsOnlyWhileIOSWouldAsk() {
+        XCTAssertTrue(HealthKitScreen.showsGrant(.shouldRequest, enabledCount: 3))
+        XCTAssertFalse(HealthKitScreen.showsGrant(.unnecessary, enabledCount: 3))
+        XCTAssertFalse(HealthKitScreen.showsGrant(.unknown, enabledCount: 3))
+        XCTAssertFalse(HealthKitScreen.showsGrant(nil, enabledCount: 3))
+        XCTAssertFalse(HealthKitScreen.showsGrant(.shouldRequest, enabledCount: 0))
+    }
+
+    func testSyncOutcomesCarryTheirTone() {
+        XCTAssertEqual(SyncOutcome.synced(4).tone, .success)
+        XCTAssertEqual(SyncOutcome.pingDelivered.tone, .success)
+        XCTAssertEqual(SyncOutcome.noData.tone, .info)
+        // A failure is red whatever its text says, and a success whatever its text says.
+        XCTAssertEqual(SyncOutcome.failed("timed out").tone, .failure)
+        XCTAssertEqual(SyncOutcome.pingFailed.tone, .failure)
+    }
+
     static let screenSymbols = [
         "waveform.path.ecg.rectangle", "clock", "link", "house", "slider.horizontal.3", "bell",
         "eye", "dot.radiowaves.left.and.right", "clock.arrow.circlepath", "qrcode.viewfinder",
         "chevron.down", "xmark", "plus", "checkmark.circle.fill", "exclamationmark.triangle.fill",
         "exclamationmark.circle.fill", "info.circle.fill", "info.circle", "square.and.arrow.up",
-        "trash", "heart.fill", "heart", "heart.slash", "tray.full"
+        "trash", "heart.fill", "heart", "heart.slash", "tray.full", "house", "chart.bar.fill",
+        "paperplane", "checkmark.shield", "arrow.up.arrow.down.circle", "figure.walk", "moon",
+        "figure.mind.and.body", "signature", "antenna.radiowaves.left.and.right", "lock", "key",
+        "internaldrive", "doc.text", "sparkles", "ladybug", "chevron.left.forwardslash.chevron.right",
+        "cup.and.saucer", "hand.raised", "scroll", "arrow.up.right", "chevron.right",
+        "square.and.pencil", "envelope"
     ]
 }

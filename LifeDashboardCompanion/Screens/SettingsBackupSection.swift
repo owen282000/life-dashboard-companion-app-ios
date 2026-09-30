@@ -38,7 +38,7 @@ struct SettingsBackupSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Save your settings to a file, to set up this app again or move to the Android app.")
+            Text("Save your settings to a file, to set up this app again or move to another phone.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
@@ -49,16 +49,18 @@ struct SettingsBackupSection: View {
                     Label("Export", systemImage: "square.and.arrow.up")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(PrimaryButtonStyle())
                 .accessibilityHint("Saves your settings as a file")
 
                 Button {
                     showImporter = true
                 } label: {
                     Label("Import", systemImage: "square.and.arrow.down")
-                        .frame(maxWidth: .infinity)
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, minHeight: 36)
                 }
                 .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
                 .accessibilityHint("Replaces your settings with a file")
                 .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
                     handlePickedFile(result)
