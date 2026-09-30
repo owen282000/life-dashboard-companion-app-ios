@@ -27,6 +27,15 @@ actor WebhookManager {
         var delivered: Bool { self == .delivered }
     }
 
+    /// A post's outcome with the error of the last URL that failed, as its log row stores it
+    /// (in English; `AppDiagnostic.display` translates it).
+    struct Delivery: Equatable {
+        let outcome: Outcome
+        var error: String?
+
+        var delivered: Bool { outcome.delivered }
+    }
+
     /// A cancelled task, as opposed to a receiver or network that failed. URLSession reports a
     /// cancelled task as URLError.cancelled; that code without a cancelled task stays a failure.
     static func isInterruption(_ error: Error, taskCancelled: Bool) -> Bool {
@@ -51,8 +60,8 @@ actor WebhookManager {
         dataType: String,
         recordCount: Int,
         logSuccess: Bool = true
-    ) async -> Outcome {
-        guard !urls.isEmpty else { return .failed }
+    ) async -> Delivery {
+        guard !urls.isEmpty else { return Delivery(outcome: .failed) }
 
         let prefs = PreferencesManager.shared
         let signingSecret = prefs.healthSigningSecret
@@ -66,6 +75,7 @@ actor WebhookManager {
         var anySuccess = false
         var anyFailed = false
         var anyInterrupted = false
+        var lastError: String?
 
         for url in urls {
             var urlHeaders = PairingApply.headers(
@@ -91,6 +101,7 @@ actor WebhookManager {
                 anyInterrupted = true
             } else if !result.success {
                 anyFailed = true
+                lastError = result.errorMessage
             }
 
             let log = WebhookLog(
@@ -107,8 +118,9 @@ actor WebhookManager {
         }
 
         // A URL that failed before the cut is a failure of the whole post, as its row says.
-        if anySuccess { return .delivered }
-        return anyInterrupted && !anyFailed ? .interrupted : .failed
+        if anySuccess { return Delivery(outcome: .delivered) }
+        if anyInterrupted && !anyFailed { return Delivery(outcome: .interrupted) }
+        return Delivery(outcome: .failed, error: lastError)
     }
 
     static let atsRefusal = AppDiagnostic.plainHTTPBlocked.rawValue

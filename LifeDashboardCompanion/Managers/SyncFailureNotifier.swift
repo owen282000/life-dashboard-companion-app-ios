@@ -27,6 +27,17 @@ final class SyncFailureNotifier: Sendable {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
+    /// The failure notification's text. `lastError` is already in the phone's language.
+    static func failureBody(streak: Int, lastError: String?) -> String {
+        var body = String(
+            localized: "\(streak) syncs in a row failed. Payloads are queued and will retry. Check the Logs tab for details."
+        )
+        if let lastError {
+            body += " " + String(localized: "Last error: \(lastError)")
+        }
+        return body
+    }
+
     func recordResult(success: Bool, lastError: String?) {
         let defaults = UserDefaults.standard
 
@@ -50,12 +61,7 @@ final class SyncFailureNotifier: Sendable {
 
         let content = UNMutableNotificationContent()
         content.title = String(localized: "Webhook sync is failing")
-        content.body = String(
-            localized: "\(streak) syncs in a row failed. Payloads are queued and will retry. Check the Logs tab for details."
-        )
-        if let lastError = lastError {
-            content.body += " " + String(localized: "Last error: \(lastError)")
-        }
+        content.body = SyncFailureNotifier.failureBody(streak: streak, lastError: lastError)
         content.sound = nil
 
         let request = UNNotificationRequest(

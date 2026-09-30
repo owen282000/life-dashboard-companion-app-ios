@@ -38,9 +38,9 @@ final class OutboxTests: XCTestCase {
                     self.anchorPast = self.records
                 },
                 post: {
-                    guard self.step("post") else { return .interrupted }
+                    guard self.step("post") else { return WebhookManager.Delivery(outcome: .interrupted) }
                     if outcome.delivered { self.delivered.formUnion(self.records) }
-                    return outcome
+                    return WebhookManager.Delivery(outcome: outcome)
                 },
                 delivered: { id in
                     guard self.step("dequeue") else { return }
@@ -64,7 +64,7 @@ final class OutboxTests: XCTestCase {
         let phone = Phone(records: [1, 2, 3])
         let outcome = await phone.writeAhead(post: .delivered).run()
 
-        XCTAssertEqual(outcome, .delivered)
+        XCTAssertEqual(outcome.outcome, .delivered)
         XCTAssertEqual(phone.steps, ["enqueue", "commit", "post", "dequeue"])
         XCTAssertTrue(phone.queued.isEmpty)
         XCTAssertEqual(phone.anchorPast, [1, 2, 3])
@@ -85,7 +85,7 @@ final class OutboxTests: XCTestCase {
         let phone = Phone(records: [1])
         let outcome = await phone.writeAhead(post: .failed).run()
 
-        XCTAssertEqual(outcome, .failed)
+        XCTAssertEqual(outcome.outcome, .failed)
         XCTAssertEqual(phone.queued["item"], [1])
         XCTAssertEqual(phone.attempts["item"], 1)
         XCTAssertEqual(phone.anchorPast, [1])
@@ -95,7 +95,7 @@ final class OutboxTests: XCTestCase {
         let phone = Phone(records: [1])
         let outcome = await phone.writeAhead(post: .interrupted).run()
 
-        XCTAssertEqual(outcome, .interrupted)
+        XCTAssertEqual(outcome.outcome, .interrupted)
         XCTAssertEqual(phone.queued["item"], [1])
         XCTAssertNil(phone.attempts["item"])
     }
@@ -112,6 +112,21 @@ final class OutboxTests: XCTestCase {
         _ = await delivered.writeAhead(post: .delivered).run()
         XCTAssertEqual(delivered.steps, ["enqueue", "post", "commit"])
         XCTAssertEqual(delivered.anchorPast, [1, 2])
+    }
+
+    // MARK: - Failure notification
+
+    func testAFailedPostSaysWhyAndTheNotificationShowsIt() async {
+        let delivery = await WebhookManager.shared.post(
+            body: Data("{}".utf8), urls: [""], headers: [:],
+            logType: .healthConnect, dataType: "health_connect", recordCount: 1
+        )
+        XCTAssertEqual(delivery, WebhookManager.Delivery(outcome: .failed, error: AppDiagnostic.invalidURL.rawValue))
+        for row in LogStore.shared.load() where row.url.isEmpty { LogStore.shared.delete(id: row.id) }
+
+        let body = SyncFailureNotifier.failureBody(streak: 3, lastError: delivery.error.map(AppDiagnostic.display))
+        XCTAssertTrue(body.hasSuffix("Last error: Invalid URL"), body)
+        XCTAssertFalse(SyncFailureNotifier.failureBody(streak: 3, lastError: nil).contains("Last error"))
     }
 
     // MARK: - Queue files
