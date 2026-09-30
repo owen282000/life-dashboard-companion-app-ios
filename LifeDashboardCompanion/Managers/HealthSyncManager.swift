@@ -70,7 +70,8 @@ final class HealthSyncManager: Sendable {
             // Publish latest values to MQTT (Home Assistant Discovery) when configured;
             // failures never block the webhook sync and surface in the MQTT section status.
             if prefs.mqttConfigured {
-                await MqttPublisher.shared.publish(healthPayload: await healthKit.newestRecords(for: enabledTypes, in: healthData))
+                let newest = await healthKit.newestRecords(for: enabledTypes, in: healthData)
+                await MqttPublisher.shared.publish(healthPayload: withDailyTotals(newest, from: payload))
             }
 
             var syncCounts: [HealthDataType: Int] = [:]
@@ -213,13 +214,21 @@ final class HealthSyncManager: Sendable {
                 // time budget is for that first. New records only, so a type without any keeps
                 // its retained value on the broker.
                 if !Task.isCancelled {
-                    await MqttPublisher.shared.publish(healthPayload: current(healthData, leaving: notCurrent))
+                    await MqttPublisher.shared.publish(healthPayload: withDailyTotals(current(healthData, leaving: notCurrent), from: payload))
                 }
                 return result
             }
         } catch {
             return .failure(error: error.localizedDescription)
         }
+    }
+
+    /// MQTT's today sensors come from `daily_totals`; one the webhook payload already carries
+    /// spares the publisher a statistics query of its own.
+    private func withDailyTotals(_ mqtt: [String: Any], from payload: [String: Any]) -> [String: Any] {
+        var copy = mqtt
+        if let totals = payload[DailyTotals.payloadKey] { copy[DailyTotals.payloadKey] = totals }
+        return copy
     }
 
     /// What an incremental read gives MQTT: the types whose records include their newest
