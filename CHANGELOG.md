@@ -26,7 +26,7 @@ All notable changes to this project are documented in this file. The format is b
 - Adding a webhook URL that is already in the list no longer adds it twice
 - The interval is the minimum time between automatic syncs, HealthKit-triggered ones included; before, it only moved the nightly background task
 - Opening the app no longer syncs every time: it syncs when the schedule says a sync is due, and never in quiet hours. Sync Now always syncs
-- The nightly background task sends what is new instead of the last seven days; Sync Now keeps the full resend
+- The background processing task sends what is new instead of the last seven days; Sync Now keeps the full resend
 - The Sync Health Data action sends what is queued and what is new instead of the last seven days, and on a locked iPhone says it is locked instead of "No new health data to sync". It no longer publishes to MQTT; Sync Now does
 - A queued payload is retried automatically outside quiet hours only; Retry Now always retries
 

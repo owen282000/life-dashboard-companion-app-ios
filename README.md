@@ -42,7 +42,7 @@ Looking for an open source alternative to Health Auto Export? This app covers th
   - **Mindfulness**: Meditation sessions (from apps that write mindful minutes to Apple Health)
   - **Cycle Tracking**: Menstruation Flow, plus Menstruation Periods derived from consecutive flow days, Intermenstrual Bleeding, Ovulation Test, Cervical Mucus, Sexual Activity, Basal Body Temperature (logged data from cycle apps that write to Apple Health)
 - Per-data-type toggle and permission management: every type is off until you switch it on, and iOS asks for each one the first time
-- Configurable sync interval (minimum 15 minutes)
+- **Sync schedule** - Every X minutes (at least 15) or at fixed times, a weekday filter and quiet hours, stored as in the Android app. iOS decides when an app runs in the background, so a fixed time means "not before this time"
 - **Bounded payloads** - High-volume types are capped per sync (1000 records for heart rate and steps, 500 for HRV and respiratory rate, 200 for the rest), oldest first, so later syncs catch up without skipping records
 - **Fault isolation** - A read failure in one data type skips only that type instead of failing the whole sync
 - **Deleted records** - A record deleted in Apple Health is named in `deleted_records`, in the same shape as the Android app, so a receiver can drop it (see [Deletions](#deletions))
@@ -67,11 +67,13 @@ The Android companion app also syncs Screen Time, but iOS has no equivalent: App
 
 ### Background Sync
 
-Three complementary mechanisms keep your data flowing without opening the app:
+Three complementary mechanisms keep your data flowing without opening the app. Each is a chance to sync that asks the sync schedule first, and runs only when a sync is due:
 
 1. **HealthKit observers (primary)** - `HKObserverQuery` with background delivery: HealthKit wakes the app the moment new samples arrive, and an incremental anchor-based sync sends only the new records
-2. **App refresh task** - runs roughly hourly for a quick incremental catch-up
-3. **Processing task** - a full sync of the last 7 days when the device is idle and charging
+2. **App refresh task** - iOS runs it at a moment of its choosing after the schedule's next sync, for an incremental catch-up
+3. **Processing task** - the same when the device is idle; it also sends only what is new
+
+Opening the app and unlocking the iPhone are chances too. Sync Now and the Sync Health Data shortcut ignore the schedule.
 
 ### Webhook Configuration
 
@@ -144,7 +146,7 @@ git config core.hooksPath .githooks
 3. **Configure webhook URLs** - Enter your server endpoint(s)
 4. **Add webhook headers** (optional) - Configure auth tokens or API keys
 5. **Set an HMAC signing secret** (optional, under Custom Headers) - Adds an `X-Signature` header to every request
-6. **Set the sync interval** - Minimum 15 minutes
+6. **Set the sync schedule** - Every X minutes (at least 15) or fixed times, with the days and quiet hours you want
 7. Tap **Preview Data** to inspect the payload, then **Sync Now** to send
 
 ## Webhook Payload Format
