@@ -15,6 +15,7 @@ final class SyncCoordinatorTests: XCTestCase {
         private(set) var incrementals = 0
         private(set) var fulls = 0
         private(set) var replans: [Bool] = []
+        private var _events: [String] = []
         let syncLatch = Latch()
         let drainLatch = Latch()
 
@@ -24,11 +25,15 @@ final class SyncCoordinatorTests: XCTestCase {
         var state: ScheduleState { get { lock.withLock { _state } } set { lock.withLock { _state = newValue } } }
         var result: HealthSyncResult { get { lock.withLock { _result } } set { lock.withLock { _result = newValue } } }
 
+        /// What the runs did, in order: where each read started and ended.
+        var events: [String] { lock.withLock { _events } }
+
         func count(_ body: (World) -> Void) { lock.withLock { body(self) } }
-        func addDrain() { lock.withLock { drains += 1 } }
-        func addIncremental() { lock.withLock { incrementals += 1 } }
-        func addFull() { lock.withLock { fulls += 1 } }
+        func addDrain() { lock.withLock { drains += 1; _events.append("drain") } }
+        func addIncremental() { lock.withLock { incrementals += 1; _events.append("incremental") } }
+        func addFull() { lock.withLock { fulls += 1; _events.append("full") } }
         func addReplan(_ locked: Bool) { lock.withLock { replans.append(locked) } }
+        func note(_ event: String) { lock.withLock { _events.append(event) } }
 
         var environment: SyncCoordinator.Environment {
             SyncCoordinator.Environment(
@@ -46,11 +51,13 @@ final class SyncCoordinatorTests: XCTestCase {
                 syncIncremental: {
                     self.addIncremental()
                     await self.syncLatch.wait()
+                    self.note("incremental done")
                     return self.result
                 },
                 syncFull: {
                     self.addFull()
                     await self.syncLatch.wait()
+                    self.note("full done")
                     return self.result
                 },
                 replan: { self.addReplan($0) }
@@ -182,31 +189,80 @@ final class SyncCoordinatorTests: XCTestCase {
         XCTAssertEqual(world.incrementals, 2)
     }
 
-    /// Sync Now from the main thread outranks a background flight. When the flight ends, the
-    /// waiting manual sync can get the actor before the flight's owner does; it must find the
-    /// flight gone, not await the finished one again and again while the owner never gets in.
+    /// Runs `work` under a watchdog and gives its result, or nil when it did not finish in time.
+    /// A spin never suspends, so only a clock can tell it from a long wait; the limit is far
+    /// above what a passing run takes and only decides how a broken one fails.
+    private func finished<T: Sendable>(within seconds: TimeInterval, _ work: @escaping @Sendable () async -> T) async -> T? {
+        let run = Task { await work() }
+        let done = expectation(description: "finished")
+        Task { _ = await run.value; done.fulfill() }
+        guard await XCTWaiter().fulfillment(of: [done], timeout: seconds) == .completed else { return nil }
+        return await run.value
+    }
+
+    /// Sync Now from the main thread outranks a HealthKit wakeup at background priority whose
+    /// run is in progress. When that run ends, Sync Now can get the actor before the run's owner
+    /// does; it must find the run gone and do its one full sync after it, not await the finished
+    /// run again and again while the owner never gets in. Every step waits for the one before
+    /// instead of for a number of turns, so a slow machine makes the test slower, not red.
     func testAManualSyncOfHigherPriorityNeverSpinsOnAFinishedFlight() async {
-        for _ in 0..<40 {
-            let world = World()
+        // All owners start at once: a task at background priority can wait long for a CPU, and
+        // forty such waits in a row would add up.
+        let worlds = (0..<40).map { _ in World() }
+        var coordinators: [SyncCoordinator] = []
+        var owners: [Task<AutomaticSyncOutcome, Never>] = []
+        for world in worlds {
             await world.drainLatch.open()
             let coordinator = SyncCoordinator(environment: world.environment)
-
-            let automatic = Task(priority: .background) { await coordinator.runAutomatic(.observer) }
-            _ = await settle { world.incrementals == 1 }
-            let manual = Task(priority: .userInitiated) { await coordinator.runManual(full: true) }
-            for _ in 0..<50 { await Task.yield() }
-            await world.syncLatch.open()
-
-            let returned = expectation(description: "both syncs returned")
-            Task {
-                _ = await automatic.value
-                _ = await manual.value
-                returned.fulfill()
-            }
-            await fulfillment(of: [returned], timeout: 5)
-            XCTAssertEqual(world.fulls, 1)
-            if world.fulls != 1 { return }
+            coordinators.append(coordinator)
+            owners.append(Task(priority: .background) { await coordinator.runAutomatic(.observer) })
         }
+
+        for (world, coordinator) in zip(worlds, coordinators) {
+            let returned = await finished(within: 30) {
+                await world.syncLatch.waitForArrivals(1)
+                let manual = Task(priority: .userInitiated) { await coordinator.runManual(full: true) }
+                while await coordinator.waiting < 1 { await Task.yield() }
+                await world.syncLatch.open()
+                return await manual.value
+            }
+            guard returned != nil else {
+                XCTFail("Sync Now did not return: it never queued, or it spins on the finished run")
+                return
+            }
+            XCTAssertEqual(world.events, ["drain", "incremental", "incremental done", "drain", "full", "full done"])
+        }
+        // The owners get back in at background priority, which may take a while.
+        let owned = owners
+        let outcomes = await finished(within: 300) {
+            var outcomes: [AutomaticSyncOutcome] = []
+            for owner in owned { outcomes.append(await owner.value) }
+            return outcomes
+        }
+        XCTAssertEqual(outcomes, Array(repeating: .ran(success: true), count: 40))
+    }
+
+    /// Sync Now pressed while a run is in progress is never folded into it: every request that
+    /// waited does its own full sync, one after the other.
+    func testEverySyncNowThatWaitedDoesItsOwnFullSync() async {
+        let world = World()
+        await world.drainLatch.open()
+        let coordinator = SyncCoordinator(environment: world.environment)
+
+        let outcome = await finished(within: 30) { () -> AutomaticSyncOutcome in
+            let automatic = Task { await coordinator.runAutomatic(.observer) }
+            await world.syncLatch.waitForArrivals(1)
+            let manuals = (0..<3).map { _ in Task { await coordinator.runManual(full: true) } }
+            while await coordinator.waiting < 3 { await Task.yield() }
+            await world.syncLatch.open()
+            for manual in manuals { _ = await manual.value }
+            return await automatic.value
+        }
+
+        XCTAssertEqual(outcome, .ran(success: true))
+        XCTAssertEqual(world.fulls, 3)
+        let oneFull = ["drain", "full", "full done"]
+        XCTAssertEqual(world.events, ["drain", "incremental", "incremental done"] + oneFull + oneFull + oneFull)
     }
 
     func testAutomaticRetriesWaitForQuietHoursAndRetryNowDoesNot() async {

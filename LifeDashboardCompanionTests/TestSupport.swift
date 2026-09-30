@@ -26,12 +26,23 @@ actor ManualClock {
 actor Latch {
     private var isOpen = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var watchers: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
     private(set) var arrivals = 0
 
     func wait() async {
         arrivals += 1
+        let arrived = watchers.filter { $0.count <= arrivals }
+        watchers.removeAll { $0.count <= arrivals }
+        arrived.forEach { $0.continuation.resume() }
         if isOpen { return }
         await withCheckedContinuation { waiters.append($0) }
+    }
+
+    /// Suspends until `count` callers have reached `wait`, however long the scheduler takes to
+    /// get them there. Unlike `settle` it has no budget of turns to run out of.
+    func waitForArrivals(_ count: Int) async {
+        if arrivals >= count { return }
+        await withCheckedContinuation { watchers.append((count, $0)) }
     }
 
     func open() {
