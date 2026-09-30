@@ -64,7 +64,7 @@ actor SyncCoordinator {
         if let flight {
             // Whatever runs now covers this chance; ask again once it is done, since a manual
             // sync records nothing and a scheduled time may still be owed.
-            await flight.value
+            await wait(for: flight)
             if self.flight != nil { return .notDue }
         }
         guard env.isConfigured() else { return .notConfigured }
@@ -75,7 +75,7 @@ actor SyncCoordinator {
         }
 
         let env = self.env
-        let work = Task { () -> AutomaticSyncOutcome in
+        let outcome = await fly { () -> AutomaticSyncOutcome in
             guard await env.isUnlocked() else { return .locked }
             await env.drain()
             guard !Task.isCancelled else { return .cancelled }
@@ -91,7 +91,6 @@ actor SyncCoordinator {
             if case .failure = result { return .ran(success: false) }
             return .ran(success: true)
         }
-        let outcome = await fly(work)
         await env.replan(outcome == .locked)
         return outcome
     }
@@ -101,13 +100,12 @@ actor SyncCoordinator {
     /// Sync Now (a full read) and the Shortcuts action (new records only): never held back by
     /// the schedule and never recorded, but never beside another run either.
     func runManual(full: Bool) async -> HealthSyncResult {
-        while let flight { await flight.value }
+        while let flight { await wait(for: flight) }
         let env = self.env
-        let work = Task { () -> HealthSyncResult in
+        let result = await fly { () -> HealthSyncResult in
             await env.drain()
             return full ? await env.syncFull() : await env.syncIncremental()
         }
-        let result = await fly(work)
         await env.replan(false)
         return result
     }
@@ -120,27 +118,37 @@ actor SyncCoordinator {
         if automatic, !env.schedule().allowsDelivery(at: env.now(), timeZone: env.timeZone()) { return }
         if let flight {
             // Every run drains first, and the drain itself runs once more for late arrivals.
-            await flight.value
+            await wait(for: flight)
             return
         }
         let env = self.env
-        await fly(Task { await env.drain() })
+        await fly { await env.drain() }
     }
 
     // MARK: - Flight
 
-    /// Runs `work` as the one flight. Cancelling the caller cancels the work, which is how a
+    /// Callers inside a wait for the flight, counted until they are back on this actor. Tests
+    /// read it to know a caller is queued.
+    private(set) var waiting = 0
+
+    /// Runs `operation` as the one flight. Cancelling the caller cancels the work, which is how a
     /// background task that runs out of time stops its run.
     ///
     /// The flight clears itself on this actor before it completes, so a caller that waited for
     /// it finds it gone or replaced. Cleared by the owner after its own wait, a finished flight
     /// could still be set when a waiter of higher priority got the actor first; awaiting a
     /// finished task returns at once, so that waiter looped and the owner never got in.
+    ///
+    /// The flight runs at utility priority or higher, whoever started it. Sync Now waits for it,
+    /// and that wait does not reliably lift work at background priority: on a busy machine such
+    /// work went seconds without a CPU, and Sync Now waited with it.
     @discardableResult
-    private func fly<Value: Sendable>(_ work: Task<Value, Never>) async -> Value {
+    private func fly<Value: Sendable>(_ operation: @escaping @Sendable () async -> Value) async -> Value {
+        let priority = max(Task.currentPriority, .utility)
+        let work = Task(priority: priority, operation: operation)
         flightNumber += 1
         let number = flightNumber
-        flight = Task {
+        flight = Task(priority: priority) {
             _ = await work.value
             self.land(number)
         }
@@ -153,6 +161,12 @@ actor SyncCoordinator {
 
     private func land(_ number: Int) {
         if number == flightNumber { flight = nil }
+    }
+
+    private func wait(for flight: Task<Void, Never>) async {
+        waiting += 1
+        await flight.value
+        waiting -= 1
     }
 }
 
