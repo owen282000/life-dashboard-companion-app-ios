@@ -182,6 +182,33 @@ final class SyncCoordinatorTests: XCTestCase {
         XCTAssertEqual(world.incrementals, 2)
     }
 
+    /// Sync Now from the main thread outranks a background flight. When the flight ends, the
+    /// waiting manual sync can get the actor before the flight's owner does; it must find the
+    /// flight gone, not await the finished one again and again while the owner never gets in.
+    func testAManualSyncOfHigherPriorityNeverSpinsOnAFinishedFlight() async {
+        for _ in 0..<40 {
+            let world = World()
+            await world.drainLatch.open()
+            let coordinator = SyncCoordinator(environment: world.environment)
+
+            let automatic = Task(priority: .background) { await coordinator.runAutomatic(.observer) }
+            _ = await settle { world.incrementals == 1 }
+            let manual = Task(priority: .userInitiated) { await coordinator.runManual(full: true) }
+            for _ in 0..<50 { await Task.yield() }
+            await world.syncLatch.open()
+
+            let returned = expectation(description: "both syncs returned")
+            Task {
+                _ = await automatic.value
+                _ = await manual.value
+                returned.fulfill()
+            }
+            await fulfillment(of: [returned], timeout: 5)
+            XCTAssertEqual(world.fulls, 1)
+            if world.fulls != 1 { return }
+        }
+    }
+
     func testAutomaticRetriesWaitForQuietHoursAndRetryNowDoesNot() async {
         let world = await openWorld()
         world.schedule = SyncSchedule(quietWindow: QuietWindow(from: TimeOfDay(hour: 9, minute: 0), to: TimeOfDay(hour: 11, minute: 0)))

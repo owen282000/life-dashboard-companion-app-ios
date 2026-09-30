@@ -52,6 +52,7 @@ actor SyncCoordinator {
 
     private let env: Environment
     private var flight: Task<Void, Never>?
+    private var flightNumber = 0
 
     init(environment: Environment) {
         self.env = environment
@@ -130,17 +131,28 @@ actor SyncCoordinator {
 
     /// Runs `work` as the one flight. Cancelling the caller cancels the work, which is how a
     /// background task that runs out of time stops its run.
+    ///
+    /// The flight clears itself on this actor before it completes, so a caller that waited for
+    /// it finds it gone or replaced. Cleared by the owner after its own wait, a finished flight
+    /// could still be set when a waiter of higher priority got the actor first; awaiting a
+    /// finished task returns at once, so that waiter looped and the owner never got in.
     @discardableResult
     private func fly<Value: Sendable>(_ work: Task<Value, Never>) async -> Value {
-        let marker = Task { _ = await work.value }
-        flight = marker
-        let value = await withTaskCancellationHandler {
+        flightNumber += 1
+        let number = flightNumber
+        flight = Task {
+            _ = await work.value
+            self.land(number)
+        }
+        return await withTaskCancellationHandler {
             await work.value
         } onCancel: {
             work.cancel()
         }
-        if flight == marker { flight = nil }
-        return value
+    }
+
+    private func land(_ number: Int) {
+        if number == flightNumber { flight = nil }
     }
 }
 
