@@ -326,7 +326,7 @@ Only enabled data types with records are included. Every record additionally con
 }
 ```
 
-Possible stage values: `in_bed`, `sleeping`, `light`, `deep`, `rem`, `awake`, `unknown`. These match the Android companion app's stage naming. Sessions are built from the stage samples on every read and carry no `uuid` of their own; each stage carries its sample's `uuid` and `source`.
+Possible stage values: `in_bed`, `sleeping`, `light`, `deep`, `rem`, `awake`, `unknown`. These match the Android companion app's stage naming. Sessions are built from the stage samples on every read. A session's `uuid` is derived from its earliest stage's `uuid`, so it stays the same while a night grows at the end and a night that comes back longer replaces the first copy; each stage carries its sample's `uuid` and `source`.
 
 ### Nutrition
 
@@ -429,7 +429,7 @@ Where this differs from the Android app:
 - Heart rate and every other sample have their own `uuid`; match it exactly. Android's `<uuid>#<epoch millis>` rule for heart rate samples does not apply.
 - An active energy sample is part of both `active_calories` and `total_calories`, so its deletion is named under both when both are enabled.
 - A blood pressure reading is named by its systolic sample and a meal by its energy sample. A diastolic value, or protein, carbs or fat inside a meal, deleted on their own are not reported. A protein record that was sent on its own is.
-- A sleep deletion names the stage (`stages[].uuid`), because sessions have no `uuid`. Drop that stage, or replace the sessions a newer payload covers; do not drop the whole night.
+- A sleep deletion names the stage (`stages[].uuid`): HealthKit stores stages, and a session's `uuid` is derived from them, never deleted as such. Drop that stage, or replace the sessions a newer payload covers; do not drop the whole night.
 - `menstruation_period` is derived from flow days and never appears in `deleted_records`; replace the periods a payload covers.
 - Tracking starts with the first sync of a type after installing or updating the app, so deletions from before that are not reported. The same holds after a reinstall or a restore onto another iPhone; after a restore the enabled types are named once in `deletions_unavailable`.
 - A deletion and the record that replaced it usually arrive together, but a type with more new records than one sync sends can deliver the replacement a sync or two later.
