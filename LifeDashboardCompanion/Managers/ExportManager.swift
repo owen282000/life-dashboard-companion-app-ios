@@ -7,18 +7,19 @@ final class ExportManager {
     static let shared = ExportManager()
     private let logger = Logger(subsystem: "com.owen282000.lifedashboard", category: "Export")
 
-    private let dateFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        return df
-    }()
+    private let dateFormatter = ExportManager.fixedFormatter("yyyy-MM-dd_HH-mm-ss")
 
-    private let displayDateFormatter: DateFormatter = {
+    /// Android's CSV timestamp, in local time. Fixed, not the phone's date style: an export is
+    /// read by scripts and spreadsheets, and reads the same whatever language the phone is in.
+    private let csvDateFormatter = ExportManager.fixedFormatter("yyyy-MM-dd HH:mm:ss")
+
+    nonisolated static func fixedFormatter(_ format: String) -> DateFormatter {
         let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .medium
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.calendar = Calendar(identifier: .gregorian)
+        df.dateFormat = format
         return df
-    }()
+    }
 
     private init() {}
 
@@ -28,7 +29,7 @@ final class ExportManager {
         var csv = "ID,Timestamp,Type,URL,Status Code,Success,Error Message,Data Type,Record Count\n"
 
         for log in logs {
-            let timestamp = displayDateFormatter.string(from: log.timestamp)
+            let timestamp = csvDateFormatter.string(from: log.timestamp)
             let statusCode = log.statusCode.map(String.init) ?? ""
             let errorMessage = csvEscape(log.errorMessage ?? "")
             let dataType = log.dataType ?? ""
