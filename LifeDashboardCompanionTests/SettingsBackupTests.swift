@@ -38,7 +38,12 @@ final class SettingsBackupTests: XCTestCase {
             days: [.monday, .tuesday, .wednesday, .thursday, .friday],
             quietWindow: QuietWindow(from: TimeOfDay("22:00")!, to: TimeOfDay("07:00")!)
         ),
-        healthEnabledDataTypes: [.steps, .heartRate, .menstruation],
+        // Includes the six types added for Android parity, so their raw values travel too.
+        healthEnabledDataTypes: [
+            .steps, .heartRate, .menstruation, .vo2Max, .basalBodyTemperature,
+            .intermenstrualBleeding, .ovulationTest, .cervicalMucus, .sexualActivity
+        ],
+        includeDailyTotals: false,
         failureNotificationsEnabled: false,
         failureNotificationThreshold: 10,
         mqttEnabled: true,
@@ -145,8 +150,11 @@ final class SettingsBackupTests: XCTestCase {
         XCTAssertEqual(mqtt["health_use_shared"] as? Bool, true)
         XCTAssertEqual((mqtt["shared"] as? [String: Any])?["host"] as? String, "mqtt.example.com")
         let options = try XCTUnwrap(json["options"] as? [String: Any])
-        XCTAssertEqual(options["enabled_data_types"] as? [String],
-                       ["HEART_RATE", "MENSTRUATION_FLOW", "MENSTRUATION_PERIOD", "STEPS"])
+        XCTAssertEqual(options["enabled_data_types"] as? [String], [
+            "BASAL_BODY_TEMPERATURE", "CERVICAL_MUCUS", "HEART_RATE", "INTERMENSTRUAL_BLEEDING", "MENSTRUATION_FLOW",
+            "MENSTRUATION_PERIOD", "OVULATION_TEST", "SEXUAL_ACTIVITY", "STEPS", "VO2_MAX"
+        ])
+        XCTAssertEqual(options["include_daily_totals"] as? Bool, false)
         XCTAssertEqual(options["allow_http_webhooks"] as? Bool, true)
         XCTAssertEqual(options["failure_notifications_enabled"] as? Bool, false)
     }
@@ -184,6 +192,7 @@ final class SettingsBackupTests: XCTestCase {
         XCTAssertEqual(result.healthSyncSchedule.days, [.monday, .tuesday, .wednesday, .thursday, .friday])
         XCTAssertNil(result.healthSyncSchedule.quietWindow)
         XCTAssertEqual(result.healthEnabledDataTypes, [.steps, .heartRate, .menstruation])
+        XCTAssertTrue(result.includeDailyTotals)
         XCTAssertTrue(plan.notes.contains(.unavailableTypes(1)), "BONE_MASS has no iPhone counterpart")
         XCTAssertEqual(result.mqttEnabled, true)
         XCTAssertEqual(result.mqttHost, "mqtt.local")

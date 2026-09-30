@@ -110,6 +110,7 @@ struct MqttConfig: Codable, Equatable {
 
 struct OptionsConfig: Codable, Equatable {
     var enabledDataTypes: [String]?
+    var includeDailyTotals: Bool?
     /// Written for Android only; iOS lets App Transport Security decide.
     var allowHttpWebhooks: Bool?
     var failureNotificationThreshold: Int?
@@ -118,6 +119,7 @@ struct OptionsConfig: Codable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case enabledDataTypes = "enabled_data_types"
+        case includeDailyTotals = "include_daily_totals"
         case allowHttpWebhooks = "allow_http_webhooks"
         case failureNotificationThreshold = "failure_notification_threshold"
         case failureNotificationsEnabled = "failure_notifications_enabled"
@@ -147,6 +149,7 @@ struct SettingsSnapshot: Equatable, Sendable {
     var healthSigningSecret: String
     var healthSyncSchedule: SyncSchedule
     var healthEnabledDataTypes: Set<HealthDataType>
+    var includeDailyTotals: Bool
     var failureNotificationsEnabled: Bool
     var failureNotificationThreshold: Int
     var mqttEnabled: Bool
@@ -227,6 +230,7 @@ enum SettingsBackup {
             ),
             options: OptionsConfig(
                 enabledDataTypes: dataTypeNames(settings.healthEnabledDataTypes),
+                includeDailyTotals: settings.includeDailyTotals,
                 // Android blocks plain HTTP unless this is on; an iPhone setup with an http://
                 // URL (a local host, as ATS allows nothing else) would otherwise stop there.
                 allowHttpWebhooks: settings.healthWebhookUrls.contains { $0.lowercased().hasPrefix("http://") },
@@ -610,6 +614,7 @@ enum SettingsImport {
             result.healthEnabledDataTypes = types
             if unknown > 0 { notes.append(.unavailableTypes(unknown)) }
         }
+        if let include = options.includeDailyTotals { result.includeDailyTotals = include }
         if let threshold = options.failureNotificationThreshold {
             // The picker offers 3, 5 and 10; the nearest, the lower one on a tie.
             let snapped = thresholdChoices.min { abs($0 - threshold) < abs($1 - threshold) } ?? 3
@@ -663,6 +668,7 @@ extension PreferencesManager {
             healthSigningSecret: healthSigningSecret,
             healthSyncSchedule: healthSyncSchedule,
             healthEnabledDataTypes: healthEnabledDataTypes,
+            includeDailyTotals: includeDailyTotals,
             failureNotificationsEnabled: failureNotificationsEnabled,
             failureNotificationThreshold: failureNotificationThreshold,
             mqttEnabled: mqttEnabled,
@@ -698,6 +704,7 @@ extension PreferencesManager {
         // Through the property that stamps the change and re-aims the background tasks.
         if new.healthSyncSchedule != old.healthSyncSchedule { healthSyncSchedule = new.healthSyncSchedule }
         if new.healthEnabledDataTypes != old.healthEnabledDataTypes { healthEnabledDataTypes = new.healthEnabledDataTypes }
+        if new.includeDailyTotals != old.includeDailyTotals { includeDailyTotals = new.includeDailyTotals }
         if new.failureNotificationsEnabled != old.failureNotificationsEnabled { failureNotificationsEnabled = new.failureNotificationsEnabled }
         if new.failureNotificationThreshold != old.failureNotificationThreshold { failureNotificationThreshold = new.failureNotificationThreshold }
         if new.mqttHost != old.mqttHost { mqttHost = new.mqttHost }
