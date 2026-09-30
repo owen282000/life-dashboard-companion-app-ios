@@ -50,11 +50,11 @@ final class MqttPublisher: @unchecked Sendable {
                 }
                 try await self.send(MqttPacket.disconnect(), over: connection)
             }
-            prefs.mqttLastStatus = "OK: \(sensors.count) sensors published at \(Date().iso8601String)"
+            prefs.mqttLastStatus = MqttStatus.published(sensors: sensors.count, at: Date())
             logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: nil)
         } catch {
             logger.error("MQTT publish failed: \(error.localizedDescription)")
-            prefs.mqttLastStatus = "Error: \(error.localizedDescription)"
+            prefs.mqttLastStatus = MqttStatus.failed(error.localizedDescription)
             logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: error.localizedDescription)
         }
     }
@@ -83,9 +83,9 @@ final class MqttPublisher: @unchecked Sendable {
 
         var errorDescription: String? {
             switch self {
-            case .invalidPort: return "Invalid broker port"
-            case .timeout: return "Broker did not respond within 10 seconds"
-            case .connectionRefused: return "Broker refused the connection (check credentials)"
+            case .invalidPort: return AppDiagnostic.brokerInvalidPort.rawValue
+            case .timeout: return AppDiagnostic.brokerTimeout.rawValue
+            case .connectionRefused: return AppDiagnostic.brokerRefused.rawValue
             case .connectionFailed(let detail): return detail
             }
         }
@@ -136,7 +136,7 @@ final class MqttPublisher: @unchecked Sendable {
                     }
                 case .cancelled:
                     if guardFlag.tryResume() {
-                        continuation.resume(throwing: MqttError.connectionFailed("Connection cancelled"))
+                        continuation.resume(throwing: MqttError.connectionFailed(AppDiagnostic.brokerCancelled.rawValue))
                     }
                 default:
                     break

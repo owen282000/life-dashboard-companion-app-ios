@@ -17,10 +17,10 @@ struct PairingScannerView: View {
     }
 
     @State private var state: CameraState = .asking
-    @State private var hint = PairingScannerView.defaultHint
+    @State private var hint: LocalizedStringResource = PairingScannerView.defaultHint
     @State private var controller = QRCaptureController()
 
-    static let defaultHint = "Fill the frame with the code shown by the Life Dashboard integration in Home Assistant. Closer is better."
+    static let defaultHint: LocalizedStringResource = "Fill the frame with the code shown by the Life Dashboard integration in Home Assistant. Closer is better."
 
     var body: some View {
         ZStack {
@@ -70,7 +70,7 @@ struct PairingScannerView: View {
         .onDisappear { controller.stop() }
     }
 
-    private func explanation(_ message: String, showSettings: Bool = false) -> some View {
+    private func explanation(_ message: LocalizedStringKey, showSettings: Bool = false) -> some View {
         VStack(spacing: 16) {
             Image(systemName: "qrcode.viewfinder")
                 .font(.system(size: 48))

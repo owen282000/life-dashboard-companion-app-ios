@@ -33,7 +33,8 @@ enum HealthDataType: String, CaseIterable, Codable, Identifiable {
 
     var id: String { rawValue }
 
-    var displayName: String {
+    /// Apple's own name for the type in the Health app, in the phone's language.
+    var displayName: LocalizedStringResource {
         switch self {
         case .steps: return "Steps"
         case .sleep: return "Sleep"

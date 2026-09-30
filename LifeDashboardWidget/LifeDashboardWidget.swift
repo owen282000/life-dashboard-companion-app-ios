@@ -63,7 +63,9 @@ struct SyncStatusView: View {
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
                 .widgetAccentable()
-            Text("records today")
+            // Picked here because the number above is styled on its own and a plural form must
+            // contain it. Right for English, Dutch and German, where only 1 is singular.
+            Text(entry.recordsToday == 1 ? "record today" : "records today")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
@@ -72,7 +74,7 @@ struct SyncStatusView: View {
                     if Calendar.current.isDateInToday(lastSync) {
                         Text("Synced \(lastSync, style: .time)")
                     } else {
-                        Text("Synced \(lastSync.formatted(.dateTime.month(.abbreviated).day().hour().minute()))")
+                        Text("Synced on \(lastSync.formatted(.dateTime.month(.abbreviated).day().hour().minute()))")
                     }
                 } else {
                     Text("No syncs yet")

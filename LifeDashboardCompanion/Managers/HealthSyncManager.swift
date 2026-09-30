@@ -31,7 +31,7 @@ final class HealthSyncManager: Sendable {
         // which used to read as "no data". Say what it is instead, in the result and the log,
         // as a read failure: no webhook was contacted.
         guard await MainActor.run(body: { UIApplication.shared.isProtectedDataAvailable }) else {
-            let message = "iPhone is locked, Health data can't be read"
+            let message = AppDiagnostic.healthLocked.rawValue
             prefs.addWebhookLog(WebhookLog(
                 url: SyncStats.readFailureSource,
                 success: false,
@@ -66,7 +66,7 @@ final class HealthSyncManager: Sendable {
             let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
 
             guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
-                return .failure(error: "Failed to serialize payload")
+                return .failure(error: AppDiagnostic.serializeFailed.rawValue)
             }
 
             let success = await WebhookManager.shared.post(
@@ -87,13 +87,13 @@ final class HealthSyncManager: Sendable {
                 if enqueueBody(queuedBody(body, payload: payload, totalsDay: totalsDay), urls: webhookUrls, headers: headers, totalRecords: totalRecords) {
                     await deletionStore.remove(deletions.carried)
                 }
-                return .failure(error: "Webhook failed - queued for retry")
+                return .failure(error: AppDiagnostic.queuedForRetry.rawValue)
             }
         } catch {
             // Reading failed before anything was sent, so the row names Apple Health and not
             // a webhook URL that was never contacted.
             let log = WebhookLog(
-                url: "Apple Health",
+                url: SyncStats.readFailureSource,
                 success: false,
                 errorMessage: error.localizedDescription,
                 dataType: WebhookLog.readFailureDataType,
@@ -139,7 +139,7 @@ final class HealthSyncManager: Sendable {
 
             switch readResult {
             case .protectedDataUnavailable:
-                return .failure(error: "Device locked - data encrypted")
+                return .failure(error: AppDiagnostic.deviceLocked.rawValue)
             case .empty:
                 return await postDeletionsOnly(readGeneration: readGeneration, urls: webhookUrls, headers: headers) ?? .noData
             case .data(let healthData):
@@ -154,7 +154,7 @@ final class HealthSyncManager: Sendable {
                 let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
 
                 guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
-                    return .failure(error: "Failed to serialize payload")
+                    return .failure(error: AppDiagnostic.serializeFailed.rawValue)
                 }
 
                 let success = await WebhookManager.shared.post(
@@ -175,7 +175,7 @@ final class HealthSyncManager: Sendable {
                     if enqueueBody(queuedBody(body, payload: payload, totalsDay: totalsDay), urls: webhookUrls, headers: headers, totalRecords: totalRecords) {
                         await deletionStore.remove(deletions.carried)
                     }
-                    return .failure(error: "Webhook failed - queued for retry")
+                    return .failure(error: AppDiagnostic.queuedForRetry.rawValue)
                 }
             }
         } catch {
@@ -234,7 +234,7 @@ final class HealthSyncManager: Sendable {
                 updateWidgetStatus(success: true, records: item.recordCount)
                 logger.info("Pending sync item \(item.id) delivered successfully")
             } else {
-                pendingStore.updateAttempt(id: item.id, error: "Retry failed")
+                pendingStore.updateAttempt(id: item.id, error: AppDiagnostic.retryFailed.rawValue)
                 logger.info("Pending sync retry failed, stopping drain")
                 break
             }
@@ -304,7 +304,7 @@ final class HealthSyncManager: Sendable {
         if enqueueBody(body, urls: urls, headers: headers, totalRecords: 0) {
             await deletionStore.remove(deletions.carried)
         }
-        return .failure(error: "Webhook failed - queued for retry")
+        return .failure(error: AppDiagnostic.queuedForRetry.rawValue)
     }
 
     // MARK: - Daily Totals

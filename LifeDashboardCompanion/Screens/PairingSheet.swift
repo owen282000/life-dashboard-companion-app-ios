@@ -106,7 +106,13 @@ struct PairingSheet: View {
     private var confirmContent: some View {
         Section {
             // The name is whatever the link says, so it reads as a claim, never as a title.
-            Text(link.name.map { "\($0) wants to receive your data at:" } ?? "A receiver wants your data at:")
+            Group {
+                if let name = link.name {
+                    Text("\(name) wants to receive your data at:")
+                } else {
+                    Text("A receiver wants your data at:")
+                }
+            }
                 .font(.subheadline)
             Text(link.host)
                 .font(.system(.title3, design: .monospaced))
@@ -118,17 +124,22 @@ struct PairingSheet: View {
         }
 
         Section {
-            ForEach(changeLines, id: \.text) { line in
-                Label(line.text, systemImage: line.icon)
+            // Two lines can share an icon, so they are told apart by their place.
+            ForEach(Array(changeLines.enumerated()), id: \.offset) { _, line in
+                Label { Text(line.text) } icon: { Image(systemName: line.icon) }
                     .font(.subheadline)
                     .foregroundColor(line.color)
             }
         }
 
         Section {
-            Text(enabledTypes > 0
-                 ? "\(enabledTypes) data types are switched on and go here from the next sync."
-                 : "No data types are switched on yet, so nothing is sent until you pick some.")
+            Group {
+                if enabledTypes > 0 {
+                    Text("\(enabledTypes) data types are switched on and go here from the next sync.")
+                } else {
+                    Text("No data types are switched on yet, so nothing is sent until you pick some.")
+                }
+            }
                 .font(.subheadline)
             Text("Pairing only fills in the address and the secret. Which data types are sent, and when, stays your choice on the Health tab.")
                 .font(.caption)
@@ -137,7 +148,7 @@ struct PairingSheet: View {
     }
 
     private struct Line {
-        let text: String
+        let text: LocalizedStringResource
         let icon: String
         let color: Color
     }
@@ -186,7 +197,7 @@ struct PairingSheet: View {
                 .font(.system(.body, design: .monospaced))
             switch phase {
             case .done(let outcome):
-                Label(outcomeText(outcome), systemImage: outcome == .confirmed ? "checkmark.circle.fill" : "exclamationmark.circle")
+                Label { outcomeText(outcome) } icon: { Image(systemName: outcome == .confirmed ? "checkmark.circle.fill" : "exclamationmark.circle") }
                     .foregroundColor(outcome == .confirmed ? .green : .orange)
                     .font(.subheadline)
                 if outcome != .confirmed {
@@ -208,18 +219,19 @@ struct PairingSheet: View {
         }
     }
 
-    private func outcomeText(_ outcome: PairingPingOutcome) -> String {
+    private func outcomeText(_ outcome: PairingPingOutcome) -> Text {
         switch outcome {
         case .confirmed:
-            return "Home Assistant confirmed the pairing."
+            return Text("Home Assistant confirmed the pairing.")
         case .deliveredUnconfirmed:
-            return "Delivered, but the Life Dashboard integration did not answer. Check that the entry for this phone still exists."
+            return Text("Delivered, but the Life Dashboard integration did not answer. Check that the entry for this phone still exists.")
         case .refused:
-            return "Test ping failed: the receiver refused the signature. Scan the code again."
+            return Text("Test ping failed: the receiver refused the signature. Scan the code again.")
         case .failed(let reason):
+            let shown = AppDiagnostic.display(reason)
             return link.reach == .homeNetwork
-                ? "Test ping failed: \(reason). If iOS asked about the local network, allow it in Settings > Privacy & Security > Local Network."
-                : "Test ping failed: \(reason)"
+                ? Text("Test ping failed: \(shown). If iOS asked about the local network, allow it in Settings > Privacy & Security > Local Network.")
+                : Text("Test ping failed: \(shown)")
         }
     }
 
@@ -269,7 +281,7 @@ struct PairingSheet: View {
             "source": "healthkit_ios"
         ]
         guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
-            phase = .done(.failed("Could not build the test ping"))
+            phase = .done(.failed(AppDiagnostic.testPingNotBuilt.rawValue))
             return
         }
         let outcome = await WebhookManager.shared.probe(body: body, url: link.url, secret: link.secret)

@@ -300,8 +300,8 @@ final class BackfillController: ObservableObject {
         guard registered else { return }
         let request = BGContinuedProcessingTaskRequest(
             identifier: identifier,
-            title: "Backfill History",
-            subtitle: "Backfilling \(job.nextWindow)/\(job.windowCount)..."
+            title: String(localized: "Backfill History"),
+            subtitle: String(localized: "Backfilling \(job.nextWindow)/\(job.windowCount)...")
         )
         request.strategy = .fail
         do {
@@ -337,7 +337,10 @@ final class BackfillController: ObservableObject {
         guard #available(iOS 26.0, *), let task = continuedTask as? BGContinuedProcessingTask else { return }
         task.progress.totalUnitCount = Int64(max(progress.windowCount, 1) * 100)
         task.progress.completedUnitCount = Int64(progress.windowsDone * 100 + min(passesInWindow, 99))
-        task.updateTitle("Backfill History", subtitle: "Backfilling \(progress.windowsDone)/\(progress.windowCount)...")
+        task.updateTitle(
+            String(localized: "Backfill History"),
+            subtitle: String(localized: "Backfilling \(progress.windowsDone)/\(progress.windowCount)...")
+        )
         #endif
     }
 
@@ -349,8 +352,8 @@ final class BackfillController: ObservableObject {
 
     static func describe(_ failure: BackfillJob.Failure) -> String {
         switch failure {
-        case .delivery: return "Delivery failed"
-        case .read(let type): return "HealthKit did not return \(type)"
+        case .delivery: return AppDiagnostic.deliveryFailed.rawValue
+        case .read(let type): return AppDiagnostic.notReturned(type)
         }
     }
 }

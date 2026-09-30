@@ -83,6 +83,7 @@
 		A1034D6271A9AAF51EC89672 /* PairingApplyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1C740614BFF69060EAE315 /* PairingApplyTests.swift */; };
 		B245FE77AA68002A4EFCEBEC /* WebhookLogCodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8B7BE1BD86868C3A951B716 /* WebhookLogCodingTests.swift */; };
 		2E4E8AD8F82E06F18F7E5627 /* SyncStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA83B71D8F9C56A0C1C11CA /* SyncStats.swift */; };
+		2ACD172A8D49AD1B2189288D /* AppDiagnostic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66E0043B745687663D70732A /* AppDiagnostic.swift */; };
 		CD633342D71B7343BE6D42BF /* SyncStatsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0A76F35656FC9BBDF0216A /* SyncStatsCard.swift */; };
 		681C2DAA9427B02EA5D9277F /* SyncStatsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA530B152D776D79491AAF31 /* SyncStatsTests.swift */; };
 		19DAC412C3CC920D90BE79DF /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1269CB2C47B555716CC30117 /* Brand.swift */; };
@@ -205,6 +206,7 @@
 		CC1C740614BFF69060EAE315 /* PairingApplyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingApplyTests.swift; sourceTree = "<group>"; };
 		D8B7BE1BD86868C3A951B716 /* WebhookLogCodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookLogCodingTests.swift; sourceTree = "<group>"; };
 		6AA83B71D8F9C56A0C1C11CA /* SyncStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStats.swift; sourceTree = "<group>"; };
+		66E0043B745687663D70732A /* AppDiagnostic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDiagnostic.swift; sourceTree = "<group>"; };
 		8A0A76F35656FC9BBDF0216A /* SyncStatsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatsCard.swift; sourceTree = "<group>"; };
 		CA530B152D776D79491AAF31 /* SyncStatsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatsTests.swift; sourceTree = "<group>"; };
 		1269CB2C47B555716CC30117 /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
@@ -284,6 +286,7 @@
 				5331291E0EF6DF56C191229F /* PairingApply.swift */,
 				6075335CB0ADDDC85D0AEE7B /* PairingLink.swift */,
 				6AA83B71D8F9C56A0C1C11CA /* SyncStats.swift */,
+				66E0043B745687663D70732A /* AppDiagnostic.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -520,6 +523,7 @@
 				19DAC412C3CC920D90BE79DF /* Brand.swift in Sources */,
 				CD633342D71B7343BE6D42BF /* SyncStatsCard.swift in Sources */,
 				2E4E8AD8F82E06F18F7E5627 /* SyncStats.swift in Sources */,
+				2ACD172A8D49AD1B2189288D /* AppDiagnostic.swift in Sources */,
 				B1000001 /* LifeDashboardCompanionApp.swift in Sources */,
 				B1000002 /* ContentView.swift in Sources */,
 				B1000004 /* HealthDataType.swift in Sources */,

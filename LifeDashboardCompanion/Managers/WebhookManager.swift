@@ -82,7 +82,7 @@ actor WebhookManager {
         return anySuccess
     }
 
-    static let atsRefusal = "iOS blocks plain HTTP to this host. Use its IP address or https."
+    static let atsRefusal = AppDiagnostic.plainHTTPBlocked.rawValue
 
     /// One signed request to one address, for the check right after pairing: no custom headers,
     /// one attempt, a short timeout, nothing queued. Logged like a Test Ping.
@@ -113,7 +113,7 @@ actor WebhookManager {
                 failure = error.localizedDescription
             }
         } else {
-            failure = "Invalid URL"
+            failure = AppDiagnostic.invalidURL.rawValue
         }
 
         let outcome = PairingPingOutcome.from(
@@ -129,7 +129,7 @@ actor WebhookManager {
             url: urlString,
             statusCode: statusCode,
             success: delivered,
-            errorMessage: delivered ? nil : (failure ?? statusCode.map { "HTTP \($0)" }),
+            errorMessage: delivered ? nil : (failure ?? statusCode.map(AppDiagnostic.http)),
             dataType: "test",
             recordCount: 0,
             rawPayload: String(data: body, encoding: .utf8),
@@ -153,7 +153,7 @@ actor WebhookManager {
 
             do {
                 guard let url = URL(string: urlString) else {
-                    return WebhookResult(url: urlString, statusCode: nil, success: false, errorMessage: "Invalid URL")
+                    return WebhookResult(url: urlString, statusCode: nil, success: false, errorMessage: AppDiagnostic.invalidURL.rawValue)
                 }
 
                 var request = URLRequest(url: url)
@@ -178,7 +178,7 @@ actor WebhookManager {
                             errorMessage: nil
                         )
                     } else {
-                        lastError = "HTTP \(httpResponse.statusCode)"
+                        lastError = AppDiagnostic.http(httpResponse.statusCode)
                         if !WebhookRetryPolicy.isTransient(statusCode: httpResponse.statusCode) {
                             // Permanent client error: retrying will not help
                             break
@@ -198,7 +198,7 @@ actor WebhookManager {
             url: urlString,
             statusCode: lastStatusCode,
             success: false,
-            errorMessage: lastError ?? "Unknown error after \(WebhookRetryPolicy.maxAttempts) attempts"
+            errorMessage: lastError ?? AppDiagnostic.unknownAfterAttempts(WebhookRetryPolicy.maxAttempts)
         )
     }
 }

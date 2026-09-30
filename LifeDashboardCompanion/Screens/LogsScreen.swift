@@ -51,7 +51,7 @@ struct LogsScreen: View {
                 ShareSheet(activityItems: [url])
             }
         }
-        .confirmationDialog("Clear Logs", isPresented: $showClearConfirm) {
+        .confirmationDialog("Clear logs", isPresented: $showClearConfirm) {
             Button("Clear All Logs", role: .destructive) {
                 prefs.clearWebhookLogs(filterType: nil)
                 refreshLogs()
@@ -168,29 +168,57 @@ struct LogRow: View {
         return log.isMqtt ? StatusPill(title: "Published", tone: .success) : StatusPill(title: "Delivered", tone: .success)
     }
 
+    private var icon: some View {
+        IconTile(systemName: log.isMqtt ? "house" : "link", tint: Brand.logs, ink: Brand.logsInk)
+    }
+
+    /// Where it went. A read failure names Apple Health, stored in English as its address.
+    private var title: Text {
+        if log.isMqtt { return Text(verbatim: "MQTT") }
+        if log.url == SyncStats.readFailureSource { return Text("Apple Health") }
+        return Text(verbatim: urlHost)
+    }
+
+    private func details(showsPill: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            title
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            subtitle
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            if !log.success, let error = log.errorMessage {
+                Text(verbatim: AppDiagnostic.display(error))
+                    .font(.footnote)
+                    .foregroundStyle(Brand.errorInk)
+                    .lineLimit(isExpanded ? nil : 1)
+                    // Shortened with an ellipsis rather than deciding the layout on its own.
+                    .frame(idealWidth: 0, maxWidth: .infinity, alignment: .leading)
+            }
+            if showsPill {
+                pill.padding(.top, 4)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button(action: onTap) {
-                HStack(spacing: 12) {
-                    IconTile(systemName: log.isMqtt ? "house" : "link", tint: Brand.logs, ink: Brand.logsInk)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(verbatim: log.isMqtt ? "MQTT" : urlHost)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        subtitle
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                        if !log.success, let error = log.errorMessage {
-                            Text(verbatim: error)
-                                .font(.footnote)
-                                .foregroundStyle(Brand.errorInk)
-                                .lineLimit(isExpanded ? nil : 1)
-                        }
+                // Dutch and German dates and counts are longer: when the row does not fit on one
+                // line beside the pill, the pill moves under the text instead of squeezing it.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        icon
+                        details(showsPill: false)
+                        pill
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    pill
+                    HStack(alignment: .top, spacing: 12) {
+                        icon
+                        details(showsPill: true)
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
@@ -226,7 +254,7 @@ struct LogRow: View {
                 DetailRow(label: "Status", value: "\(statusCode)")
             }
             if let error = log.errorMessage {
-                DetailRow(label: "Error", value: error)
+                DetailRow(label: "Error", value: AppDiagnostic.display(error))
             }
             if let recordCount = log.recordCount {
                 DetailRow(label: log.isMqtt ? "Sensors" : "Records", value: "\(recordCount)")
@@ -240,7 +268,7 @@ struct LogRow: View {
 
             if let payload = log.rawPayload {
                 Text(verbatim: payload.count > 1500
-                     ? String(payload.prefix(1500)) + "\n... [share for the full payload]"
+                     ? String(payload.prefix(1500)) + "\n" + String(localized: "... [share for the full payload]")
                      : payload)
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundColor(.secondary)

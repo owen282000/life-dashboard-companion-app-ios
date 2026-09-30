@@ -53,20 +53,16 @@ struct BackfillSection: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text(dialogMessage)
+            dialogMessage
         }
     }
 
-    private var dialogMessage: String {
-        var message = "Sends historical data for all enabled types to your webhooks in 3-day chunks, oldest first. "
-            + "Regular syncing is unaffected; overlapping records deduplicate on their uuid. "
-            + "Keep your iPhone unlocked: Health data can't be read while it's locked. "
-            + "This can take a while and use mobile data."
+    private var dialogMessage: Text {
         let hosts = prefs.healthWebhookUrls.compactMap { URL(string: $0)?.host }
-        if !hosts.isEmpty {
-            message += "\n\nGoes to \(hosts.joined(separator: ", "))."
+        guard !hosts.isEmpty else {
+            return Text("Sends historical data for all enabled types to your webhooks in 3-day chunks, oldest first. Regular syncing is unaffected; overlapping records deduplicate on their uuid. Keep your iPhone unlocked: Health data can't be read while it's locked. This can take a while and use mobile data.")
         }
-        return message
+        return Text("Sends historical data for all enabled types to your webhooks in 3-day chunks, oldest first. Regular syncing is unaffected; overlapping records deduplicate on their uuid. Keep your iPhone unlocked: Health data can't be read while it's locked. This can take a while and use mobile data.\n\nGoes to \(hosts.formatted(.list(type: .and))).")
     }
 
     // MARK: - Status
@@ -83,24 +79,22 @@ struct BackfillSection: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(Brand.errorInk)
                 }
-                Text(headline(job, done: done, total: total))
+                headline(job, done: done, total: total)
                     .font(.subheadline.weight(.medium))
             }
             ProgressView(value: Double(done), total: Double(max(total, 1)))
                 .accessibilityLabel("Backfill progress")
-                .accessibilityValue("\(done) of \(total) windows, \(records) records sent")
-            Text(recordsLine(records))
+                .accessibilityValue(Text("\(done) of \(total) windows, \(records) records sent"))
+            Text("\(records) records sent")
                 .font(.caption)
                 .foregroundColor(.secondary)
             if let caption = caption(job) {
-                Text(caption)
+                caption
                     .font(.caption)
                     .foregroundColor(job.status == .failed ? Brand.errorInk : .secondary)
             }
             if job.truncatedWindows > 0 {
-                Text(job.truncatedWindows == 1
-                     ? "1 window could not be sent in full"
-                     : "\(job.truncatedWindows) windows could not be sent in full")
+                Text("\(job.truncatedWindows) windows could not be sent in full")
                     .font(.caption)
                     .foregroundColor(Brand.warningInk)
             }
@@ -133,34 +127,36 @@ struct BackfillSection: View {
         .font(.caption)
     }
 
-    private func headline(_ job: BackfillJob, done: Int, total: Int) -> String {
+    private func headline(_ job: BackfillJob, done: Int, total: Int) -> Text {
         switch job.status {
         case .running, .done:
-            return "Backfilling \(done)/\(total)..."
+            return Text("Backfilling \(done)/\(total)...")
         case .paused:
-            return "Paused at \(done)/\(total)"
+            return Text("Paused at \(done)/\(total)")
         case .failed:
             switch job.failure {
             case .read(let type):
-                return "Stopped after \(done) of \(total) windows: HealthKit did not return \(type)."
+                // Jobs from before 1.4 stored the English display name instead of the raw value.
+                let name = HealthDataType(rawValue: type).map { Text($0.displayName) } ?? Text(verbatim: type)
+                return Text("Stopped after \(done) of \(total) windows: HealthKit did not return \(name).")
             case .delivery, nil:
-                return "Delivery failed after \(done) of \(total) windows. Resume continues from there."
+                return Text("Delivery failed after \(done) of \(total) windows. Resume continues from there.")
             }
         }
     }
 
-    private func caption(_ job: BackfillJob) -> String? {
+    private func caption(_ job: BackfillJob) -> Text? {
         switch job.status {
         case .running:
             return backfill.runsInBackground
-                ? "You can switch apps. Keep your iPhone unlocked."
-                : "Keep the app open. The screen stays on until the backfill is done."
+                ? Text("You can switch apps. Keep your iPhone unlocked.")
+                : Text("Keep the app open. The screen stays on until the backfill is done.")
         case .paused:
             switch job.pauseReason {
-            case .background: return "iOS pauses the backfill shortly after you leave the app."
-            case .locked: return "Health data can't be read while your iPhone is locked."
-            case .system: return "iOS stopped the backfill in the background."
-            case .closed: return "The app was closed before the backfill finished."
+            case .background: return Text("iOS pauses the backfill shortly after you leave the app.")
+            case .locked: return Text("Health data can't be read while your iPhone is locked.")
+            case .system: return Text("iOS stopped the backfill in the background.")
+            case .closed: return Text("The app was closed before the backfill finished.")
             case .user, .interrupted, nil: return nil
             }
         case .failed, .done:
@@ -168,14 +164,8 @@ struct BackfillSection: View {
         }
     }
 
-    private func recordsLine(_ records: Int) -> String {
-        records == 1 ? "1 record sent" : "\(records) records sent"
-    }
-
     private func doneLine(_ job: BackfillJob) -> some View {
-        Text(job.recordsSent == 1
-             ? "Backfill complete: 1 record sent"
-             : "Backfill complete: \(job.recordsSent) records sent")
+        Text("Backfill complete: \(job.recordsSent) records sent")
             .font(.caption)
             .foregroundColor(Brand.successInk)
             .frame(maxWidth: .infinity)

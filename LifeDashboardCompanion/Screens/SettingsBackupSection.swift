@@ -435,11 +435,11 @@ private struct ImportSheet: View {
                     .foregroundColor(.secondary)
                 }
                 if !result.healthWebhookHeaders.isEmpty {
-                    LabeledContent("Custom headers", value: result.healthWebhookHeaders.keys.sorted().joined(separator: ", "))
+                    LabeledContent("Custom Headers", value: result.healthWebhookHeaders.keys.sorted().joined(separator: ", "))
                 }
-                LabeledContent("Data types", value: "\(result.healthEnabledDataTypes.count)")
+                LabeledContent("Data Types", value: "\(result.healthEnabledDataTypes.count)")
                 LabeledContent(
-                    "Sync schedule",
+                    "Sync Schedule",
                     value: result.healthSyncSchedule.isNeverRunning ? String(localized: "Never syncs") : result.healthSyncSchedule.summary
                 )
                 LabeledContent("MQTT", value: mqttSummary(result))
@@ -479,14 +479,20 @@ private struct ImportSheet: View {
         return "\(settings.mqttHost):\(settings.mqttPort), \(tls)"
     }
 
+    /// Whole sentences per app, so no translation has to fit "the iPhone app" into another
+    /// sentence's grammar. The version is a number, so it can be appended.
     private func sourceLine(_ plan: ImportPlan) -> String {
-        let app = plan.platform == SettingsBackup.platformName
-            ? String(localized: "the iPhone app")
-            : String(localized: "the Android app")
+        let fromIPhone = plan.platform == SettingsBackup.platformName
         let version = plan.appVersion.map { " \($0)" } ?? ""
-        guard let date = plan.exportedAt else { return String(localized: "Exported by \(app)\(version).") }
+        guard let date = plan.exportedAt else {
+            return fromIPhone
+                ? String(localized: "Exported by the iPhone app\(version).")
+                : String(localized: "Exported by the Android app\(version).")
+        }
         let when = date.formatted(date: .abbreviated, time: .shortened)
-        return String(localized: "Exported \(when) by \(app)\(version).")
+        return fromIPhone
+            ? String(localized: "Exported \(when) by the iPhone app\(version).")
+            : String(localized: "Exported \(when) by the Android app\(version).")
     }
 
     private func apply(_ file: ConfigBackup) {

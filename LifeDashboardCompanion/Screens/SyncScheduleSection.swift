@@ -378,9 +378,7 @@ struct ScheduleStatusLine: View {
         case .dayOff:
             return String(localized: "No automatic syncs today. Sync Now still works.")
         case nil:
-            return webhookCount == 1
-                ? String(localized: "\(cadence) to 1 webhook")
-                : String(localized: "\(cadence) to \(webhookCount) webhooks")
+            return String(localized: "\(cadence) to \(webhookCount) webhooks")
         }
     }
 }

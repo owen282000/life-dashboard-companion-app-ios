@@ -324,7 +324,7 @@ struct BackfillEngine: Sendable {
                 } catch {
                     if Task.isCancelled { return .stopped(job.paused(.interrupted, at: now())) }
                     Self.logger.error("Backfill read of \(type.rawValue) failed: \(error.localizedDescription)")
-                    return .stopped(job.failed(.read(type: type.displayName), at: now()))
+                    return .stopped(job.failed(.read(type: type.rawValue), at: now()))
                 }
                 chunk += slice.records
                 if !slice.exact {

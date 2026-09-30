@@ -96,9 +96,9 @@ enum PairingPingOutcome: Equatable, Sendable {
         secret: String,
         error: String?
     ) -> PairingPingOutcome {
-        guard let statusCode else { return .failed(error ?? "No response") }
+        guard let statusCode else { return .failed(error ?? AppDiagnostic.noResponse.rawValue) }
         if statusCode == 401 { return .refused }
-        guard (200...299).contains(statusCode) else { return .failed("HTTP \(statusCode)") }
+        guard (200...299).contains(statusCode) else { return .failed(AppDiagnostic.http(statusCode)) }
 
         guard let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
               json["life_dashboard"] is [String: Any],

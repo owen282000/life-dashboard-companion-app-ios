@@ -91,10 +91,4 @@ enum LogDestination: String {
 
 enum LogType: String, Codable {
     case healthConnect = "HEALTH_CONNECT"
-
-    var displayName: String {
-        switch self {
-        case .healthConnect: return "Health"
-        }
-    }
 }

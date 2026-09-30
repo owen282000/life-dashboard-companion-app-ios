@@ -121,7 +121,7 @@ enum PairingProblem: Equatable, Sendable {
     /// A receiver that accepts nothing this app can send.
     case noUsableSource
 
-    var message: String {
+    var message: LocalizedStringResource {
         switch self {
         case .unsupportedVersion:
             return "This code was made by a newer version. Update the app and scan again."

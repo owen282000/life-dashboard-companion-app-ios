@@ -45,27 +45,36 @@ struct DashboardCard: View {
 
     @ViewBuilder
     private var statTiles: some View {
-        statTile(label: "Today", value: status.recordsToday.formatted())
+        statTile(label: "Today", count: status.recordsToday)
         Spacer(minLength: 8)
-        statTile(label: "Lifetime", value: lifetimeRecords.formatted())
+        statTile(label: "Lifetime", count: lifetimeRecords)
         Spacer(minLength: 8)
         lastSyncTile
     }
 
-    private func statTile(label: LocalizedStringKey, value: String) -> some View {
+    private func statTile(label: LocalizedStringKey, count: Int) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
                 .font(.caption)
                 .foregroundColor(.secondary)
             HStack(alignment: .lastTextBaseline, spacing: 4) {
-                Text(verbatim: value)
+                // Never broken over two lines: a longer label beside it, such as German's
+                // "Letzte Synchronisierung", wraps instead.
+                Text(verbatim: count.formatted())
                     .font(.title2.bold())
                     .monospacedDigit()
-                Text("records")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                // The number is styled on its own, and a plural form must contain it, so the
+                // label is picked here. Right for English, Dutch and German, where only 1 is
+                // singular; a language with more plural forms needs a plural key instead.
+                Text(count == 1 ? "record" : "records")
                     .font(.caption)
                     .foregroundColor(.secondary)
+                    .lineLimit(1)
             }
         }
+        .layoutPriority(1)
         .accessibilityElement(children: .combine)
     }
 

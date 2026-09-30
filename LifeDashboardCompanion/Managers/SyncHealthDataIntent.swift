@@ -26,7 +26,7 @@ struct SyncHealthDataIntent: AppIntent {
         case .noData:
             return .result(dialog: "No new health data to sync.")
         case .failure(let error):
-            return .result(dialog: "Sync failed: \(error)")
+            return .result(dialog: "Sync failed: \(AppDiagnostic.display(error))")
         }
     }
 }

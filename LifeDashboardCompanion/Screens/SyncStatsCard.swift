@@ -111,7 +111,7 @@ private struct FailureLine: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 HStack {
-                    Text(failure.source)
+                    sourceName
                         .fontWeight(.medium)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -128,8 +128,17 @@ private struct FailureLine: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// The two sources the app names itself are translated; a webhook is shown by its host.
+    private var sourceName: Text {
+        switch failure.source {
+        case SyncStats.readFailureSource: return Text("Apple Health")
+        case SyncStats.mqttSource: return Text(verbatim: "MQTT")
+        default: return Text(verbatim: failure.source)
+        }
+    }
+
     private var message: String {
-        let text = failure.message ?? String(localized: "Unknown error")
+        let text = failure.message.map(AppDiagnostic.display) ?? String(localized: "Unknown error")
         return failure.count > 1 ? String(localized: "\(text) (\(failure.count) times)") : text
     }
 }

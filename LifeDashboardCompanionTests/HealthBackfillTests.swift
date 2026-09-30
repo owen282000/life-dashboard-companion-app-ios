@@ -231,7 +231,7 @@ final class HealthBackfillTests: XCTestCase {
         await reader.setFailing(.weight)
         let final = await engine(reader, sink, types: [.steps, .weight]).run(job(days: 3))
         XCTAssertEqual(final.status, .failed)
-        XCTAssertEqual(final.failure, .read(type: "Weight"))
+        XCTAssertEqual(final.failure, .read(type: "WEIGHT"))
         let bodies = decoded(await sink.sent)
         XCTAssertTrue(bodies.isEmpty)
     }

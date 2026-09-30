@@ -353,11 +353,8 @@ struct HealthKitScreen: View {
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
 
-            if !prefs.mqttLastStatus.isEmpty {
-                ResultLine(
-                    text: Text(prefs.mqttLastStatus),
-                    tone: prefs.mqttLastStatus.hasPrefix("OK") ? .success : .failure
-                )
+            if let status = MqttStatus(stored: prefs.mqttLastStatus) {
+                ResultLine(text: Text(status.text), tone: status.success ? .success : .failure)
             }
         }
     }
@@ -450,7 +447,7 @@ struct HealthKitScreen: View {
             // Pending queue indicator
             let pendingCount = PendingSyncStore.shared.pendingCount
             if pendingCount > 0 {
-                NoticeBanner(text: Text("\(pendingCount) pending sync(s)"), tone: .warning) {
+                NoticeBanner(text: Text("\(pendingCount) pending syncs"), tone: .warning) {
                     Button("Retry Now") {
                         Task {
                             await SyncCoordinator.shared.drain(automatic: false)
@@ -479,7 +476,7 @@ struct HealthKitScreen: View {
                 case .success(let counts):
                     report(.synced(counts.values.reduce(0, +)))
                 case .failure(let error):
-                    report(.failed("\(error)"))
+                    report(.failed(AppDiagnostic.display(error)))
                 }
             }
         }
@@ -533,12 +530,13 @@ struct HealthKitScreen: View {
                     let displayLimit = 100_000
                     if formatted.count > displayLimit {
                         let display = String(formatted.prefix(displayLimit))
-                            + "\n\n... [truncated for display, \(formatted.count) characters total - use the share button for the full payload]"
+                            + "\n\n"
+                            + String(localized: "... [truncated for display, \(formatted.count) characters total - use the share button for the full payload]")
                         return (display, formatted)
                     }
                     return (formatted, formatted)
                 } catch {
-                    let message = "Error: \(error.localizedDescription)"
+                    let message = String(localized: "Error: \(error.localizedDescription)")
                     return (message, message)
                 }
             }.value

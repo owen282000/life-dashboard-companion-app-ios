@@ -107,7 +107,7 @@ final class BackgroundSyncManager {
                     frequency: .immediate
                 ) { [logger] _, error in
                     if let error = error {
-                        logger.error("Background delivery error for \(dataType.displayName): \(error)")
+                        logger.error("Background delivery error for \(dataType.rawValue): \(error)")
                     }
                 }
             }
@@ -134,7 +134,7 @@ final class BackgroundSyncManager {
             completion.call(true)
             return
         }
-        logger.info("HealthKit update for \(dataType.displayName, privacy: .public), sync due")
+        logger.info("HealthKit update for \(dataType.rawValue, privacy: .public), sync due")
         observerBatcher.add(completion)
     }
 

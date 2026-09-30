@@ -18,6 +18,11 @@ enum AboutLinks {
 }
 
 struct AboutScreen: View {
+    // The tip link is Debug only, but its text stays out of the #if: an export for translation
+    // reads a Release build and would drop anything inside it.
+    fileprivate static let tipTitle: LocalizedStringKey = "Buy me a coffee"
+    fileprivate static let tipSubtitle: LocalizedStringResource = "The app stays free and open source; a coffee keeps releases quick"
+
     private let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
 
     // Easter eggs: tap the mark 7 times to make it beat, long-press the version pill for stats
@@ -189,8 +194,8 @@ struct AboutScreen: View {
             // GitHub builds. An archive for TestFlight or the App Store is a Release build and has
             // no tip link, which App Review would refuse outside the US (guideline 3.1.1).
             LinkCard(
-                title: "Buy me a coffee",
-                subtitle: Text("The app stays free and open source; a coffee keeps releases quick"),
+                title: AboutScreen.tipTitle,
+                subtitle: Text(AboutScreen.tipSubtitle),
                 systemImage: "cup.and.saucer",
                 url: AboutLinks.tip
             )
