@@ -11,12 +11,39 @@ struct LogsScreen: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
                 SyncStatsCard(stats: SyncStats(logs: logs))
-                logsListSection
+                ActionTileRow {
+                    Menu {
+                        Button {
+                            export(ExportManager.shared.exportLogsToCSV(logs: logs))
+                        } label: {
+                            Label("Export CSV", systemImage: "tablecells")
+                        }
+                        Button {
+                            export(ExportManager.shared.exportLogsToJSON(logs: logs))
+                        } label: {
+                            Label("Export JSON", systemImage: "curlybraces")
+                        }
+                    } label: {
+                        ActionTileLabel(title: "Export logs", systemImage: "square.and.arrow.up", ink: Brand.logsInk)
+                    }
+                    // A menu tints its label; the tile keeps its own colours like the others.
+                    .tint(Color.primary)
+                    .disabled(logs.isEmpty)
+                    ActionTile(title: "Clear logs", systemImage: "trash", ink: Brand.errorInk) {
+                        showClearConfirm = true
+                    }
+                    .disabled(logs.isEmpty)
+                }
+                logsList
             }
-            .padding()
+            .padding(16)
+            .readableWidth()
         }
+        .background(Color(.systemGroupedBackground))
+        .tint(Brand.logsInk)
+        .screenshotScrollAnchor()
         .refreshable { refreshLogs() }
         .onAppear { refreshLogs() }
         .sheet(isPresented: $showExportSheet) {
@@ -37,55 +64,22 @@ struct LogsScreen: View {
 
     // MARK: - Sections
 
-    private var logsListSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label("Logs (\(logs.count))", systemImage: "doc.text.fill")
-                    .font(.headline)
-
-                Spacer()
-
-                Menu {
-                    Button {
-                        if let url = ExportManager.shared.exportLogsToCSV(logs: logs) {
-                            exportFileURL = url
-                            showExportSheet = true
+    @ViewBuilder
+    private var logsList: some View {
+        if logs.isEmpty {
+            ContentUnavailableView(
+                "No logs yet",
+                systemImage: "clock.arrow.circlepath",
+                description: Text("Every delivery and MQTT publish shows up here.")
+            )
+            .padding(.vertical, 24)
+        } else {
+            CardGroup {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(logs.enumerated()), id: \.element.id) { index, log in
+                        if index > 0 {
+                            CardDivider()
                         }
-                    } label: {
-                        Label("Export CSV", systemImage: "tablecells")
-                    }
-
-                    Button {
-                        if let url = ExportManager.shared.exportLogsToJSON(logs: logs) {
-                            exportFileURL = url
-                            showExportSheet = true
-                        }
-                    } label: {
-                        Label("Export JSON", systemImage: "curlybraces")
-                    }
-
-                    Divider()
-
-                    Button(role: .destructive) {
-                        showClearConfirm = true
-                    } label: {
-                        Label("Clear Logs", systemImage: "trash.fill")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle.fill")
-                        .font(.title3)
-                }
-            }
-
-            if logs.isEmpty {
-                Text("No logs yet")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 24)
-            } else {
-                LazyVStack(spacing: 8) {
-                    ForEach(logs) { log in
                         LogRow(
                             log: log,
                             isExpanded: expandedLogId == log.id,
@@ -103,9 +97,6 @@ struct LogsScreen: View {
                 }
             }
         }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
     }
 
     // MARK: - Helpers
@@ -113,41 +104,46 @@ struct LogsScreen: View {
     private func refreshLogs() {
         logs = prefs.getWebhookLogs(filterType: nil)
     }
+
+    private func export(_ url: URL?) {
+        guard let url else { return }
+        exportFileURL = url
+        showExportSheet = true
+    }
 }
 
 // MARK: - Subviews
 
+/// One figure on the sync history card: the label above the number, as in the Android app.
 struct StatCard: View {
-    let title: String
+    let title: LocalizedStringKey
     let value: String
     let color: Color
 
     var body: some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.title3)
-                .fontWeight(.bold)
-                .foregroundColor(color)
+        VStack(spacing: 2) {
             Text(title)
-                .font(.caption2)
+                .font(.caption)
                 .foregroundColor(.secondary)
+            Text(verbatim: value)
+                .font(.title2.bold())
+                .monospacedDigit()
+                .foregroundColor(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
     }
 }
 
+/// A delivery in the list, laid out like the Android app's log row: where it went, when, how
+/// much, and a pill that says how it went. Tap for the details and the payload.
 struct LogRow: View {
     let log: WebhookLog
     let isExpanded: Bool
     let onTap: () -> Void
     let onDelete: () -> Void
-
-    private let dateFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .short
-        df.timeStyle = .medium
-        return df
-    }()
 
     private var urlHost: String {
         URL(string: log.url)?.host ?? log.url
@@ -158,135 +154,140 @@ struct LogRow: View {
         return ByteCountFormatter.string(fromByteCount: Int64(payload.utf8.count), countStyle: .file)
     }
 
+    private var time: String {
+        log.timestamp.formatted(.dateTime.month(.abbreviated).day().hour().minute().second())
+    }
+
+    private var subtitle: Text {
+        guard let count = log.recordCount, count > 0 else { return Text(verbatim: time) }
+        return log.isMqtt ? Text("\(time) · \(count) sensors") : Text("\(time) · \(count) records")
+    }
+
+    private var pill: StatusPill {
+        if !log.success { return StatusPill(title: "Failed", tone: .failure) }
+        return log.isMqtt ? StatusPill(title: "Published", tone: .success) : StatusPill(title: "Delivered", tone: .success)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 0) {
             Button(action: onTap) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Circle()
-                            .fill(log.success ? Color.green : Color.red)
-                            .frame(width: 8, height: 8)
-
-                        Text(log.isMqtt ? "MQTT" : log.logType.displayName)
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.green.opacity(0.2))
-                            .cornerRadius(4)
-
-                        if let statusCode = log.statusCode {
-                            Text("\(statusCode)")
-                                .font(.caption)
-                                .foregroundColor(log.success ? .green : .red)
-                        }
-
-                        if let recordCount = log.recordCount, recordCount > 0 {
-                            Text(log.isMqtt ? "\(recordCount) sensors" : "\(recordCount) rec")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-
-                        Spacer()
-
-                        Text(dateFormatter.string(from: log.timestamp))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-
-                    HStack(spacing: 6) {
-                        Text(urlHost)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                HStack(spacing: 12) {
+                    IconTile(systemName: log.isMqtt ? "house" : "link", tint: Brand.logs, ink: Brand.logsInk)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(verbatim: log.isMqtt ? "MQTT" : urlHost)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
                             .lineLimit(1)
                             .truncationMode(.middle)
-
+                        subtitle
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                         if !log.success, let error = log.errorMessage {
-                            Text(error)
-                                .font(.caption2)
-                                .foregroundColor(.red)
-                                .lineLimit(1)
+                            Text(verbatim: error)
+                                .font(.footnote)
+                                .foregroundStyle(Brand.errorInk)
+                                .lineLimit(isExpanded ? nil : 1)
                         }
                     }
-                    .padding(.leading, 16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    pill
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 4) {
-                    DetailRow(label: "URL", value: log.url)
-                    if let statusCode = log.statusCode {
-                        DetailRow(label: "Status", value: "\(statusCode)")
-                    }
-                    DetailRow(label: "Success", value: log.success ? "Yes" : "No")
-                    if let error = log.errorMessage {
-                        DetailRow(label: "Error", value: error)
-                    }
-                    if let recordCount = log.recordCount {
-                        DetailRow(label: log.isMqtt ? "Sensors" : "Records", value: "\(recordCount)")
-                    }
-                    if let dataType = log.dataType {
-                        DetailRow(label: "Type", value: dataType)
-                    }
-                    if let size = payloadSize {
-                        DetailRow(label: "Payload", value: size)
-                    }
-
-                    if let payload = log.rawPayload {
-                        Text(payload.count > 1500
-                             ? String(payload.prefix(1500)) + "\n... [share for the full payload]"
-                             : payload)
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(6)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(6)
-                    }
-
-                    HStack {
-                        if let payload = log.rawPayload {
-                            ShareLink(item: payload) {
-                                Label("Share payload", systemImage: "square.and.arrow.up")
-                                    .font(.caption)
-                            }
-                        }
-                        Spacer()
-                        Button(role: .destructive, action: onDelete) {
-                            Label("Delete", systemImage: "trash")
-                                .font(.caption)
-                        }
+            .accessibilityElement(children: .combine)
+            .accessibilityHint(isExpanded ? Text("Hides the details") : Text("Shows the details"))
+            .accessibilityAction(named: Text("Delete"), onDelete)
+            .contextMenu {
+                if let payload = log.rawPayload {
+                    ShareLink(item: payload) {
+                        Label("Share payload", systemImage: "square.and.arrow.up")
                     }
                 }
-                .padding(.leading, 16)
+                Button(role: .destructive, action: onDelete) {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+
+            if isExpanded {
+                details
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 14)
             }
         }
-        .padding(8)
-        .background(Color(.systemBackground))
-        .cornerRadius(8)
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            DetailRow(label: "URL", value: log.url)
+            if let statusCode = log.statusCode {
+                DetailRow(label: "Status", value: "\(statusCode)")
+            }
+            if let error = log.errorMessage {
+                DetailRow(label: "Error", value: error)
+            }
+            if let recordCount = log.recordCount {
+                DetailRow(label: log.isMqtt ? "Sensors" : "Records", value: "\(recordCount)")
+            }
+            if let dataType = log.dataType {
+                DetailRow(label: "Type", value: dataType)
+            }
+            if let size = payloadSize {
+                DetailRow(label: "Payload", value: size)
+            }
+
+            if let payload = log.rawPayload {
+                Text(verbatim: payload.count > 1500
+                     ? String(payload.prefix(1500)) + "\n... [share for the full payload]"
+                     : payload)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                    .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+
+            HStack {
+                if let payload = log.rawPayload {
+                    ShareLink(item: payload) {
+                        Label("Share payload", systemImage: "square.and.arrow.up")
+                            .font(.footnote)
+                    }
+                }
+                Spacer()
+                Button(role: .destructive, action: onDelete) {
+                    Label("Delete", systemImage: "trash")
+                        .font(.footnote)
+                }
+                .tint(Brand.errorInk)
+            }
+            .frame(minHeight: 44)
+        }
     }
 }
 
 struct DetailRow: View {
-    let label: String
+    let label: LocalizedStringKey
     let value: String
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
-        HStack(alignment: .top) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 8))
+        layout {
             Text(label)
-                .font(.caption2)
-                .fontWeight(.medium)
+                .font(.caption.weight(.medium))
                 .foregroundColor(.secondary)
-                .frame(width: 60, alignment: .leading)
-            Text(value)
-                .font(.caption2)
+                .frame(minWidth: 64, alignment: .leading)
+            Text(verbatim: value)
+                .font(.caption)
                 .lineLimit(3)
         }
+        .accessibilityElement(children: .combine)
     }
 }
 

@@ -6,6 +6,8 @@ import SwiftUI
 struct SyncStatsCard: View {
     let stats: SyncStats
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
@@ -24,17 +26,26 @@ struct SyncStatsCard: View {
                 }
             }
         }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
+        .cardStyle()
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Label("Sync History", systemImage: "chart.bar.fill")
-                .font(.headline)
-                .accessibilityAddTraits(.isHeader)
-            Spacer()
+        // Side by side, or one under the other at the accessibility text sizes.
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
+        return layout {
+            Label {
+                Text("Sync History")
+            } icon: {
+                Image(systemName: "chart.bar.fill")
+                    .foregroundStyle(Brand.logsInk)
+            }
+            .font(.headline)
+            .accessibilityAddTraits(.isHeader)
+            if !dynamicTypeSize.isAccessibilitySize {
+                Spacer()
+            }
             if let since = stats.since {
                 Text("Since \(since.formatted(SyncStatsCard.dateFormat))")
                     .font(.caption)
@@ -44,11 +55,14 @@ struct SyncStatsCard: View {
     }
 
     private var tiles: some View {
-        HStack(spacing: 16) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 10))
+            : AnyLayout(HStackLayout(spacing: 16))
+        return layout {
             StatCard(
                 title: "Success",
                 value: stats.successPercent.map { "\($0)%" } ?? "-",
-                color: .green
+                color: Brand.successInk
             )
             StatCard(title: "Deliveries", value: stats.deliveries.formatted(), color: .primary)
             StatCard(title: "Records", value: stats.records.formatted(), color: .primary)
@@ -93,7 +107,7 @@ private struct FailureLine: View {
         HStack(alignment: .top, spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.caption2)
-                .foregroundColor(.red)
+                .foregroundColor(Brand.errorInk)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 HStack {
