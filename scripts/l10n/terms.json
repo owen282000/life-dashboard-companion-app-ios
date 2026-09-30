@@ -1,0 +1,28 @@
+{
+  "comment" : "Checked by scripts/l10n/check.py on every nl and de value. The reasons come from docs/localization.md: je and du, and the glossary's words where Android used two.",
+  "forbidden" : {
+    "de" : [
+      { "pattern" : "\\b(Ihnen|Ihr|Ihre|Ihren|Ihrem|Ihrer|Ihres)\\b", "reason" : "formal address: the app says du" },
+      { "pattern" : "(?<!^)(?<![.!?:] )\\bSie\\b", "reason" : "formal address: the app says du" },
+      { "pattern" : "Benachrichtigung", "reason" : "iOS calls notifications Mitteilungen" },
+      { "pattern" : "\\bNachladen|\\bnachladen|\\bBackfill", "reason" : "backfill is nachtragen, as a noun das Nachtragen" },
+      { "pattern" : "Einträge|Eintrag\\b", "reason" : "records are Datensätze",
+        "except_keys" : [ "Delivered, but the Life Dashboard integration did not answer. Check that the entry for this phone still exists." ] },
+      { "pattern" : "\\b(die|eine|jede|keine)\\s+(\\S+\\s+)?Payload\\b(?!s)", "reason" : "der Payload" }
+    ],
+    "nl" : [
+      { "pattern" : "\\b[Uu]w?\\b", "reason" : "formal address: the app says je" },
+      { "pattern" : "\\b[Bb]ackfill", "reason" : "backfill is aanvullen" },
+      { "pattern" : "\\bhistorie\\b", "reason" : "history is geschiedenis" },
+      { "pattern" : "\\b[Pp]ermissies?\\b|\\b[Rr]echten\\b", "reason" : "permission is toestemming" },
+      { "pattern" : "\\bPlain HTTP\\b", "reason" : "plain HTTP is onversleutelde HTTP" },
+      { "pattern" : "\\bAnnuleer\\b", "reason" : "buttons are infinitives: Annuleren" }
+    ]
+  },
+  "labels" : [
+    { "en" : "Sync Now", "nl" : "Nu synchroniseren", "de" : "Jetzt synchronisieren" }
+  ],
+  "case_pairs_ok" : [
+    [ "records", "Records" ]
+  ]
+}

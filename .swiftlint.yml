@@ -23,3 +23,18 @@ identifier_name:
 # Webhook delivery calls carry url/header/log context explicitly by design
 function_parameter_count:
   warning: 8
+
+custom_rules:
+  # Owen's style rule, also for comments and strings: a hyphen, colon or comma instead.
+  no_em_or_en_dash:
+    name: "No em or en dash"
+    regex: "[\u2013\u2014]"
+    message: "Use a hyphen, colon or comma instead of an em or en dash"
+    severity: error
+  # A key built at runtime never reaches the String Catalog, so it shows as English in every
+  # language. String(localized:) with a literal, or a LocalizedStringResource, is extracted.
+  dynamic_localization_key:
+    name: "Localization key from a variable"
+    regex: "\\b(LocalizedStringKey|NSLocalizedString)\\((?!\")"
+    message: "A key built at runtime never reaches the String Catalog; use a string literal or pass the LocalizedStringResource itself"
+    severity: error

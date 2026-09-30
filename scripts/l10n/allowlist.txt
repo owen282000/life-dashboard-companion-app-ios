@@ -1,0 +1,54 @@
+# English text in code that is deliberately not translated, and catalog keys that pass a check
+# on purpose. One entry per line:
+#
+#   file, or key:<Table> | exact literal (%arg for an interpolation), the key, or * | category | reason
+#
+# Categories: wire (sent to a server, a broker or a file that machines read), brand (a name),
+# diagnostic (stored in English and translated when shown, see Models/AppDiagnostic.swift),
+# debug-name (never shown), no-plural (a count that never needs a plural form), manual-key.
+# A whole file (*) is accepted only when it contains no UI code. An entry that matches nothing
+# fails the check, so this list only shrinks by itself; growing it is a reviewed decision.
+
+LifeDashboardCompanion/Managers/MqttSupport.swift | * | wire | Home Assistant discovery: sensor names, units and the device are shown by HA as sent, the same as Android's
+LifeDashboardCompanion/Screens/HealthKitScreen.swift | Test ping from Life Dashboard Companion | wire | message field of the test ping payload
+LifeDashboardCompanion/Screens/PairingSheet.swift | Test ping from Life Dashboard Companion | wire | message field of the test ping payload
+LifeDashboardCompanion/Managers/ExportManager.swift | ID,Timestamp,Type,URL,Status Code,Success,Error Message,Data Type,Record Count\n | wire | CSV header, the same columns as Android's export
+LifeDashboardCompanion/Managers/ExportManager.swift | yyyy-MM-dd HH:mm:ss | wire | date pattern of the CSV timestamp
+LifeDashboardCompanion/Managers/LogStore.swift | ... [truncated] | wire | marks a cut payload in the stored log and its exports
+LifeDashboardCompanion/Managers/BackgroundSyncManager.swift | health refresh | debug-name | task name for the system log
+LifeDashboardCompanion/Managers/BackgroundSyncManager.swift | health sync | debug-name | task name for the system log
+LifeDashboardCompanion/Managers/DeletionReader.swift | Unknown sample type %arg | debug-name | the error is counted per type, its text is never shown
+LifeDashboardCompanion/Managers/DeletionReader.swift | Stored anchor unreadable | debug-name | the error is counted per type, its text is never shown
+LifeDashboardCompanion/Managers/SettingsBackup.swift | the result of the last publish on this device | debug-name | documents a setting the backup leaves out
+LifeDashboardCompanion/Models/SyncStats.swift | Apple Health | diagnostic | source of a read failure in the log row; the Sync History card shows it translated
+LifeDashboardCompanion/Models/AppDiagnostic.swift | HTTP %arg | diagnostic | stored form, display() translates it
+LifeDashboardCompanion/Models/AppDiagnostic.swift | Unknown error after %arg attempts | diagnostic | stored form, display() translates it
+LifeDashboardCompanion/Models/AppDiagnostic.swift | Unknown error after | diagnostic | prefix display() parses
+LifeDashboardCompanion/Models/AppDiagnostic.swift | HealthKit did not return %arg | diagnostic | stored form, display() translates it
+LifeDashboardCompanion/Models/AppDiagnostic.swift | HealthKit did not return | diagnostic | prefix display() parses
+LifeDashboardCompanion/Models/AppDiagnostic.swift | OK: %arg sensors published at %arg | diagnostic | stored MQTT status, MqttStatus translates it
+LifeDashboardCompanion/Models/AppDiagnostic.swift | Error: %arg | diagnostic | stored MQTT status, MqttStatus translates it
+LifeDashboardCompanion/Models/AppDiagnostic.swift | Error: | diagnostic | prefix MqttStatus parses
+LifeDashboardCompanion/Screens/AboutScreen.swift | MIT · © 2026 Owen Vogelaar | brand | licence name and author, the same in every language
+
+key:Localizable | %lld set up | no-plural | "3 ingesteld", "3 eingerichtet": the participle does not change with the count
+key:Localizable | %lld configured | no-plural | the participle does not change with the count
+key:Localizable | %lld of %lld selected | no-plural | the participle does not change with the count
+key:Localizable | All %lld types the app can read | no-plural | always all 28 types
+key:Localizable | Step %lld of %lld | no-plural | a position, not an amount
+key:Localizable | Every %lld min | no-plural | abbreviated unit
+key:Localizable | Sync interval set to %lld min, the nearest this app allows. | no-plural | abbreviated unit
+key:Localizable | Min %lld minutes | no-plural | never below 15
+key:Localizable | Last %lld days | no-plural | 30, 90 or 365
+key:Localizable | Steps, last %lld days | no-plural | always 7
+key:Localizable | Unknown error after %lld attempts | no-plural | always WebhookRetryPolicy.maxAttempts, 3
+key:Localizable | Delivery failed after %lld of %lld windows. Resume continues from there. | no-plural | a backfill has at least 10 windows (30 days in 3-day chunks)
+key:Localizable | Stopped after %lld of %lld windows: HealthKit did not return %@. | no-plural | a backfill has at least 10 windows (30 days in 3-day chunks)
+key:Localizable | ... [truncated for display, %lld characters total - use the share button for the full payload] | no-plural | only above 100,000 characters
+key:Localizable | Life Dashboard | brand | the app's name
+key:Localizable | Companion | brand | second line of the app's name on the About page
+key:Localizable | Home Assistant | brand | product name
+key:Localizable | MQTT | brand | protocol name
+key:Localizable | TLS | brand | protocol name
+key:InfoPlist | CFBundleDisplayName | brand | the app's name under its icon
+key:InfoPlist | CFBundleName | brand | the target name, never shown next to the display name
