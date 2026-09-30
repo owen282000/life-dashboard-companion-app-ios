@@ -42,7 +42,8 @@ struct SectionConfig: Codable, Equatable {
     var headers: [String: String]?
     var signingSecret: String?
     var syncIntervalMinutes: Int?
-    /// URLs that get none of the headers (Android's QR pairing). iOS has no such exclusion yet.
+    /// URLs that get none of the headers: the ones QR pairing added, on either app. Not a
+    /// secret, so it stays in an export without secrets, as on Android.
     var urlsWithoutHeaders: [String]?
 
     enum CodingKeys: String, CodingKey {
@@ -130,6 +131,7 @@ extension ConfigBackup {
 struct SettingsSnapshot: Equatable, Sendable {
     var healthWebhookUrls: [String]
     var healthWebhookHeaders: [String: String]
+    var healthUrlsWithoutHeaders: Set<String>
     var healthSigningSecret: String
     var healthSyncIntervalMinutes: Int
     var healthEnabledDataTypes: Set<HealthDataType>
@@ -179,6 +181,8 @@ enum SettingsBackup {
         now: Date = Date()
     ) -> ConfigBackup {
         func secret(_ value: String) -> String? { includeSecrets && !value.isEmpty ? value : nil }
+        // Android reads an absent list as empty, so an empty one is left out.
+        let marked = settings.healthWebhookUrls.filter { settings.healthUrlsWithoutHeaders.contains($0) }
 
         return ConfigBackup(
             version: currentVersion,
@@ -189,7 +193,8 @@ enum SettingsBackup {
                 webhookUrls: settings.healthWebhookUrls,
                 headers: includeSecrets ? settings.healthWebhookHeaders : nil,
                 signingSecret: secret(settings.healthSigningSecret),
-                syncIntervalMinutes: settings.healthSyncIntervalMinutes
+                syncIntervalMinutes: settings.healthSyncIntervalMinutes,
+                urlsWithoutHeaders: marked.isEmpty ? nil : marked
             ),
             mqtt: MqttConfig(
                 shared: BrokerConfig(
@@ -335,14 +340,6 @@ enum SettingsBackup {
         default: return false
         }
     }
-
-    /// Scheme, host and port: the server a header was set for.
-    static func origin(of text: String) -> String? {
-        guard let components = URLComponents(string: text), let host = components.host else { return nil }
-        let scheme = components.scheme?.lowercased() ?? ""
-        let port = components.port ?? (scheme == "http" ? 80 : 443)
-        return "\(scheme)://\(host.lowercased()):\(port)"
-    }
 }
 
 // MARK: - Import
@@ -352,8 +349,6 @@ enum ImportNote: Equatable, Sendable {
     case newerVersion
     case skippedUrl(String)
     case headersKept
-    case headersCleared
-    case headersNotImported
     case signingSecretKept
     case brokerCredentialsKept
     case brokerCredentialsCleared
@@ -371,11 +366,7 @@ enum ImportNote: Equatable, Sendable {
         case .skippedUrl(let url):
             return String(localized: "Skipped \(url): iPhone only sends plain HTTP inside your network.")
         case .headersKept:
-            return String(localized: "This file has no custom headers, so the ones on this iPhone are kept.")
-        case .headersCleared:
-            return String(localized: "Your custom headers are removed, because this file sends to servers they were not set for.")
-        case .headersNotImported:
-            return String(localized: "Custom headers are not imported: Android sent them to only some of these URLs, and iPhone sends them to every URL. Add them again under Health if that is fine.")
+            return String(localized: "This file has no custom headers. The ones on this iPhone are kept, for the addresses they were already sent to.")
         case .signingSecretKept:
             return String(localized: "The signing secret on this iPhone is kept.")
         case .brokerCredentialsKept:
@@ -474,26 +465,15 @@ enum SettingsImport {
 
         let headers = health.headers ?? [:]
         try validateHeaders(headers)
-        // Android keeps headers away from the URLs it lists here. iOS sends its headers to
-        // every URL, so it cannot honour that list and leaves the headers out altogether.
-        let excluded = Set(health.urlsWithoutHeaders ?? []).intersection(health.webhookUrls ?? [])
-        if !headers.isEmpty && excluded.isEmpty {
+        let keepsDeviceHeaders = headers.isEmpty && !current.healthWebhookHeaders.isEmpty
+        if !headers.isEmpty {
             result.healthWebhookHeaders = headers
-        } else if !headers.isEmpty {
-            result.healthWebhookHeaders = [:]
-            notes.append(.headersNotImported)
-        } else if !current.healthWebhookHeaders.isEmpty {
-            // The device's headers were set for the device's servers: they stay only when the
-            // import sends to no other server, so a token never reaches a server it was not for.
-            let before = Set(current.healthWebhookUrls.compactMap(SettingsBackup.origin))
-            let after = Set(result.healthWebhookUrls.compactMap(SettingsBackup.origin))
-            if after.isSubset(of: before) {
-                notes.append(.headersKept)
-            } else {
-                result.healthWebhookHeaders = [:]
-                notes.append(.headersCleared)
-            }
+        } else if keepsDeviceHeaders {
+            notes.append(.headersKept)
         }
+        result.healthUrlsWithoutHeaders = urlsWithoutHeaders(
+            health, keepsDeviceHeaders: keepsDeviceHeaders, current: current, urls: result.healthWebhookUrls
+        )
 
         let secret = (health.signingSecret ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         if !secret.isEmpty {
@@ -508,6 +488,27 @@ enum SettingsImport {
             if clamped != minutes { notes.append(.intervalAdjusted(clamped)) }
             result.healthSyncIntervalMinutes = clamped
         }
+    }
+
+    /// Android's SectionConfig.urlsWithoutHeadersOnImport. Headers in the file were set for its
+    /// own URLs, so its own list holds. A file without headers keeps the ones on the device,
+    /// which were set for the device's URLs: an imported URL they did not go to before gets none
+    /// of them now either. A file without URLs leaves the device's URLs, and their marks, alone.
+    private static func urlsWithoutHeaders(
+        _ health: SectionConfig,
+        keepsDeviceHeaders: Bool,
+        current: SettingsSnapshot,
+        urls: [String]
+    ) -> Set<String> {
+        let listed = Set((health.urlsWithoutHeaders ?? []).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) })
+        guard health.webhookUrls != nil else {
+            return current.healthUrlsWithoutHeaders.union(listed).intersection(urls)
+        }
+        return Set(urls.filter { url in
+            listed.contains(url) ||
+                (keepsDeviceHeaders &&
+                    (!current.healthWebhookUrls.contains(url) || current.healthUrlsWithoutHeaders.contains(url)))
+        })
     }
 
     private static func planMqtt(
@@ -623,6 +624,7 @@ extension PreferencesManager {
         SettingsSnapshot(
             healthWebhookUrls: healthWebhookUrls,
             healthWebhookHeaders: healthWebhookHeaders,
+            healthUrlsWithoutHeaders: healthUrlsWithoutHeaders,
             healthSigningSecret: healthSigningSecret,
             healthSyncIntervalMinutes: healthSyncIntervalMinutes,
             healthEnabledDataTypes: healthEnabledDataTypes,
@@ -640,7 +642,9 @@ extension PreferencesManager {
 
     /// Writes an imported snapshot in one synchronous pass. Secrets that change are blanked
     /// first and written last, and MQTT is off while its broker changes, so a sync running on
-    /// another thread meanwhile never pairs a new host or URL with the old credentials.
+    /// another thread meanwhile never pairs a new host or URL with the old credentials. The
+    /// addresses that get no headers are written before the URLs, as pairing writes them, so
+    /// a new URL never gets headers it should not have.
     @MainActor
     func applyBackup(_ new: SettingsSnapshot) {
         let old = backupSnapshot()
@@ -654,6 +658,7 @@ extension PreferencesManager {
         if new.mqttPassword != old.mqttPassword { mqttPassword = "" }
         if mqttChanges && mqttEnabled { mqttEnabled = false }
 
+        if new.healthUrlsWithoutHeaders != old.healthUrlsWithoutHeaders { healthUrlsWithoutHeaders = new.healthUrlsWithoutHeaders }
         if new.healthWebhookUrls != old.healthWebhookUrls { healthWebhookUrls = new.healthWebhookUrls }
         if new.healthSyncIntervalMinutes != old.healthSyncIntervalMinutes { healthSyncIntervalMinutes = new.healthSyncIntervalMinutes }
         if new.healthEnabledDataTypes != old.healthEnabledDataTypes { healthEnabledDataTypes = new.healthEnabledDataTypes }

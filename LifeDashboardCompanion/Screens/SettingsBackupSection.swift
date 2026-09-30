@@ -414,9 +414,16 @@ private struct ImportSheet: View {
             Section {
                 LabeledContent("Webhooks", value: "\(result.healthWebhookUrls.count)")
                 ForEach(result.healthWebhookUrls, id: \.self) { url in
-                    Text(URLComponents(string: url)?.host ?? url)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    let host = URLComponents(string: url)?.host ?? url
+                    Group {
+                        if !result.healthWebhookHeaders.isEmpty && result.healthUrlsWithoutHeaders.contains(url) {
+                            Text("\(host), no custom headers")
+                        } else {
+                            Text(host)
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 }
                 if !result.healthWebhookHeaders.isEmpty {
                     LabeledContent("Custom headers", value: result.healthWebhookHeaders.keys.sorted().joined(separator: ", "))

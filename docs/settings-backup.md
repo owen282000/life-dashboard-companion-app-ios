@@ -12,6 +12,7 @@ Moving from one iPhone to another usually needs nothing from this app: the setti
 |---|---|
 | Webhook URLs | HealthKit anchors (how far this install has read) |
 | Custom headers (with secrets) | Webhook logs and raw payloads |
+| The webhook URLs that get no custom headers (the ones QR pairing added) | |
 | HMAC signing secret (with secrets) | The pending queue |
 | Sync interval | HealthKit permissions |
 | The data-type toggles | The last MQTT status line |
@@ -47,7 +48,7 @@ Nothing changes before you tap Import. A file with a value of the wrong type, a 
 What an import keeps from the iPhone:
 
 - **Signing secret:** a file without one keeps the one on the iPhone.
-- **Custom headers:** a file without headers keeps the ones on the iPhone only when every webhook in the file goes to a server (scheme, host and port) the iPhone already sends to. Otherwise they are removed, so a token never reaches a server it was not set for. Note that services that host many users' webhooks on one address (Home Assistant Cloud's `hooks.nabu.casa`, for example) count as one server here.
+- **Custom headers:** a file with headers brings its own list of URLs that get none of them. A file without headers keeps the ones on the iPhone, for the URLs they were already sent to: a URL from the file that was not on the iPhone, or that pairing added, gets none of them. This is the Android app's rule, so a token never reaches an address it was not set for, also on a service that hosts many users' webhooks on one server such as Home Assistant Cloud's `hooks.nabu.casa`. The preview marks the webhooks that get no custom headers.
 - **MQTT username and password:** kept only when the file has no secrets at all and points at the same broker, meaning the same host, port and TLS setting. Otherwise the file's credentials apply, or none, so they never go to a server they were not set for, or out in plain text where they had TLS.
 
 Other rules:
@@ -62,7 +63,7 @@ Both apps write and read the same format, so a file from one opens in the other,
 
 **From Android to iPhone:** the webhook URLs, signing secret, sync interval, data types, MQTT broker and failure threshold carry over. Screen Time, the Receive options, series resolutions and the other Android-only settings are skipped. Android data types the iPhone has no counterpart for are skipped and counted in the preview. When the Android file uses Android's default MQTT topic `lifedashboard`, the iPhone keeps its own default `lifedashboard-ios`, so the two phones do not publish to the same sensors; a custom topic is copied as it is.
 
-Custom headers from Android come with a list of URLs that get none of them (the ones QR pairing added). The iPhone app sends its headers to every URL and cannot honour that list yet, so when a file has such URLs its headers are not imported; add them again under Health if sending them to every URL is fine.
+Custom headers from Android come with a list of URLs that get none of them (the ones QR pairing added). The iPhone keeps the same list, so both carry over, in either direction.
 
 **From iPhone to Android:** Android reads the file, but its importer resets what the file does not mention. Importing an iPhone file on an Android phone that also syncs Screen Time clears its Screen Time webhooks, switches Screen Time MQTT off, resets the Android-only options (full payloads, the day boundary, daily totals) and turns off the data types the iPhone does not have. On a fresh Android phone this does not matter.
 

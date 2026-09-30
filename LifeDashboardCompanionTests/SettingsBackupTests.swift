@@ -29,6 +29,7 @@ final class SettingsBackupTests: XCTestCase {
     private let fixture = SettingsSnapshot(
         healthWebhookUrls: ["https://example.com/health", "http://homeassistant.local:8123/api/webhook/abc"],
         healthWebhookHeaders: ["Authorization": "Bearer fixture-token", "X-Api-Key": "fixture-key"],
+        healthUrlsWithoutHeaders: ["http://homeassistant.local:8123/api/webhook/abc"],
         healthSigningSecret: "fixture-hmac",
         healthSyncIntervalMinutes: 30,
         healthEnabledDataTypes: [.steps, .heartRate, .menstruation],
@@ -125,6 +126,7 @@ final class SettingsBackupTests: XCTestCase {
 
         let health = try XCTUnwrap(json["health"] as? [String: Any])
         XCTAssertEqual(health["webhook_urls"] as? [String], fixture.healthWebhookUrls)
+        XCTAssertEqual(health["urls_without_headers"] as? [String], ["http://homeassistant.local:8123/api/webhook/abc"])
         let mqtt = try XCTUnwrap(json["mqtt"] as? [String: Any])
         XCTAssertEqual(mqtt["health_use_shared"] as? Bool, true)
         XCTAssertEqual((mqtt["shared"] as? [String: Any])?["host"] as? String, "mqtt.example.com")
@@ -144,10 +146,11 @@ final class SettingsBackupTests: XCTestCase {
     func testExportWithoutSecretsLeavesThemOut() throws {
         let data = try SettingsBackup.encode(SettingsBackup.export(fixture, includeSecrets: false, appVersion: nil))
         let text = String(bytes: data, encoding: .utf8) ?? ""
-        for secret in ["fixture-token", "fixture-key", "fixture-hmac", "fixture-user", "fixture-pass", "headers", "signing_secret", "username", "password"] {
+        for secret in ["fixture-token", "fixture-key", "fixture-hmac", "fixture-user", "fixture-pass", "\"headers\"", "signing_secret", "username", "password"] {
             XCTAssertFalse(text.contains(secret), "\(secret) leaked into an export without secrets")
         }
         XCTAssertTrue(text.contains("https://example.com/health"))
+        XCTAssertTrue(text.contains("urls_without_headers"), "Not a secret: Android keeps it in an export without secrets")
     }
 
     // MARK: - Files from Android
@@ -157,10 +160,9 @@ final class SettingsBackupTests: XCTestCase {
         let result = plan.result
 
         XCTAssertEqual(result.healthWebhookUrls, ["https://example.com/health", "https://ha.example.com/api/webhook/abc"])
-        // Android keeps those headers away from the Home Assistant URL; iOS cannot, so it
-        // leaves them out rather than sending the token there.
-        XCTAssertEqual(result.healthWebhookHeaders, [:])
-        XCTAssertTrue(plan.notes.contains(.headersNotImported))
+        // The headers come along, and so does the list of URLs Android keeps them away from.
+        XCTAssertEqual(result.healthWebhookHeaders, ["Authorization": "Bearer token123"])
+        XCTAssertEqual(result.healthUrlsWithoutHeaders, ["https://ha.example.com/api/webhook/abc"])
         XCTAssertEqual(result.healthSigningSecret, "hmac-secret")
         XCTAssertEqual(result.healthSyncIntervalMinutes, 30)
         XCTAssertEqual(result.healthEnabledDataTypes, [.steps, .heartRate, .menstruation])
@@ -219,35 +221,54 @@ final class SettingsBackupTests: XCTestCase {
 
     // MARK: - Secrets kept or cleared
 
-    func testFileWithoutHeadersKeepsThemForTheSameServersOnly() throws {
+    /// Android's urlsWithoutHeadersOnImport: the device's headers stay, for the URLs they were
+    /// already sent to. Any other URL in the file gets none of them, also on the same server.
+    func testFileWithoutHeadersKeepsThemForTheUrlsTheyWentTo() throws {
+        var current = makePrefs().backupSnapshot()
+        current.healthWebhookUrls = ["https://example.com/health", "https://ha.example/api/webhook/paired"]
+        current.healthWebhookHeaders = ["Authorization": "Bearer mine"]
+        current.healthUrlsWithoutHeaders = ["https://ha.example/api/webhook/paired"]
+
+        let plan = try SettingsImport.plan(file("""
+        {"version":1,"health":{"webhook_urls":[
+          "https://example.com/health","https://example.com/other-path","https://ha.example/api/webhook/paired"
+        ]}}
+        """), current: current)
+        XCTAssertEqual(plan.result.healthWebhookHeaders, ["Authorization": "Bearer mine"])
+        XCTAssertEqual(plan.result.healthUrlsWithoutHeaders, [
+            "https://example.com/other-path", "https://ha.example/api/webhook/paired"
+        ])
+        XCTAssertTrue(plan.notes.contains(.headersKept))
+    }
+
+    func testFileHeadersComeWithTheFilesOwnList() throws {
         var current = makePrefs().backupSnapshot()
         current.healthWebhookUrls = ["https://example.com/health"]
-        current.healthWebhookHeaders = ["Authorization": "Bearer mine"]
+        current.healthUrlsWithoutHeaders = ["https://example.com/health"]
+        let plan = try SettingsImport.plan(file("""
+        {"version":1,"health":{"webhook_urls":["https://example.com/health","https://ha.example/hook"],
+          "headers":{"X-Token":"theirs"},"urls_without_headers":["https://ha.example/hook"]}}
+        """), current: current)
+        XCTAssertEqual(plan.result.healthWebhookHeaders, ["X-Token": "theirs"])
+        XCTAssertEqual(plan.result.healthUrlsWithoutHeaders, ["https://ha.example/hook"])
+    }
 
-        let sameServer = try SettingsImport.plan(
-            file(#"{"version":1,"health":{"webhook_urls":["https://example.com/other-path"]}}"#), current: current)
-        XCTAssertEqual(sameServer.result.healthWebhookHeaders, ["Authorization": "Bearer mine"])
-        XCTAssertTrue(sameServer.notes.contains(.headersKept))
-
-        let otherServer = try SettingsImport.plan(
-            file(#"{"version":1,"health":{"webhook_urls":["https://example.com/health","https://someone-else.example/hook"]}}"#),
-            current: current)
-        XCTAssertEqual(otherServer.result.healthWebhookHeaders, [:])
-        XCTAssertTrue(otherServer.notes.contains(.headersCleared))
-
-        let otherPort = try SettingsImport.plan(
-            file(#"{"version":1,"health":{"webhook_urls":["https://example.com:8443/health"]}}"#), current: current)
-        XCTAssertEqual(otherPort.result.healthWebhookHeaders, [:])
+    func testFileWithoutUrlsLeavesTheMarksAlone() throws {
+        var current = makePrefs().backupSnapshot()
+        current.healthWebhookUrls = ["https://example.com/health", "https://ha.example/hook"]
+        current.healthUrlsWithoutHeaders = ["https://ha.example/hook"]
+        let plan = try SettingsImport.plan(file(#"{"version":1,"health":{"headers":{"X-Token":"theirs"}}}"#), current: current)
+        XCTAssertEqual(plan.result.healthUrlsWithoutHeaders, ["https://ha.example/hook"])
     }
 
     /// Keychain items outlive a deleted app, UserDefaults do not: after a reinstall the headers
-    /// are there without the URLs they were for.
-    func testStaleHeadersWithoutUrlsAreCleared() throws {
+    /// are there without the URLs they were for, and a URL from the file gets none of them.
+    func testStaleHeadersWithoutUrlsGoNowhere() throws {
         var current = makePrefs().backupSnapshot()
         current.healthWebhookHeaders = ["Authorization": "Bearer old"]
         let plan = try SettingsImport.plan(
             file(#"{"version":1,"health":{"webhook_urls":["https://new.example/hook"]}}"#), current: current)
-        XCTAssertEqual(plan.result.healthWebhookHeaders, [:])
+        XCTAssertEqual(plan.result.healthUrlsWithoutHeaders, ["https://new.example/hook"])
     }
 
     func testFileHeadersReplaceTheDevicesAndSigningSecretIsKeptWhenAbsent() throws {
@@ -393,6 +414,7 @@ final class SettingsBackupTests: XCTestCase {
         next.mqttHost = "other.example.com"
         next.mqttPassword = "other-pass"
         next.healthWebhookUrls = ["https://other.example/hook"]
+        next.healthUrlsWithoutHeaders = []
         next.healthWebhookHeaders = ["X-Other": "value"]
         prefs.applyBackup(next)
 
