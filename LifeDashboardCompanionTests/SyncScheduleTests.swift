@@ -469,7 +469,7 @@ final class SyncScheduleTests: XCTestCase {
     func testTheStatusLineExplainsWhyAutomaticSyncsWait() {
         let schedule = SyncSchedule(days: Weekday.workdays, quietWindow: QuietWindow(from: time("23:00"), to: time("07:00")))
         let line = { (now: String, webhooks: Int) in
-            ScheduleStatusLine.text(schedule: schedule, webhookCount: webhooks, now: self.instant(now), timeZone: self.utc)
+            ScheduleStatusLine.text(schedule: schedule, webhookCount: webhooks, mqtt: false, now: self.instant(now), timeZone: self.utc)
         }
         XCTAssertEqual(line("2026-09-14T12:00:00Z", 0), "\(schedule.summary), no destination yet")
         XCTAssertEqual(line("2026-09-14T12:00:00Z", 1), "\(schedule.summary) to 1 webhook")
@@ -477,7 +477,25 @@ final class SyncScheduleTests: XCTestCase {
         XCTAssertEqual(line("2026-09-14T23:30:00Z", 1), "Quiet hours until \(time("07:00").formatted). Sync Now still works.")
         XCTAssertEqual(line("2026-09-19T12:00:00Z", 1), "No automatic syncs today. Sync Now still works.")
         XCTAssertEqual(
-            ScheduleStatusLine.text(schedule: SyncSchedule(days: []), webhookCount: 1, now: instant("2026-09-14T12:00:00Z"), timeZone: utc),
+            ScheduleStatusLine.text(schedule: SyncSchedule(days: []), webhookCount: 1, mqtt: false, now: instant("2026-09-14T12:00:00Z"), timeZone: utc),
+            "Automatic syncs are off. Sync Now still works."
+        )
+    }
+
+    /// Automatic syncs publish to MQTT too, so the line names the broker, alone or with webhooks.
+    func testTheStatusLineNamesMQTT() {
+        let schedule = SyncSchedule(days: Weekday.workdays)
+        let line = { (webhooks: Int, mqtt: Bool) in
+            ScheduleStatusLine.text(
+                schedule: schedule, webhookCount: webhooks, mqtt: mqtt, now: self.instant("2026-09-14T12:00:00Z"), timeZone: self.utc
+            )
+        }
+        XCTAssertEqual(line(0, true), "\(schedule.summary) to MQTT")
+        XCTAssertEqual(line(1, true), "\(schedule.summary) to 1 webhook and MQTT")
+        XCTAssertEqual(line(2, true), "\(schedule.summary) to 2 webhooks and MQTT")
+        XCTAssertEqual(line(0, false), "\(schedule.summary), no destination yet")
+        XCTAssertEqual(
+            ScheduleStatusLine.text(schedule: SyncSchedule(days: []), webhookCount: 0, mqtt: true, now: instant("2026-09-14T12:00:00Z"), timeZone: utc),
             "Automatic syncs are off. Sync Now still works."
         )
     }

@@ -14,12 +14,15 @@ final class MqttPublisher: @unchecked Sendable {
 
     private init() {}
 
-    func publish(healthPayload: [String: Any]) async {
+    /// Returns the error when the broker could not be reached, nil when the sensors went out or
+    /// there was nothing to publish.
+    @discardableResult
+    func publish(healthPayload: [String: Any]) async -> String? {
         let prefs = PreferencesManager.shared
-        guard prefs.mqttEnabled, !prefs.mqttHost.isEmpty else { return }
+        guard prefs.mqttConfigured else { return nil }
 
         let sensors = MqttSupport.sensors(from: healthPayload)
-        guard !sensors.isEmpty else { return }
+        guard !sensors.isEmpty else { return nil }
 
         let baseTopic = prefs.mqttBaseTopic.isEmpty ? MqttSupport.defaultBaseTopic : prefs.mqttBaseTopic
         let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
@@ -52,10 +55,13 @@ final class MqttPublisher: @unchecked Sendable {
             }
             prefs.mqttLastStatus = MqttStatus.published(sensors: sensors.count, at: Date())
             logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: nil)
+            return nil
         } catch {
-            logger.error("MQTT publish failed: \(error.localizedDescription)")
-            prefs.mqttLastStatus = MqttStatus.failed(error.localizedDescription)
-            logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: error.localizedDescription)
+            let message = error is CancellationError ? AppDiagnostic.brokerCancelled.rawValue : error.localizedDescription
+            logger.error("MQTT publish failed: \(message)")
+            prefs.mqttLastStatus = MqttStatus.failed(message)
+            logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: message)
+            return message
         }
     }
 
@@ -104,9 +110,16 @@ final class MqttPublisher: @unchecked Sendable {
         let connection = NWConnection(host: NWEndpoint.Host(host), port: nwPort, using: parameters)
         defer { connection.cancel() }
 
-        try await withTimeout(seconds: 10) {
-            try await self.awaitReady(connection)
-            try await body(connection)
+        // The waits below ignore task cancellation; cancelling the connection is what ends them,
+        // with an error. Without it a broker that never answers, or a LAN address dialled from
+        // outside the LAN, would hold the sync, and every sync queued behind it, for good.
+        try await withTaskCancellationHandler {
+            try await withTimeout(seconds: 10, onTimeout: { connection.cancel() }, operation: {
+                try await self.awaitReady(connection)
+                try await body(connection)
+            })
+        } onCancel: {
+            connection.cancel()
         }
     }
 
@@ -130,7 +143,9 @@ final class MqttPublisher: @unchecked Sendable {
                 switch state {
                 case .ready:
                     if guardFlag.tryResume() { continuation.resume() }
-                case .failed(let error):
+                case .failed(let error), .waiting(let error):
+                    // Waiting is how a refused connection or an unknown host shows: the
+                    // connection would retry only once the network changes.
                     if guardFlag.tryResume() {
                         continuation.resume(throwing: MqttError.connectionFailed(error.localizedDescription))
                     }
@@ -172,11 +187,17 @@ final class MqttPublisher: @unchecked Sendable {
         }
     }
 
-    private func withTimeout(seconds: TimeInterval, operation: @escaping @Sendable () async throws -> Void) async throws {
+    /// `onTimeout` has to make the operation return: the group waits for it before it throws.
+    private func withTimeout(
+        seconds: TimeInterval,
+        onTimeout: @escaping @Sendable () -> Void,
+        operation: @escaping @Sendable () async throws -> Void
+    ) async throws {
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask { try await operation() }
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                onTimeout()
                 throw MqttError.timeout
             }
             try await group.next()

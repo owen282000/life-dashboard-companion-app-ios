@@ -22,7 +22,9 @@ final class BackgroundSyncManager {
     private var replanTask: Task<Void, Never>?
     private var notificationTokens: [NSObjectProtocol] = []
     /// How long a HealthKit wakeup may keep HealthKit waiting: the debounce, one read and one
-    /// delivery fit comfortably, and it stays under the roughly 30 seconds iOS gives.
+    /// delivery fit comfortably, and it stays under the roughly 30 seconds iOS gives. An MQTT
+    /// publish after a slow webhook can run past it; iOS may then suspend the app before the
+    /// broker has everything, and the next sync publishes again.
     nonisolated static let observerBudgetSeconds: TimeInterval = 25
 
     private init() {}
@@ -160,6 +162,11 @@ final class BackgroundSyncManager {
             })
         }
         notificationTokens.append(center.addObserver(
+            forName: .healthDestinationsDidChange, object: prefs, queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { BackgroundSyncManager.shared.scheduleDidChange() }
+        })
+        notificationTokens.append(center.addObserver(
             forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main
         ) { _ in
             Task { _ = await SyncCoordinator.shared.runAutomatic(.unlock) }
@@ -167,14 +174,25 @@ final class BackgroundSyncManager {
     }
 
     /// Settings save on every change, so a DatePicker being turned or a number being typed
-    /// would re-aim the requests many times a second; one second of quiet is enough.
+    /// would re-aim the requests many times a second; one second of quiet is enough. A change
+    /// of destination comes here too: the first webhook URL or broker starts the observers.
     func scheduleDidChange() {
         replanTask?.cancel()
         replanTask = Task {
             try? await Task.sleep(nanoseconds: 1_000_000_000)
             guard !Task.isCancelled else { return }
-            replan()
+            start()
         }
+    }
+
+    /// Sets up the observers when there is a destination and none are running yet, and aims
+    /// the background tasks. At launch, and after every change of schedule or destination, so
+    /// a broker or webhook URL added later needs no relaunch.
+    func start() {
+        if observerQueries.isEmpty && prefs.healthSyncConfigured {
+            setupHealthKitObservers()
+        }
+        replan()
     }
 
     // MARK: - Background Task Scheduling
@@ -185,7 +203,7 @@ final class BackgroundSyncManager {
     /// After a run the lock stopped, it waits a quarter of an hour instead of asking at once.
     func replan(afterLockedRun: Bool = false) {
         let now = Date()
-        let hasWork = !prefs.healthWebhookUrls.isEmpty && !prefs.healthEnabledDataTypes.isEmpty
+        let hasWork = prefs.healthSyncConfigured
         let decision = prefs.healthSyncSchedule.decide(state: prefs.healthScheduleState, now: now, timeZone: .autoupdatingCurrent)
         var target: Date
         switch decision {

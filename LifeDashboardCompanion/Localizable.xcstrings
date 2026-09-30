@@ -385,6 +385,110 @@
         }
       }
     },
+    "%@ to %lld webhooks and MQTT" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ an %#@webhooks@ und MQTT"
+          },
+          "substitutions" : {
+            "webhooks" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg Webhook"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg Webhooks"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ to %#@webhooks@ and MQTT"
+          },
+          "substitutions" : {
+            "webhooks" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg webhook"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg webhooks"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ naar %#@webhooks@ en MQTT"
+          },
+          "substitutions" : {
+            "webhooks" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg webhook"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg webhooks"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%@ to MQTT" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ an MQTT"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ naar MQTT"
+          }
+        }
+      }
+    },
     "%@ wants to receive your data at:" : {
       "localizations" : {
         "de" : {
@@ -5299,18 +5403,18 @@
         }
       }
     },
-    "Reads your enabled Apple Health data types and delivers them to your configured webhooks." : {
+    "Reads your enabled Apple Health data types and delivers them to your webhooks and MQTT broker." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Liest die aktivierten Datentypen aus Apple Health und stellt sie an deine eingerichteten Webhooks zu."
+            "value" : "Liest die aktivierten Datentypen aus Apple Health und stellt sie an deine Webhooks und deinen MQTT-Broker zu."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Leest de ingeschakelde datatypes uit Apple Gezondheid en levert ze af bij je ingestelde webhooks."
+            "value" : "Leest de ingeschakelde datatypes uit Apple Gezondheid en levert ze af bij je webhooks en je MQTT-broker."
           }
         }
       }
@@ -6271,22 +6375,6 @@
         }
       }
     },
-    "Sync failed (queued for retry): %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Synchronisierung fehlgeschlagen (für einen erneuten Versuch eingereiht): %@"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Synchronisatie mislukt (in de wachtrij voor een nieuwe poging): %@"
-          }
-        }
-      }
-    },
     "Sync failed: %@" : {
       "localizations" : {
         "de" : {
@@ -6447,7 +6535,7 @@
         }
       }
     },
-    "Synced %lld health records to your webhook." : {
+    "Synced %lld health records." : {
       "localizations" : {
         "de" : {
           "variations" : {
@@ -6455,13 +6543,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld Gesundheitsdatensatz an deinen Webhook synchronisiert."
+                  "value" : "%lld Gesundheitsdatensatz synchronisiert."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld Gesundheitsdatensätze an deinen Webhook synchronisiert."
+                  "value" : "%lld Gesundheitsdatensätze synchronisiert."
                 }
               }
             }
@@ -6473,13 +6561,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Synced %lld health record to your webhook."
+                  "value" : "Synced %lld health record."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Synced %lld health records to your webhook."
+                  "value" : "Synced %lld health records."
                 }
               }
             }
@@ -6491,13 +6579,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld gezondheidsrecord naar je webhook gesynchroniseerd."
+                  "value" : "%lld gezondheidsrecord gesynchroniseerd."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld gezondheidsrecords naar je webhook gesynchroniseerd."
+                  "value" : "%lld gezondheidsrecords gesynchroniseerd."
                 }
               }
             }

@@ -32,14 +32,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // Register background tasks
         BackgroundSyncManager.shared.registerBackgroundTasks()
 
-        let prefs = PreferencesManager.shared
-
-        if !prefs.healthWebhookUrls.isEmpty && !prefs.healthEnabledDataTypes.isEmpty {
-            // Set up HKObserverQuery-based background sync (primary mechanism)
-            BackgroundSyncManager.shared.setupHealthKitObservers()
-
-            // Aim both background tasks at the next moment the schedule allows a sync
-            BackgroundSyncManager.shared.replan()
+        if PreferencesManager.shared.healthSyncConfigured {
+            // HKObserverQuery-based background sync (the primary mechanism), and both background
+            // tasks aimed at the next moment the schedule allows a sync
+            BackgroundSyncManager.shared.start()
         }
         BackgroundSyncManager.shared.startObservingScheduleChanges()
 

@@ -34,7 +34,8 @@ All notable changes to this project are documented in this file. The format is b
 - The interval is the minimum time between automatic syncs, HealthKit-triggered ones included; before, it only moved the nightly background task
 - Opening the app no longer syncs every time: it syncs when the schedule says a sync is due, and never in quiet hours. Sync Now always syncs
 - The background processing task sends what is new instead of the last seven days; Sync Now keeps the full resend
-- The Sync Health Data action sends what is queued and what is new instead of the last seven days, and on a locked iPhone says it is locked instead of "No new health data to sync". It no longer publishes to MQTT; Sync Now does
+- The Sync Health Data action sends what is queued and what is new instead of the last seven days, and on a locked iPhone says it is locked instead of "No new health data to sync"
+- Every sync publishes to MQTT, the automatic ones and the Sync Health Data action included, with the latest value of each type that has new records, once a type that fell behind has caught up; before, only a full sync did. The status line under Sync Now names MQTT next to the webhooks
 - A queued payload is retried automatically outside quiet hours only; Retry Now always retries
 - The About screen says settings stay on your device unless you export them
 - The app looks like the Android app: its brand green and card layout, rows with a tinted symbol and a subtitle that says their state, a green header on the Health tab, the Sync Now pill with View, Test ping and Backfill tiles, and log rows with a Delivered, Published or Failed pill. Navigation, controls, type and backgrounds stay the iPhone's own, with Dynamic Type and dark mode. Green text uses a darker green than Android's, and text on green is dark instead of white, so both stay readable
@@ -48,6 +49,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- An iPhone set up with an MQTT broker and no webhook URL never published, although the first-run setup offers the broker as a destination of its own. MQTT alone now counts, as in the Android app: Sync Now is available, and the HealthKit observers and background tasks start as soon as a broker or webhook URL is set, without reopening the app. Nothing is queued for MQTT, and deletions are not read without a webhook, since a sensor has no record to withdraw. A webhook URL added later gets what is new from then on; Sync Now or Backfill History sends what came before. A broker that does not answer, or a LAN address dialled from outside the LAN, now fails after 10 seconds instead of holding up every sync behind it
 - The background refresh and processing tasks were never scheduled, because the background modes they need were missing; iOS refused every request without a visible error
 - A HealthKit wakeup released HealthKit before its sync had started, so iOS could suspend the app mid-sync, and a wakeup that arrived while a sync was sending cancelled it, which logged a failure and sent the payload twice
 - Two retries of the queue at the same time, such as at launch and when the app became active, posted each queued payload twice

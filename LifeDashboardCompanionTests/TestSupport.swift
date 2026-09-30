@@ -1,4 +1,5 @@
 import Foundation
+@testable import LifeDashboardCompanion
 
 /// A clock the test moves by hand. `sleep` suspends until the test has advanced past the
 /// deadline, so timing tests neither wait in real time nor depend on a busy CI machine.
@@ -60,6 +61,20 @@ func settle(_ condition: @escaping @Sendable () async -> Bool) async -> Bool {
         await Task.yield()
     }
     return false
+}
+
+/// Secrets in memory, so the tests never touch the Keychain of the host app.
+final class InMemorySecretStore: SecretStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [String: Data] = [:]
+
+    func data(forKey key: String) -> Data? {
+        lock.withLock { values[key] }
+    }
+
+    func setData(_ value: Data, forKey key: String) {
+        lock.withLock { values[key] = value }
+    }
 }
 
 /// A serial executor for one actor that runs each job right away on a serial queue of its own,

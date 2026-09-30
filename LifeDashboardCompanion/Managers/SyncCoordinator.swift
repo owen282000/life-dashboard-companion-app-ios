@@ -7,7 +7,7 @@ enum SyncTrigger: String, Sendable {
 }
 
 enum AutomaticSyncOutcome: Equatable, Sendable {
-    /// No webhook URL or no data type: nothing to do.
+    /// No destination (webhook URL or MQTT broker) or no data type: nothing to do.
     case notConfigured
     /// The schedule says no, or a run already in progress covered this chance.
     case notDue
@@ -186,10 +186,7 @@ extension SyncCoordinator.Environment {
         now: { Date() },
         timeZone: { TimeZone.autoupdatingCurrent },
         isUnlocked: { await MainActor.run { UIApplication.shared.isProtectedDataAvailable } },
-        isConfigured: {
-            let prefs = PreferencesManager.shared
-            return !prefs.healthWebhookUrls.isEmpty && !prefs.healthEnabledDataTypes.isEmpty
-        },
+        isConfigured: { PreferencesManager.shared.healthSyncConfigured },
         schedule: { PreferencesManager.shared.healthSyncSchedule },
         loadState: { PreferencesManager.shared.healthScheduleState },
         saveState: { PreferencesManager.shared.healthScheduleState = $0 },
