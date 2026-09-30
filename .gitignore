@@ -22,3 +22,6 @@ playground.xcworkspace
 
 # Claude Code local settings
 .claude/
+
+# Python bytecode from scripts/l10n
+__pycache__/

@@ -53,6 +53,12 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
+      # Xcode adds new strings to the String Catalogs only when a build runs in the IDE, and
+      # nothing fails on a missing translation. This fails on both, and on English text that
+      # bypasses the catalogs, so the app cannot ship half-translated again.
+      - name: Check translations
+        run: scripts/l10n.sh check --objroot build --symroot build --github
+
       - name: Build for testing
         run: |
           DEVICE=$(xcrun simctl list devices available | grep -oE 'iPhone [^(]+' | head -1 | sed 's/ *$//')

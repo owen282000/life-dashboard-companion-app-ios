@@ -84,6 +84,9 @@
 		B245FE77AA68002A4EFCEBEC /* WebhookLogCodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8B7BE1BD86868C3A951B716 /* WebhookLogCodingTests.swift */; };
 		2E4E8AD8F82E06F18F7E5627 /* SyncStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA83B71D8F9C56A0C1C11CA /* SyncStats.swift */; };
 		2ACD172A8D49AD1B2189288D /* AppDiagnostic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66E0043B745687663D70732A /* AppDiagnostic.swift */; };
+		E7F06130A2C6E123FC9BF861 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = ECCB056354A1F8AC8BCBA42D /* InfoPlist.xcstrings */; };
+		6FB1128BC0941BEF0BEA447F /* AppShortcuts.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 06CDA70350B6929629EB6C68 /* AppShortcuts.xcstrings */; };
+		E2C932B92E95D465DA6DC064 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 0A78769A40A4B8CD89B0672A /* Localizable.xcstrings */; };
 		CD633342D71B7343BE6D42BF /* SyncStatsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0A76F35656FC9BBDF0216A /* SyncStatsCard.swift */; };
 		681C2DAA9427B02EA5D9277F /* SyncStatsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA530B152D776D79491AAF31 /* SyncStatsTests.swift */; };
 		19DAC412C3CC920D90BE79DF /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1269CB2C47B555716CC30117 /* Brand.swift */; };
@@ -207,6 +210,9 @@
 		D8B7BE1BD86868C3A951B716 /* WebhookLogCodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookLogCodingTests.swift; sourceTree = "<group>"; };
 		6AA83B71D8F9C56A0C1C11CA /* SyncStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStats.swift; sourceTree = "<group>"; };
 		66E0043B745687663D70732A /* AppDiagnostic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDiagnostic.swift; sourceTree = "<group>"; };
+		ECCB056354A1F8AC8BCBA42D /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		06CDA70350B6929629EB6C68 /* AppShortcuts.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = AppShortcuts.xcstrings; sourceTree = "<group>"; };
+		0A78769A40A4B8CD89B0672A /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		8A0A76F35656FC9BBDF0216A /* SyncStatsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatsCard.swift; sourceTree = "<group>"; };
 		CA530B152D776D79491AAF31 /* SyncStatsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatsTests.swift; sourceTree = "<group>"; };
 		1269CB2C47B555716CC30117 /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
@@ -263,6 +269,8 @@
 				F1000014 /* LifeDashboardCompanion.entitlements */,
 				F1000024 /* PrivacyInfo.xcprivacy */,
 				F1000025 /* Localizable.xcstrings */,
+				ECCB056354A1F8AC8BCBA42D /* InfoPlist.xcstrings */,
+				06CDA70350B6929629EB6C68 /* AppShortcuts.xcstrings */,
 			);
 			path = LifeDashboardCompanion;
 			sourceTree = "<group>";
@@ -354,6 +362,7 @@
 				F1000028 /* LifeDashboardWidget.swift */,
 				F1000029 /* Info.plist */,
 				F100002B /* LifeDashboardWidget.entitlements */,
+				0A78769A40A4B8CD89B0672A /* Localizable.xcstrings */,
 			);
 			path = LifeDashboardWidget;
 			sourceTree = "<group>";
@@ -435,6 +444,7 @@
 			buildPhases = (
 				E1000006 /* Sources */,
 				E1000007 /* Frameworks */,
+				99641A6DB8101D892B3F6F1A /* Resources */,
 			);
 			buildRules = (
 			);
@@ -487,6 +497,8 @@
 			knownRegions = (
 				en,
 				Base,
+				nl,
+				de,
 			);
 			mainGroup = D1000001;
 			productRefGroup = D1000003 /* Products */;
@@ -508,6 +520,16 @@
 				B1000003 /* Assets.xcassets in Resources */,
 				B1000024 /* PrivacyInfo.xcprivacy in Resources */,
 				B1000025 /* Localizable.xcstrings in Resources */,
+				E7F06130A2C6E123FC9BF861 /* InfoPlist.xcstrings in Resources */,
+				6FB1128BC0941BEF0BEA447F /* AppShortcuts.xcstrings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		99641A6DB8101D892B3F6F1A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E2C932B92E95D465DA6DC064 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

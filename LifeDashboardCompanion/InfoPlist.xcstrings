@@ -1,0 +1,128 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "Bundle display name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Life Dashboard"
+          }
+        }
+      },
+      "shouldTranslate" : false
+    },
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "LifeDashboardCompanion"
+          }
+        }
+      },
+      "shouldTranslate" : false
+    },
+    "NSCameraUsageDescription" : {
+      "comment" : "Privacy - Camera Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird nur verwendet, um den Kopplungscode der Life-Dashboard-Integration in Home Assistant zu scannen. Bilder werden auf dem Telefon ausgewertet und nie gespeichert oder gesendet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Used only to scan the pairing code from the Life Dashboard integration in Home Assistant. Frames are decoded on the phone and are never stored or sent."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alleen gebruikt om de koppelcode van de Life Dashboard-integratie in Home Assistant te scannen. Beelden worden op de telefoon gedecodeerd en nooit opgeslagen of verstuurd."
+          }
+        }
+      }
+    },
+    "NSHealthShareUsageDescription" : {
+      "comment" : "Privacy - Health Share Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard braucht Zugriff auf deine Gesundheitsdaten, um sie über Webhooks mit deinem eigenen Dashboard zu synchronisieren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Life Dashboard needs access to your health data to sync it to your personal dashboard via webhooks."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard heeft toegang tot je gezondheidsdata nodig om die via webhooks naar je eigen dashboard te synchroniseren."
+          }
+        }
+      }
+    },
+    "NSHealthUpdateUsageDescription" : {
+      "comment" : "Privacy - Health Update Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard schreibt keine Gesundheitsdaten, aber das System verlangt diese Berechtigung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Life Dashboard does not write health data, but this permission is required by the system."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard schrijft geen gezondheidsdata, maar het systeem vereist deze toestemming."
+          }
+        }
+      }
+    },
+    "NSLocalNetworkUsageDescription" : {
+      "comment" : "Privacy - Local Network Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird verwendet, um deine Gesundheitsdaten an Webhook-Server und MQTT-Broker in deinem eigenen lokalen Netzwerk zuzustellen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Used to deliver your health data to webhook servers and MQTT brokers on your own local network."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebruikt om je gezondheidsdata af te leveren bij webhookservers en MQTT-brokers op je eigen lokale netwerk."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
