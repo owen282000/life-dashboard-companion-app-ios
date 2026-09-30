@@ -31,7 +31,13 @@ final class SettingsBackupTests: XCTestCase {
         healthWebhookHeaders: ["Authorization": "Bearer fixture-token", "X-Api-Key": "fixture-key"],
         healthUrlsWithoutHeaders: ["http://homeassistant.local:8123/api/webhook/abc"],
         healthSigningSecret: "fixture-hmac",
-        healthSyncIntervalMinutes: 30,
+        healthSyncSchedule: SyncSchedule(
+            mode: .times,
+            intervalMinutes: 30,
+            times: [TimeOfDay("07:30")!, TimeOfDay("21:00")!],
+            days: [.monday, .tuesday, .wednesday, .thursday, .friday],
+            quietWindow: QuietWindow(from: TimeOfDay("22:00")!, to: TimeOfDay("07:00")!)
+        ),
         healthEnabledDataTypes: [.steps, .heartRate, .menstruation],
         failureNotificationsEnabled: false,
         failureNotificationThreshold: 10,
@@ -127,6 +133,14 @@ final class SettingsBackupTests: XCTestCase {
         let health = try XCTUnwrap(json["health"] as? [String: Any])
         XCTAssertEqual(health["webhook_urls"] as? [String], fixture.healthWebhookUrls)
         XCTAssertEqual(health["urls_without_headers"] as? [String], ["http://homeassistant.local:8123/api/webhook/abc"])
+        XCTAssertEqual(health["sync_mode"] as? String, "TIMES")
+        XCTAssertEqual(health["sync_times"] as? String, "07:30,21:00")
+        XCTAssertEqual(health["sync_days"] as? String, "MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY")
+        XCTAssertEqual(health["quiet_from"] as? String, "22:00")
+        XCTAssertEqual(health["quiet_to"] as? String, "07:00")
+        for key in ["last_run", "last_slot", "changed_at"] {
+            XCTAssertFalse(text.contains(key), "\(key) is sync state, not a setting")
+        }
         let mqtt = try XCTUnwrap(json["mqtt"] as? [String: Any])
         XCTAssertEqual(mqtt["health_use_shared"] as? Bool, true)
         XCTAssertEqual((mqtt["shared"] as? [String: Any])?["host"] as? String, "mqtt.example.com")
@@ -164,7 +178,11 @@ final class SettingsBackupTests: XCTestCase {
         XCTAssertEqual(result.healthWebhookHeaders, ["Authorization": "Bearer token123"])
         XCTAssertEqual(result.healthUrlsWithoutHeaders, ["https://ha.example.com/api/webhook/abc"])
         XCTAssertEqual(result.healthSigningSecret, "hmac-secret")
-        XCTAssertEqual(result.healthSyncIntervalMinutes, 30)
+        XCTAssertEqual(result.healthSyncSchedule.intervalMinutes, 30)
+        XCTAssertEqual(result.healthSyncSchedule.mode, .times)
+        XCTAssertEqual(result.healthSyncSchedule.times.map(\.text), ["07:30", "21:00"])
+        XCTAssertEqual(result.healthSyncSchedule.days, [.monday, .tuesday, .wednesday, .thursday, .friday])
+        XCTAssertNil(result.healthSyncSchedule.quietWindow)
         XCTAssertEqual(result.healthEnabledDataTypes, [.steps, .heartRate, .menstruation])
         XCTAssertTrue(plan.notes.contains(.unavailableTypes(1)), "BONE_MASS has no iPhone counterpart")
         XCTAssertEqual(result.mqttEnabled, true)
@@ -385,13 +403,44 @@ final class SettingsBackupTests: XCTestCase {
         let plan = try SettingsImport.plan(
             file(#"{"version":1,"health":{"sync_interval_minutes":5},"options":{"failure_notification_threshold":7}}"#),
             current: fixture)
-        XCTAssertEqual(plan.result.healthSyncIntervalMinutes, 15)
+        XCTAssertEqual(plan.result.healthSyncSchedule.intervalMinutes, 15)
         XCTAssertEqual(plan.result.failureNotificationThreshold, 5)
         XCTAssertTrue(plan.notes.contains(.intervalAdjusted(15)))
         XCTAssertTrue(plan.notes.contains(.thresholdAdjusted(from: 7, to: 5)))
         XCTAssertEqual(try SettingsImport.plan(
             file(#"{"version":1,"options":{"failure_notification_threshold":4}}"#), current: fixture
         ).result.failureNotificationThreshold, 3, "A tie goes to the lower value")
+    }
+
+    // MARK: - Schedule
+
+    /// Android's restoreSchedule: a file from before the schedule moves only the interval.
+    func testFileWithoutScheduleFieldsLeavesTheScheduleAlone() throws {
+        let plan = try SettingsImport.plan(file(#"{"version":1,"health":{"sync_interval_minutes":45}}"#), current: fixture)
+        var expected = fixture.healthSyncSchedule
+        expected.intervalMinutes = 45
+        XCTAssertEqual(plan.result.healthSyncSchedule, expected)
+    }
+
+    func testScheduleFieldsReplaceTheDevicesAndQuietHoursNeedBothEnds() throws {
+        let plan = try SettingsImport.plan(file("""
+        {"version":1,"health":{"sync_mode":"SOMETHING_NEWER","sync_days":"SATURDAY,SUNDAY","quiet_from":"23:00","quiet_to":null}}
+        """), current: fixture)
+        let schedule = plan.result.healthSyncSchedule
+        XCTAssertEqual(schedule.mode, .times, "A mode this build does not know keeps the device's")
+        XCTAssertEqual(schedule.times, fixture.healthSyncSchedule.times)
+        XCTAssertEqual(schedule.days, [.saturday, .sunday])
+        XCTAssertNil(schedule.quietWindow)
+    }
+
+    func testImportedScheduleIsStampedAsAChange() {
+        let prefs = makePrefs()
+        prefs.healthScheduleState = ScheduleState(lastRun: nil, lastSlot: nil, changedAt: .distantPast)
+        var next = prefs.backupSnapshot()
+        next.healthSyncSchedule = fixture.healthSyncSchedule
+        prefs.applyBackup(next)
+        XCTAssertEqual(prefs.healthSyncSchedule, fixture.healthSyncSchedule)
+        XCTAssertNotEqual(prefs.healthScheduleState.changedAt, .distantPast, "Times earlier today must not run after an import")
     }
 
     // MARK: - Applying

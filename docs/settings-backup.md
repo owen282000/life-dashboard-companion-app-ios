@@ -10,11 +10,11 @@ Moving from one iPhone to another usually needs nothing from this app: the setti
 
 | Included | Not included |
 |---|---|
-| Webhook URLs | HealthKit anchors (how far this install has read) |
+| Webhook URLs | HealthKit anchors (how far this install has read), and when the schedule last ran |
 | Custom headers (with secrets) | Webhook logs and raw payloads |
 | The webhook URLs that get no custom headers (the ones QR pairing added) | |
 | HMAC signing secret (with secrets) | The pending queue |
-| Sync interval | HealthKit permissions |
+| Sync schedule: interval or fixed times, days and quiet hours | HealthKit permissions |
 | The data-type toggles | The last MQTT status line |
 | MQTT broker, port, TLS, switch and base topic | |
 | MQTT username and password (with secrets) | |
@@ -55,13 +55,14 @@ Other rules:
 
 - Webhook URLs must use HTTPS, or plain HTTP to a host on your own network (a private address, a name without a dot, or a `.local`, `.lan`, `.home`, `.internal` or `.ts.net` name). Other URLs are skipped and listed in the preview.
 - The sync interval is kept between 15 and 1440 minutes, and the failure threshold becomes the nearest of 3, 5 or 10.
+- The rest of the schedule follows the Android app's rule: a file from before the schedule existed (Android 1.13 or older) changes only the interval. Otherwise the file's mode, times and days replace the iPhone's, and its quiet hours too, which means none when the file has none. An imported schedule counts as a change, so a time earlier today does not run straight away.
 - Settings apply immediately. Background sync is scheduled again and the app asks for HealthKit access to the imported data types.
 
 ## Moving between Android and iPhone
 
 Both apps write and read the same format, so a file from one opens in the other, encrypted or not.
 
-**From Android to iPhone:** the webhook URLs, signing secret, sync interval, data types, MQTT broker and failure threshold carry over. Screen Time, the Receive options, series resolutions and the other Android-only settings are skipped. Android data types the iPhone has no counterpart for are skipped and counted in the preview. When the Android file uses Android's default MQTT topic `lifedashboard`, the iPhone keeps its own default `lifedashboard-ios`, so the two phones do not publish to the same sensors; a custom topic is copied as it is.
+**From Android to iPhone:** the webhook URLs, signing secret, sync schedule, data types, MQTT broker and failure threshold carry over. Screen Time, the Receive options, series resolutions and the other Android-only settings are skipped. Android data types the iPhone has no counterpart for are skipped and counted in the preview. When the Android file uses Android's default MQTT topic `lifedashboard`, the iPhone keeps its own default `lifedashboard-ios`, so the two phones do not publish to the same sensors; a custom topic is copied as it is.
 
 Custom headers from Android come with a list of URLs that get none of them (the ones QR pairing added). The iPhone keeps the same list, so both carry over, in either direction.
 
@@ -76,7 +77,12 @@ The same JSON as the Android app, with `"platform": "ios"` added so the importer
   "app_version" : "1.4.0",
   "exported_at" : "2026-09-30T12:00:00Z",
   "health" : {
+    "quiet_from" : "23:00",
+    "quiet_to" : "07:00",
+    "sync_days" : "MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY,SATURDAY,SUNDAY",
     "sync_interval_minutes" : 60,
+    "sync_mode" : "INTERVAL",
+    "sync_times" : "",
     "webhook_urls" : [
       "https://example.com/health"
     ]

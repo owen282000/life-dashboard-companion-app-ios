@@ -42,6 +42,13 @@ struct SectionConfig: Codable, Equatable {
     var headers: [String: String]?
     var signingSecret: String?
     var syncIntervalMinutes: Int?
+    /// The rest of the schedule in Android's text formats: "INTERVAL" or "TIMES", "07:30,21:00",
+    /// "MONDAY,FRIDAY" and "22:00". Absent in a file from before Android 1.14.0.
+    var syncMode: String?
+    var syncTimes: String?
+    var syncDays: String?
+    var quietFrom: String?
+    var quietTo: String?
     /// URLs that get none of the headers: the ones QR pairing added, on either app. Not a
     /// secret, so it stays in an export without secrets, as on Android.
     var urlsWithoutHeaders: [String]?
@@ -51,6 +58,11 @@ struct SectionConfig: Codable, Equatable {
         case webhookUrls = "webhook_urls"
         case signingSecret = "signing_secret"
         case syncIntervalMinutes = "sync_interval_minutes"
+        case syncMode = "sync_mode"
+        case syncTimes = "sync_times"
+        case syncDays = "sync_days"
+        case quietFrom = "quiet_from"
+        case quietTo = "quiet_to"
         case urlsWithoutHeaders = "urls_without_headers"
     }
 
@@ -133,7 +145,7 @@ struct SettingsSnapshot: Equatable, Sendable {
     var healthWebhookHeaders: [String: String]
     var healthUrlsWithoutHeaders: Set<String>
     var healthSigningSecret: String
-    var healthSyncIntervalMinutes: Int
+    var healthSyncSchedule: SyncSchedule
     var healthEnabledDataTypes: Set<HealthDataType>
     var failureNotificationsEnabled: Bool
     var failureNotificationThreshold: Int
@@ -193,7 +205,12 @@ enum SettingsBackup {
                 webhookUrls: settings.healthWebhookUrls,
                 headers: includeSecrets ? settings.healthWebhookHeaders : nil,
                 signingSecret: secret(settings.healthSigningSecret),
-                syncIntervalMinutes: settings.healthSyncIntervalMinutes,
+                syncIntervalMinutes: settings.healthSyncSchedule.intervalMinutes,
+                syncMode: settings.healthSyncSchedule.mode.rawValue,
+                syncTimes: SyncSchedule.formatTimes(settings.healthSyncSchedule.times),
+                syncDays: SyncSchedule.formatDays(settings.healthSyncSchedule.days),
+                quietFrom: settings.healthSyncSchedule.quietWindow?.from.text,
+                quietTo: settings.healthSyncSchedule.quietWindow?.to.text,
                 urlsWithoutHeaders: marked.isEmpty ? nil : marked
             ),
             mqtt: MqttConfig(
@@ -486,7 +503,25 @@ enum SettingsImport {
         if let minutes = health.syncIntervalMinutes {
             let clamped = min(max(minutes, intervalRange.lowerBound), intervalRange.upperBound)
             if clamped != minutes { notes.append(.intervalAdjusted(clamped)) }
-            result.healthSyncIntervalMinutes = clamped
+            result.healthSyncSchedule.intervalMinutes = clamped
+        }
+        restoreSchedule(health, into: &result.healthSyncSchedule)
+    }
+
+    /// Android's ConfigBackupManager.restoreSchedule. A file from before the schedule carries
+    /// none of its fields and leaves it alone, the interval aside. Otherwise a field the file has
+    /// replaces the device's, a mode this build does not know keeps the device's, and the quiet
+    /// hours are the file's: none unless it has both ends.
+    private static func restoreSchedule(_ health: SectionConfig, into schedule: inout SyncSchedule) {
+        guard health.syncMode != nil || health.syncTimes != nil || health.syncDays != nil ||
+            health.quietFrom != nil || health.quietTo != nil else { return }
+        if let mode = health.syncMode.flatMap(SyncMode.init(rawValue:)) { schedule.mode = mode }
+        if let times = health.syncTimes { schedule.times = SyncSchedule.parseTimes(times) }
+        if let days = health.syncDays { schedule.days = SyncSchedule.parseDays(days) }
+        if let from = health.quietFrom.flatMap(TimeOfDay.init), let to = health.quietTo.flatMap(TimeOfDay.init) {
+            schedule.quietWindow = QuietWindow(from: from, to: to)
+        } else {
+            schedule.quietWindow = nil
         }
     }
 
@@ -626,7 +661,7 @@ extension PreferencesManager {
             healthWebhookHeaders: healthWebhookHeaders,
             healthUrlsWithoutHeaders: healthUrlsWithoutHeaders,
             healthSigningSecret: healthSigningSecret,
-            healthSyncIntervalMinutes: healthSyncIntervalMinutes,
+            healthSyncSchedule: healthSyncSchedule,
             healthEnabledDataTypes: healthEnabledDataTypes,
             failureNotificationsEnabled: failureNotificationsEnabled,
             failureNotificationThreshold: failureNotificationThreshold,
@@ -660,7 +695,8 @@ extension PreferencesManager {
 
         if new.healthUrlsWithoutHeaders != old.healthUrlsWithoutHeaders { healthUrlsWithoutHeaders = new.healthUrlsWithoutHeaders }
         if new.healthWebhookUrls != old.healthWebhookUrls { healthWebhookUrls = new.healthWebhookUrls }
-        if new.healthSyncIntervalMinutes != old.healthSyncIntervalMinutes { healthSyncIntervalMinutes = new.healthSyncIntervalMinutes }
+        // Through the property that stamps the change and re-aims the background tasks.
+        if new.healthSyncSchedule != old.healthSyncSchedule { healthSyncSchedule = new.healthSyncSchedule }
         if new.healthEnabledDataTypes != old.healthEnabledDataTypes { healthEnabledDataTypes = new.healthEnabledDataTypes }
         if new.failureNotificationsEnabled != old.failureNotificationsEnabled { failureNotificationsEnabled = new.failureNotificationsEnabled }
         if new.failureNotificationThreshold != old.failureNotificationThreshold { failureNotificationThreshold = new.failureNotificationThreshold }

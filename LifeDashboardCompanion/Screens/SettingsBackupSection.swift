@@ -429,7 +429,10 @@ private struct ImportSheet: View {
                     LabeledContent("Custom headers", value: result.healthWebhookHeaders.keys.sorted().joined(separator: ", "))
                 }
                 LabeledContent("Data types", value: "\(result.healthEnabledDataTypes.count)")
-                LabeledContent("Sync interval", value: "\(result.healthSyncIntervalMinutes) min")
+                LabeledContent(
+                    "Sync schedule",
+                    value: result.healthSyncSchedule.isNeverRunning ? String(localized: "Never syncs") : result.healthSyncSchedule.summary
+                )
                 LabeledContent("MQTT", value: mqttSummary(result))
                 LabeledContent(
                     "Secrets",
