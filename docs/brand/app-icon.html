@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<!--
+  Source for the app icon (LifeDashboardCompanion/Assets.xcassets/AppIcon.appiconset), the
+  same mark and ground as the Android app's store icon (life-dashboard-companion-app,
+  docs/brand/icon.html), so both apps carry one identity. The in-app mark (BrandMark in
+  Screens/Brand.swift) draws the same paths.
+
+  Three variants, picked by the query string: none for the default icon, ?dark and ?tinted
+  for the iOS 18 dark and tinted appearances (no ground, transparent, so iOS draws its own).
+  Rendered at 1024 px with headless Chrome, from the repository root:
+
+    CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    OUT=LifeDashboardCompanion/Assets.xcassets/AppIcon.appiconset
+    SRC="file://$PWD/docs/brand/app-icon.html"
+    "$CHROME" --headless=new --hide-scrollbars --window-size=512,512 \
+      --force-device-scale-factor=2 --screenshot="$OUT/AppIcon.png" "$SRC"
+    "$CHROME" --headless=new --hide-scrollbars --window-size=512,512 \
+      --force-device-scale-factor=2 --default-background-color=00000000 \
+      --screenshot="$OUT/AppIcon-Dark.png" "$SRC?dark"
+    "$CHROME" --headless=new --hide-scrollbars --window-size=512,512 \
+      --force-device-scale-factor=2 --default-background-color=00000000 \
+      --screenshot="$OUT/AppIcon-Tinted.png" "$SRC?tinted"
+    sips -g hasAlpha "$OUT/AppIcon.png"   # must say no: the App Store refuses an icon with alpha
+
+  Colours: background #171D21 -> #14181C -> #101C1C, heartbeat green #30B77E.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; }
+  html, body { width: 512px; height: 512px; overflow: hidden; }
+  body {
+    background: radial-gradient(120% 120% at 30% 25%, #171D21 0%, #14181C 45%, #101C1C 100%);
+    position: relative;
+  }
+  /* Subtle dashboard grid, bottom-right, like the banner */
+  .grid {
+    position: absolute; right: 0; bottom: 0; width: 60%; height: 55%;
+    background-image:
+      linear-gradient(to right, rgba(48,183,126,0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(48,183,126,0.07) 1px, transparent 1px);
+    background-size: 42px 42px;
+    -webkit-mask-image: radial-gradient(100% 100% at 100% 100%, black 30%, transparent 75%);
+  }
+  svg { position: absolute; inset: 0; }
+  /* Dark and tinted: no ground and no grid, the system puts the mark on its own. */
+  body.dark, body.tinted { background: transparent; }
+  body.dark .grid, body.tinted .grid { display: none; }
+  /* Tinted: grayscale only; iOS colours it. The arcs keep their lower intensity. */
+  body.tinted path.mark { stroke: #FFFFFF; }
+  body.tinted circle.mark { fill: #FFFFFF; }
+  body.tinted g { filter: none; }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <svg width="512" height="512" viewBox="0 0 512 512">
+    <defs>
+      <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+        <feGaussianBlur stdDeviation="14" result="b"/>
+        <feMerge>
+          <feMergeNode in="b"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+    </defs>
+    <!-- Heartbeat broadcast: pulse, endpoint dot, and two arcs radiating the signal.
+         The pulse is measured AND published, which is exactly what the app does. -->
+    <g filter="url(#glow)">
+      <path class="mark" d="M64 256 L158 256 L186 176 L232 340 L264 232 L290 256 L330 256"
+            fill="none" stroke="#30B77E" stroke-width="26"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <circle class="mark" cx="330" cy="256" r="20" fill="#30B77E" stroke="none"/>
+      <path class="mark" d="M376 216 A 60 60 0 0 1 376 296" fill="none" stroke="#30B77E"
+            stroke-width="20" stroke-linecap="round" opacity="0.85"/>
+      <path class="mark" d="M410 186 A 105 105 0 0 1 410 326" fill="none" stroke="#30B77E"
+            stroke-width="20" stroke-linecap="round" opacity="0.5"/>
+    </g>
+  </svg>
+  <script>
+    const variant = location.search.replace("?", "");
+    if (variant === "dark" || variant === "tinted") document.body.className = variant;
+  </script>
+</body>
+</html>
