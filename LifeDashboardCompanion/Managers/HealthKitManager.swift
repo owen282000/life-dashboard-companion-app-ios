@@ -16,11 +16,21 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
 
     static let lookbackDays: Int = 7
 
-    /// Result type indicating why data reading failed or returned empty
+    /// Result type indicating why data reading failed or returned empty. The anchors and
+    /// catch-up cursors a read moved to come with it, unsaved: the caller saves them once what
+    /// was read is safe, delivered or in the retry queue (see `AnchorCommit`).
     enum ReadResult {
-        case data([String: Any])
-        case empty
+        case data([String: Any], AnchorCommit)
+        case empty(AnchorCommit)
         case protectedDataUnavailable
+    }
+
+    /// What reading one type incrementally gave: its payload fragments, nil when there was
+    /// nothing to send, and the anchors and cursor to save afterwards.
+    private struct TypeRead {
+        let pairs: [(String, Any)]?
+        let anchors: [(HKSampleType, HKQueryAnchor)]
+        let cursor: Date?
     }
 
     private init() {
@@ -182,14 +192,20 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
 
         let prefs = PreferencesManager.shared
 
-        let fragments = await HealthKitManager.gather(enabledTypes) { dataType in
+        // A type that fails keeps its anchors and cursor, so the next sync reads it again.
+        let reads = await HealthKitManager.gather(enabledTypes) { dataType in
             try await self.readIncrementalDataForType(dataType, prefs: prefs)
         } failed: { dataType, error in
             self.logger.error("Incremental read failed for \(dataType.rawValue): \(error.localizedDescription)")
         }
-        let results = HealthKitManager.merge(fragments.values)
+        var commit = AnchorCommit()
+        for (dataType, read) in reads {
+            commit.anchors += read.anchors.map { AnchorCommit.Anchor(dataType: dataType, sampleType: $0.0, anchor: $0.1) }
+            commit.cursors.append((dataType, read.cursor))
+        }
+        let results = HealthKitManager.merge(reads.values.compactMap(\.pairs))
 
-        return results.isEmpty ? .empty : .data(results)
+        return results.isEmpty ? .empty(commit) : .data(results, commit)
     }
 
     /// Reads incremental data for a single type using HKAnchoredObjectQuery.
@@ -198,11 +214,12 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     /// hour before the earliest of them, which reuses the type-specific formatting. That read
     /// stops at the per-type cap (see `nextSlice`), and whatever lies past the cap is left to
     /// the catch-up cursor: the next sync continues there, so no record is skipped because
-    /// the anchor already moved past it. Anchors and cursor are saved once the read is done.
+    /// the anchor already moved past it. Anchors and cursor are returned, for the caller to
+    /// save once the records are delivered or queued.
     private func readIncrementalDataForType(
         _ dataType: HealthDataType,
         prefs: PreferencesManager
-    ) async throws -> [(String, Any)]? {
+    ) async throws -> TypeRead {
         var earliestAdded: [Date] = []
         var readsFirstTime = false
         var newAnchors: [(HKSampleType, HKQueryAnchor)] = []
@@ -240,11 +257,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
             cursor = SyncLimits.catchUpCursor(afterSliceEndingAt: slice.end, now: now)
         }
 
-        for (sampleType, anchor) in newAnchors {
-            prefs.saveAnchor(anchor, for: dataType, sampleType: sampleType)
-        }
-        prefs.saveCatchUpCursor(cursor, for: dataType)
-        return result
+        return TypeRead(pairs: result, anchors: newAnchors, cursor: cursor)
     }
 
     /// Where a read of `dataType` from `start` has to stop to stay under its cap, so that
@@ -912,6 +925,32 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         }
 
         return mapped
+    }
+}
+
+/// Where an incremental read left each type: the anchors past what it read and the
+/// catch-up cursor. Saving it tells the next sync that those records are taken care of, so
+/// it is saved only after they are: an anchor saved before the payload was delivered or
+/// queued lost the records when iOS suspended or ended the app in between.
+struct AnchorCommit: @unchecked Sendable {
+    struct Anchor {
+        let dataType: HealthDataType
+        let sampleType: HKSampleType
+        let anchor: HKQueryAnchor
+    }
+
+    var anchors: [Anchor] = []
+    var cursors: [(HealthDataType, Date?)] = []
+
+    /// Cursors first: an app ended between the two then only reads a stretch again, where an
+    /// anchor saved without its cursor would skip what the cursor still had to read.
+    func save(to prefs: PreferencesManager = .shared) {
+        for (dataType, cursor) in cursors {
+            prefs.saveCatchUpCursor(cursor, for: dataType)
+        }
+        for saved in anchors {
+            prefs.saveAnchor(saved.anchor, for: saved.dataType, sampleType: saved.sampleType)
+        }
     }
 }
 

@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- Records could be lost when iOS suspended or ended the app while a sync's payload was on its way, because the sync had already marked them as sent. A HealthKit wakeup lets go after 25 seconds, one webhook can take over 90 seconds with its retries, and Sync Now had no background time at all once you left the app. A payload now goes into the retry queue before its records are marked as sent, and leaves it when a webhook accepted it, so every record is delivered, still queued, or read again by the next sync. At worst a payload arrives twice, which a receiver deduplicates on `uuid`. Sync Now and the sync that opening the app starts ask iOS for background time, so leaving the app mid-sync lets it finish
 - A HealthKit query that never answered held the sync, and Sync Now and every later sync behind it, until iOS ended the app. Every record query now gets 10 seconds, like the deletion step's; a type whose query runs out of time is skipped for that sync and read again by the next one, and the other types go ahead
 
 ## [1.4.1] - 2026-09-30

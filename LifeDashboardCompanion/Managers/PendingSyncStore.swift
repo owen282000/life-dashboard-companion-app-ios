@@ -51,7 +51,8 @@ final class PendingSyncStore: @unchecked Sendable {
 
     // MARK: - Public API
 
-    /// True once the item is on disk, which is what lets a caller forget what it carries.
+    /// The item once it is on disk, which is what lets a caller forget what it carries; nil
+    /// when it could not be written.
     @discardableResult
     func enqueue(
         payload: Data,
@@ -60,7 +61,7 @@ final class PendingSyncStore: @unchecked Sendable {
         logType: String,
         dataType: String,
         recordCount: Int
-    ) -> Bool {
+    ) -> PendingSyncItem? {
         let item = PendingSyncItem(
             id: UUID().uuidString,
             createdAt: Date(),
@@ -76,16 +77,20 @@ final class PendingSyncStore: @unchecked Sendable {
         )
 
         let fileURL = directory.appendingPathComponent("\(item.id).json")
-        guard let data = try? encoder.encode(item) else { return false }
+        guard let data = try? encoder.encode(item) else { return nil }
         do {
-            try data.write(to: fileURL, options: .atomic)
+            try data.write(to: fileURL, options: PendingSyncStore.writeOptions)
             // Again with every file: the directory's flag is all that keeps the payload out.
             BackupExclusion.exclude(directory)
-            return true
+            return item
         } catch {
-            return false
+            return nil
         }
     }
+
+    /// Encrypted at rest and still writable in the background after the first unlock, when a
+    /// HealthKit wakeup writes the payload before posting it.
+    private static let writeOptions: Data.WritingOptions = [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
 
     func dequeueAll() -> [PendingSyncItem] {
         guard let files = try? fileManager.contentsOfDirectory(
@@ -132,7 +137,7 @@ final class PendingSyncStore: @unchecked Sendable {
         item.lastError = error
 
         if let updated = try? encoder.encode(item) {
-            try? updated.write(to: fileURL, options: .atomic)
+            try? updated.write(to: fileURL, options: PendingSyncStore.writeOptions)
         }
     }
 

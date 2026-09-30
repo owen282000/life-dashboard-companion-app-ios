@@ -57,7 +57,7 @@ final class HealthSyncManager: Sendable {
             let healthData = try await healthKit.readHealthData(for: enabledTypes)
 
             guard !healthData.isEmpty else {
-                return await postDeletionsOnly(readGeneration: readGeneration, urls: webhookUrls, headers: headers) ?? .noData
+                return await postDeletionsOnly(readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: nil) ?? .noData
             }
 
             var payload: [String: Any] = healthData
@@ -74,30 +74,12 @@ final class HealthSyncManager: Sendable {
             var syncCounts: [HealthDataType: Int] = [:]
             let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
 
-            guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
-                return .failure(error: AppDiagnostic.serializeFailed.rawValue)
-            }
-
-            let outcome = await WebhookManager.shared.post(
-                body: body,
-                urls: webhookUrls,
-                headers: headers,
-                logType: .healthConnect,
-                dataType: "health_connect",
-                recordCount: totalRecords
+            let outcome = await send(
+                payload, totalsDay: totalsDay, recordCount: totalRecords,
+                urls: webhookUrls, headers: headers, deletions: deletions, commit: nil
             )
-
-            updateWidgetStatus(outcome, records: totalRecords)
-
-            if outcome.delivered {
-                await deletionStore.remove(deletions.carried)
-                return .success(syncCounts: syncCounts)
-            } else {
-                if enqueueBody(queuedBody(body, payload: payload, totalsDay: totalsDay), urls: webhookUrls, headers: headers, totalRecords: totalRecords) {
-                    await deletionStore.remove(deletions.carried)
-                }
-                return .failure(error: AppDiagnostic.queuedForRetry.rawValue)
-            }
+            guard let outcome else { return .failure(error: AppDiagnostic.serializeFailed.rawValue) }
+            return outcome.delivered ? .success(syncCounts: syncCounts) : .failure(error: AppDiagnostic.queuedForRetry.rawValue)
         } catch {
             return readFailed(error)
         }
@@ -169,12 +151,17 @@ final class HealthSyncManager: Sendable {
 
         guard !webhookUrls.isEmpty else {
             do {
+                // MQTT keeps no queue to write ahead to: a sensor holds the latest value, and a
+                // publish that fails is not retried, so the anchors are saved as soon as the
+                // read is done.
                 switch try await healthKit.readIncrementalData(for: types) {
                 case .protectedDataUnavailable:
                     return .failure(error: AppDiagnostic.deviceLocked.rawValue)
-                case .empty:
+                case .empty(let commit):
+                    commit.save()
                     return .noData
-                case .data(let healthData):
+                case .data(let healthData, let commit):
+                    commit.save()
                     return await publishOnly(healthData, sensorsFrom: caughtUp(healthData, types: types))
                 }
             } catch {
@@ -192,9 +179,15 @@ final class HealthSyncManager: Sendable {
             switch readResult {
             case .protectedDataUnavailable:
                 return .failure(error: AppDiagnostic.deviceLocked.rawValue)
-            case .empty:
-                return await postDeletionsOnly(readGeneration: readGeneration, urls: webhookUrls, headers: headers) ?? .noData
-            case .data(let healthData):
+            case .empty(let commit):
+                guard let result = await postDeletionsOnly(
+                    readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: commit
+                ) else {
+                    commit.save()
+                    return .noData
+                }
+                return result
+            case .data(let healthData, let commit):
                 var payload: [String: Any] = healthData
                 payload["timestamp"] = Date().iso8601String
                 payload["app_version"] = appVersion
@@ -205,31 +198,14 @@ final class HealthSyncManager: Sendable {
                 var syncCounts: [HealthDataType: Int] = [:]
                 let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
 
-                guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
-                    return .failure(error: AppDiagnostic.serializeFailed.rawValue)
-                }
-
-                let outcome = await WebhookManager.shared.post(
-                    body: body,
-                    urls: webhookUrls,
-                    headers: headers,
-                    logType: .healthConnect,
-                    dataType: "health_connect",
-                    recordCount: totalRecords
+                let outcome = await send(
+                    payload, totalsDay: totalsDay, recordCount: totalRecords,
+                    urls: webhookUrls, headers: headers, deletions: deletions, commit: commit
                 )
-
-                updateWidgetStatus(outcome, records: totalRecords)
-
-                let result: HealthSyncResult
-                if outcome.delivered {
-                    await deletionStore.remove(deletions.carried)
-                    result = .success(syncCounts: syncCounts)
-                } else {
-                    if enqueueBody(queuedBody(body, payload: payload, totalsDay: totalsDay), urls: webhookUrls, headers: headers, totalRecords: totalRecords) {
-                        await deletionStore.remove(deletions.carried)
-                    }
-                    result = .failure(error: AppDiagnostic.queuedForRetry.rawValue)
-                }
+                guard let outcome else { return .failure(error: AppDiagnostic.serializeFailed.rawValue) }
+                let result: HealthSyncResult = outcome.delivered
+                    ? .success(syncCounts: syncCounts)
+                    : .failure(error: AppDiagnostic.queuedForRetry.rawValue)
 
                 // Last, once the webhook's payload is delivered or queued: a HealthKit wakeup's
                 // time budget is for that first. New records only, so a type without any keeps
@@ -355,36 +331,91 @@ final class HealthSyncManager: Sendable {
     /// A deletion is often the only change, as when a meal is removed and nothing is added.
     /// Such a sync sends a payload with the deletions and no records, and reports it as a
     /// delivery of 0 records. Nil when there is nothing to send.
-    private func postDeletionsOnly(readGeneration: Int, urls: [String], headers: [String: String]) async -> HealthSyncResult? {
+    private func postDeletionsOnly(
+        readGeneration: Int,
+        urls: [String],
+        headers: [String: String],
+        commit: AnchorCommit?
+    ) async -> HealthSyncResult? {
         var payload: [String: Any] = [
             "timestamp": Date().iso8601String,
             "app_version": appVersion,
             "source": "healthkit_ios"
         ]
         let deletions = await attachDeletions(to: &payload, records: [:], readGeneration: readGeneration)
-        guard !deletions.summary.isEmpty,
-              let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
+        guard !deletions.summary.isEmpty else { return nil }
+
+        let outcome = await send(
+            payload, totalsDay: nil, recordCount: 0,
+            urls: urls, headers: headers, deletions: deletions, commit: commit
+        )
+        guard let outcome else { return nil }
+        return outcome.delivered ? .success(syncCounts: [:]) : .failure(error: AppDiagnostic.queuedForRetry.rawValue)
+    }
+
+    // MARK: - Write-ahead delivery
+
+    /// Sends a sync's payload to the webhooks, write-ahead: into the retry queue first, and
+    /// only then are the anchors that read it saved and the deletions it carries let go. The
+    /// post comes last and takes the queued copy out once a webhook accepted it. iOS can
+    /// suspend or end the app at any point of that, a HealthKit wakeup after 25 seconds and a
+    /// foreground sync when its background time runs out, and every record is then delivered,
+    /// still queued, or still ahead of the anchor, which reads it again. At worst a payload
+    /// goes out twice, which the receiver deduplicates on `uuid`.
+    ///
+    /// The live post carries today's daily totals; the queued copy leaves them out (see
+    /// `queuedBody`). Nil when the payload cannot be serialized: the anchors are saved anyway,
+    /// since reading the same records again would fail the same way every sync.
+    private func send(
+        _ payload: [String: Any],
+        totalsDay: String?,
+        recordCount: Int,
+        urls: [String],
+        headers: [String: String],
+        deletions: DeletionPlan,
+        commit: AnchorCommit?
+    ) async -> WebhookManager.Outcome? {
+        guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
+            commit?.save()
             return nil
         }
+        let queued = queuedBody(body, payload: payload, totalsDay: totalsDay)
+        let pendingStore = self.pendingStore
+        let deletionStore = self.deletionStore
+        let outcome = await WriteAhead(
+            enqueue: {
+                pendingStore.enqueue(
+                    payload: queued,
+                    urls: urls,
+                    headers: headers,
+                    logType: LogType.healthConnect.rawValue,
+                    dataType: "health_connect",
+                    recordCount: recordCount
+                )?.id
+            },
+            commit: {
+                commit?.save()
+                await deletionStore.remove(deletions.carried)
+            },
+            post: {
+                await WebhookManager.shared.post(
+                    body: body,
+                    urls: urls,
+                    headers: headers,
+                    logType: .healthConnect,
+                    dataType: "health_connect",
+                    recordCount: recordCount
+                )
+            },
+            delivered: { pendingStore.remove(id: $0) },
+            failed: { pendingStore.updateAttempt(id: $0, error: AppDiagnostic.retryFailed.rawValue) }
+        ).run()
 
-        let outcome = await WebhookManager.shared.post(
-            body: body,
-            urls: urls,
-            headers: headers,
-            logType: .healthConnect,
-            dataType: "health_connect",
-            recordCount: 0
-        )
-        updateWidgetStatus(outcome, records: 0)
-
-        if outcome.delivered {
-            await deletionStore.remove(deletions.carried)
-            return .success(syncCounts: [:])
+        if !outcome.delivered {
+            logger.info("Sync payload (\(recordCount) records) waits in the retry queue")
         }
-        if enqueueBody(body, urls: urls, headers: headers, totalRecords: 0) {
-            await deletionStore.remove(deletions.carried)
-        }
-        return .failure(error: AppDiagnostic.queuedForRetry.rawValue)
+        updateWidgetStatus(outcome, records: recordCount)
+        return outcome
     }
 
     // MARK: - Daily Totals
@@ -416,26 +447,6 @@ final class HealthSyncManager: Sendable {
 
     // MARK: - Private Helpers
 
-    @discardableResult
-    private func enqueueBody(
-        _ body: Data,
-        urls: [String],
-        headers: [String: String],
-        totalRecords: Int
-    ) -> Bool {
-        let queued = pendingStore.enqueue(
-            payload: body,
-            urls: urls,
-            headers: headers,
-            logType: LogType.healthConnect.rawValue,
-            dataType: "health_connect",
-            recordCount: totalRecords
-        )
-
-        logger.info("Enqueued failed sync payload (\(totalRecords) records) for retry")
-        return queued
-    }
-
     private func countRecords(in data: [String: Any], syncCounts: inout [HealthDataType: Int]) -> Int {
         var total = 0
         for type in HealthDataType.allCases {
@@ -459,5 +470,38 @@ extension HealthSyncResult {
         case let (.success(first), .success(second)):
             return .success(syncCounts: first.merging(second, uniquingKeysWith: +))
         }
+    }
+}
+
+/// The order a sync's payload leaves the phone in, see `HealthSyncManager.send`. Apart from
+/// the stores and the network, so a test can stop it at every step.
+struct WriteAhead {
+    /// Writes the payload to the retry queue; the queued item's id, nil when the write failed.
+    var enqueue: () -> String?
+    /// Saves the anchors that read the payload and lets go of the deletions it carries.
+    var commit: () async -> Void
+    var post: () async -> WebhookManager.Outcome
+    /// Takes the queued copy out.
+    var delivered: (String) -> Void
+    /// Counts a failed delivery on the queued copy.
+    var failed: (String) -> Void
+
+    func run() async -> WebhookManager.Outcome {
+        guard let id = enqueue() else {
+            // Nothing on disk to fall back on: the anchors move only past what arrived, and an
+            // undelivered payload is read again by the next sync.
+            let outcome = await post()
+            if outcome.delivered { await commit() }
+            return outcome
+        }
+        await commit()
+        let outcome = await post()
+        switch outcome {
+        case .delivered: delivered(id)
+        case .failed: failed(id)
+        // Cut off by iOS, which says nothing about the receiver: the retry does not count it.
+        case .interrupted: break
+        }
+        return outcome
     }
 }

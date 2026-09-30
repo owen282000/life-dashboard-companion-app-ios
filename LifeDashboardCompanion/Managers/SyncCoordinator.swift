@@ -46,6 +46,11 @@ actor SyncCoordinator {
         var syncFull: @Sendable () async -> HealthSyncResult
         /// Re-aims the background task requests; true after a run the lock stopped.
         var replan: @Sendable (_ afterLockedRun: Bool) async -> Void
+        /// Asks iOS for time to finish a run that started while the app was in the foreground,
+        /// and returns how to give it back; nil in the background, where the HealthKit wakeup
+        /// or the background task already holds the app. `expired` is called when iOS wants
+        /// the time back first.
+        var holdInForeground: @Sendable (_ expired: @escaping @Sendable () -> Void) async -> (@Sendable () -> Void)?
     }
 
     static let shared = SyncCoordinator(environment: .live)
@@ -153,14 +158,24 @@ actor SyncCoordinator {
     /// The flight runs at utility priority or higher, whoever started it. Sync Now waits for it,
     /// and that wait does not reliably lift work at background priority: on a busy machine such
     /// work went seconds without a CPU, and Sync Now waited with it.
+    ///
+    /// A run started in the foreground, Sync Now or opening the app, asks iOS for background
+    /// time, so leaving the app mid-POST does not suspend it there. When iOS takes the time back,
+    /// the work is cancelled like a background task that ran out: a delivery in flight ends as
+    /// interrupted, and its payload is already in the retry queue.
     @discardableResult
     private func fly<Value: Sendable>(_ operation: @escaping @Sendable () async -> Value) async -> Value {
         let priority = max(Task.currentPriority, .utility)
         let work = Task(priority: priority, operation: operation)
         flightNumber += 1
         let number = flightNumber
+        let hold = env.holdInForeground
+        // Asked inside the flight, not here: an await before `flight` is set would let a second
+        // caller in to start a run of its own.
         flight = Task(priority: priority) {
+            let release = await hold { work.cancel() }
             _ = await work.value
+            release?()
             self.land(number)
         }
         return await withTaskCancellationHandler {
@@ -195,6 +210,46 @@ extension SyncCoordinator.Environment {
             await HealthSyncManager.shared.performIncrementalSync(types: PreferencesManager.shared.healthEnabledDataTypes)
         },
         syncFull: { await HealthSyncManager.shared.performSync() },
-        replan: { afterLockedRun in await BackgroundSyncManager.shared.replan(afterLockedRun: afterLockedRun) }
+        replan: { afterLockedRun in await BackgroundSyncManager.shared.replan(afterLockedRun: afterLockedRun) },
+        holdInForeground: { expired in await MainActor.run { ForegroundHold.begin(expired: expired) } }
     )
+}
+
+/// A UIKit background task for a run that started in the foreground: iOS gives the app about
+/// 30 seconds after it leaves the screen, instead of suspending it in the middle of a POST.
+@MainActor
+enum ForegroundHold {
+    static func begin(expired: @escaping @Sendable () -> Void) -> (@Sendable () -> Void)? {
+        let app = UIApplication.shared
+        guard wanted(in: app.applicationState) else { return nil }
+        let token = Token()
+        // Once, whoever gets there first: the end of the run, off the main thread, or iOS
+        // taking the time back, on it. An expired task still open when its handler returns
+        // gets the app terminated, so that path ends it right there.
+        let end = OnceCallback { @Sendable onMain in
+            if onMain {
+                MainActor.assumeIsolated { UIApplication.shared.endBackgroundTask(token.id) }
+            } else {
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated { UIApplication.shared.endBackgroundTask(token.id) }
+                }
+            }
+        }
+        token.id = app.beginBackgroundTask(withName: "Health sync") {
+            expired()
+            end.call(true)
+        }
+        guard token.id != .invalid else { return nil }
+        return { end.call(false) }
+    }
+
+    /// On screen, or on its way there or away: a HealthKit wakeup or a background task runs
+    /// in the background and holds the app itself.
+    nonisolated static func wanted(in state: UIApplication.State) -> Bool {
+        state != .background
+    }
+
+    private final class Token: @unchecked Sendable {
+        var id: UIBackgroundTaskIdentifier = .invalid
+    }
 }
