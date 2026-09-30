@@ -18,8 +18,8 @@ struct SyncStatusProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SyncEntry>) -> Void) {
-        // The app reloads the timeline after every sync; this refresh is a fallback
-        // so the relative "ago" text does not go stale.
+        // The app reloads the timeline after every sync; this refresh is a fallback so the
+        // records of a new day start at 0.
         let refresh = Calendar.current.date(byAdding: .minute, value: 30, to: Date())!
         completion(Timeline(entries: [currentEntry()], policy: .after(refresh)))
     }
@@ -35,15 +35,19 @@ struct SyncStatusProvider: TimelineProvider {
     }
 }
 
+/// The Android app's widget: the state of the last sync, the records delivered today and when.
 struct SyncStatusView: View {
     let entry: SyncEntry
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(entry.success ? Color.green : Color.red)
-                    .frame(width: 8, height: 8)
+            HStack(spacing: 5) {
+                // A symbol as well as a colour, so the state does not rest on colour alone.
+                Image(systemName: entry.success ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(entry.success ? Brand.success : Brand.error)
+                    .widgetAccentable()
+                    .accessibilityLabel(entry.success ? Text("Last sync succeeded") : Text("Last sync failed"))
                 Text("Life Dashboard")
                     .font(.caption2)
                     .fontWeight(.semibold)
@@ -53,30 +57,31 @@ struct SyncStatusView: View {
 
             Spacer()
 
-            Text("\(entry.recordsToday)")
-                .font(.system(size: 30, weight: .bold, design: .rounded))
+            Text(entry.recordsToday.formatted())
+                .font(.largeTitle.bold())
+                .monospacedDigit()
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
+                .widgetAccentable()
             Text("records today")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
-            if let lastSync = entry.lastSync {
-                HStack(spacing: 3) {
-                    Text(lastSync, style: .relative)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                    Text("ago")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+            Group {
+                if let lastSync = entry.lastSync {
+                    if Calendar.current.isDateInToday(lastSync) {
+                        Text("Synced \(lastSync, style: .time)")
+                    } else {
+                        Text("Synced \(lastSync.formatted(.dateTime.month(.abbreviated).day().hour().minute()))")
+                    }
+                } else {
+                    Text("No syncs yet")
                 }
-            } else {
-                Text("No syncs yet")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
             }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
