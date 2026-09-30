@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The log keeps one file per row. It was one file of up to about 10 MB, with the payload of each of the last 100 deliveries, that was read and written whole for every row, several times per sync, also in the background. The existing log is split into rows on the first launch
+
 ### Fixed
 
 - Records could be lost when iOS suspended or ended the app while a sync's payload was on its way, because the sync had already marked them as sent. A HealthKit wakeup lets go after 25 seconds, one webhook can take over 90 seconds with its retries, and Sync Now had no background time at all once you left the app. A payload now goes into the retry queue before its records are marked as sent, and leaves it when a webhook accepted it, so every record is delivered, still queued, or read again by the next sync. At worst a payload arrives twice, which a receiver deduplicates on `uuid`. Sync Now and the sync that opening the app starts ask iOS for background time, so leaving the app mid-sync lets it finish

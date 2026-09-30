@@ -144,24 +144,38 @@ final class BackupExclusionTests: XCTestCase {
         WebhookLog(url: "https://example.com/hook", success: false, errorMessage: "HTTP 500", logType: .healthConnect)
     }
 
-    func testTheLogFileStaysOutOfBackupsAfterEveryWrite() throws {
-        let file = root.appendingPathComponent("webhook_logs.json")
-        let store = LogStore(fileURL: file)
+    func testTheLogStaysOutOfBackupsAfterEveryWrite() throws {
+        let directory = root.appendingPathComponent("webhook_logs", isDirectory: true)
+        let store = LogStore(directory: directory)
         store.add(failedRow())
-        XCTAssertTrue(try isExcluded(file))
+        XCTAssertTrue(try isExcluded(directory))
 
-        // Each add replaces the file; the new one is marked again.
         store.add(failedRow())
         XCTAssertEqual(store.load().count, 2)
-        XCTAssertTrue(try isExcluded(file))
+        XCTAssertTrue(try isExcluded(directory))
+
+        // Clearing removes the directory; the next row makes a new one, marked again.
+        store.clear()
+        store.add(failedRow())
+        XCTAssertTrue(try isExcluded(directory))
     }
 
-    func testALogFileFromAnEarlierVersionIsMarkedWhenTheStoreOpens() throws {
+    func testTheLogFileOfAnEarlierVersionIsSplitIntoRowsAndRemoved() throws {
         let file = root.appendingPathComponent("webhook_logs.json")
-        try Data("[]".utf8).write(to: file)
-        XCTAssertFalse(try isExcluded(file))
-        _ = LogStore(fileURL: file)
-        XCTAssertTrue(try isExcluded(file))
+        let directory = root.appendingPathComponent("webhook_logs", isDirectory: true)
+        let newer = WebhookLog(url: "https://example.com/b", success: false, logType: .healthConnect, timestamp: Date(timeIntervalSince1970: 2_000))
+        let older = WebhookLog(url: "https://example.com/a", success: false, logType: .healthConnect, timestamp: Date(timeIntervalSince1970: 1_000))
+        let rows = try JSONEncoder().encode([newer, older])
+        // A row this build cannot read costs that row only.
+        var json = try XCTUnwrap(String(data: rows, encoding: .utf8))
+        json.insert(contentsOf: #"{"id":"broken"},"#, at: json.index(after: json.startIndex))
+        try Data(json.utf8).write(to: file)
+
+        let store = LogStore(directory: directory, legacyFile: file)
+
+        XCTAssertEqual(store.load().map(\.url), ["https://example.com/b", "https://example.com/a"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+        XCTAssertTrue(try isExcluded(directory))
     }
 
     func testTheQueueDirectoryStaysOutOfBackups() throws {
@@ -181,5 +195,63 @@ final class BackupExclusionTests: XCTestCase {
         XCTAssertFalse(try isExcluded(directory))
         _ = PendingSyncStore(directory: directory)
         XCTAssertTrue(try isExcluded(directory))
+    }
+}
+
+/// The log keeps one file per row: an add writes one row, not the whole log.
+final class LogStoreTests: XCTestCase {
+    private var directory: URL!
+
+    override func setUpWithError() throws {
+        directory = FileManager.default.temporaryDirectory.appendingPathComponent("log-store-\(UUID().uuidString)", isDirectory: true)
+    }
+
+    override func tearDownWithError() throws {
+        try? FileManager.default.removeItem(at: directory)
+    }
+
+    private func row(_ second: Int, url: String = "https://example.com/hook") -> WebhookLog {
+        // Not delivered, so the lifetime counters in UserDefaults stay as they are.
+        WebhookLog(url: url, success: false, errorMessage: "HTTP 500", logType: .healthConnect, timestamp: Date(timeIntervalSince1970: TimeInterval(second)))
+    }
+
+    func testTheLogKeepsTheNewestHundredRowsNewestFirst() {
+        let store = LogStore(directory: directory)
+        for second in 1...105 { store.add(row(second)) }
+
+        let logs = store.load()
+        XCTAssertEqual(logs.count, LogStore.maxLogs)
+        XCTAssertEqual(logs.first?.timestamp, Date(timeIntervalSince1970: 105))
+        XCTAssertEqual(logs.last?.timestamp, Date(timeIntervalSince1970: 6))
+        let files = try? FileManager.default.contentsOfDirectory(atPath: directory.path)
+        XCTAssertEqual(files?.count, LogStore.maxLogs)
+    }
+
+    func testARowCanBeDeletedAndTheLogCleared() {
+        let store = LogStore(directory: directory)
+        let first = row(1)
+        store.add(first)
+        store.add(row(2))
+        store.delete(id: first.id)
+        XCTAssertEqual(store.load().map(\.timestamp), [Date(timeIntervalSince1970: 2)])
+
+        store.clear(filterType: .healthConnect)
+        XCTAssertTrue(store.load().isEmpty)
+        store.add(row(3))
+        store.clear()
+        XCTAssertTrue(store.load().isEmpty)
+    }
+
+    func testARowFileThatCannotBeReadCostsThatRowOnly() throws {
+        let store = LogStore(directory: directory)
+        store.add(row(1))
+        try Data("{}".utf8).write(to: directory.appendingPathComponent("00000000000000000002-broken.json"))
+        XCTAssertEqual(store.load().count, 1)
+    }
+
+    func testRowFileNamesSortByTime() {
+        let early = LogStore.fileName(for: row(9))
+        let late = LogStore.fileName(for: row(10))
+        XCTAssertLessThan(early, late)
     }
 }

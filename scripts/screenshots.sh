@@ -61,8 +61,8 @@ for DOMAIN in "$ID" "group.$ID"; do
     xcrun simctl spawn "$UDID" defaults write "$DOMAIN" last_sync_success -bool YES
 done
 
-# A week of example log entries in the LogStore format: four syncs a day, one failure, and an
-# MQTT publish with the last one.
+# A week of example log entries as the one-file log of 1.4.1, which LogStore splits into its
+# row files at launch: four syncs a day, one failure, and an MQTT publish with the last one.
 DATA=$(xcrun simctl get_app_container "$UDID" "$ID" data)
 mkdir -p "$DATA/Library/Application Support"
 python3 - "$DATA/Library/Application Support/webhook_logs.json" <<'PY'
