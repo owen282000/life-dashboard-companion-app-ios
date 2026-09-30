@@ -437,7 +437,7 @@ Where this differs from the Android app:
 
 ### Daily Totals
 
-When an iPhone and a Watch both record steps, Apple Health holds each stretch twice, and adding up the raw records counts it twice. Every payload therefore also carries `daily_totals`, computed with HealthKit's statistics queries, which count overlapping samples from different sources once by the order set in the Health app (Browse, a data type, Data Sources & Access). The figures match what the Health app shows.
+When an iPhone and a Watch both record steps, Apple Health holds each stretch twice, and adding up the raw records counts it twice. Every payload with records therefore also carries `daily_totals` (a payload that only names deletions carries none, as on Android), computed with HealthKit's statistics queries, which count overlapping samples from different sources once by the order set in the Health app (Browse, a data type, Data Sources & Access). The figures match what the Health app shows.
 
 ```json
 "daily_totals": [
@@ -445,7 +445,7 @@ When an iPhone and a Watch both record steps, Apple Health holds each stretch tw
 ]
 ```
 
-The array has the same schema as the Android app's: one entry per local day in the phone's time zone, for today and the two days before, only for enabled types. A field is left out for a day without data rather than sent as 0, and a day without any field is left out. Where it differs from Android:
+The array has the same schema as the Android app's: one entry per local day in the phone's time zone, for today and the two days before, only for enabled types. A backfill payload carries the whole days its window touches instead, the same list on every chunk of that window, so a day cut by a window bound arrives twice with the same figures. A field is left out for a day without data rather than sent as 0, and a day without any field is left out. Where it differs from Android:
 
 - `distance_meters` is walking and running distance, the samples the Distance type reads; Health Connect's distance covers every activity
 - `total_calories` is resting plus active energy, since HealthKit has no total energy type, and is only sent on days with resting energy. An iPhone without an Apple Watch usually records none, so it is usually absent there

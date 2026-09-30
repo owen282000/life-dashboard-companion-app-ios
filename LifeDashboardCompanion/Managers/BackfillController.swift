@@ -113,6 +113,17 @@ final class BackfillController: ObservableObject {
             sink: WebhookBackfillSink(),
             appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
             enabledTypes: { Array(prefs.healthEnabledDataTypes) },
+            windowExtras: { window in
+                // The whole local days the window touches, as the Android app's backfill asks
+                // for them; a day cut by a window bound goes out with both windows.
+                guard prefs.includeDailyTotals else { return .none }
+                let calendar = DailyTotals.calendar()
+                guard let days = DailyTotals.wholeDays(touching: window, now: Date(), calendar: calendar) else { return .none }
+                let totals = await HealthKitManager.shared.readDailyTotals(
+                    in: days, enabledTypes: prefs.healthEnabledDataTypes, calendar: calendar
+                )
+                return totals.isEmpty ? .none : BackfillExtras(fields: [DailyTotals.payloadKey: totals])
+            },
             shouldStop: { await BackfillController.shared.stopRequest(for: token) },
             onProgress: { progress in await BackfillController.shared.report(progress, for: token) },
             onWindowDone: { job, records in await BackfillController.shared.commit(job, windowRecords: records, for: token) }
