@@ -1,29 +1,48 @@
 import SwiftUI
 
-/// The Backfill History button, its dialog and the status of a running or unfinished backfill.
-/// Kept in one view so the Health screen places it with one line.
-struct BackfillSection: View {
+/// The Backfill tile in the Health screen's action row. It opens the range dialog that
+/// `BackfillSection` shows, or says why a backfill cannot start.
+struct BackfillTile: View {
     @ObservedObject var prefs: PreferencesManager
+    @Binding var showDialog: Bool
+    @Binding var notice: String?
     @ObservedObject private var backfill = BackfillController.shared
 
-    @State private var showDialog = false
-    @State private var notice: String?
+    var body: some View {
+        ActionTile(title: "Backfill", systemImage: "clock.arrow.circlepath") {
+            if prefs.healthWebhookUrls.isEmpty {
+                // History goes to webhooks; MQTT only holds the latest value of each type.
+                notice = prefs.mqttEnabled
+                    ? String(localized: "Backfill needs a webhook URL: MQTT only carries the latest value of each type")
+                    : String(localized: "Add a webhook URL to backfill")
+            } else {
+                notice = nil
+                showDialog = true
+            }
+        }
+        // A backfill that is running or waiting continues from its own status below.
+        .disabled(prefs.healthEnabledDataTypes.isEmpty || backfill.job.map { $0.status != .done } ?? false)
+    }
+}
+
+/// The backfill range dialog and the status of a running, paused or finished backfill. The
+/// tile that starts it sits in the action row, so the Health screen places both.
+struct BackfillSection: View {
+    @ObservedObject var prefs: PreferencesManager
+    @Binding var showDialog: Bool
+    @Binding var notice: String?
+    @ObservedObject private var backfill = BackfillController.shared
 
     var body: some View {
         VStack(spacing: 8) {
             if let job = backfill.job, job.status != .done {
                 status(of: job)
-            } else {
-                startButton
-                if let job = backfill.job, job.status == .done {
-                    doneLine(job)
-                }
+                    .cardStyle()
+            } else if let job = backfill.job, job.status == .done {
+                doneLine(job)
             }
             if let notice {
-                Text(notice)
-                    .font(.caption)
-                    .foregroundColor(.orange)
-                    .frame(maxWidth: .infinity)
+                ResultLine(text: Text(notice), tone: .warning)
             }
         }
         .confirmationDialog("Backfill History", isPresented: $showDialog, titleVisibility: .visible) {
@@ -36,27 +55,6 @@ struct BackfillSection: View {
         } message: {
             Text(dialogMessage)
         }
-    }
-
-    // MARK: - Start
-
-    private var startButton: some View {
-        Button {
-            if prefs.healthWebhookUrls.isEmpty {
-                // History goes to webhooks; MQTT only holds the latest value of each type.
-                notice = prefs.mqttEnabled
-                    ? "Backfill needs a webhook URL: MQTT only carries the latest value of each type"
-                    : "Add a webhook URL to backfill"
-            } else {
-                notice = nil
-                showDialog = true
-            }
-        } label: {
-            Label("Backfill History", systemImage: "clock.arrow.circlepath")
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.bordered)
-        .disabled(prefs.healthEnabledDataTypes.isEmpty)
     }
 
     private var dialogMessage: String {
@@ -83,7 +81,7 @@ struct BackfillSection: View {
             HStack {
                 if job.status == .failed {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.red)
+                        .foregroundColor(Brand.errorInk)
                 }
                 Text(headline(job, done: done, total: total))
                     .font(.subheadline.weight(.medium))
@@ -97,14 +95,14 @@ struct BackfillSection: View {
             if let caption = caption(job) {
                 Text(caption)
                     .font(.caption)
-                    .foregroundColor(job.status == .failed ? .red : .secondary)
+                    .foregroundColor(job.status == .failed ? Brand.errorInk : .secondary)
             }
             if job.truncatedWindows > 0 {
                 Text(job.truncatedWindows == 1
                      ? "1 window could not be sent in full"
                      : "\(job.truncatedWindows) windows could not be sent in full")
                     .font(.caption)
-                    .foregroundColor(.orange)
+                    .foregroundColor(Brand.warningInk)
             }
             buttons(job)
         }
@@ -179,7 +177,7 @@ struct BackfillSection: View {
              ? "Backfill complete: 1 record sent"
              : "Backfill complete: \(job.recordsSent) records sent")
             .font(.caption)
-            .foregroundColor(.green)
+            .foregroundColor(Brand.successInk)
             .frame(maxWidth: .infinity)
     }
 }

@@ -8,41 +8,34 @@ struct DashboardCard: View {
     @State private var lifetimeRecords = UserDefaults.standard.integer(forKey: "stats_lifetime_records")
     @State private var stepsPerDay: [Int] = []
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
-                statTile(label: "Today", value: "\(status.recordsToday)", unit: "records")
-                Spacer()
-                statTile(label: "Lifetime", value: lifetimeRecords.formatted(), unit: "records")
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("Last sync")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(status.lastSuccess ? Color.green : Color.red)
-                            .frame(width: 8, height: 8)
-                        Text(status.lastSync.map { $0.formatted(date: .omitted, time: .shortened) } ?? "never")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                    }
+        VStack(alignment: .leading, spacing: 12) {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 10) {
+                    statTiles
+                }
+            } else {
+                HStack(alignment: .top) {
+                    statTiles
                 }
             }
 
             if stepsPerDay.count >= 2 {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Steps, last \(stepsPerDay.count) days")
-                        .font(.caption2)
+                        .font(.caption)
                         .foregroundColor(.secondary)
                     SparklineView(values: stepsPerDay)
                         .frame(height: 36)
+                        .accessibilityElement()
+                        .accessibilityLabel(Text("Steps, last \(stepsPerDay.count) days"))
+                        .accessibilityValue(sparklineValue)
                 }
             }
         }
-        .padding(14)
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
+        .cardStyle()
         .task {
             status = SharedSyncStatus.read()
             lifetimeRecords = UserDefaults.standard.integer(forKey: "stats_lifetime_records")
@@ -50,19 +43,59 @@ struct DashboardCard: View {
         }
     }
 
-    private func statTile(label: String, value: String, unit: String) -> some View {
+    @ViewBuilder
+    private var statTiles: some View {
+        statTile(label: "Today", value: status.recordsToday.formatted())
+        Spacer(minLength: 8)
+        statTile(label: "Lifetime", value: lifetimeRecords.formatted())
+        Spacer(minLength: 8)
+        lastSyncTile
+    }
+
+    private func statTile(label: LocalizedStringKey, value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
-                .font(.caption2)
+                .font(.caption)
                 .foregroundColor(.secondary)
             HStack(alignment: .lastTextBaseline, spacing: 4) {
-                Text(value)
-                    .font(.headline)
-                Text(unit)
-                    .font(.caption2)
+                Text(verbatim: value)
+                    .font(.title2.bold())
+                    .monospacedDigit()
+                Text("records")
+                    .font(.caption)
                     .foregroundColor(.secondary)
             }
         }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var lastSyncTile: some View {
+        VStack(alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing, spacing: 2) {
+            Text("Last sync")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            HStack(spacing: 6) {
+                if status.lastSync != nil {
+                    // A symbol as well as a colour, so the state does not rest on colour alone.
+                    Image(systemName: status.lastSuccess ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(status.lastSuccess ? Brand.successInk : Brand.errorInk)
+                        .accessibilityLabel(status.lastSuccess ? Text("Succeeded") : Text("Failed"))
+                }
+                Text(status.lastSync.map { $0.formatted(date: .omitted, time: .shortened) } ?? String(localized: "never"))
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+            }
+        }
+        .frame(minHeight: 44, alignment: .top)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var sparklineValue: Text {
+        guard let low = stepsPerDay.min(), let high = stepsPerDay.max(), let last = stepsPerDay.last else {
+            return Text(verbatim: "")
+        }
+        return Text("Lowest \(low), highest \(high), latest \(last)")
     }
 }
 
@@ -87,7 +120,7 @@ private struct SparklineView: View {
                     }
                 }
             }
-            .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            .stroke(Brand.green, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
         }
     }
 }

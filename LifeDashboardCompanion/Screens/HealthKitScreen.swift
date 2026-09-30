@@ -7,43 +7,83 @@ struct HealthKitScreen: View {
     @ObservedObject private var backfill = BackfillController.shared
     @EnvironmentObject private var pairing: PairingCoordinator
 
-    @State private var showSchedule = false
-    @State private var newWebhookUrl: String = ""
-    @State private var showPreview = false
-    @State private var previewPayload: String = ""
-    @State private var isSyncing = false
-    @State private var syncMessage: String?
-    @State private var showHeaders = false
     @State private var showDataTypes = false
+    @State private var showSchedule = false
+    @State private var showWebhook = false
+    @State private var showMqtt = false
+    @State private var showAdvanced = false
+    @State private var showNotifications = false
+    @State private var newWebhookUrl: String = ""
     @State private var newHeaderKey: String = ""
     @State private var newHeaderValue: String = ""
-    @State private var isLoadingPreview = false
+    @State private var mqttPortText = String(PreferencesManager.shared.mqttPort)
+    @State private var showPreview = false
+    @State private var previewPayload: String = ""
     @State private var previewFullPayload: String = ""
+    @State private var isLoadingPreview = false
+    @State private var isSyncing = false
     @State private var isTestingWebhook = false
+    @State private var outcome: SyncOutcome?
+    @State private var showBackfillDialog = false
+    @State private var backfillNotice: String?
+    @State private var accessRequest: HKAuthorizationRequestStatus?
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                // MARK: - Availability
+            VStack(alignment: .leading, spacing: 12) {
                 if !healthKit.isAvailable {
-                    unavailableSection
+                    ContentUnavailableView(
+                        "Apple Health is not available",
+                        systemImage: "heart.slash",
+                        description: Text("This device cannot share Health data with apps.")
+                    )
                 } else {
+                    statusHeader
                     DashboardCard()
-                    dataTypesSection
-                    SyncScheduleSection(schedule: $prefs.healthSyncSchedule, isExpanded: $showSchedule)
-                    configurationSection
-                    headersSection
-                    mqttSection
-                    actionsSection
+                    CardGroup {
+                        dataTypesRow
+                        CardDivider()
+                        SyncScheduleSection(schedule: $prefs.healthSyncSchedule, isExpanded: $showSchedule)
+                    }
+                    CardGroup {
+                        webhookRow
+                        CardDivider()
+                        mqttRow
+                    }
+                    CardGroup {
+                        advancedRow
+                        CardDivider()
+                        notificationsRow
+                    }
+                    actions
                 }
             }
-            .padding()
+            .padding(16)
+            .readableWidth()
+        }
+        .background(Color(.systemGroupedBackground))
+        .scrollDismissesKeyboard(.interactively)
+        .screenshotScrollAnchor()
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+            }
         }
         .onAppear {
             mqttPortText = String(prefs.mqttPort)
             // Expanded on first run so new users see the data types; collapsed once configured
             showDataTypes = prefs.healthEnabledDataTypes.isEmpty
+            #if DEBUG
+            // For screenshots: -ld.expand YES opens every row.
+            if UserDefaults.standard.bool(forKey: "ld.expand") {
+                (showDataTypes, showSchedule, showWebhook, showMqtt, showAdvanced, showNotifications) = (true, true, true, true, true, true)
+            }
+            #endif
         }
+        .task(id: prefs.healthEnabledDataTypes) { await refreshAccessRequest() }
         .sheet(isPresented: $showPreview) {
             previewSheet
         }
@@ -51,90 +91,309 @@ struct HealthKitScreen: View {
         .onChange(of: pairing.incoming) { _, _ in showPreview = false }
     }
 
-    // MARK: - Sections
+    // MARK: - Header
 
-    private var unavailableSection: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "heart.slash.fill")
-                .font(.system(size: 48))
-                .foregroundColor(.red)
-            Text("HealthKit Not Available")
-                .font(.headline)
-            Text("This device does not support HealthKit.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 32)
-    }
-
-    private var dataTypesSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button {
-                withAnimation { showDataTypes.toggle() }
-            } label: {
-                HStack {
-                    Label("Data Types", systemImage: "list.bullet")
-                        .font(.headline)
-                    Spacer()
-                    Text("\(prefs.healthEnabledDataTypes.count) of \(HealthDataType.allCases.count) enabled")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Image(systemName: showDataTypes ? "chevron.up" : "chevron.down")
+    /// Android's green banner: how many types are on, and Grant while iOS still has something
+    /// to ask. HealthKit never says whether read access was given, only whether asking would
+    /// show the sheet, so there is no "granted" state to show.
+    private var statusHeader: some View {
+        let count = prefs.healthEnabledDataTypes.count
+        return StatusHeader(
+            title: "Apple Health",
+            subtitle: count == 0 ? Text("No data types selected") : Text("\(count) data types selected")
+        ) {
+            if HealthKitScreen.showsGrant(accessRequest, enabledCount: count) {
+                HeaderChip(title: "Grant") {
+                    Task {
+                        try? await healthKit.requestAuthorization(for: prefs.healthEnabledDataTypes)
+                        await refreshAccessRequest()
+                    }
                 }
             }
-            .buttonStyle(.plain)
-
-            if showDataTypes {
-                dataTypesList
-            }
         }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
     }
 
-    private var dataTypesList: some View {
-        ForEach(HealthDataType.allCases) { dataType in
-                HStack {
-                    Image(systemName: dataType.icon)
-                        .foregroundColor(.accentColor)
-                        .frame(width: 24)
+    static func showsGrant(_ request: HKAuthorizationRequestStatus?, enabledCount: Int) -> Bool {
+        enabledCount > 0 && request == .shouldRequest
+    }
 
-                    Text(dataType.displayName)
-                        .font(.subheadline)
+    private func refreshAccessRequest() async {
+        let types = healthKit.readTypesFor(prefs.healthEnabledDataTypes)
+        guard !types.isEmpty else {
+            accessRequest = nil
+            return
+        }
+        accessRequest = try? await healthKit.healthStore.statusForAuthorizationRequest(toShare: [], read: types)
+    }
 
-                    Spacer()
+    // MARK: - Rows
 
-                    Toggle(dataType.displayName, isOn: Binding(
-                        get: { prefs.healthEnabledDataTypes.contains(dataType) },
-                        set: { enabled in
-                            if enabled {
-                                prefs.healthEnabledDataTypes.insert(dataType)
-                                // Request permission for newly enabled types
-                                Task {
-                                    try? await healthKit.requestAuthorization(for: [dataType])
-                                }
-                            } else {
-                                prefs.healthEnabledDataTypes.remove(dataType)
+    private var dataTypesRow: some View {
+        let count = prefs.healthEnabledDataTypes.count
+        return ExpandableRow(
+            title: "Data Types",
+            systemImage: "waveform.path.ecg.rectangle",
+            subtitle: Text("\(count) of \(HealthDataType.allCases.count) selected"),
+            subtitleColor: count > 0 ? Brand.ink : .secondary,
+            isExpanded: $showDataTypes
+        ) {
+            ForEach(HealthDataType.allCases) { dataType in
+                Toggle(isOn: Binding(
+                    get: { prefs.healthEnabledDataTypes.contains(dataType) },
+                    set: { enabled in
+                        if enabled {
+                            prefs.healthEnabledDataTypes.insert(dataType)
+                            // Request permission for newly enabled types
+                            Task {
+                                try? await healthKit.requestAuthorization(for: [dataType])
                             }
-                            // Reconfigure observer queries for changed data types
-                            BackgroundSyncManager.shared.reconfigureObservers()
+                        } else {
+                            prefs.healthEnabledDataTypes.remove(dataType)
                         }
-                    ))
-                    .labelsHidden()
+                        // Reconfigure observer queries for changed data types
+                        BackgroundSyncManager.shared.reconfigureObservers()
+                    }
+                )) {
+                    Label {
+                        Text(dataType.displayName)
+                            .font(.subheadline)
+                    } icon: {
+                        Image(systemName: dataType.icon)
+                            .foregroundStyle(Brand.ink)
+                            .frame(minWidth: 28)
+                    }
                 }
-                .padding(.vertical, 2)
+                .tint(Brand.green)
+            }
         }
     }
 
-    private var configurationSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Configuration", systemImage: "gearshape.fill")
-                .font(.headline)
+    private var webhookRow: some View {
+        let urls = prefs.healthWebhookUrls
+        return ExpandableRow(
+            title: "Webhook",
+            systemImage: "link",
+            subtitle: urls.isEmpty ? Text("Not configured") : Text("\(urls.count) configured"),
+            subtitleColor: urls.isEmpty ? .secondary : Brand.ink,
+            isExpanded: $showWebhook
+        ) {
+            if urls.isEmpty {
+                Button {
+                    pairing.startScan()
+                } label: {
+                    Label("Scan a pairing code", systemImage: "qrcode.viewfinder")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+                .tint(Brand.ink)
+            }
 
-            // Failure notifications
+            RowSubheading("Webhook URLs")
+            ForEach(Array(urls.enumerated()), id: \.offset) { index, url in
+                ListLine(removeLabel: Text("Remove webhook URL")) {
+                    var remaining = prefs.healthWebhookUrls
+                    remaining.remove(at: index)
+                    prefs.healthWebhookUrls = remaining
+                } content: {
+                    Text(verbatim: url)
+                        .font(.footnote)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if !prefs.healthWebhookHeaders.isEmpty && prefs.healthUrlsWithoutHeaders.contains(url) {
+                        Text("Paired by QR code: custom headers are not sent here")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            HStack(spacing: 8) {
+                TextField("Webhook URL", text: $newWebhookUrl, prompt: Text(verbatim: "https://your-webhook.com/health"))
+                    .font(.footnote)
+                    .textFieldStyle(.filled)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.URL)
+                if !urls.isEmpty {
+                    iconButton("qrcode.viewfinder", label: "Scan a pairing code") { pairing.startScan() }
+                }
+                iconButton("plus", label: "Add webhook URL") {
+                    let trimmed = newWebhookUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty {
+                        prefs.addTypedHealthWebhookUrl(trimmed)
+                        newWebhookUrl = ""
+                    }
+                }
+            }
+
+            Divider()
+            RowSubheading("Custom Headers")
+            ForEach(Array(prefs.healthWebhookHeaders.keys.sorted()), id: \.self) { key in
+                ListLine(removeLabel: Text("Remove header \(key)")) {
+                    prefs.healthWebhookHeaders.removeValue(forKey: key)
+                } content: {
+                    Text(verbatim: "\(key): \(prefs.healthWebhookHeaders[key] ?? "")")
+                        .font(.footnote)
+                        .lineLimit(1)
+                }
+            }
+            HStack(spacing: 8) {
+                TextField("Key", text: $newHeaderKey)
+                    .font(.footnote)
+                    .textFieldStyle(.filled)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                TextField("Value", text: $newHeaderValue)
+                    .font(.footnote)
+                    .textFieldStyle(.filled)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                iconButton("plus", label: "Add header") {
+                    let key = newHeaderKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let value = newHeaderValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !key.isEmpty, !value.isEmpty {
+                        prefs.healthWebhookHeaders[key] = value
+                        newHeaderKey = ""
+                        newHeaderValue = ""
+                    }
+                }
+            }
+
+            Divider()
+            RowSubheading("HMAC Signing Secret")
+            SecureField("Optional secret for X-Signature", text: Binding(
+                get: { prefs.healthSigningSecret },
+                set: { prefs.healthSigningSecret = $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            ))
+            .font(.footnote)
+            .textFieldStyle(.filled)
+            Text("When set, every request includes X-Signature: sha256=HMAC-SHA256(secret, body) so your server can verify the sender.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    /// Android's square add button: the green fill with the dark ink glyph.
+    private func iconButton(_ systemImage: String, label: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Brand.onGreen)
+                .frame(width: 44, height: 44)
+                .background(Brand.green, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    private var mqttRow: some View {
+        ExpandableRow(
+            title: "MQTT",
+            systemImage: "house",
+            subtitle: mqttSubtitle,
+            subtitleColor: prefs.mqttEnabled ? Brand.ink : .secondary,
+            isExpanded: $showMqtt
+        ) {
+            Text("Publishes the latest value of each synced data type to your MQTT broker with Home Assistant Discovery: sensors appear automatically, no server-side setup needed.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            Toggle("Enable MQTT publishing", isOn: Binding(
+                get: { prefs.mqttEnabled },
+                set: { prefs.mqttEnabled = $0 }
+            ))
+            .font(.subheadline)
+            .tint(Brand.green)
+
+            TextField("Broker host, e.g. 192.168.1.10", text: Binding(
+                get: { prefs.mqttHost },
+                set: { prefs.mqttHost = $0 }
+            ))
+            .textFieldStyle(.filled)
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+
+            HStack(spacing: 12) {
+                TextField("Port", text: $mqttPortText)
+                    .textFieldStyle(.filled)
+                    .keyboardType(.numberPad)
+                    .frame(maxWidth: 120)
+                    .onChange(of: mqttPortText) { _, newValue in
+                        if let port = Int(newValue.filter(\.isNumber)), port > 0, port <= 65535 {
+                            prefs.mqttPort = port
+                        }
+                    }
+                Toggle("TLS", isOn: Binding(
+                    get: { prefs.mqttUseTls },
+                    set: { prefs.mqttUseTls = $0 }
+                ))
+                .font(.subheadline)
+                .tint(Brand.green)
+            }
+
+            TextField("Username (optional)", text: Binding(
+                get: { prefs.mqttUsername },
+                set: { prefs.mqttUsername = $0 }
+            ))
+            .textFieldStyle(.filled)
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+
+            SecureField("Password (optional)", text: Binding(
+                get: { prefs.mqttPassword },
+                set: { prefs.mqttPassword = $0 }
+            ))
+            .textFieldStyle(.filled)
+
+            TextField("Base topic", text: Binding(
+                get: { prefs.mqttBaseTopic },
+                set: { prefs.mqttBaseTopic = $0 }
+            ))
+            .textFieldStyle(.filled)
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+
+            if !prefs.mqttLastStatus.isEmpty {
+                ResultLine(
+                    text: Text(prefs.mqttLastStatus),
+                    tone: prefs.mqttLastStatus.hasPrefix("OK") ? .success : .failure
+                )
+            }
+        }
+    }
+
+    private var mqttSubtitle: Text {
+        guard prefs.mqttEnabled else { return Text("Off") }
+        let host = prefs.mqttHost.trimmingCharacters(in: .whitespaces)
+        return host.isEmpty ? Text("On: no broker set") : Text("On: \(host)")
+    }
+
+    private var advancedRow: some View {
+        ExpandableRow(
+            title: "Advanced",
+            systemImage: "slider.horizontal.3",
+            subtitle: prefs.includeDailyTotals ? Text("Daily totals") : Text("No daily totals"),
+            isExpanded: $showAdvanced
+        ) {
+            Toggle("Daily totals in payload", isOn: $prefs.includeDailyTotals)
+                .font(.subheadline)
+                .tint(Brand.green)
+            Text("Per-day totals (steps, distance, calories) as the Health app counts them, with overlapping iPhone and Watch data counted once")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private var notificationsRow: some View {
+        ExpandableRow(
+            title: "Notifications",
+            systemImage: "bell",
+            subtitle: prefs.failureNotificationsEnabled
+                ? Text("On, after \(prefs.failureNotificationThreshold) failed syncs")
+                : Text("Off"),
+            subtitleColor: prefs.failureNotificationsEnabled ? Brand.ink : .secondary,
+            isExpanded: $showNotifications
+        ) {
             Toggle("Notify after failed syncs", isOn: Binding(
                 get: { prefs.failureNotificationsEnabled },
                 set: { enabled in
@@ -145,410 +404,155 @@ struct HealthKitScreen: View {
                 }
             ))
             .font(.subheadline)
+            .tint(Brand.green)
 
             if prefs.failureNotificationsEnabled {
-                HStack {
-                    Text("After consecutive failures")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Picker("Failure threshold", selection: Binding(
-                        get: { prefs.failureNotificationThreshold },
-                        set: { prefs.failureNotificationThreshold = $0 }
-                    )) {
-                        Text("3").tag(3)
-                        Text("5").tag(5)
-                        Text("10").tag(10)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(width: 140)
-                }
-            }
-
-            Divider()
-
-            // Daily totals
-            Toggle("Daily totals in payload", isOn: $prefs.includeDailyTotals)
-                .font(.subheadline)
-            Text("Per-day totals (steps, distance, calories) as the Health app counts them, with overlapping iPhone and Watch data counted once")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            Divider()
-
-            // Webhook URLs
-            Text("Webhook URLs")
-                .font(.subheadline)
-                .fontWeight(.medium)
-
-            Button {
-                pairing.startScan()
-            } label: {
-                Label("Scan a pairing code", systemImage: "qrcode.viewfinder")
-                    .font(.subheadline)
-            }
-
-            ForEach(Array(prefs.healthWebhookUrls.enumerated()), id: \.offset) { index, url in
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(url)
-                            .font(.caption)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        if !prefs.healthWebhookHeaders.isEmpty && prefs.healthUrlsWithoutHeaders.contains(url) {
-                            Text("Paired by QR code: custom headers are not sent here")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    Spacer()
-                    Button {
-                        var urls = prefs.healthWebhookUrls
-                        urls.remove(at: index)
-                        prefs.healthWebhookUrls = urls
-                    } label: {
-                        Image(systemName: "minus.circle.fill")
-                            .foregroundColor(.red)
-                    }
-                    .accessibilityLabel("Remove webhook URL")
-                }
-            }
-
-            HStack {
-                TextField("https://your-webhook.com/health", text: $newWebhookUrl)
-                    .font(.caption)
-                    .textFieldStyle(.roundedBorder)
-                    .autocapitalization(.none)
-                    .disableAutocorrection(true)
-                    .keyboardType(.URL)
-
-                Button {
-                    let trimmed = newWebhookUrl.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty {
-                        prefs.addTypedHealthWebhookUrl(trimmed)
-                        newWebhookUrl = ""
-                    }
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .foregroundColor(.green)
-                }
-                .accessibilityLabel("Add webhook URL")
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-    }
-
-    @State private var showMqtt = false
-    @State private var mqttPortText = String(PreferencesManager.shared.mqttPort)
-
-    private var mqttSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button {
-                withAnimation { showMqtt.toggle() }
-            } label: {
-                HStack {
-                    Label("MQTT", systemImage: "house.fill")
-                        .font(.headline)
-                    Spacer()
-                    Text(prefs.mqttEnabled ? "On" : "Off")
-                        .font(.subheadline)
-                        .foregroundStyle(prefs.mqttEnabled ? Color.accentColor : Color.secondary)
-                    Image(systemName: "chevron.down")
-                        .rotationEffect(.degrees(showMqtt ? 180 : 0))
-                }
-            }
-            .buttonStyle(.plain)
-
-            if showMqtt {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Publishes the latest value of each synced data type to your MQTT broker with Home Assistant Discovery: sensors appear automatically, no server-side setup needed.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Toggle("Enable MQTT publishing", isOn: Binding(
-                        get: { prefs.mqttEnabled },
-                        set: { prefs.mqttEnabled = $0 }
-                    ))
-
-                    TextField("Broker host, e.g. 192.168.1.10", text: Binding(
-                        get: { prefs.mqttHost },
-                        set: { prefs.mqttHost = $0 }
-                    ))
-                    .textFieldStyle(.roundedBorder)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-
-                    HStack {
-                        TextField("Port", text: $mqttPortText)
-                            .textFieldStyle(.roundedBorder)
-                            .keyboardType(.numberPad)
-                            .frame(maxWidth: 120)
-                            .onChange(of: mqttPortText) { _, newValue in
-                                if let port = Int(newValue.filter(\.isNumber)), port > 0, port <= 65535 {
-                                    prefs.mqttPort = port
-                                }
-                            }
-                        Toggle("TLS", isOn: Binding(
-                            get: { prefs.mqttUseTls },
-                            set: { prefs.mqttUseTls = $0 }
-                        ))
-                    }
-
-                    TextField("Username (optional)", text: Binding(
-                        get: { prefs.mqttUsername },
-                        set: { prefs.mqttUsername = $0 }
-                    ))
-                    .textFieldStyle(.roundedBorder)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-
-                    SecureField("Password (optional)", text: Binding(
-                        get: { prefs.mqttPassword },
-                        set: { prefs.mqttPassword = $0 }
-                    ))
-                    .textFieldStyle(.roundedBorder)
-
-                    TextField("Base topic", text: Binding(
-                        get: { prefs.mqttBaseTopic },
-                        set: { prefs.mqttBaseTopic = $0 }
-                    ))
-                    .textFieldStyle(.roundedBorder)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-
-                    if !prefs.mqttLastStatus.isEmpty {
-                        Text(prefs.mqttLastStatus)
-                            .font(.caption)
-                            .foregroundStyle(prefs.mqttLastStatus.hasPrefix("OK") ? Color.accentColor : Color.red)
-                    }
-                }
-                .padding(.top, 4)
-            }
-        }
-        .padding()
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    private var headersSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button {
-                withAnimation { showHeaders.toggle() }
-            } label: {
-                HStack {
-                    Label("Custom Headers", systemImage: "doc.text.fill")
-                        .font(.headline)
-                    Spacer()
-                    Image(systemName: showHeaders ? "chevron.up" : "chevron.down")
-                }
-            }
-            .buttonStyle(.plain)
-
-            if showHeaders {
-                ForEach(Array(prefs.healthWebhookHeaders.keys.sorted()), id: \.self) { key in
-                    HStack {
-                        Text("\(key): \(prefs.healthWebhookHeaders[key] ?? "")")
-                            .font(.caption)
-                            .lineLimit(1)
-                        Spacer()
-                        Button {
-                            prefs.healthWebhookHeaders.removeValue(forKey: key)
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .foregroundColor(.red)
-                        }
-                        .accessibilityLabel("Remove header \(key)")
-                    }
-                }
-
-                HStack(spacing: 4) {
-                    TextField("Key", text: $newHeaderKey)
-                        .font(.caption)
-                        .textFieldStyle(.roundedBorder)
-                    TextField("Value", text: $newHeaderValue)
-                        .font(.caption)
-                        .textFieldStyle(.roundedBorder)
-                    Button {
-                        let key = newHeaderKey.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let value = newHeaderValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if !key.isEmpty, !value.isEmpty {
-                            prefs.healthWebhookHeaders[key] = value
-                            newHeaderKey = ""
-                            newHeaderValue = ""
-                        }
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundColor(.green)
-                    }
-                    .accessibilityLabel("Add header")
-                }
-
-                Divider()
-
-                Text("HMAC Signing Secret")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-
-                SecureField("Optional secret for X-Signature", text: Binding(
-                    get: { prefs.healthSigningSecret },
-                    set: { prefs.healthSigningSecret = $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                ))
-                .font(.caption)
-                .textFieldStyle(.roundedBorder)
-
-                Text("When set, every request includes X-Signature: sha256=HMAC-SHA256(secret, body) so your server can verify the sender.")
-                    .font(.caption2)
+                Text("After consecutive failures")
+                    .font(.footnote)
                     .foregroundColor(.secondary)
+                Picker("Failure threshold", selection: Binding(
+                    get: { prefs.failureNotificationThreshold },
+                    set: { prefs.failureNotificationThreshold = $0 }
+                )) {
+                    Text(verbatim: "3").tag(3)
+                    Text(verbatim: "5").tag(5)
+                    Text(verbatim: "10").tag(10)
+                }
+                .pickerStyle(.segmented)
             }
         }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
     }
 
-    private var actionsSection: some View {
+    // MARK: - Actions
+
+    private var actions: some View {
         VStack(spacing: 12) {
+            Button(action: syncNow) {
+                isSyncing ? Text("Syncing...") : Text("Sync Now")
+            }
+                .buttonStyle(PrimaryButtonStyle(isBusy: isSyncing))
+                .disabled(prefs.healthWebhookUrls.isEmpty || prefs.healthEnabledDataTypes.isEmpty || isSyncing || backfill.isRunning)
+
+            ActionTileRow {
+                ActionTile(title: "View", systemImage: "eye", isBusy: isLoadingPreview, action: loadPreview)
+                    .disabled(prefs.healthEnabledDataTypes.isEmpty || isLoadingPreview)
+                ActionTile(title: "Test ping", systemImage: "dot.radiowaves.left.and.right", isBusy: isTestingWebhook, action: sendTestPing)
+                    .disabled(prefs.healthWebhookUrls.isEmpty || isTestingWebhook)
+                BackfillTile(prefs: prefs, showDialog: $showBackfillDialog, notice: $backfillNotice)
+            }
+
+            BackfillSection(prefs: prefs, showDialog: $showBackfillDialog, notice: $backfillNotice)
+
+            if let outcome {
+                ResultLine(text: outcome.text, tone: outcome.tone)
+            }
+
             // Pending queue indicator
             let pendingCount = PendingSyncStore.shared.pendingCount
             if pendingCount > 0 {
-                HStack {
-                    Image(systemName: "tray.full.fill")
-                        .foregroundColor(.orange)
-                    Text("\(pendingCount) pending sync(s)")
-                        .font(.caption)
-                        .foregroundColor(.orange)
-                    Spacer()
+                NoticeBanner(text: Text("\(pendingCount) pending sync(s)"), tone: .warning) {
                     Button("Retry Now") {
                         Task {
                             await SyncCoordinator.shared.drain(automatic: false)
                         }
                     }
-                    .font(.caption)
+                    .font(.footnote.weight(.semibold))
                     .buttonStyle(.bordered)
-                    .tint(.orange)
+                    .tint(Brand.warningInk)
                 }
-            }
-
-            // Test Ping: verify server setup without waiting for real data
-            Button {
-                isTestingWebhook = true
-                syncMessage = nil
-                Task {
-                    let payload: [String: Any] = [
-                        "test": true,
-                        "message": "Test ping from Life Dashboard Companion",
-                        "timestamp": Date().iso8601String,
-                        "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
-                        "source": "healthkit_ios"
-                    ]
-                    guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
-                        return
-                    }
-                    let success = await WebhookManager.shared.post(
-                        body: body,
-                        urls: prefs.healthWebhookUrls,
-                        headers: prefs.healthWebhookHeaders,
-                        logType: .healthConnect,
-                        dataType: "test",
-                        recordCount: 0
-                    )
-                    await MainActor.run {
-                        isTestingWebhook = false
-                        syncMessage = success
-                            ? "Test ping delivered"
-                            : "Test ping failed, check the logs"
-                    }
-                }
-            } label: {
-                Label(isTestingWebhook ? "Pinging..." : "Send Test Ping", systemImage: "dot.radiowaves.left.and.right")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .disabled(prefs.healthWebhookUrls.isEmpty || isTestingWebhook)
-
-            // Preview Data
-            Button {
-                isLoadingPreview = true
-                Task {
-                    // Build and format off the main thread; rendering megabytes of JSON
-                    // in a Text view freezes the UI, so the display copy is truncated.
-                    let result: (display: String, full: String) = await Task.detached(priority: .userInitiated) {
-                        do {
-                            let payload = try await HealthSyncManager.shared.buildPreviewPayload()
-                            let formatted = ExportManager.formatPayloadForPreview(payload)
-                            let displayLimit = 100_000
-                            if formatted.count > displayLimit {
-                                let display = String(formatted.prefix(displayLimit))
-                                    + "\n\n... [truncated for display, \(formatted.count) characters total - use the share button for the full payload]"
-                                return (display, formatted)
-                            }
-                            return (formatted, formatted)
-                        } catch {
-                            let message = "Error: \(error.localizedDescription)"
-                            return (message, message)
-                        }
-                    }.value
-                    previewPayload = result.display
-                    previewFullPayload = result.full
-                    isLoadingPreview = false
-                    showPreview = true
-                }
-            } label: {
-                Label(isLoadingPreview ? "Loading..." : "Preview Data", systemImage: "eye.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .disabled(prefs.healthEnabledDataTypes.isEmpty || isLoadingPreview)
-
-            BackfillSection(prefs: prefs)
-
-            // Sync Now
-            Button {
-                isSyncing = true
-                syncMessage = nil
-                Task {
-                    let result = await SyncCoordinator.shared.runManual(full: true)
-                    await MainActor.run {
-                        isSyncing = false
-                        switch result {
-                        case .noData:
-                            syncMessage = "No data to sync"
-                        case .success(let counts):
-                            let total = counts.values.reduce(0, +)
-                            syncMessage = "Synced \(total) records"
-                        case .failure(let error):
-                            syncMessage = "Sync failed (queued for retry): \(error)"
-                        }
-                    }
-                }
-            } label: {
-                Label(isSyncing ? "Syncing..." : "Sync Now", systemImage: "arrow.triangle.2.circlepath")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(prefs.healthWebhookUrls.isEmpty || prefs.healthEnabledDataTypes.isEmpty || isSyncing || backfill.isRunning)
-
-            if let message = syncMessage {
-                Text(message)
-                    .font(.caption)
-                    .foregroundColor(message.contains("failed") || message.contains("Error") ? .red : .green)
-                    .frame(maxWidth: .infinity)
             }
 
             ScheduleStatusLine(schedule: prefs.healthSyncSchedule, webhookCount: prefs.healthWebhookUrls.count)
         }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
+    }
+
+    private func syncNow() {
+        isSyncing = true
+        outcome = nil
+        Task {
+            let result = await SyncCoordinator.shared.runManual(full: true)
+            await MainActor.run {
+                isSyncing = false
+                switch result {
+                case .noData:
+                    report(.noData)
+                case .success(let counts):
+                    report(.synced(counts.values.reduce(0, +)))
+                case .failure(let error):
+                    report(.failed("\(error)"))
+                }
+            }
+        }
+    }
+
+    /// Test Ping: verify server setup without waiting for real data
+    private func sendTestPing() {
+        isTestingWebhook = true
+        outcome = nil
+        Task {
+            let payload: [String: Any] = [
+                "test": true,
+                "message": "Test ping from Life Dashboard Companion",
+                "timestamp": Date().iso8601String,
+                "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
+                "source": "healthkit_ios"
+            ]
+            guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
+                isTestingWebhook = false
+                return
+            }
+            let success = await WebhookManager.shared.post(
+                body: body,
+                urls: prefs.healthWebhookUrls,
+                headers: prefs.healthWebhookHeaders,
+                logType: .healthConnect,
+                dataType: "test",
+                recordCount: 0
+            )
+            await MainActor.run {
+                isTestingWebhook = false
+                report(success ? .pingDelivered : .pingFailed)
+            }
+        }
+    }
+
+    private func report(_ result: SyncOutcome) {
+        outcome = result
+        AccessibilityNotification.Announcement(result.announcement).post()
+    }
+
+    private func loadPreview() {
+        isLoadingPreview = true
+        Task {
+            // Build and format off the main thread; rendering megabytes of JSON
+            // in a Text view freezes the UI, so the display copy is truncated.
+            let result: (display: String, full: String) = await Task.detached(priority: .userInitiated) {
+                do {
+                    let payload = try await HealthSyncManager.shared.buildPreviewPayload()
+                    let formatted = ExportManager.formatPayloadForPreview(payload)
+                    let displayLimit = 100_000
+                    if formatted.count > displayLimit {
+                        let display = String(formatted.prefix(displayLimit))
+                            + "\n\n... [truncated for display, \(formatted.count) characters total - use the share button for the full payload]"
+                        return (display, formatted)
+                    }
+                    return (formatted, formatted)
+                } catch {
+                    let message = "Error: \(error.localizedDescription)"
+                    return (message, message)
+                }
+            }.value
+            previewPayload = result.display
+            previewFullPayload = result.full
+            isLoadingPreview = false
+            showPreview = true
+        }
     }
 
     private var previewSheet: some View {
         NavigationStack {
             ScrollView {
-                Text(previewPayload)
+                Text(verbatim: previewPayload)
                     .font(.system(.caption, design: .monospaced))
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -568,5 +572,41 @@ struct HealthKitScreen: View {
             }
         }
     }
+}
 
+/// What Sync Now or Test ping last did. It decides the colour, instead of the text deciding it.
+enum SyncOutcome: Equatable {
+    case synced(Int)
+    case noData
+    case failed(String)
+    case pingDelivered
+    case pingFailed
+
+    var text: Text {
+        switch self {
+        case .synced(let records): return Text("Synced \(records) records")
+        case .noData: return Text("No data to sync")
+        case .failed(let reason): return Text("Sync failed (queued for retry): \(reason)")
+        case .pingDelivered: return Text("Test ping delivered")
+        case .pingFailed: return Text("Test ping failed, check the logs")
+        }
+    }
+
+    var announcement: String {
+        switch self {
+        case .synced(let records): return String(localized: "Synced \(records) records")
+        case .noData: return String(localized: "No data to sync")
+        case .failed(let reason): return String(localized: "Sync failed (queued for retry): \(reason)")
+        case .pingDelivered: return String(localized: "Test ping delivered")
+        case .pingFailed: return String(localized: "Test ping failed, check the logs")
+        }
+    }
+
+    var tone: StatusTone {
+        switch self {
+        case .synced, .pingDelivered: return .success
+        case .noData: return .info
+        case .failed, .pingFailed: return .failure
+        }
+    }
 }

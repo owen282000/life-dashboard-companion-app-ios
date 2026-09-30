@@ -14,36 +14,36 @@ struct SyncScheduleSection: View {
     @State private var refreshIsOff = SyncScheduleSection.backgroundRefreshIsOff
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            header
-            if isExpanded {
-                Picker("Mode", selection: $schedule.mode) {
-                    Text("Every X minutes").tag(SyncMode.interval)
-                    Text("Fixed times").tag(SyncMode.times)
-                }
-                .pickerStyle(.segmented)
-
-                switch schedule.mode {
-                case .interval: intervalRow
-                case .times: timesList
-                }
-
-                Divider()
-                DayPicker(days: $schedule.days)
-                Divider()
-                QuietHoursEditor(window: $schedule.quietWindow)
-                Divider()
-
-                if schedule.isNeverRunning { neverRunsWarning }
-                if refreshIsOff { refreshOffNote }
-                footnote
-                Divider()
-                shortcutsRow
+        ExpandableRow(
+            title: "Sync Schedule",
+            systemImage: "clock",
+            subtitle: Text(schedule.isNeverRunning ? String(localized: "Never syncs") : schedule.summary),
+            subtitleColor: schedule.isNeverRunning ? Brand.errorInk : .secondary,
+            isExpanded: $isExpanded
+        ) {
+            Picker("Mode", selection: $schedule.mode) {
+                Text("Every X minutes").tag(SyncMode.interval)
+                Text("Fixed times").tag(SyncMode.times)
             }
+            .pickerStyle(.segmented)
+
+            switch schedule.mode {
+            case .interval: intervalRow
+            case .times: timesList
+            }
+
+            Divider()
+            DayPicker(days: $schedule.days)
+            Divider()
+            QuietHoursEditor(window: $schedule.quietWindow)
+            Divider()
+
+            if schedule.isNeverRunning { neverRunsWarning }
+            if refreshIsOff { refreshOffNote }
+            footnote
+            Divider()
+            shortcutsRow
         }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
         .onAppear { intervalText = String(schedule.intervalMinutes) }
         .onChange(of: isExpanded) { _, _ in intervalText = String(schedule.intervalMinutes) }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.backgroundRefreshStatusDidChangeNotification)) { _ in
@@ -61,36 +61,6 @@ struct SyncScheduleSection: View {
         UIApplication.shared.backgroundRefreshStatus != .available
     }
 
-    private var header: some View {
-        Button {
-            withAnimation { isExpanded.toggle() }
-        } label: {
-            HStack(alignment: .top) {
-                Image(systemName: "clock")
-                    .foregroundColor(.accentColor)
-                    .frame(width: 24)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Sync Schedule")
-                        .font(.headline)
-                    Text(schedule.isNeverRunning ? String(localized: "Never syncs") : schedule.summary)
-                        .font(.caption)
-                        .foregroundColor(schedule.isNeverRunning ? .red : .secondary)
-                        .lineLimit(2)
-                }
-                Spacer()
-                Image(systemName: "chevron.down")
-                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                    .foregroundColor(.secondary)
-                    .accessibilityHidden(true)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityHint(isExpanded ? Text("Collapse") : Text("Expand"))
-    }
-
     private var intervalRow: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -105,8 +75,8 @@ struct SyncScheduleSection: View {
                 TextField("60", text: $intervalText)
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
-                    .frame(width: 60)
-                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 76)
+                    .textFieldStyle(.filled)
                     .accessibilityLabel("Sync Interval")
                     .onChange(of: intervalText) { _, text in
                         if let minutes = Int(text), minutes >= SyncSchedule.minIntervalMinutes {
@@ -121,7 +91,7 @@ struct SyncScheduleSection: View {
             if (Int(intervalText) ?? 0) < SyncSchedule.minIntervalMinutes {
                 Text("Min \(SyncSchedule.minIntervalMinutes) minutes")
                     .font(.caption)
-                    .foregroundColor(.red)
+                    .foregroundColor(Brand.errorInk)
             }
         }
     }
@@ -172,14 +142,14 @@ struct SyncScheduleSection: View {
     private var neverRunsWarning: some View {
         Label("These settings never sync. Add a time, a day, or shorten the quiet hours.", systemImage: "exclamationmark.triangle.fill")
             .font(.caption)
-            .foregroundColor(.red)
+            .foregroundColor(Brand.errorInk)
     }
 
     private var refreshOffNote: some View {
         VStack(alignment: .leading, spacing: 6) {
             Label("Background App Refresh is off, so background syncs can come later.", systemImage: "exclamationmark.triangle.fill")
                 .font(.caption)
-                .foregroundColor(.orange)
+                .foregroundColor(Brand.warningInk)
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(url)

@@ -32,6 +32,21 @@ extension View {
         modifier(CardStyle(padding: padding))
     }
 
+    /// For screenshots of long pages in Debug builds: -ld.scroll 0.5 starts a scroll view
+    /// halfway, 1 at its end.
+    @ViewBuilder
+    func screenshotScrollAnchor() -> some View {
+        #if DEBUG
+        if let position = UserDefaults.standard.object(forKey: "ld.scroll") as? String, let value = Double(position) {
+            defaultScrollAnchor(UnitPoint(x: 0.5, y: value))
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
+    }
+
     /// A centred column on iPad and in landscape, full width on a phone.
     func readableWidth() -> some View {
         frame(maxWidth: 700).frame(maxWidth: .infinity)
