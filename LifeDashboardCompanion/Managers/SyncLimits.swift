@@ -45,4 +45,16 @@ enum SyncLimits {
         }
         return (min(boundary, end), true)
     }
+
+    /// Where an incremental read of a type starts: at the catch-up cursor the last read left,
+    /// an hour before the earliest sample added since the anchors, or at the lookback start of
+    /// a sample type read for the first time, whichever is earliest. Nil when none applies.
+    static func incrementalReadStart(cursor: Date?, earliestAdded: [Date], firstReads: [Date]) -> Date? {
+        ([cursor].compactMap { $0 } + earliestAdded.map { $0.addingTimeInterval(-3600) } + firstReads).min()
+    }
+
+    /// The catch-up cursor a read that stopped at `sliceEnd` leaves: nil once it reached `now`.
+    static func catchUpCursor(afterSliceEndingAt sliceEnd: Date, now: Date) -> Date? {
+        sliceEnd < now ? sliceEnd : nil
+    }
 }

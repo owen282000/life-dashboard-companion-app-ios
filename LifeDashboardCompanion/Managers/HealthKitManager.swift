@@ -215,24 +215,25 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         prefs: PreferencesManager
     ) async throws -> [(String, Any)]? {
         let now = Date()
-        var readFrom = prefs.loadCatchUpCursor(for: dataType)
+        var earliestAdded: [Date] = []
+        var firstReads: [Date] = []
         var newAnchors: [(HKSampleType, HKQueryAnchor)] = []
 
         for sampleType in dataType.hkSampleTypes {
             if let anchor = prefs.loadAnchor(for: dataType, sampleType: sampleType) {
                 let (earliestNew, newAnchor) = try await anchoredQuery(sampleType: sampleType, anchor: anchor)
                 newAnchors.append((sampleType, newAnchor))
-                if let earliest = earliestNew {
-                    readFrom = min(readFrom ?? .distantFuture, earliest.addingTimeInterval(-3600))
-                }
+                if let earliest = earliestNew { earliestAdded.append(earliest) }
             } else {
                 // First sync of this sample type: read the lookback window. The anchor is taken
                 // before that read, so a sample written in between is read now or next time.
                 newAnchors.append((sampleType, try await queryAnchor(for: sampleType)))
-                let lookback = Calendar.current.date(byAdding: .day, value: -HealthKitManager.lookbackDays, to: now)!
-                readFrom = min(readFrom ?? .distantFuture, lookback)
+                firstReads.append(Calendar.current.date(byAdding: .day, value: -HealthKitManager.lookbackDays, to: now)!)
             }
         }
+        let readFrom = SyncLimits.incrementalReadStart(
+            cursor: prefs.loadCatchUpCursor(for: dataType), earliestAdded: earliestAdded, firstReads: firstReads
+        )
 
         var result: [(String, Any)]?
         var cursor: Date?
@@ -242,7 +243,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 logger.error("More than the cap of \(dataType.rawValue) samples share \(start.iso8601String); the excess is not sent")
             }
             result = try await readDataForType(dataType, start: start, end: slice.end)
-            cursor = slice.end < now ? slice.end : nil
+            cursor = SyncLimits.catchUpCursor(afterSliceEndingAt: slice.end, now: now)
         }
 
         for (sampleType, anchor) in newAnchors {
