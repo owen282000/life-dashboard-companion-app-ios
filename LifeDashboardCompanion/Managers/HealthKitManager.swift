@@ -76,7 +76,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 sortDescriptors: [sort]
             ) { _, samples, _ in
                 let bpm = (samples?.first as? HKQuantitySample)
-                    .map { Int($0.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))) }
+                    .map { HealthRecordMapping.bpm($0) }
                 continuation.resume(returning: bpm)
             }
             healthStore.execute(query)
@@ -149,7 +149,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 var totals: [Int] = []
                 results?.enumerateStatistics(from: start, to: end) { statistics, _ in
                     let value = statistics.sumQuantity()?.doubleValue(for: .count()) ?? 0
-                    totals.append(Int(value))
+                    totals.append(Int(value.rounded()))
                 }
                 continuation.resume(returning: totals)
             }
@@ -355,13 +355,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 start: start, end: end,
                 limit: limit
             )
-            let mapped = records.map { sample -> [String: Any] in
-                record([
-                    "count": Int(sample.quantity.doubleValue(for: .count())),
-                    "start_time": sample.startDate.iso8601String,
-                    "end_time": sample.endDate.iso8601String
-                ], from: sample)
-            }
+            let mapped = records.map { record(HealthRecordMapping.stepsFields($0), from: $0) }
             return mapped.isEmpty ? nil : [("steps", mapped)]
 
         case .distance:
@@ -453,12 +447,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 start: start, end: end,
                 limit: limit
             )
-            let mapped = records.map { sample -> [String: Any] in
-                record([
-                    "bpm": Int(sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))),
-                    "time": sample.startDate.iso8601String
-                ], from: sample)
-            }
+            let mapped = records.map { record(HealthRecordMapping.heartRateFields($0), from: $0) }
             return mapped.isEmpty ? nil : [("heart_rate", mapped)]
 
         case .restingHeartRate:
@@ -467,12 +456,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 start: start, end: end,
                 limit: limit
             )
-            let mapped = records.map { sample -> [String: Any] in
-                record([
-                    "bpm": Int(sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))),
-                    "time": sample.startDate.iso8601String
-                ], from: sample)
-            }
+            let mapped = records.map { record(HealthRecordMapping.heartRateFields($0), from: $0) }
             return mapped.isEmpty ? nil : [("resting_heart_rate", mapped)]
 
         case .heartRateVariability:

@@ -144,6 +144,27 @@ final class HealthRecordMappingTests: XCTestCase {
         )
     }
 
+    func testHeartRateIsRoundedNotTruncated() {
+        let perMinute = HKUnit.count().unitDivided(by: .minute())
+        for (value, expected) in [(71.9, 72), (71.4, 71), (59.5, 60), (60, 60)] {
+            let sample = quantitySample(.heartRate, HKQuantity(unit: perMinute, doubleValue: value))
+            XCTAssertEqual(HealthRecordMapping.heartRateFields(sample)["bpm"] as? Int, expected, "\(value)")
+        }
+        let resting = quantitySample(.restingHeartRate, HKQuantity(unit: perMinute, doubleValue: 52.7))
+        XCTAssertEqual(HealthRecordMapping.bpm(resting), 53)
+    }
+
+    func testStepCountIsRounded() {
+        let sample = HKQuantitySample(
+            type: HKQuantityType(.stepCount),
+            quantity: HKQuantity(unit: .count(), doubleValue: 99.8),
+            start: start, end: start.addingTimeInterval(60)
+        )
+        let fields = HealthRecordMapping.stepsFields(sample)
+        XCTAssertEqual(fields["count"] as? Int, 100)
+        XCTAssertEqual(Set(fields.keys), ["count", "start_time", "end_time"])
+    }
+
     // MARK: - Blood pressure
 
     private func pressure(_ identifier: HKQuantityTypeIdentifier, _ mmHg: Double, at offset: TimeInterval = 0) -> HKQuantitySample {

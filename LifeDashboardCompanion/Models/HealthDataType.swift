@@ -307,6 +307,28 @@ enum HealthRecordMapping {
         return used ? "protected" : "unprotected"
     }
 
+    /// Beats per minute as the whole number Android's schema asks for. Rounded: HealthKit
+    /// stores the Watch's heart rate as a fraction (71.9), which truncation made 71.
+    static func bpm(_ sample: HKQuantitySample) -> Int {
+        Int(sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute())).rounded())
+    }
+
+    static func heartRateFields(_ sample: HKQuantitySample) -> [String: Any] {
+        [
+            "bpm": bpm(sample),
+            "time": sample.startDate.iso8601String
+        ]
+    }
+
+    /// Some apps write fractional step counts; rounded like the daily totals round their sum.
+    static func stepsFields(_ sample: HKQuantitySample) -> [String: Any] {
+        [
+            "count": Int(sample.quantity.doubleValue(for: .count()).rounded()),
+            "start_time": sample.startDate.iso8601String,
+            "end_time": sample.endDate.iso8601String
+        ]
+    }
+
     static func vo2MaxFields(_ sample: HKQuantitySample) -> [String: Any] {
         [
             "vo2_ml_per_min_per_kg": sample.quantity.doubleValue(for: vo2MaxUnit),
