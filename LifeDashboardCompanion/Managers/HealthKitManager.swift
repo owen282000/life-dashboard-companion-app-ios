@@ -76,7 +76,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 sortDescriptors: [sort]
             ) { _, samples, _ in
                 let bpm = (samples?.first as? HKQuantitySample)
-                    .map { Int($0.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))) }
+                    .map { HealthRecordMapping.bpm($0) }
                 continuation.resume(returning: bpm)
             }
             healthStore.execute(query)
@@ -149,7 +149,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 var totals: [Int] = []
                 results?.enumerateStatistics(from: start, to: end) { statistics, _ in
                     let value = statistics.sumQuantity()?.doubleValue(for: .count()) ?? 0
-                    totals.append(Int(value))
+                    totals.append(Int(value.rounded()))
                 }
                 continuation.resume(returning: totals)
             }
@@ -332,10 +332,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     /// Adds the stable HealthKit UUID and the writing app/device to a payload record,
     /// so servers can deduplicate re-sent records and trace their origin.
     private func record(_ fields: [String: Any], from sample: HKSample) -> [String: Any] {
-        var record = fields
-        record["uuid"] = sample.uuid.uuidString
-        record["source"] = sample.sourceRevision.source.name
-        return record
+        HealthRecordMapping.record(fields, from: sample)
     }
 
     /// Reads data for a single HealthDataType. Returns (payloadKey, data) pairs or nil if empty.
@@ -343,7 +340,8 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     /// Reads are capped oldest-first per type (see SyncLimits) to bound payload size.
     /// The incremental sync and the backfill slice reads with `nextSlice`, which relies on
     /// every case reading only the type's `hkSampleTypes`, by start date in `[start, end)`,
-    /// at most `SyncLimits.maxRecordsPerSync` per sample type.
+    /// at most `SyncLimits.maxRecordsPerSync` per sample type. Blood pressure and nutrition also
+    /// read the correlations around the window, but only those starting in it become records.
     func readDataForType(
         _ dataType: HealthDataType,
         start: Date,
@@ -357,21 +355,20 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 start: start, end: end,
                 limit: limit
             )
-            let mapped = records.map { sample -> [String: Any] in
-                record([
-                    "count": Int(sample.quantity.doubleValue(for: .count())),
-                    "start_time": sample.startDate.iso8601String,
-                    "end_time": sample.endDate.iso8601String
-                ], from: sample)
-            }
+            let mapped = records.map { record(HealthRecordMapping.stepsFields($0), from: $0) }
             return mapped.isEmpty ? nil : [("steps", mapped)]
 
         case .distance:
-            let records = try await readQuantitySamples(
-                type: HKQuantityType(.distanceWalkingRunning),
-                start: start, end: end,
-                limit: limit
-            )
+            var samples: [HKQuantitySample] = []
+            for identifier in HealthDataType.distanceIdentifiers {
+                samples += try await readQuantitySamples(
+                    type: HKQuantityType(identifier),
+                    start: start, end: end,
+                    limit: limit
+                )
+            }
+            let records = SyncLimits.capOldestFirst(samples, limit: limit, timeOf: { $0.startDate })
+                .sorted { $0.startDate < $1.startDate }
             let mapped = records.map { sample -> [String: Any] in
                 record([
                     "meters": sample.quantity.doubleValue(for: .meter()),
@@ -455,12 +452,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 start: start, end: end,
                 limit: limit
             )
-            let mapped = records.map { sample -> [String: Any] in
-                record([
-                    "bpm": Int(sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))),
-                    "time": sample.startDate.iso8601String
-                ], from: sample)
-            }
+            let mapped = records.map { record(HealthRecordMapping.heartRateFields($0), from: $0) }
             return mapped.isEmpty ? nil : [("heart_rate", mapped)]
 
         case .restingHeartRate:
@@ -469,12 +461,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 start: start, end: end,
                 limit: limit
             )
-            let mapped = records.map { sample -> [String: Any] in
-                record([
-                    "bpm": Int(sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))),
-                    "time": sample.startDate.iso8601String
-                ], from: sample)
-            }
+            let mapped = records.map { record(HealthRecordMapping.heartRateFields($0), from: $0) }
             return mapped.isEmpty ? nil : [("resting_heart_rate", mapped)]
 
         case .heartRateVariability:
@@ -492,33 +479,26 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
             return mapped.isEmpty ? nil : [("heart_rate_variability", mapped)]
 
         case .bloodPressure:
+            // The lone values are read a pairing tolerance past the window, so a slice that ends
+            // between a systolic value and its diastolic one still sends the pair.
+            let margin = HealthRecordMapping.loosePressureTolerance
+            async let correlationRecords = readCorrelations(HKCorrelationType(.bloodPressure), around: start, end)
             async let systolicRecords = readQuantitySamples(
                 type: HKQuantityType(.bloodPressureSystolic),
-                start: start, end: end,
+                start: start.addingTimeInterval(-margin), end: end.addingTimeInterval(margin),
                 limit: limit
             )
             async let diastolicRecords = readQuantitySamples(
                 type: HKQuantityType(.bloodPressureDiastolic),
-                start: start, end: end,
+                start: start.addingTimeInterval(-margin), end: end.addingTimeInterval(margin),
                 limit: limit
             )
-            let systolic = try await systolicRecords
-            let diastolic = try await diastolicRecords
-            let mmHg = HKUnit.millimeterOfMercury()
-            var mapped: [[String: Any]] = []
-            for systolicSample in systolic {
-                let matchingDiastolic = diastolic.first {
-                    abs($0.startDate.timeIntervalSince(systolicSample.startDate)) < 1
-                }
-                var fields: [String: Any] = [
-                    "systolic": systolicSample.quantity.doubleValue(for: mmHg),
-                    "time": systolicSample.startDate.iso8601String
-                ]
-                if let diastolicSample = matchingDiastolic {
-                    fields["diastolic"] = diastolicSample.quantity.doubleValue(for: mmHg)
-                }
-                mapped.append(record(fields, from: systolicSample))
-            }
+            let mapped = try await HealthRecordMapping.bloodPressureRecords(
+                correlations: correlationRecords,
+                systolic: systolicRecords,
+                diastolic: diastolicRecords,
+                start: start, end: end
+            )
             return mapped.isEmpty ? nil : [("blood_pressure", mapped)]
 
         case .bloodGlucose:
@@ -656,16 +636,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 start: start, end: end,
                 limit: limit
             )
-            let flowSamples = records.compactMap { sample -> (HKCategorySample, String)? in
-                guard let value = HKCategoryValueMenstrualFlow(rawValue: sample.value) else { return nil }
-                switch value {
-                case .light: return (sample, "light")
-                case .medium: return (sample, "medium")
-                case .heavy: return (sample, "heavy")
-                case .unspecified: return (sample, "unknown")
-                default: return nil  // .none means no bleeding: skip
-                }
-            }
+            let flowSamples = records.compactMap { sample in Self.menstrualFlow(sample).map { (sample, $0) } }
             let mapped = flowSamples.map { sample, flow in
                 record([
                     "flow": flow,
@@ -675,9 +646,19 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
             guard !mapped.isEmpty else { return nil }
 
             // HealthKit has no period record type; derive periods from consecutive flow
-            // days so the payload matches the Android app's menstruation_period records.
+            // days so the payload matches the Android app's menstruation_period records. The
+            // days before the read count too, so a period that began earlier keeps the uuid of
+            // its first day when a sync reads only the day just logged.
+            let earlier = try await readCategorySamples(
+                type: HKCategoryType(.menstrualFlow),
+                start: start.addingTimeInterval(-MenstruationPeriodBuilder.lookback), end: start,
+                limit: limit
+            ).filter { Self.menstrualFlow($0) != nil }
             let periods = MenstruationPeriodBuilder.periods(
-                from: flowSamples.map { FlowSample(start: $0.0.startDate, end: $0.0.endDate) }
+                from: (earlier + flowSamples.map(\.0)).map {
+                    FlowSample(start: $0.startDate, end: $0.endDate, uuid: $0.uuid.uuidString, source: $0.sourceRevision.source.name)
+                },
+                reaching: start
             )
             return [("menstruation_flow", mapped), ("menstruation_period", periods)]
 
@@ -737,6 +718,18 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         }
     }
 
+    /// The payload's flow value; nil for a day logged as no flow, which is no bleeding.
+    private static func menstrualFlow(_ sample: HKCategorySample) -> String? {
+        guard let value = HKCategoryValueMenstrualFlow(rawValue: sample.value) else { return nil }
+        switch value {
+        case .light: return "light"
+        case .medium: return "medium"
+        case .heavy: return "heavy"
+        case .unspecified: return "unknown"
+        default: return nil
+        }
+    }
+
     // MARK: - Query Helpers
 
     /// Reads at most `limit` samples of any type in `[start, end)`, oldest first.
@@ -792,6 +785,21 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
             }
             healthStore.execute(query)
         }
+    }
+
+    /// The correlations of `type` that start within `correlationMargin` of `[start, end)`, so
+    /// the caller can tell which samples of the window belong to one. No limit: the window was
+    /// sliced to hold at most the cap of samples, and every correlation that becomes a record
+    /// holds at least one of them; the rest are bounded by the two days of margin.
+    private func readCorrelations(_ type: HKCorrelationType, around start: Date, _ end: Date) async throws -> [HKCorrelation] {
+        let margin = HealthRecordMapping.correlationMargin
+        let samples = try await readSamples(
+            type: type,
+            start: start.addingTimeInterval(-margin),
+            end: end.addingTimeInterval(margin),
+            limit: HKObjectQueryNoLimit
+        )
+        return samples.compactMap { $0 as? HKCorrelation }
     }
 
     private func readCategorySamples(
@@ -883,57 +891,16 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     }
 
     private func readNutritionData(start: Date, end: Date, limit: Int) async throws -> [[String: Any]] {
-        let calorieRecords = try await readQuantitySamples(
-            type: HKQuantityType(.dietaryEnergyConsumed),
-            start: start, end: end,
-            limit: limit
-        )
-        let proteinRecords = try await readQuantitySamples(
-            type: HKQuantityType(.dietaryProtein),
-            start: start, end: end,
-            limit: limit
-        )
-        let carbRecords = try await readQuantitySamples(
-            type: HKQuantityType(.dietaryCarbohydrates),
-            start: start, end: end,
-            limit: limit
-        )
-        let fatRecords = try await readQuantitySamples(
-            type: HKQuantityType(.dietaryFatTotal),
-            start: start, end: end,
-            limit: limit
-        )
-
-        // Combine by matching timestamps
-        var mapped: [[String: Any]] = calorieRecords.map { sample -> [String: Any] in
-            var fields: [String: Any] = [
-                "calories": sample.quantity.doubleValue(for: .kilocalorie()),
-                "start_time": sample.startDate.iso8601String,
-                "end_time": sample.endDate.iso8601String
-            ]
-            if let protein = proteinRecords.first(where: { abs($0.startDate.timeIntervalSince(sample.startDate)) < 1 }) {
-                fields["protein_grams"] = protein.quantity.doubleValue(for: .gram())
-            }
-            if let carb = carbRecords.first(where: { abs($0.startDate.timeIntervalSince(sample.startDate)) < 1 }) {
-                fields["carbs_grams"] = carb.quantity.doubleValue(for: .gram())
-            }
-            if let fat = fatRecords.first(where: { abs($0.startDate.timeIntervalSince(sample.startDate)) < 1 }) {
-                fields["fat_grams"] = fat.quantity.doubleValue(for: .gram())
-            }
-            return record(fields, from: sample)
+        let foods = try await readCorrelations(HKCorrelationType(.food), around: start, end)
+        var samples: [HKQuantitySample] = []
+        for nutrient in HealthRecordMapping.mainNutrients {
+            samples += try await readQuantitySamples(
+                type: HKQuantityType(nutrient.identifier),
+                start: start, end: end,
+                limit: limit
+            )
         }
-
-        // Also include standalone protein/carb/fat records not matched to calories
-        for protein in proteinRecords
-        where !calorieRecords.contains(where: { abs($0.startDate.timeIntervalSince(protein.startDate)) < 1 }) {
-            mapped.append(record([
-                "protein_grams": protein.quantity.doubleValue(for: .gram()),
-                "start_time": protein.startDate.iso8601String,
-                "end_time": protein.endDate.iso8601String
-            ], from: protein))
-        }
-
-        return mapped
+        return HealthRecordMapping.nutritionRecords(correlations: foods, samples: samples, start: start, end: end)
     }
 }
 

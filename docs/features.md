@@ -15,7 +15,7 @@ Reads Apple Health (HealthKit) and sends it to your webhooks, the Home Assistant
 | Body composition | Body Fat, Lean Body Mass |
 | Vitals | Heart Rate, Resting Heart Rate, Heart Rate Variability, Blood Pressure, Blood Glucose, Oxygen Saturation, Respiratory Rate, VO2 Max |
 | Sleep | Sleep sessions with stages |
-| Nutrition | Hydration, Nutrition (energy, protein, carbohydrates, fat) |
+| Nutrition | Hydration, Nutrition (per food: energy, protein, carbohydrates, fat and 34 more nutrients) |
 | Mindfulness | Mindful sessions, from apps that write them to Apple Health |
 | Cycle tracking | Menstruation (flow, plus periods derived from it), Basal Body Temperature, Intermenstrual Bleeding, Ovulation Test, Cervical Mucus, Sexual Activity |
 

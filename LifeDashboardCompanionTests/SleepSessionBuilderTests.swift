@@ -111,6 +111,24 @@ final class SleepSessionBuilderTests: XCTestCase {
         XCTAssertEqual(SleepSessionBuilder.sessionUuid(for: [one, two]), SleepSessionBuilder.sessionUuid(for: [two, one]))
     }
 
+    func testTheSessionUuidIsTheSameAs14Sent() {
+        let session = SleepSessionBuilder.sessions(from: [sample(stage: "deep", startMinute: 0, endMinute: 60)])[0]
+        XCTAssertEqual(session["uuid"] as? String, "4A9244F2-2D36-5EAC-BAAB-40C84CE9C13C")
+    }
+
+    func testASessionNamesTheSourceThatRecordedMostOfTheNight() {
+        let stages = [
+            SleepStageSample(stage: "in_bed", start: date(0), end: date(480), uuid: "A", source: "iPhone"),
+            SleepStageSample(stage: "light", start: date(10), end: date(200), uuid: "B", source: "Watch"),
+            SleepStageSample(stage: "deep", start: date(200), end: date(260), uuid: "C", source: "Watch"),
+            SleepStageSample(stage: "awake", start: date(260), end: date(270), uuid: "D", source: "Other")
+        ]
+        XCTAssertEqual(SleepSessionBuilder.sessions(from: stages)[0]["source"] as? String, "Watch")
+        XCTAssertEqual(SleepSessionBuilder.sessions(from: Array(stages.prefix(1)))[0]["source"] as? String, "iPhone")
+        let unnamed = SleepStageSample(stage: "deep", start: date(0), end: date(60), uuid: nil, source: nil)
+        XCTAssertNil(SleepSessionBuilder.sessions(from: [unnamed])[0]["source"])
+    }
+
     func testEmptyInputProducesNoSessions() {
         XCTAssertTrue(SleepSessionBuilder.sessions(from: []).isEmpty)
     }

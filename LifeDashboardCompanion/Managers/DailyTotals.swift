@@ -37,11 +37,11 @@ enum DailyTotals {
     /// new row below is only possible for a key the Android app sends too. A new type's total
     /// is one row.
     ///
-    /// Where iOS differs: `distance_meters` sums what the Distance type reads (walking and
-    /// running today), where Health Connect's distance covers every activity. HealthKit has no
-    /// total energy type, so `total_calories` is resting plus active energy and is only sent on
-    /// days with resting energy, which an iPhone without a Watch usually does not record; active
-    /// energy alone under the name total would read as a real figure some 1500 kcal too low.
+    /// Where iOS differs: HealthKit has no total energy type, so `total_calories` is resting
+    /// plus active energy and is only sent on days with resting energy, which an iPhone without
+    /// a Watch usually does not record; active energy alone under the name total would read as
+    /// a real figure some 1500 kcal too low. `distance_meters` adds up every HealthKit distance,
+    /// walking, cycling, swimming and the rest, as Health Connect's distance covers them all.
     static let metrics: [DailyTotalMetric] = [
         DailyTotalMetric(field: "steps", type: .steps, unit: .count(), isInteger: true),
         DailyTotalMetric(field: "distance_meters", type: .distance, unit: .meter()),
