@@ -23,7 +23,7 @@ final class HealthSyncManager: Sendable {
         let webhookUrls = prefs.healthWebhookUrls
         let headers = prefs.healthWebhookHeaders
 
-        guard !enabledTypes.isEmpty, !webhookUrls.isEmpty else {
+        guard !enabledTypes.isEmpty, !webhookUrls.isEmpty || prefs.mqttConfigured else {
             return .noData
         }
 
@@ -40,6 +40,15 @@ final class HealthSyncManager: Sendable {
                 logType: .healthConnect
             ))
             return .failure(error: message)
+        }
+
+        guard !webhookUrls.isEmpty else {
+            do {
+                let healthData = try await healthKit.readHealthData(for: enabledTypes)
+                return await publishOnly(healthData, sensorsFrom: healthData)
+            } catch {
+                return readFailed(error)
+            }
         }
 
         let readGeneration = await DeletionStep.run(for: enabledTypes)
@@ -90,18 +99,43 @@ final class HealthSyncManager: Sendable {
                 return .failure(error: AppDiagnostic.queuedForRetry.rawValue)
             }
         } catch {
-            // Reading failed before anything was sent, so the row names Apple Health and not
-            // a webhook URL that was never contacted.
-            let log = WebhookLog(
-                url: SyncStats.readFailureSource,
-                success: false,
-                errorMessage: error.localizedDescription,
-                dataType: WebhookLog.readFailureDataType,
-                logType: .healthConnect
-            )
-            prefs.addWebhookLog(log)
-            return .failure(error: error.localizedDescription)
+            return readFailed(error)
         }
+    }
+
+    /// Reading failed before anything was sent, so the row names Apple Health and not a
+    /// webhook URL or a broker that was never contacted.
+    private func readFailed(_ error: Error) -> HealthSyncResult {
+        let log = WebhookLog(
+            url: SyncStats.readFailureSource,
+            success: false,
+            errorMessage: error.localizedDescription,
+            dataType: WebhookLog.readFailureDataType,
+            logType: .healthConnect
+        )
+        prefs.addWebhookLog(log)
+        return .failure(error: error.localizedDescription)
+    }
+
+    /// A sync with the MQTT broker and no webhook URL, as on Android: the latest value of each
+    /// type goes to the broker, and nothing is posted or queued. Deletions are not read, since a
+    /// sensor holds one value and has no record to withdraw, and a deletion that no webhook
+    /// takes would wait in the store for good.
+    ///
+    /// A broker that cannot be reached fails the sync and shows on the widget. It does not add
+    /// to the failure notification's streak, whose text is about webhooks and a retry queue
+    /// that MQTT does not have; the MQTT status and the Logs tab carry the error.
+    private func publishOnly(_ healthData: [String: Any], sensorsFrom sensorData: [String: Any]) async -> HealthSyncResult {
+        guard !healthData.isEmpty else { return .noData }
+        var syncCounts: [HealthDataType: Int] = [:]
+        let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
+        if let error = await MqttPublisher.shared.publish(healthPayload: sensorData) {
+            SharedSyncStatus.record(success: false, records: 0)
+            WidgetCenter.shared.reloadAllTimelines()
+            return .failure(error: error)
+        }
+        updateWidgetStatus(success: true, records: totalRecords)
+        return .success(syncCounts: syncCounts)
     }
 
     // MARK: - Incremental Sync (anchor-based, every automatic sync and the Shortcuts action)
@@ -128,7 +162,22 @@ final class HealthSyncManager: Sendable {
         let webhookUrls = prefs.healthWebhookUrls
         let headers = prefs.healthWebhookHeaders
 
-        guard !types.isEmpty, !webhookUrls.isEmpty else { return .noData }
+        guard !types.isEmpty, !webhookUrls.isEmpty || prefs.mqttConfigured else { return .noData }
+
+        guard !webhookUrls.isEmpty else {
+            do {
+                switch try await healthKit.readIncrementalData(for: types) {
+                case .protectedDataUnavailable:
+                    return .failure(error: AppDiagnostic.deviceLocked.rawValue)
+                case .empty:
+                    return .noData
+                case .data(let healthData):
+                    return await publishOnly(healthData, sensorsFrom: caughtUp(healthData, types: types))
+                }
+            } catch {
+                return .failure(error: error.localizedDescription)
+            }
+        }
 
         // Deletions are read for every enabled type, not only the ones an observer named: the
         // step costs milliseconds, and every read shortens the time HealthKit could forget one.
@@ -168,19 +217,39 @@ final class HealthSyncManager: Sendable {
 
                 updateWidgetStatus(success: success, records: totalRecords)
 
+                let result: HealthSyncResult
                 if success {
                     await deletionStore.remove(deletions.carried)
-                    return .success(syncCounts: syncCounts)
+                    result = .success(syncCounts: syncCounts)
                 } else {
                     if enqueueBody(queuedBody(body, payload: payload, totalsDay: totalsDay), urls: webhookUrls, headers: headers, totalRecords: totalRecords) {
                         await deletionStore.remove(deletions.carried)
                     }
-                    return .failure(error: AppDiagnostic.queuedForRetry.rawValue)
+                    result = .failure(error: AppDiagnostic.queuedForRetry.rawValue)
                 }
+
+                // Last, once the webhook's payload is delivered or queued: a HealthKit wakeup's
+                // time budget is for that first. New records only, so a type without any keeps
+                // its retained value on the broker.
+                if !Task.isCancelled {
+                    await MqttPublisher.shared.publish(healthPayload: caughtUp(healthData, types: types))
+                }
+                return result
             }
         } catch {
             return .failure(error: error.localizedDescription)
         }
+    }
+
+    /// What an incremental read gives MQTT: the types that have caught up. A type whose read
+    /// stopped at the cap, oldest first, has newer records still to come, and its sensor would
+    /// show an old value as the current one; it is published once the reads have caught up.
+    private func caughtUp(_ healthData: [String: Any], types: Set<HealthDataType>) -> [String: Any] {
+        var payload = healthData
+        for type in types where prefs.loadCatchUpCursor(for: type) != nil {
+            payload.removeValue(forKey: type.countedPayloadKey)
+        }
+        return payload
     }
 
     /// Pushes the latest sync result to the app group so the home screen widget stays

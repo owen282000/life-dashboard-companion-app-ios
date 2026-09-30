@@ -2,20 +2,6 @@ import Combine
 import XCTest
 @testable import LifeDashboardCompanion
 
-/// Secrets in memory, so the tests never touch the Keychain of the host app.
-private final class InMemorySecretStore: SecretStore, @unchecked Sendable {
-    private let lock = NSLock()
-    private var values: [String: Data] = [:]
-
-    func data(forKey key: String) -> Data? {
-        lock.withLock { values[key] }
-    }
-
-    func setData(_ value: Data, forKey key: String) {
-        lock.withLock { values[key] = value }
-    }
-}
-
 @MainActor
 final class SettingsBackupTests: XCTestCase {
     /// A PreferencesManager on its own defaults suite and secret store, as on a fresh install.

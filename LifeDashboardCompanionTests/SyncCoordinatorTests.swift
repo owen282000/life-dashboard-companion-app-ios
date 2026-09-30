@@ -292,3 +292,78 @@ final class SyncCoordinatorTests: XCTestCase {
         XCTAssertNil(world.state.lastRun)
     }
 }
+
+/// Where a sync may go. MQTT alone is a destination, as on Android: Sync Now, the observers,
+/// the background tasks and every automatic sync ask `healthSyncConfigured`.
+final class SyncDestinationTests: XCTestCase {
+    private func makePrefs() -> PreferencesManager {
+        let name = "sync-destination-tests-\(UUID().uuidString)"
+        addTeardownBlock { UserDefaults().removePersistentDomain(forName: name) }
+        let prefs = PreferencesManager(defaults: UserDefaults(suiteName: name)!, secrets: InMemorySecretStore())
+        prefs.healthEnabledDataTypes = [.steps, .heartRate]
+        return prefs
+    }
+
+    func testABrokerWithoutAWebhookIsADestination() {
+        let prefs = makePrefs()
+        XCTAssertFalse(prefs.healthSyncConfigured)
+
+        prefs.mqttEnabled = true
+        prefs.mqttHost = "homeassistant.local"
+
+        XCTAssertTrue(prefs.healthWebhookUrls.isEmpty)
+        XCTAssertTrue(prefs.mqttConfigured)
+        XCTAssertTrue(prefs.hasHealthDestination)
+        XCTAssertTrue(prefs.healthSyncConfigured)
+    }
+
+    func testABrokerNeedsTheSwitchAndAHost() {
+        let prefs = makePrefs()
+        prefs.mqttHost = "homeassistant.local"
+        XCTAssertFalse(prefs.healthSyncConfigured, "switched off")
+
+        prefs.mqttEnabled = true
+        prefs.mqttHost = "   "
+        XCTAssertFalse(prefs.mqttConfigured, "blank host")
+        XCTAssertFalse(prefs.healthSyncConfigured)
+    }
+
+    func testAWebhookAloneStillCounts() {
+        let prefs = makePrefs()
+        prefs.healthWebhookUrls = ["https://example.com/health"]
+        XCTAssertFalse(prefs.mqttConfigured)
+        XCTAssertTrue(prefs.healthSyncConfigured)
+    }
+
+    func testNothingToReadIsNotConfiguredWhateverTheDestination() {
+        let prefs = makePrefs()
+        prefs.healthWebhookUrls = ["https://example.com/health"]
+        prefs.mqttEnabled = true
+        prefs.mqttHost = "homeassistant.local"
+        prefs.healthEnabledDataTypes = []
+        XCTAssertTrue(prefs.hasHealthDestination)
+        XCTAssertFalse(prefs.healthSyncConfigured)
+    }
+
+    /// The background sync manager starts the observers on this, so a broker added after launch
+    /// syncs without a relaunch.
+    func testAChangedDestinationIsAnnounced() {
+        let prefs = makePrefs()
+        var posts = 0
+        let token = NotificationCenter.default.addObserver(
+            forName: .healthDestinationsDidChange, object: prefs, queue: nil
+        ) { _ in posts += 1 }
+        defer { NotificationCenter.default.removeObserver(token) }
+
+        prefs.mqttEnabled = true
+        prefs.mqttHost = "homeassistant.local"
+        prefs.healthWebhookUrls = ["https://example.com/health"]
+        XCTAssertEqual(posts, 3)
+
+        prefs.mqttEnabled = true
+        prefs.mqttHost = "homeassistant.local"
+        prefs.healthWebhookUrls = ["https://example.com/health"]
+        prefs.mqttPort = 8883
+        XCTAssertEqual(posts, 3, "the same value again, or a setting that is not a destination")
+    }
+}

@@ -94,6 +94,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
                 defaults.set(data, forKey: Keys.healthWebhookUrls)
             }
             pruneUrlsWithoutHeaders()
+            if healthWebhookUrls != oldValue { destinationsDidChange() }
         }
     }
 
@@ -157,11 +158,42 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
     // MARK: - MQTT (Home Assistant Discovery); credentials live in the Keychain
 
     @Published var mqttEnabled: Bool {
-        didSet { defaults.set(mqttEnabled, forKey: Keys.mqttEnabled) }
+        didSet {
+            defaults.set(mqttEnabled, forKey: Keys.mqttEnabled)
+            if mqttEnabled != oldValue { destinationsDidChange() }
+        }
     }
 
     @Published var mqttHost: String {
-        didSet { defaults.set(mqttHost, forKey: Keys.mqttHost) }
+        didSet {
+            defaults.set(mqttHost, forKey: Keys.mqttHost)
+            if mqttHost != oldValue { destinationsDidChange() }
+        }
+    }
+
+    // MARK: - Destinations
+
+    /// The broker counts once it is switched on and has a host, as on Android.
+    var mqttConfigured: Bool {
+        mqttEnabled && !mqttHost.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// A webhook URL or the MQTT broker: MQTT alone is a destination of its own, as it is on
+    /// Android, so a phone set up with only a broker syncs too.
+    var hasHealthDestination: Bool {
+        !healthWebhookUrls.isEmpty || mqttConfigured
+    }
+
+    /// Whether a sync has anywhere to go and anything to read. Sync Now, the observers at
+    /// launch, the background tasks and every automatic sync ask this one question.
+    var healthSyncConfigured: Bool {
+        hasHealthDestination && !healthEnabledDataTypes.isEmpty
+    }
+
+    /// Lets the background sync manager start the observers and aim the background tasks when
+    /// the first destination is added while the app runs, without a relaunch.
+    private func destinationsDidChange() {
+        NotificationCenter.default.post(name: .healthDestinationsDidChange, object: self)
     }
 
     @Published var mqttPort: Int {
@@ -343,4 +375,6 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
 extension Notification.Name {
     /// Posted when the health sync schedule really changed, so background work is re-aimed.
     static let healthSyncScheduleDidChange = Notification.Name("healthSyncScheduleDidChange")
+    /// Posted when a webhook URL or the MQTT broker was added, changed or removed.
+    static let healthDestinationsDidChange = Notification.Name("healthDestinationsDidChange")
 }
