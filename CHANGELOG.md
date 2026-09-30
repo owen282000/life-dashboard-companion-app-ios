@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-30
+
 ### Added
 
 - Sync Now outside the app, as the Android app's Quick Settings tile: a button on the home screen widget, and on iOS 18 and later a Sync Now control for Control Center. Both run the Sync Health Data action, which sends what is queued and what is new since the last sync. The widget, the control and the Shortcuts action together sync at most once a minute, like the Android app's sync broadcast; a tap within a minute of the last accepted one does nothing, and the action says so in Shortcuts
@@ -168,7 +170,8 @@ All notable changes to this project are documented in this file. The format is b
 - Offline queue with retries and exponential backoff
 - Webhook logs with CSV/JSON export and payload preview
 
-[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.4.1...HEAD
+[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.5.0...HEAD
+[1.5.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.4.1...1.5.0
 [1.4.1]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.4.0...1.4.1
 [1.4.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.3.0...1.4.0
 [1.3.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.2.0...1.3.0
