@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- The background refresh and processing tasks were never scheduled, because the background modes they need were missing; iOS refused every request without a visible error
+- A HealthKit wakeup released HealthKit before its sync had started, so iOS could suspend the app mid-sync, and a wakeup that arrived while a sync was sending cancelled it, which logged a failure and sent the payload twice
+- Two retries of the queue at the same time, such as at launch and when the app became active, posted each queued payload twice
+- A retried payload that got through did not count for the widget and did not end the failure streak
+- A background task that ran out of time could stay open until iOS ended the app
+- A full sync on a locked iPhone said "No data to sync"; it now says the iPhone is locked
+
 ## [1.3.0] - 2026-08-27
 
 ### Added
