@@ -22,6 +22,14 @@ final class DailyTotalsTests: XCTestCase {
         DailyTotals.metrics.first { $0.field == field }!
     }
 
+    /// Walking and running distance per day, and every other distance answered without samples.
+    private func distance(_ perDay: [String: Double]) -> [HKQuantityTypeIdentifier: [String: Double]?] {
+        var sums: [HKQuantityTypeIdentifier: [String: Double]?] = [:]
+        for identifier in HealthDataType.distanceIdentifiers { sums[identifier] = [:] }
+        sums[.distanceWalkingRunning] = perDay
+        return sums
+    }
+
     // MARK: - Table
 
     func testEveryFieldIsInTheAndroidSchema() {
@@ -44,7 +52,8 @@ final class DailyTotalsTests: XCTestCase {
 
     func testIdentifiersFollowTheTypesSampleTypes() {
         XCTAssertEqual(metric("steps").identifiers, [.stepCount])
-        XCTAssertEqual(metric("distance_meters").identifiers, [.distanceWalkingRunning])
+        XCTAssertEqual(metric("distance_meters").identifiers, HealthDataType.distanceIdentifiers)
+        XCTAssertTrue(metric("distance_meters").identifiers.contains(.distanceCycling))
         XCTAssertEqual(metric("active_calories").identifiers, [.activeEnergyBurned])
         XCTAssertEqual(Set(metric("total_calories").identifiers), [.basalEnergyBurned, .activeEnergyBurned])
     }
@@ -135,10 +144,9 @@ final class DailyTotalsTests: XCTestCase {
     func testEntriesCarryEveryFieldWithItsType() throws {
         let entries = DailyTotals.entries(days: ["2026-09-30"], sums: [
             .stepCount: ["2026-09-30": 8421.6],
-            .distanceWalkingRunning: ["2026-09-30": 6210.4],
             .activeEnergyBurned: ["2026-09-30": 412.0],
             .basalEnergyBurned: ["2026-09-30": 1819.5]
-        ])
+        ].merging(distance(["2026-09-30": 6210.4])) { $1 })
         XCTAssertEqual(entries.count, 1)
         let entry = entries[0]
         XCTAssertEqual(entry["date"] as? String, "2026-09-30")
@@ -156,9 +164,8 @@ final class DailyTotalsTests: XCTestCase {
 
     func testADayWithoutSamplesLeavesTheFieldOut() {
         let entries = DailyTotals.entries(days: ["2026-09-29", "2026-09-30"], sums: [
-            .stepCount: ["2026-09-29": 5000, "2026-09-30": 1200],
-            .distanceWalkingRunning: ["2026-09-30": 800]
-        ])
+            .stepCount: ["2026-09-29": 5000, "2026-09-30": 1200]
+        ].merging(distance(["2026-09-30": 800])) { $1 })
         XCTAssertEqual(entries.count, 2)
         XCTAssertNil(entries[0]["distance_meters"])
         XCTAssertEqual(entries[1]["distance_meters"] as? Double, 800)
@@ -176,11 +183,21 @@ final class DailyTotalsTests: XCTestCase {
         XCTAssertTrue(DailyTotals.entries(days: ["2026-09-30"], sums: [:]).isEmpty)
     }
 
+    func testDistanceAddsUpEveryActivity() {
+        var sums = distance(["2026-09-30": 3000])
+        sums[.distanceCycling] = ["2026-09-30": 12_500]
+        sums[.distanceSwimming] = ["2026-09-29": 1500]
+        let entries = DailyTotals.entries(days: ["2026-09-29", "2026-09-30"], sums: sums)
+        XCTAssertEqual(entries[0]["distance_meters"] as? Double, 1500)
+        XCTAssertEqual(entries[1]["distance_meters"] as? Double, 15_500)
+    }
+
     func testAFailedQueryLeavesItsFieldOutOnEveryDay() {
-        let entries = DailyTotals.entries(days: ["2026-09-30"], sums: [
-            .stepCount: ["2026-09-30": 1200],
-            .distanceWalkingRunning: failed
-        ])
+        var sums = distance([:])
+        sums[.distanceCycling] = ["2026-09-30": 9000]
+        sums[.distanceWalkingRunning] = failed
+        sums[.stepCount] = ["2026-09-30": 1200]
+        let entries = DailyTotals.entries(days: ["2026-09-30"], sums: sums)
         XCTAssertEqual(entries.count, 1)
         XCTAssertNil(entries[0]["distance_meters"])
         XCTAssertEqual(entries[0]["steps"] as? Int, 1200)

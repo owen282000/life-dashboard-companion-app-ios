@@ -165,8 +165,9 @@ final class DeletionTrackingTests: XCTestCase {
     func testComponentsWhoseUuidNeverReachesThePayloadAreNotRead() {
         let identifiers = HealthDataType.allCases.flatMap(\.deletionSampleTypes).map(\.identifier)
         XCTAssertFalse(identifiers.contains(HKQuantityType(.bloodPressureDiastolic).identifier))
-        XCTAssertFalse(identifiers.contains(HKQuantityType(.dietaryCarbohydrates).identifier))
-        XCTAssertFalse(identifiers.contains(HKQuantityType(.dietaryFatTotal).identifier))
+        // A food's uuid can come from its carbohydrate or fat sample, and a lone one is a record.
+        XCTAssertTrue(identifiers.contains(HKQuantityType(.dietaryCarbohydrates).identifier))
+        XCTAssertTrue(identifiers.contains(HKQuantityType(.dietaryFatTotal).identifier))
         XCTAssertEqual(HealthDataType.bloodPressure.deletionSampleTypes.map(\.identifier), [HKQuantityType(.bloodPressureSystolic).identifier])
     }
 

@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Distance covers every activity, as on Android: cycling, swimming, wheelchair and downhill snow sports distance next to walking and running, and from iOS 18 rowing, paddling, cross-country skiing and skating. The `distance` records and `daily_totals`' `distance_meters` include them. Distance asks Health for access to them, so with Distance on, the Health tab shows Grant once after the update, and the first sync after it sends the last 7 days of distance again
+- Nutrition records carry the food's name and 34 more nutrients under the Android app's keys, from fibre, sugars and the fat types to sodium, the vitamins and caffeine, as far as the app that logged the food wrote them. Nutrition asks Health for access to them, so with Nutrition on, the Health tab shows Grant once after the update
+- Sleep sessions carry a `source`, the app or device that recorded most of the night's sleep stages, as Android's sessions do
+- Menstruation periods carry a `uuid`, derived from their first flow day like a sleep session's, and the `source` of that day, so a receiver can replace a period that comes back longer instead of keeping both
+
+### Fixed
+
+- Blood pressure is read per reading, the systolic and diastolic values saved together, instead of by matching the two by time. Every record now carries `diastolic`, which the Android schema requires; a value without its other half is no longer sent. Two readings within a second no longer share one diastolic value. The uuid stays the systolic sample's, so a receiver deduplicates against what earlier versions sent
+- Heart rate and resting heart rate were cut to a whole number instead of rounded, so a Watch reading of 71.9 bpm arrived as 71. They are rounded now, and so are fractional step counts some apps write, and the 7-day steps sparkline on the Health tab
+- Nutrition is read per food an app logged, instead of by matching energy, protein, carbohydrates and fat by time. Two foods logged at the same moment no longer get each other's values, and a food or value without energy, such as carbohydrates on their own, is no longer dropped. Values saved outside a food are still grouped by app and time when that is unambiguous
+
 ## [1.4.1] - 2026-09-30
 
 ### Fixed

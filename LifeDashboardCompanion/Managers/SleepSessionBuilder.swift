@@ -55,8 +55,22 @@ enum SleepSessionBuilder {
                 "stages": stages
             ]
             if let uuid = sessionUuid(for: group) { session["uuid"] = uuid }
+            if let source = sessionSource(for: group) { session["source"] = source }
             return session
         }
+    }
+
+    /// The app or device that recorded most of the night, as Android's session names the app
+    /// that wrote it. In bed only counts when there are no sleep stages: an iPhone writes in bed
+    /// for the whole night while the Watch writes the stages.
+    static func sessionSource(for group: [SleepStageSample]) -> String? {
+        let asleep = group.filter { $0.stage != "in_bed" }
+        var time: [String: TimeInterval] = [:]
+        for sample in asleep.isEmpty ? group : asleep {
+            guard let source = sample.source else { continue }
+            time[source, default: 0] += sample.end.timeIntervalSince(sample.start)
+        }
+        return time.max { $0.value != $1.value ? $0.value < $1.value : $0.key > $1.key }?.key
     }
 
     /// A stable id for a night, so a receiver can replace a session it already has when the
@@ -73,9 +87,13 @@ enum SleepSessionBuilder {
             lhs.start != rhs.start ? lhs.start < rhs.start : (lhs.uuid ?? "") < (rhs.uuid ?? "")
         }
         guard let stageUuid = earliest?.uuid else { return nil }
+        return derivedUuid("sleep-session:\(stageUuid)")
+    }
 
-        var bytes = Array(SHA256.hash(data: Data("sleep-session:\(stageUuid)".utf8)).prefix(16))
-        // Shaped as an RFC 4122 name-based UUID (version 5 bits), uppercase like HealthKit's.
+    /// A uuid derived from `name`, for a record HealthKit has no uuid for. Shaped as an RFC 4122
+    /// name-based UUID (version 5 bits), uppercase like HealthKit's.
+    static func derivedUuid(_ name: String) -> String {
+        var bytes = Array(SHA256.hash(data: Data(name.utf8)).prefix(16))
         bytes[6] = (bytes[6] & 0x0F) | 0x50
         bytes[8] = (bytes[8] & 0x3F) | 0x80
         let uuid = UUID(uuid: (
