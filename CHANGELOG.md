@@ -4,12 +4,22 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Distance covers every activity, as on Android: cycling, swimming, wheelchair and downhill snow sports distance next to walking and running, and from iOS 18 rowing, paddling, cross-country skiing and skating. The `distance` records and `daily_totals`' `distance_meters` include them. Distance asks Health for access to them, so with Distance on, the Health tab shows Grant once after the update, and the first sync after it sends the last 7 days of distance again
+- Nutrition records carry the food's name and 34 more nutrients under the Android app's keys, from fibre, sugars and the fat types to sodium, the vitamins and caffeine, as far as the app that logged the food wrote them. Nutrition asks Health for access to them, so with Nutrition on, the Health tab shows Grant once after the update
+- Sleep sessions carry a `source`, the app or device that recorded most of the night's sleep stages, as Android's sessions do
+- Menstruation periods carry a `uuid`, derived from their first flow day like a sleep session's, and the `source` of that day, so a receiver can replace a period that comes back longer instead of keeping both
+
 ### Changed
 
 - The log keeps one file per row. It was one file of up to about 10 MB, with the payload of each of the last 100 deliveries, that was read and written whole for every row, several times per sync, also in the background. The existing log is split into rows on the first launch
 
 ### Fixed
 
+- Blood pressure is read per reading, the systolic and diastolic values saved together, instead of by matching the two by time. Every record now carries `diastolic`, which the Android schema requires; a value without its other half is no longer sent. Two readings within a second no longer share one diastolic value. The uuid stays the systolic sample's, so a receiver deduplicates against what earlier versions sent
+- Heart rate and resting heart rate were cut to a whole number instead of rounded, so a Watch reading of 71.9 bpm arrived as 71. They are rounded now, and so are fractional step counts some apps write, and the 7-day steps sparkline on the Health tab
+- Nutrition is read per food an app logged, instead of by matching energy, protein, carbohydrates and fat by time. Two foods logged at the same moment no longer get each other's values, and a food or value without energy, such as carbohydrates on their own, is no longer dropped. Values saved outside a food are still grouped by app and time when that is unambiguous
 - Records could be lost when iOS suspended or ended the app while a sync's payload was on its way, because the sync had already marked them as sent. A HealthKit wakeup lets go after 25 seconds, one webhook can take over 90 seconds with its retries, and Sync Now had no background time at all once you left the app. A payload now goes into the retry queue before its records are marked as sent, and leaves it when a webhook accepted it, so every record is delivered, still queued, or read again by the next sync. At worst a payload arrives twice, which a receiver deduplicates on `uuid`. Sync Now and the sync that opening the app starts ask iOS for background time, so leaving the app mid-sync lets it finish
 - The retry queue sent a payload with the custom headers it was queued with, so after you changed an API key every queued payload got HTTP 401 until it was dropped. A retry now goes to the webhook URLs and with the headers configured at that moment, as in the Android app, with the same rule as a sync for the addresses that pairing added, and the queue files no longer hold the headers. A queued payload whose URL you replaced was deleted; it now goes to the new one
 - A payload the receiver refused for what it carries (HTTP 400, 413 or 422) held up everything queued after it. It is now skipped, so the rest goes through, and stays queued in case the receiver gets fixed, as in the Android app

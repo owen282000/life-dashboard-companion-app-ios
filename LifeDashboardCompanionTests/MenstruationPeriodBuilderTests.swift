@@ -51,4 +51,32 @@ final class MenstruationPeriodBuilderTests: XCTestCase {
     func testEmptyInputProducesNoPeriods() {
         XCTAssertTrue(MenstruationPeriodBuilder.periods(from: []).isEmpty)
     }
+
+    func testAPeriodCarriesAUuidThatHoldsWhileItGrows() {
+        func flow(_ number: Int) -> FlowSample {
+            FlowSample(start: day(number), end: day(number), uuid: "flow-\(number)", source: "Cycle App")
+        }
+        let partial = MenstruationPeriodBuilder.periods(from: [flow(1), flow(2)])
+        let whole = MenstruationPeriodBuilder.periods(from: [flow(3), flow(1), flow(2)])
+        XCTAssertEqual(partial[0]["uuid"] as? String, "306D9EAF-B128-58ED-BDAB-DD39EF5F157B")
+        XCTAssertEqual(whole[0]["uuid"] as? String, partial[0]["uuid"] as? String)
+        XCTAssertEqual(whole[0]["source"] as? String, "Cycle App")
+        let next = MenstruationPeriodBuilder.periods(from: [flow(1), flow(30)])
+        XCTAssertNotEqual(next[0]["uuid"] as? String, next[1]["uuid"] as? String)
+        XCTAssertNil(MenstruationPeriodBuilder.periods(from: [flowDay(1)])[0]["uuid"])
+    }
+
+    func testAReadOfTheLatestDayStillGetsTheWholePeriod() {
+        func flow(_ number: Int) -> FlowSample {
+            FlowSample(start: day(number), end: day(number), uuid: "flow-\(number)", source: nil)
+        }
+        let whole = MenstruationPeriodBuilder.periods(from: [flow(1), flow(2), flow(3)])
+        // An incremental sync reads day 3; days 1 and 2 come from the lookback.
+        let latest = MenstruationPeriodBuilder.periods(from: [flow(1), flow(2), flow(3)], reaching: day(3))
+        XCTAssertEqual(latest.count, 1)
+        XCTAssertEqual(latest[0]["uuid"] as? String, whole[0]["uuid"] as? String)
+        XCTAssertEqual(latest[0]["start_time"] as? String, day(1).iso8601String)
+        // A period over before the read is not sent again.
+        XCTAssertTrue(MenstruationPeriodBuilder.periods(from: [flow(1), flow(2)], reaching: day(10)).isEmpty)
+    }
 }
