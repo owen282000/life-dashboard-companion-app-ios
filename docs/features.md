@@ -61,7 +61,7 @@ MQTT is the other way, for a setup that already runs a broker:
 - **Retired sensors** - versions up to 1.4.1 published steps, distance and calories as "(latest record)" sensors; every publish now removes them from the broker, and with them from Home Assistant
 - **Webhook only** - exercise, nutrition, mindfulness and the cycle tracking types are events rather than values, and a retained topic is no place for reproductive data
 - **A destination of its own** - a broker without a webhook URL is enough, as in the Android app. **Sync Now**, the automatic syncs and the **Sync Health Data** action all publish, and the observers and background tasks start as soon as a broker is set, without reopening the app
-- **Every sync publishes** today's totals and the latest value of each type that has new records. A type that is still catching up past the per-sync cap is left out until it has caught up, since its newest record read is not its newest record
+- **Every sync with new records publishes** today's totals and the latest value of each type that has new records. A type that is still catching up past the per-sync cap is left out until it has caught up, since its newest record read is not its newest record
 - **No queue, no deletions, no backfill** - MQTT has no retry queue, and deleted records and backfill payloads go to webhooks only. A webhook URL added after a time with only a broker gets what is new from then on; **Sync Now** or **Backfill** sends what came before
 - States and discovery configs are published retained; TLS and a username and password are optional, and the password is kept in the Keychain
 - Its own device id and base topic (`lifedashboard-ios`), so an iPhone never collides with the Android app's sensors in the same household

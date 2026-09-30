@@ -66,7 +66,7 @@ Both apps write and read the same format, so a file from one opens in the other,
 
 Custom headers from Android come with a list of URLs that get none of them (the ones QR pairing added). The iPhone keeps the same list, so both carry over, in either direction.
 
-**From iPhone to Android:** Android reads the file, but its importer resets what the file does not mention. Importing an iPhone file on an Android phone that also syncs Screen Time clears its Screen Time webhooks, switches Screen Time MQTT off, resets the Android-only options (full payloads, the day boundary) and turns off the data types the iPhone does not have. On a fresh Android phone this does not matter.
+**From iPhone to Android:** Android reads the file, but its importer resets what the file does not mention. Importing an iPhone file on an Android phone that also syncs Screen Time clears its Screen Time webhooks, switches Screen Time MQTT off, resets the Android-only options (full payloads, the day boundary) and turns off the data types the iPhone does not have. On a fresh Android phone this does not matter. The Android app also takes the file's `phone_name`, so an Android phone with a name of its own takes the iPhone's name, or none; set it again under MQTT afterwards.
 
 ## File format
 

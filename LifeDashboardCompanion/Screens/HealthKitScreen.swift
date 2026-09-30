@@ -17,6 +17,8 @@ struct HealthKitScreen: View {
     @State private var newHeaderKey: String = ""
     @State private var newHeaderValue: String = ""
     @State private var mqttPortText = String(PreferencesManager.shared.mqttPort)
+    @State private var phoneNameText = PreferencesManager.shared.phoneName
+    @FocusState private var phoneNameFocused: Bool
     @State private var showPreview = false
     @State private var previewPayload: String = ""
     @State private var previewFullPayload: String = ""
@@ -380,20 +382,33 @@ struct HealthKitScreen: View {
         Text("For a second iPhone on the same MQTT broker. Empty keeps the device and the topics as they are; a name gives this iPhone its own device and its own topics under the base topic.")
             .font(.caption)
             .foregroundStyle(.secondary)
-        TextField("Phone name", text: $prefs.phoneName, prompt: Text("Optional"))
+        // Saved when the field is left, not per keystroke: a sync in between would publish a
+        // device for every half-typed name and clear it again.
+        TextField("Phone name", text: $phoneNameText, prompt: Text("Optional"))
             .textFieldStyle(.filled)
             .autocorrectionDisabled()
-        if !prefs.phoneName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            if let slug = MqttSupport.phoneSlug(prefs.phoneName) {
+            .focused($phoneNameFocused)
+            .onSubmit(savePhoneName)
+            .onChange(of: phoneNameFocused) { _, focused in if !focused { savePhoneName() } }
+            .onChange(of: prefs.phoneName) { _, name in if !phoneNameFocused { phoneNameText = name } }
+            .onDisappear(perform: savePhoneName)
+        if !phoneNameText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if let slug = MqttSupport.phoneSlug(phoneNameText) {
                 Text("Publishes as \(MqttSupport.deviceId(slug: slug)). After a rename, the next sync removes the old device's sensors from the broker.")
                     .font(.caption)
                     .foregroundStyle(Brand.ink)
             } else {
-                Text("This name has no letters or digits, so the iPhone stays unnamed.")
+                Text("This name has no letters from a to z or digits, so the iPhone stays unnamed.")
                     .font(.caption)
                     .foregroundStyle(Brand.errorInk)
             }
         }
+    }
+
+    private func savePhoneName() {
+        let name = String(phoneNameText.trimmingCharacters(in: .whitespacesAndNewlines).prefix(SettingsImport.maxPhoneNameLength))
+        if name != prefs.phoneName { prefs.phoneName = name }
+        if name != phoneNameText { phoneNameText = name }
     }
 
     private var mqttSubtitle: Text {

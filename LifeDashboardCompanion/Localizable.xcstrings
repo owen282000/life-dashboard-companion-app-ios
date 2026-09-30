@@ -5360,7 +5360,7 @@
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Publiceert als %@. Na het wijzigen van de naam haalt de volgende synchronisatie de sensors van het oude apparaat van de broker."
+            "value" : "Publiceert als %@. Na het wijzigen van de naam verwijdert de volgende synchronisatie de sensors van het oude apparaat van de broker."
           }
         }
       }
@@ -7243,18 +7243,18 @@
         }
       }
     },
-    "This name has no letters or digits, so the iPhone stays unnamed." : {
+    "This name has no letters from a to z or digits, so the iPhone stays unnamed." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dieser Name enthält keine Buchstaben oder Ziffern, das iPhone bleibt also ohne Namen."
+            "value" : "Dieser Name enthält keine Buchstaben von a bis z oder Ziffern, das iPhone bleibt also ohne Namen."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deze naam bevat geen letters of cijfers, dus de iPhone blijft naamloos."
+            "value" : "Deze naam bevat geen letters van a tot z of cijfers, dus de iPhone blijft naamloos."
           }
         }
       }

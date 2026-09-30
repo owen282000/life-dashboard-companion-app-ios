@@ -106,6 +106,7 @@ final class MqttSupportTests: XCTestCase {
         XCTAssertEqual(MqttSupport.phoneSlug("  Zoë's phone  "), "zoe_s_phone")
         XCTAssertEqual(MqttSupport.phoneSlug("Owen--Phone!"), "owen_phone")
         XCTAssertEqual(MqttSupport.phoneSlug("a_b"), "a_b")
+        XCTAssertEqual(MqttSupport.phoneSlug("a_ b"), "a__b", "a typed underscore stays next to a replaced run")
         XCTAssertNil(MqttSupport.phoneSlug("!!!"), "a name with nothing usable in it is no name")
         XCTAssertEqual(MqttSupport.phoneSlug("Åse’s iPhone 15"), "ase_s_iphone_15")
     }
@@ -171,6 +172,26 @@ final class MqttSupportTests: XCTestCase {
         XCTAssertEqual(clear("owen", "zoe").first, "lifedashboard-ios/owen/weight/state")
         // Name removed: back to nameless, the named device goes.
         XCTAssertEqual(clear("zoe", nil).last, "homeassistant/sensor/life_dashboard_companion_ios_zoe_heart_rate/config")
+    }
+
+    /// Only an iPhone that published before clears an old device: a second iPhone set up with a
+    /// name must not empty the first one's nameless topics.
+    func testAnIPhoneWithoutAPublishOnRecordClearsNothing() {
+        let name = "mqtt-support-tests-\(UUID().uuidString)"
+        addTeardownBlock { UserDefaults().removePersistentDomain(forName: name) }
+        let prefs = PreferencesManager(defaults: UserDefaults(suiteName: name)!, secrets: InMemorySecretStore())
+        XCTAssertFalse(prefs.mqttHasPublished)
+
+        prefs.mqttLastStatus = MqttStatus.published(sensors: 3, at: Date())
+        XCTAssertTrue(prefs.mqttHasPublished, "an install from before the record published nameless")
+        XCTAssertNil(prefs.mqttPublishedSlug)
+
+        prefs.mqttLastStatus = ""
+        prefs.mqttPublishedSlug = nil
+        XCTAssertTrue(prefs.mqttHasPublished, "a nameless publish is on record")
+        XCTAssertNil(prefs.mqttPublishedSlug)
+        prefs.mqttPublishedSlug = "owen"
+        XCTAssertEqual(prefs.mqttPublishedSlug, "owen")
     }
 
     /// A rename clears every key the iPhone can publish, since it keeps no list of what it did.

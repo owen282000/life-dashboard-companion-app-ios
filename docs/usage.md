@@ -112,7 +112,7 @@ A sync or backfill that starts while the iPhone is locked cannot read Apple Heal
 
 ### MQTT sensors do not update
 
-Every sync publishes today's totals and the types with new records, so any other sensor only changes when its type has new data; a type that is still catching up on a long backlog is published once it has caught up. A broker that does not answer within 10 seconds, such as a home address dialled from outside the home network, fails the sync. If a publish fails, the Logs tab shows the broker's error; `NOT_AUTHORIZED` means the username or password is wrong.
+Every sync with new records publishes today's totals and the types that have them, so a sensor only changes when new data arrives; a type that is still catching up on a long backlog is published once it has caught up. A broker that does not answer within 10 seconds, such as a home address dialled from outside the home network, fails the sync. If a publish fails, the Logs tab shows the broker's error; `NOT_AUTHORIZED` means the username or password is wrong.
 
 ### Queued payloads disappear
 

@@ -35,12 +35,17 @@ enum MqttSupport {
             name.trimmingCharacters(in: .whitespacesAndNewlines).decomposedStringWithCanonicalMapping.unicodeScalars
                 .filter { !markCategories.contains($0.properties.generalCategory) }
         )).lowercased()
+        // Android's [^a-z0-9_]+ -> "_": a run of other characters becomes one underscore, and
+        // an underscore that was typed stays as it is.
         var slug = ""
+        var inRun = false
         for scalar in plain.unicodeScalars {
             if ("a"..."z").contains(scalar) || ("0"..."9").contains(scalar) || scalar == "_" {
                 slug.unicodeScalars.append(scalar)
-            } else if !slug.hasSuffix("_") {
+                inRun = false
+            } else if !inRun {
                 slug += "_"
+                inRun = true
             }
         }
         let trimmed = slug.trimmingCharacters(in: CharacterSet(charactersIn: "_"))

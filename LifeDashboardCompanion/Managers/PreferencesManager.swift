@@ -223,8 +223,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
     }
 
     /// The Android app's phone name: empty keeps the MQTT device and topics as they were, a name
-    /// gives this iPhone its own (MqttSupport.phoneSlug). Stored as typed, so the field keeps a
-    /// trailing space while the user types the next word; the slug trims it.
+    /// gives this iPhone its own (MqttSupport.phoneSlug).
     @Published var phoneName: String {
         didSet { defaults.set(phoneName, forKey: Keys.phoneName) }
     }
@@ -234,6 +233,14 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
     var mqttPublishedSlug: String? {
         get { defaults.string(forKey: Keys.mqttPublishedSlug).flatMap { $0.isEmpty ? nil : $0 } }
         set { defaults.set(newValue ?? "", forKey: Keys.mqttPublishedSlug) }
+    }
+
+    /// Whether this iPhone has published under the slug above. Without a record it clears no
+    /// old device: a second iPhone set up with a name would otherwise empty the first iPhone's
+    /// nameless topics. An install from before the record published nameless when it has an
+    /// MQTT status line.
+    var mqttHasPublished: Bool {
+        defaults.object(forKey: Keys.mqttPublishedSlug) != nil || !mqttLastStatus.isEmpty
     }
 
     // MARK: - Init

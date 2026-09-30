@@ -31,16 +31,19 @@ final class MqttPublisher: @unchecked Sendable {
         let slug = MqttSupport.phoneSlug(phoneName)
         // The topics are retained, so a renamed iPhone would leave its old device on the broker
         // with frozen values. The first publish after a rename clears it, and the slug is
-        // recorded once a publish went through. The sensors 1.4.1 and earlier published for
-        // the latest steps, distance and calories record are cleared on every publish, as
-        // Android does, so Home Assistant drops them wherever they were left.
-        let clearFirst = MqttSupport.topicsToClearOnRename(
+        // recorded once a publish went through. An iPhone with no publish on record clears
+        // nothing, since the nameless topics may be another iPhone's. The sensors 1.4.1 and
+        // earlier published for
+        // the latest steps, distance and calories record are cleared on every publish, as Android
+        // does, so Home Assistant drops them wherever they were left.
+        let renamed = !prefs.mqttHasPublished ? [] : MqttSupport.topicsToClearOnRename(
             baseTopic: baseTopic,
             discoveryPrefix: prefix,
             keys: MqttSupport.allSensorKeys + MqttSupport.retiredSensorKeys,
             previousSlug: prefs.mqttPublishedSlug,
             currentSlug: slug
-        ) + MqttSupport.topicsFor(baseTopic: baseTopic, discoveryPrefix: prefix, keys: MqttSupport.retiredSensorKeys, slug: slug)
+        )
+        let clearFirst = renamed + MqttSupport.topicsFor(baseTopic: baseTopic, discoveryPrefix: prefix, keys: MqttSupport.retiredSensorKeys, slug: slug)
 
         do {
             try await withConnection(host: prefs.mqttHost, port: prefs.mqttPort, useTls: prefs.mqttUseTls) { connection in
@@ -93,9 +96,10 @@ final class MqttPublisher: @unchecked Sendable {
         }
     }
 
-    /// Today's totals come from the payload when the sync put them there, and are read here
-    /// otherwise: with Daily totals in payload switched off, and on the paths that hand over
-    /// the records alone. One statistics query per type, for today only.
+    /// The syncs hand MQTT the records alone, without the payload's daily totals (and with Daily
+    /// totals in payload switched off there are none), so today's totals are read here: one
+    /// statistics query per enabled type, for today only. A payload that carries
+    /// `daily_totals` is used as it is.
     private func withTodaysTotals(_ payload: [String: Any], prefs: PreferencesManager) async -> [String: Any] {
         guard payload[DailyTotals.payloadKey] == nil else { return payload }
         let calendar = DailyTotals.calendar()
