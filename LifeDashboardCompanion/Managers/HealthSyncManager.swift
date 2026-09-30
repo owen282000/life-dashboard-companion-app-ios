@@ -259,46 +259,54 @@ final class HealthSyncManager: Sendable {
         }
     }
 
+    /// Delivers the queue (see `QueueDrain`), and reports what it dropped.
     private func drainPendingQueueOnce() async {
         let items = pendingStore.dequeueAll()
         guard !items.isEmpty else { return }
 
         logger.info("Draining pending sync queue: \(items.count) item(s)")
 
-        for item in items {
-            // An address removed since this was queued gets nothing more; with none left, the
-            // item is done. The next full sync resends its window anyway.
-            let urls = PairingApply.deliverable(item.urls, configuredUrls: prefs.healthWebhookUrls)
-            guard !urls.isEmpty else {
-                pendingStore.remove(id: item.id)
-                continue
-            }
-            let delivery = await WebhookManager.shared.post(
-                body: item.payload,
-                urls: urls,
-                headers: item.headers,
-                logType: LogType(rawValue: item.logType) ?? .healthConnect,
-                dataType: item.dataType,
-                recordCount: item.recordCount
-            )
+        let prefs = self.prefs
+        let pendingStore = self.pendingStore
+        let logger = self.logger
+        var dropped: [(PendingSyncItem, QueueDrop)] = []
+        await QueueDrain(
+            now: Date(),
+            urls: { prefs.healthWebhookUrls },
+            headers: { prefs.healthWebhookHeaders },
+            post: { item, urls, headers in
+                await WebhookManager.shared.post(
+                    body: item.payload,
+                    urls: urls,
+                    headers: headers,
+                    logType: LogType(rawValue: item.logType) ?? .healthConnect,
+                    dataType: item.dataType,
+                    recordCount: item.recordCount
+                )
+            },
+            remove: { pendingStore.remove(id: $0.id) },
+            attempt: { item, delivery in
+                pendingStore.updateAttempt(id: item.id, error: delivery.error, statusCode: delivery.statusCode)
+                logger.info("Pending sync item \(item.id) not delivered: \(delivery.error ?? "", privacy: .public)")
+            },
+            // A delivered retry is a delivered sync: the widget counts its records and the
+            // failure streak ends. A failed retry was already counted when it was queued.
+            delivered: { item, delivery in self.updateWidgetStatus(delivery, records: item.recordCount) },
+            dropped: { dropped.append(($0, $1)) }
+        ).run(items)
+        reportDropped(dropped)
+    }
 
-            switch delivery.outcome {
-            case .delivered:
-                pendingStore.remove(id: item.id)
-                // A delivered retry is a delivered sync: the widget counts its records and the
-                // failure streak ends. A failed retry was already counted when it was queued.
-                updateWidgetStatus(delivery, records: item.recordCount)
-                logger.info("Pending sync item \(item.id) delivered successfully")
-            case .interrupted:
-                // Not an attempt: the item keeps its 20 tries for a receiver that answers.
-                logger.info("Pending sync retry interrupted, stopping drain")
-                return
-            case .failed:
-                pendingStore.updateAttempt(id: item.id, error: AppDiagnostic.retryFailed.rawValue)
-                logger.info("Pending sync retry failed, stopping drain")
-                return
-            }
+    /// A payload dropped from the queue takes its records with it: the anchors moved past them
+    /// when it was queued. Each gets a failed row in the log, with its payload, and one
+    /// notification says how many went.
+    private func reportDropped(_ dropped: [(PendingSyncItem, QueueDrop)]) {
+        guard !dropped.isEmpty else { return }
+        for (item, reason) in dropped {
+            prefs.addWebhookLog(PendingSyncStore.droppedLog(for: item, reason: reason))
         }
+        logger.error("Dropped \(dropped.count) undelivered payload(s) older than a week from the queue")
+        SyncFailureNotifier.shared.notifyDropped(count: dropped.count)
     }
 
     // MARK: - Preview
@@ -386,16 +394,20 @@ final class HealthSyncManager: Sendable {
         let queued = queuedBody(body, payload: payload, totalsDay: totalsDay)
         let pendingStore = self.pendingStore
         let deletionStore = self.deletionStore
+        var queuedId: String?
+        defer { if let queuedId { pendingStore.endSending(id: queuedId) } }
         let delivery = await WriteAhead(
             enqueue: {
-                pendingStore.enqueue(
+                queuedId = pendingStore.enqueue(
                     payload: queued,
                     urls: urls,
-                    headers: headers,
                     logType: LogType.healthConnect.rawValue,
                     dataType: "health_connect",
                     recordCount: recordCount
                 )?.id
+                // On its way, not waiting: the Health tab leaves it out of the pending count.
+                if let queuedId { pendingStore.beginSending(id: queuedId) }
+                return queuedId
             },
             commit: {
                 commit?.save()
@@ -412,7 +424,9 @@ final class HealthSyncManager: Sendable {
                 )
             },
             delivered: { pendingStore.remove(id: $0) },
-            failed: { pendingStore.updateAttempt(id: $0, error: AppDiagnostic.retryFailed.rawValue) }
+            failed: { id, delivery in
+                pendingStore.updateAttempt(id: id, error: delivery.error, statusCode: delivery.statusCode)
+            }
         ).run()
 
         if !delivery.delivered {
@@ -488,7 +502,7 @@ struct WriteAhead {
     /// Takes the queued copy out.
     var delivered: (String) -> Void
     /// Counts a failed delivery on the queued copy.
-    var failed: (String) -> Void
+    var failed: (String, WebhookManager.Delivery) -> Void
 
     func run() async -> WebhookManager.Delivery {
         guard let id = enqueue() else {
@@ -502,10 +516,69 @@ struct WriteAhead {
         let delivery = await post()
         switch delivery.outcome {
         case .delivered: delivered(id)
-        case .failed: failed(id)
+        case .failed, .refused: failed(id, delivery)
         // Cut off by iOS, which says nothing about the receiver: the retry does not count it.
         case .interrupted: break
         }
         return delivery
+    }
+}
+
+/// One pass over the retry queue, oldest first, apart from the stores and the network so the
+/// tests can run it. Every item is posted with the webhook settings of that moment, as Android's
+/// PendingDrainer does: to the URLs configured now, which WebhookManager gives the headers
+/// configured now, apart from the addresses that pairing added. A rotated API key or a new
+/// address therefore reaches what was queued before, and a removed address gets nothing more.
+///
+/// The pass stops at the first item that fails, so the rest wait in order for a receiver that
+/// answers again. An item refused for what it carries (400, 413, 422) does not hold them up: it
+/// is skipped and stays queued, since the refusal can also come from a receiver bug that an
+/// update fixes. An interruption ends the pass without counting an attempt.
+///
+/// An item older than a week is dropped when a delivery of it fails, refused or not: a phone
+/// that got no chance to sync for a week still tries once. One item goes per failed pass, so
+/// while a receiver stays down the queue holds about a week, however long the outage.
+struct QueueDrain {
+    var now: Date
+    /// The URLs configured now; none leaves every item waiting.
+    var urls: () -> [String]
+    var headers: () -> [String: String]
+    var post: (PendingSyncItem, [String], [String: String]) async -> WebhookManager.Delivery
+    var remove: (PendingSyncItem) -> Void
+    /// Counts a failed or refused delivery on the item.
+    var attempt: (PendingSyncItem, WebhookManager.Delivery) -> Void
+    var delivered: (PendingSyncItem, WebhookManager.Delivery) -> Void
+    /// An item taken out undelivered, with why.
+    var dropped: (PendingSyncItem, QueueDrop) -> Void
+
+    func run(_ items: [PendingSyncItem]) async {
+        for item in items {
+            let urls = urls()
+            guard !urls.isEmpty else { return }
+            let delivery = await post(item, urls, headers())
+            let expired = item.expired(at: now)
+            switch delivery.outcome {
+            case .delivered:
+                remove(item)
+                delivered(item, delivery)
+            case .interrupted:
+                return
+            case .refused:
+                if expired {
+                    remove(item)
+                    dropped(item, .refused(delivery.statusCode))
+                } else {
+                    attempt(item, delivery)
+                }
+            case .failed:
+                if expired {
+                    remove(item)
+                    dropped(item, .undelivered)
+                } else {
+                    attempt(item, delivery)
+                }
+                return
+            }
+        }
     }
 }

@@ -1247,6 +1247,64 @@
         }
       }
     },
+    "%lld undelivered syncs were dropped from the queue after a week, so their records are lost. Check the Logs tab for details." : {
+      "localizations" : {
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nicht zugestellte Synchronisierung wurde nach einer Woche aus der Warteschlange entfernt, daher sind ihre Datensätze verloren. Details stehen im Tab Logs."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nicht zugestellte Synchronisierungen wurden nach einer Woche aus der Warteschlange entfernt, daher sind ihre Datensätze verloren. Details stehen im Tab Logs."
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld undelivered sync was dropped from the queue after a week, so its records are lost. Check the Logs tab for details."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld undelivered syncs were dropped from the queue after a week, so their records are lost. Check the Logs tab for details."
+                }
+              }
+            }
+          }
+        },
+        "nl" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Er is %lld niet-afgeleverde synchronisatie na een week uit de wachtrij verwijderd, dus de records ervan zijn verloren. Bekijk het tabblad Logs voor details."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Er zijn %lld niet-afgeleverde synchronisaties na een week uit de wachtrij verwijderd, dus de records ervan zijn verloren. Bekijk het tabblad Logs voor details."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld windows could not be sent in full" : {
       "localizations" : {
         "de" : {
@@ -3382,6 +3440,22 @@
         }
       }
     },
+    "Health data was lost" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gesundheitsdaten sind verloren gegangen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gezondheidsdata is verloren gegaan"
+          }
+        }
+      }
+    },
     "HealthKit did not return %@" : {
       "localizations" : {
         "de" : {
@@ -4629,6 +4703,22 @@
         }
       }
     },
+    "Not delivered for a week, dropped from the queue" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Woche nicht zugestellt, aus der Warteschlange entfernt"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een week niet afgeleverd, uit de wachtrij verwijderd"
+          }
+        }
+      }
+    },
     "Not included" : {
       "localizations" : {
         "de" : {
@@ -5531,6 +5621,22 @@
         }
       }
     },
+    "Refused for a week (HTTP %lld), dropped from the queue" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Woche abgelehnt (HTTP %lld), aus der Warteschlange entfernt"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een week geweigerd (HTTP %lld), uit de wachtrij verwijderd"
+          }
+        }
+      }
+    },
     "Remove %@" : {
       "localizations" : {
         "de" : {
@@ -5719,22 +5825,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hervatten"
-          }
-        }
-      }
-    },
-    "Retry failed" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Erneuter Versuch fehlgeschlagen"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nieuwe poging mislukt"
           }
         }
       }

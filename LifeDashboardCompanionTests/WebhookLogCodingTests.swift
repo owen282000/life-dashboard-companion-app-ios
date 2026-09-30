@@ -168,7 +168,7 @@ final class BackupExclusionTests: XCTestCase {
         let directory = root.appendingPathComponent("pending_sync", isDirectory: true)
         let store = PendingSyncStore(directory: directory)
         XCTAssertNotNil(store.enqueue(
-            payload: Data("{}".utf8), urls: ["https://example.com/hook"], headers: [:],
+            payload: Data("{}".utf8), urls: ["https://example.com/hook"],
             logType: LogType.healthConnect.rawValue, dataType: "health_connect", recordCount: 1
         ))
         XCTAssertTrue(try isExcluded(directory))

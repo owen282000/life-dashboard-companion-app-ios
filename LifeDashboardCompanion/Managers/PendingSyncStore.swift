@@ -1,29 +1,54 @@
 import Foundation
 
+/// A payload waiting in the retry queue. It holds no headers: a retry sends the ones configured
+/// at that moment, so a rotated API key reaches what was queued before. `headers` stays in the
+/// file, empty, so 1.4.1 can still read the queue after a downgrade; the headers a file from
+/// 1.4.1 carries are ignored and emptied when it is written again.
 struct PendingSyncItem: Codable, Identifiable {
     let id: String
     let createdAt: Date
     let payload: Data
+    /// The addresses it was queued for, for the log. A retry goes to the ones configured now.
     let urls: [String]
-    let headers: [String: String]
+    var headers: [String: String]? = [:]
     let logType: String
     let dataType: String
     let recordCount: Int
+    /// Failed deliveries, one per post that did not get through; an interrupted one does not
+    /// count.
     var attemptCount: Int
     var lastAttemptAt: Date?
     var lastError: String?
+    var lastStatusCode: Int?
+
+    /// Past `PendingSyncStore.maxAge`: the next delivery that fails is its last.
+    func expired(at now: Date) -> Bool {
+        now.timeIntervalSince(createdAt) > PendingSyncStore.maxAge
+    }
 }
 
-/// @unchecked Sendable: the store keeps no in-memory state; all data lives in
-/// individual files written atomically, and FileManager is thread-safe.
+/// Why a payload left the queue without being delivered.
+enum QueueDrop: Equatable {
+    /// Still not delivered after a week; the attempt that found it so failed.
+    case undelivered
+    /// Refused for what it carries, still after a week, with the refusal's status code.
+    case refused(Int?)
+}
+
+/// @unchecked Sendable: all data lives in individual files written atomically, and
+/// FileManager is thread-safe. The one piece of memory, the ids being sent, has a lock.
 final class PendingSyncStore: @unchecked Sendable {
     static let shared = PendingSyncStore()
 
     private let fileManager = FileManager.default
+    private let sendingLock = NSLock()
+    private var sending: Set<String> = []
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
-    private let maxAge: TimeInterval = 7 * 24 * 60 * 60 // 7 days
-    private let maxAttempts = 20
+    /// How long a payload waits for a delivery before a failed one drops it. Only its age
+    /// counts, not its attempts: every sync, launch and network change drains the queue, and
+    /// 20 attempts, the limit up to 1.4.1, ran out within an afternoon of a receiver being down.
+    static let maxAge: TimeInterval = 7 * 24 * 60 * 60
 
     private let root: URL
 
@@ -57,7 +82,6 @@ final class PendingSyncStore: @unchecked Sendable {
     func enqueue(
         payload: Data,
         urls: [String],
-        headers: [String: String],
         logType: String,
         dataType: String,
         recordCount: Int
@@ -67,7 +91,6 @@ final class PendingSyncStore: @unchecked Sendable {
             createdAt: Date(),
             payload: payload,
             urls: urls,
-            headers: headers,
             logType: logType,
             dataType: dataType,
             recordCount: recordCount,
@@ -92,6 +115,9 @@ final class PendingSyncStore: @unchecked Sendable {
     /// HealthKit wakeup writes the payload before posting it.
     private static let writeOptions: Data.WritingOptions = [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
 
+    /// The queued items, oldest first. A file that cannot be read now, as while the iPhone is
+    /// locked before its first unlock, is left for the next drain; one that is read but does
+    /// not decode is damaged and removed.
     func dequeueAll() -> [PendingSyncItem] {
         guard let files = try? fileManager.contentsOfDirectory(
             at: directory,
@@ -100,26 +126,51 @@ final class PendingSyncStore: @unchecked Sendable {
         ) else { return [] }
 
         var items: [PendingSyncItem] = []
-        let now = Date()
 
         for fileURL in files where fileURL.pathExtension == "json" {
-            guard let data = try? Data(contentsOf: fileURL),
-                  let item = try? decoder.decode(PendingSyncItem.self, from: data) else {
-                // Corrupted file - remove it
+            guard let data = try? Data(contentsOf: fileURL) else { continue }
+            guard let item = try? decoder.decode(PendingSyncItem.self, from: data) else {
                 try? fileManager.removeItem(at: fileURL)
                 continue
             }
-
-            // Purge expired or over-attempted items
-            if now.timeIntervalSince(item.createdAt) > maxAge || item.attemptCount >= maxAttempts {
-                try? fileManager.removeItem(at: fileURL)
-                continue
-            }
-
             items.append(item)
         }
 
         return items.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    /// The log row for an item dropped undelivered: the addresses it was queued for, its record
+    /// count and payload, and why it never arrived.
+    static func droppedLog(for item: PendingSyncItem, reason: QueueDrop) -> WebhookLog {
+        let message: String
+        var statusCode: Int?
+        switch reason {
+        case .undelivered:
+            message = AppDiagnostic.droppedUndelivered.rawValue
+        case .refused(let code):
+            statusCode = code
+            message = code.map(AppDiagnostic.droppedRefused) ?? AppDiagnostic.droppedUndelivered.rawValue
+        }
+        return WebhookLog(
+            url: item.urls.joined(separator: ", "),
+            statusCode: statusCode,
+            success: false,
+            errorMessage: message,
+            dataType: item.dataType,
+            recordCount: item.recordCount,
+            rawPayload: String(data: item.payload, encoding: .utf8),
+            logType: LogType(rawValue: item.logType) ?? .healthConnect
+        )
+    }
+
+    /// Marks an item that a sync is posting right now, so the pending count on the Health tab
+    /// does not show it as waiting.
+    func beginSending(id: String) {
+        sendingLock.withLock { _ = sending.insert(id) }
+    }
+
+    func endSending(id: String) {
+        sendingLock.withLock { _ = sending.remove(id) }
     }
 
     func remove(id: String) {
@@ -127,7 +178,8 @@ final class PendingSyncStore: @unchecked Sendable {
         try? fileManager.removeItem(at: fileURL)
     }
 
-    func updateAttempt(id: String, error: String?) {
+    /// Counts one failed delivery of the item, with its error and status code.
+    func updateAttempt(id: String, error: String?, statusCode: Int? = nil) {
         let fileURL = directory.appendingPathComponent("\(id).json")
         guard let data = try? Data(contentsOf: fileURL),
               var item = try? decoder.decode(PendingSyncItem.self, from: data) else { return }
@@ -135,6 +187,8 @@ final class PendingSyncStore: @unchecked Sendable {
         item.attemptCount += 1
         item.lastAttemptAt = Date()
         item.lastError = error
+        item.lastStatusCode = statusCode
+        item.headers = [:]
 
         if let updated = try? encoder.encode(item) {
             try? updated.write(to: fileURL, options: PendingSyncStore.writeOptions)
@@ -147,7 +201,10 @@ final class PendingSyncStore: @unchecked Sendable {
             includingPropertiesForKeys: nil,
             options: .skipsHiddenFiles
         )
-        return files?.filter { $0.pathExtension == "json" }.count ?? 0
+        let inFlight = sendingLock.withLock { sending }
+        return files?.filter {
+            $0.pathExtension == "json" && !inFlight.contains($0.deletingPathExtension().lastPathComponent)
+        }.count ?? 0
     }
 
     func clearAll() {
