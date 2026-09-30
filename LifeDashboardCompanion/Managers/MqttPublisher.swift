@@ -26,6 +26,19 @@ final class MqttPublisher: @unchecked Sendable {
 
         let baseTopic = prefs.mqttBaseTopic.isEmpty ? MqttSupport.defaultBaseTopic : prefs.mqttBaseTopic
         let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        let prefix = MqttSupport.defaultDiscoveryPrefix
+        let phoneName = prefs.phoneName
+        let slug = MqttSupport.phoneSlug(phoneName)
+        // The topics are retained, so a renamed iPhone would leave its old device on the broker
+        // with frozen values. The first publish after a rename clears it, and the slug is
+        // recorded once a publish went through.
+        let clearFirst = MqttSupport.topicsToClearOnRename(
+            baseTopic: baseTopic,
+            discoveryPrefix: prefix,
+            keys: MqttSupport.allSensorKeys,
+            previousSlug: prefs.mqttPublishedSlug,
+            currentSlug: slug
+        )
 
         do {
             try await withConnection(host: prefs.mqttHost, port: prefs.mqttPort, useTls: prefs.mqttUseTls) { connection in
@@ -37,23 +50,29 @@ final class MqttPublisher: @unchecked Sendable {
                 guard try await self.awaitConnack(over: connection) else {
                     throw MqttError.connectionRefused
                 }
+                // An empty retained payload removes a retained topic, and on a discovery topic
+                // the entity with it.
+                for topic in clearFirst {
+                    try await self.send(MqttPacket.publish(topic: topic, payload: Data()), over: connection)
+                }
                 for sensor in sensors {
                     try await self.send(MqttPacket.publish(
-                        topic: MqttSupport.discoveryTopic(discoveryPrefix: MqttSupport.defaultDiscoveryPrefix, key: sensor.key),
-                        payload: MqttSupport.discoveryConfigJSON(for: sensor, baseTopic: baseTopic, appVersion: appVersion)
+                        topic: MqttSupport.discoveryTopic(discoveryPrefix: prefix, key: sensor.key, slug: slug),
+                        payload: MqttSupport.discoveryConfigJSON(for: sensor, baseTopic: baseTopic, appVersion: appVersion, phoneName: phoneName)
                     ), over: connection)
                     try await self.send(MqttPacket.publish(
-                        topic: MqttSupport.stateTopic(baseTopic: baseTopic, key: sensor.key),
+                        topic: MqttSupport.stateTopic(baseTopic: baseTopic, key: sensor.key, slug: slug),
                         payload: Data(sensor.state.utf8)
                     ), over: connection)
                     try await self.send(MqttPacket.publish(
-                        topic: MqttSupport.attributesTopic(baseTopic: baseTopic, key: sensor.key),
+                        topic: MqttSupport.attributesTopic(baseTopic: baseTopic, key: sensor.key, slug: slug),
                         payload: MqttSupport.attributesJSON(for: sensor)
                     ), over: connection)
                 }
                 try await self.send(MqttPacket.disconnect(), over: connection)
             }
             prefs.mqttLastStatus = MqttStatus.published(sensors: sensors.count, at: Date())
+            prefs.mqttPublishedSlug = slug
             logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: nil)
             return nil
         } catch where Task.isCancelled || WebhookManager.isInterruption(error, taskCancelled: false) {

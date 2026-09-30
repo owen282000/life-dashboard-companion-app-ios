@@ -18,11 +18,94 @@ enum MqttSupport {
     static let defaultBaseTopic = "lifedashboard-ios"
     static let defaultDiscoveryPrefix = "homeassistant"
     static let deviceId = "life_dashboard_companion_ios"
+    static let deviceName = "Life Dashboard Companion (iOS)"
 
-    static func stateTopic(baseTopic: String, key: String) -> String { "\(baseTopic)/\(key)/state" }
-    static func attributesTopic(baseTopic: String, key: String) -> String { "\(baseTopic)/\(key)/attributes" }
-    static func discoveryTopic(discoveryPrefix: String, key: String) -> String {
-        "\(discoveryPrefix)/sensor/\(deviceId)_\(key)/config"
+    /// The phone name as it appears in topics and ids, as the Android app makes it: lower case
+    /// letters, digits and underscores, nothing else. Accents are stripped rather than replaced,
+    /// so "Zoë" is "zoe". Nil for a blank name, which is the signal that this iPhone has no name
+    /// and everything stays exactly as it was before names existed.
+    static func phoneSlug(_ name: String?) -> String? {
+        guard let name else { return nil }
+        let plain = String(String.UnicodeScalarView(
+            name.trimmingCharacters(in: .whitespacesAndNewlines).decomposedStringWithCanonicalMapping.unicodeScalars
+                .filter { !markCategories.contains($0.properties.generalCategory) }
+        )).lowercased()
+        var slug = ""
+        for scalar in plain.unicodeScalars {
+            if ("a"..."z").contains(scalar) || ("0"..."9").contains(scalar) || scalar == "_" {
+                slug.unicodeScalars.append(scalar)
+            } else if !slug.hasSuffix("_") {
+                slug += "_"
+            }
+        }
+        let trimmed = slug.trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static let markCategories: Set<Unicode.GeneralCategory> = [.nonspacingMark, .spacingMark, .enclosingMark]
+
+    /// The Home Assistant device id: the fixed one, or with the phone's slug behind it.
+    static func deviceId(slug: String?) -> String {
+        slug.map { "\(deviceId)_\($0)" } ?? deviceId
+    }
+
+    /// The device name Home Assistant shows: with the phone's name in it when it has one.
+    static func deviceName(phoneName: String?) -> String {
+        let name = phoneName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return name.isEmpty ? deviceName : "Life Dashboard Companion (iOS, \(name))"
+    }
+
+    /// Topics carry the phone's slug between the base topic and the sensor key, so two iPhones
+    /// on one broker never publish over each other. Without a slug they are the topics every
+    /// receiver has been reading.
+    static func stateTopic(baseTopic: String, key: String, slug: String? = nil) -> String {
+        "\(topicRoot(baseTopic, slug))/\(key)/state"
+    }
+    static func attributesTopic(baseTopic: String, key: String, slug: String? = nil) -> String {
+        "\(topicRoot(baseTopic, slug))/\(key)/attributes"
+    }
+    static func discoveryTopic(discoveryPrefix: String, key: String, slug: String? = nil) -> String {
+        "\(discoveryPrefix)/sensor/\(deviceId(slug: slug))_\(key)/config"
+    }
+
+    private static func topicRoot(_ baseTopic: String, _ slug: String?) -> String {
+        slug.map { "\(baseTopic)/\($0)" } ?? baseTopic
+    }
+
+    /// Every retained topic the sensors with `keys` occupy under `slug`: state and attributes
+    /// first, the discovery config last, the order that clears an entity cleanly (an empty
+    /// attributes payload on a living entity makes Home Assistant log "Erroneous JSON"; the
+    /// config clear removes it).
+    static func topicsFor(baseTopic: String, discoveryPrefix: String, keys: [String], slug: String?) -> [String] {
+        keys.flatMap { key in
+            [
+                stateTopic(baseTopic: baseTopic, key: key, slug: slug),
+                attributesTopic(baseTopic: baseTopic, key: key, slug: slug),
+                discoveryTopic(discoveryPrefix: discoveryPrefix, key: key, slug: slug)
+            ]
+        }
+    }
+
+    /// What to clear before publishing under `currentSlug` when the iPhone last published under
+    /// `previousSlug`: nothing while the name is unchanged, otherwise every topic of every
+    /// sensor the app can publish under the old slug, so the old device does not live on with
+    /// frozen values next to the new one. An iPhone that never recorded a slug published
+    /// nameless.
+    static func topicsToClearOnRename(
+        baseTopic: String,
+        discoveryPrefix: String,
+        keys: [String],
+        previousSlug: String?,
+        currentSlug: String?
+    ) -> [String] {
+        previousSlug == currentSlug ? [] : topicsFor(baseTopic: baseTopic, discoveryPrefix: discoveryPrefix, keys: keys, slug: previousSlug)
+    }
+
+    /// Every sensor key `sensors(from:)` can produce. Unlike the Android app, which keeps the
+    /// sensors it published, the iPhone publishes only what a sync carries, so a rename clears
+    /// every key the old device may hold.
+    static var allSensorKeys: [String] {
+        mappings.map(\.sensorKey) + ["blood_pressure_systolic", "blood_pressure_diastolic"]
     }
 
     private struct Mapping {
@@ -113,16 +196,20 @@ enum MqttSupport {
         return sensors
     }
 
-    static func discoveryConfigJSON(for sensor: MqttSensor, baseTopic: String, appVersion: String) -> Data {
+    /// With a `phoneName` the unique ids, the topics and the device all carry it, so a second
+    /// iPhone becomes a second device instead of overwriting the first.
+    static func discoveryConfigJSON(for sensor: MqttSensor, baseTopic: String, appVersion: String, phoneName: String? = nil) -> Data {
+        let slug = phoneSlug(phoneName)
+        let device = deviceId(slug: slug)
         var config: [String: Any] = [
             "name": sensor.name,
-            "unique_id": "\(deviceId)_\(sensor.key)",
-            "state_topic": stateTopic(baseTopic: baseTopic, key: sensor.key),
-            "json_attributes_topic": attributesTopic(baseTopic: baseTopic, key: sensor.key),
+            "unique_id": "\(device)_\(sensor.key)",
+            "state_topic": stateTopic(baseTopic: baseTopic, key: sensor.key, slug: slug),
+            "json_attributes_topic": attributesTopic(baseTopic: baseTopic, key: sensor.key, slug: slug),
             "state_class": "measurement",
             "device": [
-                "identifiers": [deviceId],
-                "name": "Life Dashboard Companion (iOS)",
+                "identifiers": [device],
+                "name": deviceName(phoneName: slug == nil ? nil : phoneName),
                 "manufacturer": "owen282000",
                 "model": "iOS app",
                 "sw_version": appVersion

@@ -96,4 +96,109 @@ final class MqttSupportTests: XCTestCase {
             XCTAssertTrue(json.contains(expected), "missing \(expected) in \(json)")
         }
     }
+    // MARK: - Phone name
+
+    /// Android's MqttSupportTest vectors, so a name gives the same slug on both apps.
+    func testPhoneSlugFollowsTheAndroidApp() {
+        XCTAssertNil(MqttSupport.phoneSlug(nil))
+        XCTAssertNil(MqttSupport.phoneSlug("   "))
+        XCTAssertEqual(MqttSupport.phoneSlug("Pixel 8"), "pixel_8")
+        XCTAssertEqual(MqttSupport.phoneSlug("  Zoë's phone  "), "zoe_s_phone")
+        XCTAssertEqual(MqttSupport.phoneSlug("Owen--Phone!"), "owen_phone")
+        XCTAssertEqual(MqttSupport.phoneSlug("a_b"), "a_b")
+        XCTAssertNil(MqttSupport.phoneSlug("!!!"), "a name with nothing usable in it is no name")
+        XCTAssertEqual(MqttSupport.phoneSlug("Åse’s iPhone 15"), "ase_s_iphone_15")
+    }
+
+    func testWithoutANameTheTopicsAndIdsStayAsTheyWere() {
+        XCTAssertEqual(MqttSupport.stateTopic(baseTopic: "lifedashboard-ios", key: "weight", slug: nil), "lifedashboard-ios/weight/state")
+        XCTAssertEqual(MqttSupport.deviceId(slug: nil), "life_dashboard_companion_ios")
+        XCTAssertEqual(MqttSupport.deviceName(phoneName: nil), "Life Dashboard Companion (iOS)")
+        XCTAssertEqual(MqttSupport.deviceName(phoneName: " "), "Life Dashboard Companion (iOS)")
+
+        let sensor = MqttSensor(key: "weight", name: "Weight", state: "80.5", unit: "kg", deviceClass: "weight", attributes: [:])
+        XCTAssertEqual(
+            MqttSupport.discoveryConfigJSON(for: sensor, baseTopic: "lifedashboard-ios", appVersion: "1.4.1", phoneName: ""),
+            MqttSupport.discoveryConfigJSON(for: sensor, baseTopic: "lifedashboard-ios", appVersion: "1.4.1"),
+            "an empty name is no name"
+        )
+        XCTAssertEqual(
+            MqttSupport.discoveryConfigJSON(for: sensor, baseTopic: "lifedashboard-ios", appVersion: "1.4.1", phoneName: "!!!"),
+            MqttSupport.discoveryConfigJSON(for: sensor, baseTopic: "lifedashboard-ios", appVersion: "1.4.1"),
+            "a name without a slug publishes nameless, device name included"
+        )
+    }
+
+    func testANamedIPhoneGetsItsOwnDeviceAndTopics() throws {
+        let slug = MqttSupport.phoneSlug("Owen's iPhone")
+        XCTAssertEqual(MqttSupport.stateTopic(baseTopic: "lifedashboard-ios", key: "weight", slug: slug),
+                       "lifedashboard-ios/owen_s_iphone/weight/state")
+        XCTAssertEqual(MqttSupport.attributesTopic(baseTopic: "lifedashboard-ios", key: "weight", slug: slug),
+                       "lifedashboard-ios/owen_s_iphone/weight/attributes")
+        XCTAssertEqual(MqttSupport.discoveryTopic(discoveryPrefix: "homeassistant", key: "weight", slug: slug),
+                       "homeassistant/sensor/life_dashboard_companion_ios_owen_s_iphone_weight/config")
+
+        let sensor = MqttSensor(key: "weight", name: "Weight", state: "80.5", unit: "kg", deviceClass: "weight", attributes: [:])
+        let data = MqttSupport.discoveryConfigJSON(for: sensor, baseTopic: "lifedashboard-ios", appVersion: "1.4.1", phoneName: "Owen's iPhone")
+        let config = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(config["unique_id"] as? String, "life_dashboard_companion_ios_owen_s_iphone_weight")
+        XCTAssertEqual(config["state_topic"] as? String, "lifedashboard-ios/owen_s_iphone/weight/state")
+        XCTAssertEqual(config["json_attributes_topic"] as? String, "lifedashboard-ios/owen_s_iphone/weight/attributes")
+        let device = try XCTUnwrap(config["device"] as? [String: Any])
+        XCTAssertEqual(device["identifiers"] as? [String], ["life_dashboard_companion_ios_owen_s_iphone"])
+        XCTAssertEqual(device["name"] as? String, "Life Dashboard Companion (iOS, Owen's iPhone)")
+    }
+
+    func testARenameClearsTheOldDeviceOnce() {
+        let keys = ["weight", "heart_rate"]
+        func clear(_ previous: String?, _ current: String?) -> [String] {
+            MqttSupport.topicsToClearOnRename(baseTopic: "lifedashboard-ios", discoveryPrefix: "homeassistant",
+                                              keys: keys, previousSlug: previous, currentSlug: current)
+        }
+        XCTAssertEqual(clear(nil, nil), [], "an iPhone that never had a name changes nothing")
+        XCTAssertEqual(clear("owen", "owen"), [])
+
+        // Nameless until now, then named: the nameless device goes, state and attributes first.
+        XCTAssertEqual(clear(nil, "owen"), [
+            "lifedashboard-ios/weight/state",
+            "lifedashboard-ios/weight/attributes",
+            "homeassistant/sensor/life_dashboard_companion_ios_weight/config",
+            "lifedashboard-ios/heart_rate/state",
+            "lifedashboard-ios/heart_rate/attributes",
+            "homeassistant/sensor/life_dashboard_companion_ios_heart_rate/config"
+        ])
+        // Renamed again: the previous name's device goes, the nameless topics are left alone.
+        XCTAssertEqual(clear("owen", "zoe").first, "lifedashboard-ios/owen/weight/state")
+        // Name removed: back to nameless, the named device goes.
+        XCTAssertEqual(clear("zoe", nil).last, "homeassistant/sensor/life_dashboard_companion_ios_zoe_heart_rate/config")
+    }
+
+    /// A rename clears every key the iPhone can publish, since it keeps no list of what it did.
+    func testAllSensorKeysCoverEverySensor() {
+        let payload: [String: Any] = [
+            "steps": [["count": 10, "end_time": "2026-01-01T08:00:00Z"]],
+            "heart_rate": [["bpm": 60, "time": "2026-01-01T08:00:00Z"]],
+            "resting_heart_rate": [["bpm": 50, "time": "2026-01-01T08:00:00Z"]],
+            "heart_rate_variability": [["heart_rate_variability_millis": 40, "time": "2026-01-01T08:00:00Z"]],
+            "sleep": [["duration_seconds": 3600, "session_end_time": "2026-01-01T08:00:00Z"]],
+            "weight": [["kilograms": 80, "time": "2026-01-01T08:00:00Z"]],
+            "height": [["meters": 1.8, "time": "2026-01-01T08:00:00Z"]],
+            "blood_glucose": [["mmol_per_liter": 5.5, "time": "2026-01-01T08:00:00Z"]],
+            "oxygen_saturation": [["percentage": 98, "time": "2026-01-01T08:00:00Z"]],
+            "body_temperature": [["celsius": 36.8, "time": "2026-01-01T08:00:00Z"]],
+            "basal_body_temperature": [["celsius": 36.4, "time": "2026-01-01T08:00:00Z"]],
+            "respiratory_rate": [["rate": 14, "time": "2026-01-01T08:00:00Z"]],
+            "distance": [["meters": 100, "end_time": "2026-01-01T08:00:00Z"]],
+            "active_calories": [["calories": 10, "end_time": "2026-01-01T08:00:00Z"]],
+            "total_calories": [["calories": 20, "end_time": "2026-01-01T08:00:00Z"]],
+            "hydration": [["liters": 0.25, "end_time": "2026-01-01T08:00:00Z"]],
+            "body_fat": [["percentage": 20, "time": "2026-01-01T08:00:00Z"]],
+            "lean_body_mass": [["kilograms": 60, "time": "2026-01-01T08:00:00Z"]],
+            "vo2_max": [["vo2_ml_per_min_per_kg": 42, "time": "2026-01-01T08:00:00Z"]],
+            "blood_pressure": [["systolic": 120, "diastolic": 80, "time": "2026-01-01T08:00:00Z"]]
+        ]
+        let published = Set(MqttSupport.sensors(from: payload).map(\.key))
+        XCTAssertFalse(published.isEmpty)
+        XCTAssertTrue(published.isSubset(of: Set(MqttSupport.allSensorKeys)), "missing \(published.subtracting(MqttSupport.allSensorKeys))")
+    }
 }

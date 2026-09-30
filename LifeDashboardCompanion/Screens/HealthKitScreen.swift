@@ -362,8 +362,36 @@ struct HealthKitScreen: View {
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
 
+            phoneNameField
+
             if let status = MqttStatus(stored: prefs.mqttLastStatus) {
                 ResultLine(text: Text(status.text), tone: status.success ? .success : .failure)
+            }
+        }
+    }
+
+    /// Android's phone name: a second iPhone on the same broker gets a device of its own, and
+    /// without a name nothing changes. The id is shown as it goes on the wire, and a name with
+    /// nothing usable in it, which would publish nameless, is said out loud.
+    @ViewBuilder
+    private var phoneNameField: some View {
+        Divider()
+        RowSubheading("Phone name")
+        Text("For a second iPhone on the same MQTT broker. Empty keeps the device and the topics as they are; a name gives this iPhone its own device and its own topics under the base topic.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        TextField("Phone name", text: $prefs.phoneName, prompt: Text("Optional"))
+            .textFieldStyle(.filled)
+            .autocorrectionDisabled()
+        if !prefs.phoneName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if let slug = MqttSupport.phoneSlug(prefs.phoneName) {
+                Text("Publishes as \(MqttSupport.deviceId(slug: slug)). After a rename, the next sync removes the old device's sensors from the broker.")
+                    .font(.caption)
+                    .foregroundStyle(Brand.ink)
+            } else {
+                Text("This name has no letters or digits, so the iPhone stays unnamed.")
+                    .font(.caption)
+                    .foregroundStyle(Brand.errorInk)
             }
         }
     }

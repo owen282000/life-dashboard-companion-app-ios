@@ -8,6 +8,7 @@ All notable changes to this project are documented in this file. The format is b
 
 - Sync Now outside the app, as the Android app's Quick Settings tile: a button on the home screen widget, and on iOS 18 and later a Sync Now control for Control Center. Both run the Sync Health Data action, which sends what is queued and what is new since the last sync. The widget, the control and the Shortcuts action together sync at most once a minute, like the Android app's sync broadcast; a tap within a minute of the last accepted one does nothing, and the action says so in Shortcuts
 - Export on the Health tab, like the Android app's: the data View shows, as a JSON file or as a CSV table with a row per record, a column per field and the daily totals as rows of their own, through the share sheet. The file goes to the app's temporary folder, which is not backed up, and each export replaces the one before
+- A phone name for MQTT, as in the Android app, so two iPhones can share one broker. It sits at the bottom of the MQTT card. Without a name nothing changes: the device id, the name and the topics stay exactly as they were, so an iPhone already set up needs to do nothing. With a name this iPhone publishes as a device of its own, `life_dashboard_companion_ios_<name>` with its topics under `lifedashboard-ios/<name>/`, and the first publish after a rename removes the old device's retained topics from the broker. The name goes into the settings backup under Android's key `phone_name`; a file from an Android phone leaves the iPhone's name alone
 
 ## [1.4.1] - 2026-09-30
 

@@ -42,6 +42,8 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         static let mqttPassword = "mqtt_password"
         static let mqttBaseTopic = "mqtt_base_topic"
         static let mqttLastStatus = "mqtt_last_status"
+        static let phoneName = "phone_name"
+        static let mqttPublishedSlug = "mqtt_published_slug"
     }
 
     // MARK: - Constants
@@ -220,6 +222,20 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         didSet { defaults.set(mqttLastStatus, forKey: Keys.mqttLastStatus) }
     }
 
+    /// The Android app's phone name: empty keeps the MQTT device and topics as they were, a name
+    /// gives this iPhone its own (MqttSupport.phoneSlug). Stored as typed, so the field keeps a
+    /// trailing space while the user types the next word; the slug trims it.
+    @Published var phoneName: String {
+        didSet { defaults.set(phoneName, forKey: Keys.phoneName) }
+    }
+
+    /// The slug of the last publish that reached the broker, nil for a nameless one. Sync
+    /// state, not a setting: it tells the next publish which old device to clear after a rename.
+    var mqttPublishedSlug: String? {
+        get { defaults.string(forKey: Keys.mqttPublishedSlug).flatMap { $0.isEmpty ? nil : $0 } }
+        set { defaults.set(newValue ?? "", forKey: Keys.mqttPublishedSlug) }
+    }
+
     // MARK: - Init
 
     /// The app uses `shared`; tests pass an isolated defaults suite and an in-memory secret store.
@@ -283,6 +299,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         self.mqttPassword = secrets.string(forKey: Keys.mqttPassword) ?? ""
         self.mqttBaseTopic = defaults.string(forKey: Keys.mqttBaseTopic) ?? MqttSupport.defaultBaseTopic
         self.mqttLastStatus = defaults.string(forKey: Keys.mqttLastStatus) ?? ""
+        self.phoneName = defaults.string(forKey: Keys.phoneName) ?? ""
     }
 
     // MARK: - Sync schedule

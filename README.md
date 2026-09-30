@@ -72,8 +72,9 @@ broker Home Assistant uses, and MQTT Discovery creates one device with a sensor 
 calories and hydration show the last record, not the day's total. Workouts, meals, mindfulness
 and cycle tracking are events rather than values and stay webhook-only. States are retained, and
 the app uses its own device and base topic (`lifedashboard-ios`), so an iPhone and an Android
-phone on one broker stay apart. A broker alone is enough: every sync publishes, the automatic
-ones included, and a broker added later starts syncing without reopening the app.
+phone on one broker stay apart; two iPhones each get a phone name, as Android phones do. A
+broker alone is enough: every sync publishes, the automatic ones included, and a broker added
+later starts syncing without reopening the app.
 
 The step-by-step setup for both is in [docs/usage.md](docs/usage.md#phone-to-home-assistant); [docs/features.md](docs/features.md#home-assistant-and-mqtt) lists every sensor.
 

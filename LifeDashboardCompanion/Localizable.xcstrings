@@ -3238,6 +3238,22 @@
         }
       }
     },
+    "For a second iPhone on the same MQTT broker. Empty keeps the device and the topics as they are; a name gives this iPhone its own device and its own topics under the base topic." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für ein zweites iPhone am selben MQTT-Broker. Leer lässt Gerät und Topics, wie sie sind; ein Name gibt diesem iPhone ein eigenes Gerät und eigene Topics unter dem Basis-Topic."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voor een tweede iPhone op dezelfde MQTT-broker. Leeg laat het apparaat en de topics zoals ze zijn; een naam geeft deze iPhone een eigen apparaat en eigen topics onder het basistopic."
+          }
+        }
+      }
+    },
     "Forgets the progress. Data already sent stays on your server." : {
       "localizations" : {
         "de" : {
@@ -4943,6 +4959,22 @@
         }
       }
     },
+    "Optional" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optional"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optioneel"
+          }
+        }
+      }
+    },
     "Optional secret for X-Signature" : {
       "localizations" : {
         "de" : {
@@ -5189,6 +5221,22 @@
         }
       }
     },
+    "Phone name" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Telefonname"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Telefoonnaam"
+          }
+        }
+      }
+    },
     "Pick them on the Health tab" : {
       "localizations" : {
         "de" : {
@@ -5297,6 +5345,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gepubliceerd"
+          }
+        }
+      }
+    },
+    "Publishes as %@. After a rename, the next sync removes the old device's sensors from the broker." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veröffentlicht als %@. Nach einer Umbenennung entfernt die nächste Synchronisierung die Sensoren des alten Geräts vom Broker."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Publiceert als %@. Na het wijzigen van de naam haalt de volgende synchronisatie de sensors van het oude apparaat van de broker."
           }
         }
       }
@@ -7175,6 +7239,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dit bestand vereist een nieuwere versie van de app"
+          }
+        }
+      }
+    },
+    "This name has no letters or digits, so the iPhone stays unnamed." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Name enthält keine Buchstaben oder Ziffern, das iPhone bleibt also ohne Namen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze naam bevat geen letters of cijfers, dus de iPhone blijft naamloos."
           }
         }
       }
