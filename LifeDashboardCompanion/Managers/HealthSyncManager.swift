@@ -28,14 +28,15 @@ final class HealthSyncManager: Sendable {
         }
 
         // A locked iPhone keeps Health data encrypted, and every read then comes back empty,
-        // which used to read as "no data". Say what it is instead, in the result and the log.
+        // which used to read as "no data". Say what it is instead, in the result and the log,
+        // as a read failure: no webhook was contacted.
         guard await MainActor.run(body: { UIApplication.shared.isProtectedDataAvailable }) else {
             let message = "iPhone is locked, Health data can't be read"
             prefs.addWebhookLog(WebhookLog(
-                url: webhookUrls.first ?? "unknown",
+                url: SyncStats.readFailureSource,
                 success: false,
                 errorMessage: message,
-                dataType: "health_connect",
+                dataType: WebhookLog.readFailureDataType,
                 logType: .healthConnect
             ))
             return .failure(error: message)

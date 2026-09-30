@@ -45,6 +45,10 @@ struct WebhookLog: Codable, Identifiable {
     /// dataType of the row written when reading Apple Health failed before anything was sent.
     static let readFailureDataType = "health_read"
 
+    /// dataType of the one row a backfill run writes. Its chunks are logged only when they
+    /// fail, per URL, with the dataType of the backfill payload.
+    static let backfillRunDataType = "health_connect_backfill_run"
+
     var isMqtt: Bool { syncKind == .mqtt }
 
     var syncKind: SyncRowKind {
@@ -52,6 +56,11 @@ struct WebhookLog: Codable, Identifiable {
         // webhook row carries one, only the read failure did not.
         if dataType == WebhookLog.readFailureDataType || (destination == nil && !success && recordCount == nil) {
             return .readFailure
+        }
+        if dataType == WebhookLog.backfillRunDataType {
+            // Stands for the chunks that went through. When a chunk failed, its own row per
+            // URL is the failed delivery, so the run's row does not count a second one.
+            return success ? .webhook : .other
         }
         switch destination {
         case nil, LogDestination.webhook.rawValue: return .webhook

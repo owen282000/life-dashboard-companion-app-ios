@@ -223,11 +223,15 @@ final class BackfillController: ObservableObject {
         ]
         let raw = (try? JSONSerialization.data(withJSONObject: summary, options: [.sortedKeys]))
             .flatMap { String(data: $0, encoding: .utf8) }
+        // A run that stopped because HealthKit did not answer is a read failure on the Logs
+        // tab's card, like the sync's own; any other run row is marked as the run's.
+        var readFailed = false
+        if case .read = final.failure { readFailed = true }
         prefs.addWebhookLog(WebhookLog(
-            url: prefs.healthWebhookUrls.first ?? "backfill",
+            url: readFailed ? SyncStats.readFailureSource : (prefs.healthWebhookUrls.first ?? "backfill"),
             success: final.status != .failed,
             errorMessage: final.failure.map(BackfillController.describe),
-            dataType: BackfillController.logDataType,
+            dataType: readFailed ? WebhookLog.readFailureDataType : WebhookLog.backfillRunDataType,
             recordCount: sent,
             rawPayload: raw,
             logType: .healthConnect

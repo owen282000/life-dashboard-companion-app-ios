@@ -115,6 +115,21 @@ final class SyncStatsTests: XCTestCase {
         XCTAssertEqual(stats.since, base)
     }
 
+    /// A backfill logs one row per run and its chunks only when they fail. The run's row counts
+    /// its records when it went through; a failed chunk is already a failed delivery of its own.
+    func testBackfillRunRowCountsOnlyWhenItWentThrough() {
+        let done = row(0, dataType: WebhookLog.backfillRunDataType, records: 5000)
+        let chunk = row(5, success: false, error: "HTTP 502", dataType: BackfillController.logDataType, records: 800)
+        let failedRun = row(6, success: false, error: "Delivery failed", dataType: WebhookLog.backfillRunDataType, records: 1200)
+        let stats = SyncStats(logs: [done, chunk, failedRun])
+        XCTAssertEqual(stats.deliveries, 2)
+        XCTAssertEqual(stats.succeeded, 1)
+        XCTAssertEqual(stats.records, 5000)
+        XCTAssertEqual(stats.recentFailures.map(\.message), ["HTTP 502"])
+        XCTAssertTrue(done.countsTowardLifetime)
+        XCTAssertFalse(failedRun.countsTowardLifetime)
+    }
+
     func testUnknownDestinationCountsNowhere() throws {
         let json = #"""
         [{"id":"X","timestamp":780000000,"url":"fax://x","success":false,"errorMessage":"No tone",\#
