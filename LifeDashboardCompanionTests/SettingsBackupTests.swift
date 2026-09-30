@@ -38,7 +38,8 @@ final class SettingsBackupTests: XCTestCase {
         mqttUseTls: true,
         mqttUsername: "fixture-user",
         mqttPassword: "fixture-pass",
-        mqttBaseTopic: "home/iphone"
+        mqttBaseTopic: "home/iphone",
+        phoneName: "Zoë's iPhone"
     )
 
     private func file(_ json: String) throws -> ConfigBackup {
@@ -143,6 +144,14 @@ final class SettingsBackupTests: XCTestCase {
         XCTAssertEqual(options["include_daily_totals"] as? Bool, false)
         XCTAssertEqual(options["allow_http_webhooks"] as? Bool, true)
         XCTAssertEqual(options["failure_notifications_enabled"] as? Bool, false)
+        XCTAssertEqual(options["phone_name"] as? String, "Zoë's iPhone")
+    }
+
+    /// Android writes an empty name for a phone without one, and so does the iPhone.
+    func testAnUnnamedIPhoneExportsAnEmptyName() {
+        var settings = fixture
+        settings.phoneName = "  "
+        XCTAssertEqual(SettingsBackup.export(settings, includeSecrets: false, appVersion: nil).options?.phoneName, "")
     }
 
     func testAllowHttpIsOnlyWrittenForAnHttpUrl() {
@@ -220,6 +229,25 @@ final class SettingsBackupTests: XCTestCase {
         let iPhone = try SettingsImport.plan(
             file(#"{"version":1,"platform":"ios","mqtt":{"health_base_topic":"lifedashboard"}}"#), current: current)
         XCTAssertEqual(iPhone.result.mqttBaseTopic, "lifedashboard")
+    }
+
+    /// A name names one phone: an iPhone file brings it, an Android file's stays on Android.
+    func testOnlyAFileFromAnIPhoneBringsItsPhoneName() throws {
+        var current = makePrefs().backupSnapshot()
+        current.phoneName = "Kitchen iPad"
+
+        let android = try SettingsImport.plan(file(#"{"version":1,"options":{"phone_name":"Pixel 8"}}"#), current: current)
+        XCTAssertEqual(android.result.phoneName, "Kitchen iPad")
+
+        let iPhone = try SettingsImport.plan(
+            file(#"{"version":1,"platform":"ios","options":{"phone_name":"  Owen's iPhone "}}"#), current: current)
+        XCTAssertEqual(iPhone.result.phoneName, "Owen's iPhone")
+
+        let unnamed = try SettingsImport.plan(file(#"{"version":1,"platform":"ios","options":{"phone_name":""}}"#), current: current)
+        XCTAssertEqual(unnamed.result.phoneName, "", "an empty name is a phone without one")
+
+        let absent = try SettingsImport.plan(file(#"{"version":1,"platform":"ios","options":{}}"#), current: current)
+        XCTAssertEqual(absent.result.phoneName, "Kitchen iPad", "a file from before names leaves it alone")
     }
 
     func testMenstruationNamesMapBothWays() {

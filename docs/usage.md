@@ -76,7 +76,17 @@ iOS decides in advance which plain `http://` addresses an app may use: an IP add
 2. In the app, open the Health tab, expand **MQTT**, switch on **Enable MQTT publishing** and fill in the broker host, port 1883, and that username and password. For a broker reached over the internet, switch on **TLS** (usually port 8883).
 3. Tap **Sync Now**. A broker alone is enough, and from then on every sync publishes, the automatic ones included. A device named **Life Dashboard Companion (iOS)** appears under Settings > Devices & services > MQTT, with a sensor for every synced type that has a value.
 
-The sensors hold the latest record of each type; [features.md](features.md#home-assistant-and-mqtt) lists them. MQTT has no retry queue and gets no deleted records or backfill. If you add a webhook URL later, it gets what is new from then on; **Sync Now** or **Backfill** sends what came before. Values are published retained, so they survive a Home Assistant restart. The Logs tab shows every publish, with the broker's answer when it fails.
+Two iPhones on one broker: give each a **Phone name** at the bottom of the MQTT card, and each becomes a device of its own, with the name in its device, ids and topics. The Android app and the iPhone already use different devices and topics, so they need no name for each other. Leave it empty on a single iPhone: then nothing changes. After a rename, the next sync removes the old device's sensors from the broker.
+
+Steps, distance and calories are today's totals, the other sensors hold the latest record of their type; [features.md](features.md#home-assistant-and-mqtt) lists them. MQTT has no retry queue and gets no deleted records or backfill. If you add a webhook URL later, it gets what is new from then on; **Sync Now** or **Backfill** sends what came before. Values are published retained, so they survive a Home Assistant restart. The Logs tab shows every publish, with the broker's answer when it fails.
+
+## Syncing without opening the app
+
+- **Home screen widget.** Touch and hold the home screen, tap **Edit** > **Add Widget** and pick Life Dashboard. It shows the last sync and the records delivered today, and the round button in its corner syncs now.
+- **Control Center** (iOS 18 and later). Open Control Center, tap **+** > **Add a Control**, search for Life Dashboard and pick **Sync Now**. It is the Android app's Quick Settings tile.
+- **Shortcuts and Siri.** The **Sync Health Data** action, in a shortcut, an automation or by voice.
+
+All three run the same action: it sends what is queued and what is new since the last sync, where **Sync Now** in the app sends the last 7 days again. Health data cannot be read while the iPhone is locked, so unlock it first; a control on the Lock Screen syncs nothing until then. Together they sync at most once a minute, like the Android app's sync broadcast, so a second tap within a minute does nothing.
 
 ## Troubleshooting
 
@@ -102,7 +112,7 @@ A sync or backfill that starts while the iPhone is locked cannot read Apple Heal
 
 ### MQTT sensors do not update
 
-Every sync publishes the types with new records, so a sensor only changes when its type has new data; a type that is still catching up on a long backlog is published once it has caught up. A broker that does not answer within 10 seconds, such as a home address dialled from outside the home network, fails the sync. If a publish fails, the Logs tab shows the broker's error; `NOT_AUTHORIZED` means the username or password is wrong.
+Every sync with new records publishes today's totals and the types that have them, so a sensor only changes when new data arrives; a type that is still catching up on a long backlog is published once it has caught up. A broker that does not answer within 10 seconds, such as a home address dialled from outside the home network, fails the sync. If a publish fails, the Logs tab shows the broker's error; `NOT_AUTHORIZED` means the username or password is wrong.
 
 ### Queued payloads disappear
 

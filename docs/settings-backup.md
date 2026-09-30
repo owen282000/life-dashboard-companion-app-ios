@@ -16,7 +16,7 @@ Moving from one iPhone to another usually needs nothing from this app: the setti
 | HMAC signing secret (with secrets) | The pending queue |
 | Sync schedule: interval or fixed times, days and quiet hours | HealthKit permissions |
 | The data-type toggles, and whether payloads carry daily totals | The last MQTT status line |
-| MQTT broker, port, TLS, switch and base topic | |
+| MQTT broker, port, TLS, switch, base topic and phone name | |
 | MQTT username and password (with secrets) | |
 | Failure notifications and their threshold | |
 
@@ -62,11 +62,11 @@ Other rules:
 
 Both apps write and read the same format, so a file from one opens in the other, encrypted or not.
 
-**From Android to iPhone:** the webhook URLs, signing secret, sync schedule, data types, daily totals switch, MQTT broker and failure threshold carry over. Screen Time, the Receive options, series resolutions and the other Android-only settings are skipped. Android data types the iPhone has no counterpart for are skipped and counted in the preview. When the Android file uses Android's default MQTT topic `lifedashboard`, the iPhone keeps its own default `lifedashboard-ios`, so the two phones do not publish to the same sensors; a custom topic is copied as it is.
+**From Android to iPhone:** the webhook URLs, signing secret, sync schedule, data types, daily totals switch, MQTT broker and failure threshold carry over. Screen Time, the Receive options, series resolutions and the other Android-only settings are skipped. Android data types the iPhone has no counterpart for are skipped and counted in the preview. When the Android file uses Android's default MQTT topic `lifedashboard`, the iPhone keeps its own default `lifedashboard-ios`, so the two phones do not publish to the same sensors; a custom topic is copied as it is. The Android phone's `phone_name` names that phone, so the iPhone keeps its own; a file from an iPhone brings its name along.
 
 Custom headers from Android come with a list of URLs that get none of them (the ones QR pairing added). The iPhone keeps the same list, so both carry over, in either direction.
 
-**From iPhone to Android:** Android reads the file, but its importer resets what the file does not mention. Importing an iPhone file on an Android phone that also syncs Screen Time clears its Screen Time webhooks, switches Screen Time MQTT off, resets the Android-only options (full payloads, the day boundary) and turns off the data types the iPhone does not have. On a fresh Android phone this does not matter.
+**From iPhone to Android:** Android reads the file, but its importer resets what the file does not mention. Importing an iPhone file on an Android phone that also syncs Screen Time clears its Screen Time webhooks, switches Screen Time MQTT off, resets the Android-only options (full payloads, the day boundary) and turns off the data types the iPhone does not have. On a fresh Android phone this does not matter. The Android app also takes the file's `phone_name`, so an Android phone with a name of its own takes the iPhone's name, or none; set it again under MQTT afterwards.
 
 ## File format
 
@@ -107,7 +107,8 @@ The same JSON as the Android app, with `"platform": "ios"` added so the importer
     ],
     "failure_notification_threshold" : 3,
     "failure_notifications_enabled" : true,
-    "include_daily_totals" : true
+    "include_daily_totals" : true,
+    "phone_name" : ""
   },
   "platform" : "ios",
   "version" : 1

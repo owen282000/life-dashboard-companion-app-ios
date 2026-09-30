@@ -70,6 +70,7 @@
 		B100002A /* SharedSyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002C /* SharedSyncStatus.swift */; };
 		B100002B /* SharedSyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002C /* SharedSyncStatus.swift */; };
 		B100002C /* SyncHealthDataIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002D /* SyncHealthDataIntent.swift */; };
+		295C6D7A467F64ED8D6470D6 /* SyncHealthDataIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002D /* SyncHealthDataIntent.swift */; };
 		B100002D /* SyncFailureNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100002E /* SyncFailureNotifier.swift */; };
 		106BE3200AC58D34A2473C0F /* DeletionTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E74421EFCA6E10E29CEA8B7 /* DeletionTracking.swift */; };
 		1716CBA806DF1618DA6BFFF7 /* DeletionReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D8CB76EA9F45A445798D403 /* DeletionReader.swift */; };
@@ -94,6 +95,7 @@
 		E96D61DED3B577885E3D582D /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1269CB2C47B555716CC30117 /* Brand.swift */; };
 		651A4695CC0AA81EA7E9BAC8 /* DesignKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69501226A791C5E30A8D9CCC /* DesignKit.swift */; };
 		01215321D2654E19C55801FF /* UIParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03064B9EB7FE0AA1605460D4 /* UIParityTests.swift */; };
+		1C8D6A2846D18D42881AC3AA /* HealthExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CDD3C4A463A122FCDB59F69 /* HealthExportTests.swift */; };
 		D1D58134C55F699561A5C5BD /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C276EA26C2DFB2B5A9BAFF8D /* OnboardingView.swift */; };
 /* End PBXBuildFile section */
 
@@ -220,6 +222,7 @@
 		1269CB2C47B555716CC30117 /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
 		69501226A791C5E30A8D9CCC /* DesignKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignKit.swift; sourceTree = "<group>"; };
 		03064B9EB7FE0AA1605460D4 /* UIParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIParityTests.swift; sourceTree = "<group>"; };
+		8CDD3C4A463A122FCDB59F69 /* HealthExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthExportTests.swift; sourceTree = "<group>"; };
 		C276EA26C2DFB2B5A9BAFF8D /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -374,6 +377,7 @@
 			children = (
 				F100001A /* WebhookSignerTests.swift */,
 				03064B9EB7FE0AA1605460D4 /* UIParityTests.swift */,
+				8CDD3C4A463A122FCDB59F69 /* HealthExportTests.swift */,
 				CC1C740614BFF69060EAE315 /* PairingApplyTests.swift */,
 				B7F82E34A9A6016BACEFD2B5 /* PairingLinkTests.swift */,
 				7844ED7AB1F0D76FD282CC18 /* MqttPacketTests.swift */,
@@ -605,6 +609,7 @@
 				E96D61DED3B577885E3D582D /* Brand.swift in Sources */,
 				B1000029 /* LifeDashboardWidget.swift in Sources */,
 				B100002B /* SharedSyncStatus.swift in Sources */,
+				295C6D7A467F64ED8D6470D6 /* SyncHealthDataIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -613,6 +618,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				01215321D2654E19C55801FF /* UIParityTests.swift in Sources */,
+				1C8D6A2846D18D42881AC3AA /* HealthExportTests.swift in Sources */,
 				681C2DAA9427B02EA5D9277F /* SyncStatsTests.swift in Sources */,
 				9888D092D2F480F0DE06CB71 /* LocalizationTests.swift in Sources */,
 				B245FE77AA68002A4EFCEBEC /* WebhookLogCodingTests.swift in Sources */,
@@ -854,6 +860,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.owen282000.lifedashboard.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "WIDGET_EXTENSION $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -880,6 +887,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.owen282000.lifedashboard.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "WIDGET_EXTENSION $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

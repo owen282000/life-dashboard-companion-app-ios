@@ -1353,6 +1353,22 @@
         }
       }
     },
+    "A sync started less than a minute ago. Try again in a minute." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vor weniger als einer Minute wurde eine Synchronisierung gestartet. Versuche es in einer Minute erneut."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Er is minder dan een minuut geleden een synchronisatie gestart. Probeer het over een minuut opnieuw."
+          }
+        }
+      }
+    },
     "About" : {
       "localizations" : {
         "de" : {
@@ -3222,6 +3238,22 @@
         }
       }
     },
+    "For a second iPhone on the same MQTT broker. Empty keeps the device and the topics as they are; a name gives this iPhone its own device and its own topics under the base topic." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für ein zweites iPhone am selben MQTT-Broker. Leer lässt Gerät und Topics, wie sie sind; ein Name gibt diesem iPhone ein eigenes Gerät und eigene Topics unter dem Basis-Topic."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voor een tweede iPhone op dezelfde MQTT-broker. Leeg laat het apparaat en de topics zoals ze zijn; een naam geeft deze iPhone een eigen apparaat en eigen topics onder het basistopic."
+          }
+        }
+      }
+    },
     "Forgets the progress. Data already sent stays on your server." : {
       "localizations" : {
         "de" : {
@@ -4927,6 +4959,22 @@
         }
       }
     },
+    "Optional" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optional"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optioneel"
+          }
+        }
+      }
+    },
     "Optional secret for X-Signature" : {
       "localizations" : {
         "de" : {
@@ -5173,6 +5221,22 @@
         }
       }
     },
+    "Phone name" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Telefonname"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Telefoonnaam"
+          }
+        }
+      }
+    },
     "Pick them on the Health tab" : {
       "localizations" : {
         "de" : {
@@ -5285,18 +5349,34 @@
         }
       }
     },
-    "Publishes the latest value of each synced data type to your MQTT broker with Home Assistant Discovery: sensors appear automatically, no server-side setup needed." : {
+    "Publishes as %@. After a rename, the next sync removes the old device's sensors from the broker." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Veröffentlicht den letzten Wert jedes synchronisierten Datentyps über Home Assistant Discovery auf deinem MQTT-Broker: Sensoren erscheinen automatisch, ohne Einrichtung auf dem Server."
+            "value" : "Veröffentlicht als %@. Nach einer Umbenennung entfernt die nächste Synchronisierung die Sensoren des alten Geräts vom Broker."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Publiceert de laatste waarde van elk gesynchroniseerd datatype naar je MQTT-broker met Home Assistant Discovery: sensors verschijnen automatisch, zonder installatie aan de serverkant."
+            "value" : "Publiceert als %@. Na het wijzigen van de naam verwijdert de volgende synchronisatie de sensors van het oude apparaat van de broker."
+          }
+        }
+      }
+    },
+    "Publishes today's steps, distance and calories and the latest value of every other synced data type to your MQTT broker with Home Assistant Discovery: sensors appear automatically, no server-side setup needed." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veröffentlicht die heutigen Schritte, die Distanz und die Kalorien und den letzten Wert jedes anderen synchronisierten Datentyps über Home Assistant Discovery auf deinem MQTT-Broker: Sensoren erscheinen automatisch, ohne Einrichtung auf dem Server."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Publiceert de stappen, afstand en calorieën van vandaag en de laatste waarde van elk ander gesynchroniseerd datatype naar je MQTT-broker met Home Assistant Discovery: sensors verschijnen automatisch, zonder installatie aan de serverkant."
           }
         }
       }
@@ -7159,6 +7239,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dit bestand vereist een nieuwere versie van de app"
+          }
+        }
+      }
+    },
+    "This name has no letters from a to z or digits, so the iPhone stays unnamed." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Name enthält keine Buchstaben von a bis z oder Ziffern, das iPhone bleibt also ohne Namen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze naam bevat geen letters van a tot z of cijfers, dus de iPhone blijft naamloos."
           }
         }
       }

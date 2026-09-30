@@ -17,12 +17,16 @@ struct HealthKitScreen: View {
     @State private var newHeaderKey: String = ""
     @State private var newHeaderValue: String = ""
     @State private var mqttPortText = String(PreferencesManager.shared.mqttPort)
+    @State private var phoneNameText = PreferencesManager.shared.phoneName
+    @FocusState private var phoneNameFocused: Bool
     @State private var showPreview = false
     @State private var previewPayload: String = ""
     @State private var previewFullPayload: String = ""
     @State private var isLoadingPreview = false
     @State private var isSyncing = false
     @State private var isTestingWebhook = false
+    @State private var isExporting = false
+    @State private var exportFileURL: URL?
     @State private var outcome: SyncOutcome?
     @State private var showBackfillDialog = false
     @State private var backfillNotice: String?
@@ -86,6 +90,11 @@ struct HealthKitScreen: View {
         .task(id: prefs.healthEnabledDataTypes) { await refreshAccessRequest() }
         .sheet(isPresented: $showPreview) {
             previewSheet
+        }
+        .sheet(isPresented: Binding(get: { exportFileURL != nil }, set: { if !$0 { exportFileURL = nil } })) {
+            if let exportFileURL {
+                ShareSheet(activityItems: [exportFileURL])
+            }
         }
         // A pairing link needs the root sheet, which cannot show over this one.
         .onChange(of: pairing.incoming) { _, _ in showPreview = false }
@@ -296,7 +305,7 @@ struct HealthKitScreen: View {
             subtitleColor: prefs.mqttEnabled ? Brand.ink : .secondary,
             isExpanded: $showMqtt
         ) {
-            Text("Publishes the latest value of each synced data type to your MQTT broker with Home Assistant Discovery: sensors appear automatically, no server-side setup needed.")
+            Text("Publishes today's steps, distance and calories and the latest value of every other synced data type to your MQTT broker with Home Assistant Discovery: sensors appear automatically, no server-side setup needed.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -355,10 +364,51 @@ struct HealthKitScreen: View {
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
 
+            phoneNameField
+
             if let status = MqttStatus(stored: prefs.mqttLastStatus) {
                 ResultLine(text: Text(status.text), tone: status.success ? .success : .failure)
             }
         }
+    }
+
+    /// Android's phone name: a second iPhone on the same broker gets a device of its own, and
+    /// without a name nothing changes. The id is shown as it goes on the wire, and a name with
+    /// nothing usable in it, which would publish nameless, is said out loud.
+    @ViewBuilder
+    private var phoneNameField: some View {
+        Divider()
+        RowSubheading("Phone name")
+        Text("For a second iPhone on the same MQTT broker. Empty keeps the device and the topics as they are; a name gives this iPhone its own device and its own topics under the base topic.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        // Saved when the field is left, not per keystroke: a sync in between would publish a
+        // device for every half-typed name and clear it again.
+        TextField("Phone name", text: $phoneNameText, prompt: Text("Optional"))
+            .textFieldStyle(.filled)
+            .autocorrectionDisabled()
+            .focused($phoneNameFocused)
+            .onSubmit(savePhoneName)
+            .onChange(of: phoneNameFocused) { _, focused in if !focused { savePhoneName() } }
+            .onChange(of: prefs.phoneName) { _, name in if !phoneNameFocused { phoneNameText = name } }
+            .onDisappear(perform: savePhoneName)
+        if !phoneNameText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if let slug = MqttSupport.phoneSlug(phoneNameText) {
+                Text("Publishes as \(MqttSupport.deviceId(slug: slug)). After a rename, the next sync removes the old device's sensors from the broker.")
+                    .font(.caption)
+                    .foregroundStyle(Brand.ink)
+            } else {
+                Text("This name has no letters from a to z or digits, so the iPhone stays unnamed.")
+                    .font(.caption)
+                    .foregroundStyle(Brand.errorInk)
+            }
+        }
+    }
+
+    private func savePhoneName() {
+        let name = String(phoneNameText.trimmingCharacters(in: .whitespacesAndNewlines).prefix(SettingsImport.maxPhoneNameLength))
+        if name != prefs.phoneName { prefs.phoneName = name }
+        if name != phoneNameText { phoneNameText = name }
     }
 
     private var mqttSubtitle: Text {
@@ -437,6 +487,7 @@ struct HealthKitScreen: View {
                     .disabled(prefs.healthEnabledDataTypes.isEmpty || isLoadingPreview)
                 ActionTile(title: "Test ping", systemImage: "dot.radiowaves.left.and.right", isBusy: isTestingWebhook, action: sendTestPing)
                     .disabled(prefs.healthWebhookUrls.isEmpty || isTestingWebhook)
+                exportTile
                 BackfillTile(prefs: prefs, showDialog: $showBackfillDialog, notice: $backfillNotice)
             }
 
@@ -462,6 +513,47 @@ struct HealthKitScreen: View {
             }
 
             ScheduleStatusLine(schedule: prefs.healthSyncSchedule, webhookCount: prefs.healthWebhookUrls.count, mqtt: prefs.mqttConfigured)
+        }
+    }
+
+    /// Android's Export tile: what View shows, as a JSON or CSV file for the share sheet.
+    private var exportTile: some View {
+        Menu {
+            Button {
+                exportHealthData(.csv)
+            } label: {
+                Label("Export CSV", systemImage: "tablecells")
+            }
+            Button {
+                exportHealthData(.json)
+            } label: {
+                Label("Export JSON", systemImage: "curlybraces")
+            }
+        } label: {
+            ActionTileLabel(title: "Export", systemImage: "square.and.arrow.up", isBusy: isExporting)
+        }
+        // A menu tints its label; the tile keeps its own colours like the others.
+        .tint(Color.primary)
+        .disabled(prefs.healthEnabledDataTypes.isEmpty || isExporting)
+    }
+
+    private func exportHealthData(_ format: ExportManager.HealthExportFormat) {
+        isExporting = true
+        outcome = nil
+        Task {
+            let result: Result<URL, Error> = await Task.detached(priority: .userInitiated) {
+                do {
+                    let payload = try await HealthSyncManager.shared.buildPreviewPayload()
+                    return .success(try ExportManager.writeHealthExport(payload, format: format))
+                } catch {
+                    return .failure(error)
+                }
+            }.value
+            isExporting = false
+            switch result {
+            case .success(let url): exportFileURL = url
+            case .failure(let error): report(.exportFailed(error.localizedDescription))
+            }
         }
     }
 
@@ -581,6 +673,7 @@ enum SyncOutcome: Equatable {
     case failed(String)
     case pingDelivered
     case pingFailed
+    case exportFailed(String)
 
     var text: Text {
         switch self {
@@ -589,6 +682,7 @@ enum SyncOutcome: Equatable {
         case .failed(let reason): return Text("Sync failed: \(reason)")
         case .pingDelivered: return Text("Test ping delivered")
         case .pingFailed: return Text("Test ping failed, check the logs")
+        case .exportFailed(let reason): return Text("Export failed: \(reason)")
         }
     }
 
@@ -599,6 +693,7 @@ enum SyncOutcome: Equatable {
         case .failed(let reason): return String(localized: "Sync failed: \(reason)")
         case .pingDelivered: return String(localized: "Test ping delivered")
         case .pingFailed: return String(localized: "Test ping failed, check the logs")
+        case .exportFailed(let reason): return String(localized: "Export failed: \(reason)")
         }
     }
 
@@ -606,7 +701,7 @@ enum SyncOutcome: Equatable {
         switch self {
         case .synced, .pingDelivered: return .success
         case .noData: return .info
-        case .failed, .pingFailed: return .failure
+        case .failed, .pingFailed, .exportFailed: return .failure
         }
     }
 }
