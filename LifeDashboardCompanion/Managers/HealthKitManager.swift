@@ -771,7 +771,8 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
 
     /// The correlations of `type` that start within `correlationMargin` of `[start, end)`, so
     /// the caller can tell which samples of the window belong to one. No limit: the window was
-    /// sliced to hold at most the cap of samples, and every correlation holds at least one.
+    /// sliced to hold at most the cap of samples, and every correlation that becomes a record
+    /// holds at least one of them; the rest are bounded by the two days of margin.
     private func readCorrelations(_ type: HKCorrelationType, around start: Date, _ end: Date) async throws -> [HKCorrelation] {
         let margin = HealthRecordMapping.correlationMargin
         let samples = try await readSamples(
@@ -872,57 +873,16 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     }
 
     private func readNutritionData(start: Date, end: Date, limit: Int) async throws -> [[String: Any]] {
-        let calorieRecords = try await readQuantitySamples(
-            type: HKQuantityType(.dietaryEnergyConsumed),
-            start: start, end: end,
-            limit: limit
-        )
-        let proteinRecords = try await readQuantitySamples(
-            type: HKQuantityType(.dietaryProtein),
-            start: start, end: end,
-            limit: limit
-        )
-        let carbRecords = try await readQuantitySamples(
-            type: HKQuantityType(.dietaryCarbohydrates),
-            start: start, end: end,
-            limit: limit
-        )
-        let fatRecords = try await readQuantitySamples(
-            type: HKQuantityType(.dietaryFatTotal),
-            start: start, end: end,
-            limit: limit
-        )
-
-        // Combine by matching timestamps
-        var mapped: [[String: Any]] = calorieRecords.map { sample -> [String: Any] in
-            var fields: [String: Any] = [
-                "calories": sample.quantity.doubleValue(for: .kilocalorie()),
-                "start_time": sample.startDate.iso8601String,
-                "end_time": sample.endDate.iso8601String
-            ]
-            if let protein = proteinRecords.first(where: { abs($0.startDate.timeIntervalSince(sample.startDate)) < 1 }) {
-                fields["protein_grams"] = protein.quantity.doubleValue(for: .gram())
-            }
-            if let carb = carbRecords.first(where: { abs($0.startDate.timeIntervalSince(sample.startDate)) < 1 }) {
-                fields["carbs_grams"] = carb.quantity.doubleValue(for: .gram())
-            }
-            if let fat = fatRecords.first(where: { abs($0.startDate.timeIntervalSince(sample.startDate)) < 1 }) {
-                fields["fat_grams"] = fat.quantity.doubleValue(for: .gram())
-            }
-            return record(fields, from: sample)
+        let foods = try await readCorrelations(HKCorrelationType(.food), around: start, end)
+        var samples: [HKQuantitySample] = []
+        for nutrient in HealthRecordMapping.mainNutrients {
+            samples += try await readQuantitySamples(
+                type: HKQuantityType(nutrient.identifier),
+                start: start, end: end,
+                limit: limit
+            )
         }
-
-        // Also include standalone protein/carb/fat records not matched to calories
-        for protein in proteinRecords
-        where !calorieRecords.contains(where: { abs($0.startDate.timeIntervalSince(protein.startDate)) < 1 }) {
-            mapped.append(record([
-                "protein_grams": protein.quantity.doubleValue(for: .gram()),
-                "start_time": protein.startDate.iso8601String,
-                "end_time": protein.endDate.iso8601String
-            ], from: protein))
-        }
-
-        return mapped
+        return HealthRecordMapping.nutritionRecords(correlations: foods, samples: samples, start: start, end: end)
     }
 }
 

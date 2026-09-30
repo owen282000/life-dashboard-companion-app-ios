@@ -71,7 +71,7 @@ The app has 28 data types. Menstruation sends two keys, so an iPhone can send 29
 | `vo2_max` | `vo2_ml_per_min_per_kg`, `time` | VO2 max |
 | `sleep` | `session_end_time`, `duration_seconds`, `stages[]` | sleep analysis |
 | `hydration` | `liters`, `start_time`, `end_time` | water |
-| `nutrition` | `calories`, `protein_grams`, `carbs_grams`, `fat_grams`, `start_time`, `end_time` | energy, protein, carbohydrates, fat |
+| `nutrition` | `calories`, `protein_grams`, `carbs_grams`, `fat_grams`, `name`, 34 more nutrients, `start_time`, `end_time` | foods, and lone energy, protein, carbohydrate and fat values |
 | `mindfulness` | `start_time`, `end_time`, `duration_seconds` | mindful sessions |
 | `menstruation_flow` | `flow`, `time` | menstrual flow |
 | `menstruation_period` | `start_time`, `end_time` | derived from flow days |
@@ -97,7 +97,7 @@ A type with more new records than one sync may send (1000 for heart rate and ste
 - **Distance** is walking and running distance. Health Connect's distance covers every activity.
 - **Total calories** are resting plus active energy records, since HealthKit has no total energy type.
 - **Blood pressure** is read per reading: the systolic and diastolic values an app saved together, as HealthKit keeps them. The rare app that saves the two values separately gets them paired when they come from that app within a second of each other. A value without its other half is not sent, since the Android schema requires both. `uuid` is the systolic sample's.
-- **Nutrition**: every nutrient field is optional and left out when the meal has no value for it.
+- **Nutrition**: a food an app logged, with every nutrient in it, is one record, with its name in `name` when the app gave one. Besides energy, protein, carbohydrates and fat, a food carries the 34 other nutrients HealthKit and Android share, under Android's keys (`dietary_fibre_g`, `sugars_g`, `sodium_mg`, `caffeine_mg` and so on, see [webhook-schema.json](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/webhook-schema.json)). HealthKit has no type for trans fat, unsaturated fat, energy from fat, folic acid or `meal_type`. Energy, protein, carbohydrate and fat values saved outside a food are sent too: values from one app with the same time and name become one record when no nutrient repeats, anything else a record per value. Those 34 nutrients are only read from inside a food that also has energy, protein, carbohydrates or fat; a food with none of those four, such as a coffee logged with caffeine only, is not sent. Every nutrient field is optional and left out when the food has no value for it. `uuid` is the uuid of the food's energy sample, else of its protein, carbohydrate or fat sample.
 - **Sleep**: stage samples are grouped into sessions, and a gap of more than 1 hour starts a new session. Stage values are `in_bed`, `sleeping`, `light`, `deep`, `rem`, `awake` and `unknown`, as on Android. A session's `uuid` comes from its earliest stage, so it stays the same while a night grows at the end: replace the session when it comes back longer. Each stage carries its own sample's `uuid` and `source`.
 - **Menstruation period**: HealthKit has no period record, so periods are derived from consecutive flow days, where a gap of up to 48 hours bridges one missed day. They carry no `uuid` or `source`. Replace the periods a payload covers.
 - **Cervical mucus**: HealthKit records no sensation, so `sensation` is always `unknown`, the value Android sends when none was logged.
@@ -139,7 +139,7 @@ Where this differs from Android:
 
 - Every sample has its own `uuid`; match it exactly. Android's `<uuid>#<epoch millis>` rule for heart rate samples does not apply.
 - An active energy sample is part of both `active_calories` and `total_calories`, so its deletion is named under both when both are enabled.
-- A blood pressure reading is named by its systolic sample, and a meal by its energy sample. A diastolic value, or a nutrient inside a meal, deleted on its own is not reported.
+- A blood pressure reading is named by its systolic sample, and a food by the sample its `uuid` comes from. A diastolic value deleted on its own is not reported. An energy, protein, carbohydrate or fat value deleted from a food whose `uuid` comes from another sample is named under a `uuid` no record carries; ignore a `uuid` you do not have.
 - A sleep deletion names the stage (`stages[].uuid`), not the session. Drop that stage, or replace the sessions a newer payload covers.
 - `menstruation_period` never appears in `deleted_records`.
 - Tracking starts with the first sync of a type after installing or updating the app. After a restore onto another iPhone, the enabled types are named once in `deletions_unavailable`.

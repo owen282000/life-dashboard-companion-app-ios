@@ -135,12 +135,7 @@ enum HealthDataType: String, CaseIterable, Codable, Identifiable {
         case .hydration:
             return [HKQuantityType(.dietaryWater)]
         case .nutrition:
-            return [
-                HKQuantityType(.dietaryEnergyConsumed),
-                HKQuantityType(.dietaryProtein),
-                HKQuantityType(.dietaryCarbohydrates),
-                HKQuantityType(.dietaryFatTotal)
-            ]
+            return HealthRecordMapping.mainNutrients.map { HKQuantityType($0.identifier) }
         case .mindfulness:
             return [HKCategoryType(.mindfulSession)]
         case .bodyFat:
@@ -203,22 +198,27 @@ enum HealthDataType: String, CaseIterable, Codable, Identifiable {
         }
     }
 
+    /// What the type asks Health access for: its sample types, and for nutrition also the
+    /// nutrients that are only read from inside a food.
     var hkReadTypes: Set<HKObjectType> {
-        Set(hkSampleTypes.map { $0 as HKObjectType })
+        var types = Set(hkSampleTypes.map { $0 as HKObjectType })
+        if self == .nutrition {
+            types.formUnion(HealthRecordMapping.foodOnlyNutrients.map { HKQuantityType($0.identifier) })
+        }
+        return types
     }
 
-    /// The sample types whose deletions `deleted_records` names for this type: only those whose
-    /// own uuid reaches the payload. A diastolic value, or carbs and fat merged into a meal, are
-    /// never named, because naming the record they belong to would delete one that still exists.
+    /// The sample types whose deletions `deleted_records` names for this type: those whose own
+    /// uuid can reach the payload. A diastolic value never does, because naming the reading it
+    /// belongs to would delete one that still exists. A nutrient deleted from a food whose uuid
+    /// comes from another nutrient is named under a uuid no record carries.
     var deletionSampleTypes: [HKSampleType] {
         switch self {
         case .bloodPressure:
             return [HKQuantityType(.bloodPressureSystolic)]
-        case .nutrition:
-            return [HKQuantityType(.dietaryEnergyConsumed), HKQuantityType(.dietaryProtein)]
         case .steps, .sleep, .heartRate, .distance, .activeCalories, .totalCalories, .weight,
              .height, .bloodGlucose, .oxygenSaturation, .bodyTemperature, .respiratoryRate,
-             .restingHeartRate, .exercise, .hydration, .mindfulness, .bodyFat, .leanBodyMass,
+             .restingHeartRate, .exercise, .hydration, .nutrition, .mindfulness, .bodyFat, .leanBodyMass,
              .heartRateVariability, .vo2Max, .menstruation, .basalBodyTemperature,
              .intermenstrualBleeding, .ovulationTest, .cervicalMucus, .sexualActivity:
             return hkSampleTypes
@@ -445,5 +445,161 @@ enum HealthRecordMapping {
     /// The same sample of a set every time, should a correlation hold two of one type.
     private static func firstByUuid(_ samples: Set<HKSample>) -> HKSample? {
         samples.min { $0.uuid.uuidString < $1.uuid.uuidString }
+    }
+
+    // MARK: Nutrition
+
+    struct Nutrient {
+        let identifier: HKQuantityTypeIdentifier
+        let field: String
+        let unit: HKUnit
+    }
+
+    private static let milligram = HKUnit.gramUnit(with: .milli)
+    private static let microgram = HKUnit.gramUnit(with: .micro)
+
+    /// Read on their own as well as inside a food, in the order a record takes its uuid from.
+    static let mainNutrients: [Nutrient] = [
+        Nutrient(identifier: .dietaryEnergyConsumed, field: "calories", unit: .kilocalorie()),
+        Nutrient(identifier: .dietaryProtein, field: "protein_grams", unit: .gram()),
+        Nutrient(identifier: .dietaryCarbohydrates, field: "carbs_grams", unit: .gram()),
+        Nutrient(identifier: .dietaryFatTotal, field: "fat_grams", unit: .gram())
+    ]
+
+    /// Every other HealthKit nutrient whose meaning and unit match a field of Android's
+    /// nutrition record. Read only inside a food that has a main nutrient: on their own they
+    /// would add a query per nutrient to every sync. Android's trans fat, unsaturated fat, energy from fat and folic
+    /// acid have no HealthKit type; HealthKit's folate goes out as `folate_mcg`.
+    static let foodOnlyNutrients: [Nutrient] = [
+        Nutrient(identifier: .dietaryFiber, field: "dietary_fibre_g", unit: .gram()),
+        Nutrient(identifier: .dietarySugar, field: "sugars_g", unit: .gram()),
+        Nutrient(identifier: .dietaryFatSaturated, field: "saturated_fat_g", unit: .gram()),
+        Nutrient(identifier: .dietaryFatMonounsaturated, field: "monounsaturated_fat_g", unit: .gram()),
+        Nutrient(identifier: .dietaryFatPolyunsaturated, field: "polyunsaturated_fat_g", unit: .gram()),
+        Nutrient(identifier: .dietaryCholesterol, field: "cholesterol_mg", unit: milligram),
+        Nutrient(identifier: .dietarySodium, field: "sodium_mg", unit: milligram),
+        Nutrient(identifier: .dietaryPotassium, field: "potassium_mg", unit: milligram),
+        Nutrient(identifier: .dietaryCalcium, field: "calcium_mg", unit: milligram),
+        Nutrient(identifier: .dietaryChloride, field: "chloride_mg", unit: milligram),
+        Nutrient(identifier: .dietaryChromium, field: "chromium_mcg", unit: microgram),
+        Nutrient(identifier: .dietaryCopper, field: "copper_mg", unit: milligram),
+        Nutrient(identifier: .dietaryIodine, field: "iodine_mcg", unit: microgram),
+        Nutrient(identifier: .dietaryIron, field: "iron_mg", unit: milligram),
+        Nutrient(identifier: .dietaryMagnesium, field: "magnesium_mg", unit: milligram),
+        Nutrient(identifier: .dietaryManganese, field: "manganese_mg", unit: milligram),
+        Nutrient(identifier: .dietaryMolybdenum, field: "molybdenum_mcg", unit: microgram),
+        Nutrient(identifier: .dietaryPhosphorus, field: "phosphorus_mg", unit: milligram),
+        Nutrient(identifier: .dietarySelenium, field: "selenium_mcg", unit: microgram),
+        Nutrient(identifier: .dietaryZinc, field: "zinc_mg", unit: milligram),
+        Nutrient(identifier: .dietaryVitaminA, field: "vitamin_a_mcg", unit: microgram),
+        Nutrient(identifier: .dietaryVitaminB6, field: "vitamin_b6_mg", unit: milligram),
+        Nutrient(identifier: .dietaryVitaminB12, field: "vitamin_b12_mcg", unit: microgram),
+        Nutrient(identifier: .dietaryVitaminC, field: "vitamin_c_mg", unit: milligram),
+        Nutrient(identifier: .dietaryVitaminD, field: "vitamin_d_mcg", unit: microgram),
+        Nutrient(identifier: .dietaryVitaminE, field: "vitamin_e_mg", unit: milligram),
+        Nutrient(identifier: .dietaryVitaminK, field: "vitamin_k_mcg", unit: microgram),
+        Nutrient(identifier: .dietaryThiamin, field: "thiamin_mg", unit: milligram),
+        Nutrient(identifier: .dietaryRiboflavin, field: "riboflavin_mg", unit: milligram),
+        Nutrient(identifier: .dietaryNiacin, field: "niacin_mg", unit: milligram),
+        Nutrient(identifier: .dietaryPantothenicAcid, field: "pantothenic_acid_mg", unit: milligram),
+        Nutrient(identifier: .dietaryBiotin, field: "biotin_mcg", unit: microgram),
+        Nutrient(identifier: .dietaryFolate, field: "folate_mcg", unit: microgram),
+        Nutrient(identifier: .dietaryCaffeine, field: "caffeine_mg", unit: milligram)
+    ]
+
+    private static let nutrientsByIdentifier: [String: Nutrient] = Dictionary(
+        uniqueKeysWithValues: (mainNutrients + foodOnlyNutrients).map { ($0.identifier.rawValue, $0) }
+    )
+
+    /// Nutrition records for the samples that start in `[start, end)`.
+    ///
+    /// A food an app logged is a food correlation, and becomes one record with every nutrient
+    /// in it and its name. `correlations` may reach past the window (see `correlationMargin`);
+    /// only those that start inside it become records. Samples of the main nutrients that no
+    /// food holds are grouped when they share app, time and name and no nutrient twice, which
+    /// is how apps without correlations save one entry; any other lone sample is a record of
+    /// its own. No value is dropped or counted twice.
+    ///
+    /// The uuid is the first of the food's energy, protein, carbohydrate and fat samples, which
+    /// is what 1.4 sent for a food with energy, and those four are deletion targets. A food with
+    /// none of them, such as a coffee logged with caffeine only, is not sent: nothing would wake
+    /// a sync for it, read it at a set time, or name its deletion.
+    static func nutritionRecords(
+        correlations: [HKCorrelation],
+        samples: [HKQuantitySample],
+        start: Date,
+        end: Date
+    ) -> [[String: Any]] {
+        var records: [(start: Date, record: [String: Any])] = []
+        var inCorrelation = Set<UUID>()
+        for food in correlations {
+            inCorrelation.formUnion(food.objects.map(\.uuid))
+            guard food.startDate >= start, food.startDate < end else { continue }
+            let parts = food.objects.compactMap { $0 as? HKQuantitySample }
+            guard let primary = primarySample(parts), let fields = nutrientFields(parts) else { continue }
+            let name = foodName(food.metadata) ?? foodName(primary.metadata)
+            records.append((food.startDate, record(entryFields(fields, start: food.startDate, end: food.endDate, name: name), from: primary)))
+        }
+
+        var groups: [String: [HKQuantitySample]] = [:]
+        var order: [String] = []
+        for sample in samples where !inCorrelation.contains(sample.uuid) {
+            let key = [
+                sample.sourceRevision.source.bundleIdentifier,
+                "\(sample.startDate.timeIntervalSinceReferenceDate)",
+                "\(sample.endDate.timeIntervalSinceReferenceDate)",
+                foodName(sample.metadata) ?? ""
+            ].joined(separator: "|")
+            if groups[key] == nil { order.append(key) }
+            groups[key, default: []].append(sample)
+        }
+        for key in order {
+            guard let group = groups[key], let first = group.first else { continue }
+            let entries = Set(group.map(\.quantityType)).count == group.count ? [group] : group.map { [$0] }
+            for entry in entries {
+                guard let fields = nutrientFields(entry), let primary = primarySample(entry) else { continue }
+                let fieldsWithTime = entryFields(fields, start: first.startDate, end: first.endDate, name: foodName(first.metadata))
+                records.append((first.startDate, record(fieldsWithTime, from: primary)))
+            }
+        }
+
+        return records.sorted {
+            $0.start != $1.start ? $0.start < $1.start : ($0.record["uuid"] as? String ?? "") < ($1.record["uuid"] as? String ?? "")
+        }.map(\.record)
+    }
+
+    /// The nutrient fields of some samples, summed per field; nil when none is a known nutrient.
+    private static func nutrientFields(_ samples: [HKQuantitySample]) -> [String: Any]? {
+        var sums: [String: Double] = [:]
+        for sample in samples {
+            guard let nutrient = nutrientsByIdentifier[sample.quantityType.identifier] else { continue }
+            let value = sample.quantity.doubleValue(for: nutrient.unit)
+            guard value.isFinite else { continue }
+            sums[nutrient.field, default: 0] += value
+        }
+        return sums.isEmpty ? nil : sums
+    }
+
+    private static func entryFields(_ nutrients: [String: Any], start: Date, end: Date, name: String?) -> [String: Any] {
+        var fields = nutrients
+        fields["start_time"] = start.iso8601String
+        fields["end_time"] = end.iso8601String
+        if let name { fields["name"] = name }
+        return fields
+    }
+
+    /// The sample a food's uuid comes from: the first main nutrient it has, the lowest uuid if
+    /// it has two, so the same food always gets the same uuid.
+    private static func primarySample(_ samples: [HKQuantitySample]) -> HKQuantitySample? {
+        for nutrient in mainNutrients {
+            let matching = samples.filter { $0.quantityType.identifier == nutrient.identifier.rawValue }
+            if let first = matching.min(by: { $0.uuid.uuidString < $1.uuid.uuidString }) { return first }
+        }
+        return nil
+    }
+
+    private static func foodName(_ metadata: [String: Any]?) -> String? {
+        guard let name = metadata?[HKMetadataKeyFoodType] as? String, !name.isEmpty else { return nil }
+        return name
     }
 }

@@ -278,6 +278,160 @@ final class HealthRecordMappingTests: XCTestCase {
         XCTAssertEqual(pressureRecords([correlation], systolic: [], diastolic: [], from: start.addingTimeInterval(-60)).count, 1)
     }
 
+    // MARK: - Nutrition
+
+    /// The nutrition fields of Android's docs/webhook-schema.json.
+    private let androidNutritionFields: Set<String> = [
+        "calories", "protein_grams", "carbs_grams", "fat_grams", "name", "meal_type",
+        "energy_from_fat_kcal", "dietary_fibre_g", "sugars_g", "saturated_fat_g",
+        "monounsaturated_fat_g", "polyunsaturated_fat_g", "unsaturated_fat_g", "trans_fat_g",
+        "cholesterol_mg", "sodium_mg", "potassium_mg", "calcium_mg", "chloride_mg", "chromium_mcg",
+        "copper_mg", "iodine_mcg", "iron_mg", "magnesium_mg", "manganese_mg", "molybdenum_mcg",
+        "phosphorus_mg", "selenium_mcg", "zinc_mg", "vitamin_a_mcg", "vitamin_b6_mg",
+        "vitamin_b12_mcg", "vitamin_c_mg", "vitamin_d_mcg", "vitamin_e_mg", "vitamin_k_mcg",
+        "thiamin_mg", "riboflavin_mg", "niacin_mg", "pantothenic_acid_mg", "biotin_mcg",
+        "folate_mcg", "folic_acid_mcg", "caffeine_mg", "start_time", "end_time", "source", "uuid"
+    ]
+
+    private func nutrient(
+        _ identifier: HKQuantityTypeIdentifier,
+        _ value: Double,
+        _ unit: HKUnit = .gram(),
+        at offset: TimeInterval = 0,
+        name: String? = nil
+    ) -> HKQuantitySample {
+        let time = start.addingTimeInterval(offset)
+        return HKQuantitySample(
+            type: HKQuantityType(identifier),
+            quantity: HKQuantity(unit: unit, doubleValue: value),
+            start: time, end: time,
+            metadata: name.map { [HKMetadataKeyFoodType: $0] }
+        )
+    }
+
+    private func food(_ samples: [HKQuantitySample], name: String? = nil, at offset: TimeInterval = 0) -> HKCorrelation {
+        let time = start.addingTimeInterval(offset)
+        return HKCorrelation(
+            type: HKCorrelationType(.food),
+            start: time, end: time,
+            objects: Set(samples),
+            metadata: name.map { [HKMetadataKeyFoodType: $0] }
+        )
+    }
+
+    private func nutritionRecords(
+        _ foods: [HKCorrelation],
+        loose: [HKQuantitySample] = [],
+        from windowStart: Date? = nil
+    ) -> [[String: Any]] {
+        let inFoods = foods.flatMap { $0.objects.compactMap { $0 as? HKQuantitySample } }
+        return HealthRecordMapping.nutritionRecords(
+            correlations: foods,
+            samples: (inFoods + loose).filter { HealthRecordMapping.mainNutrients.map(\.identifier.rawValue).contains($0.quantityType.identifier) },
+            start: windowStart ?? start,
+            end: start.addingTimeInterval(3600)
+        )
+    }
+
+    func testEveryNutrientFieldIsOneOfAndroids() {
+        let fields = (HealthRecordMapping.mainNutrients + HealthRecordMapping.foodOnlyNutrients).map(\.field)
+        XCTAssertEqual(Set(fields).count, fields.count)
+        XCTAssertEqual(HealthRecordMapping.foodOnlyNutrients.count, 34, "docs/webhook.md and docs/features.md give the number")
+        XCTAssertTrue(Set(fields).isSubset(of: androidNutritionFields), "unknown: \(Set(fields).subtracting(androidNutritionFields))")
+        for nutrient in HealthRecordMapping.mainNutrients + HealthRecordMapping.foodOnlyNutrients {
+            XCTAssertTrue(HKQuantityType(nutrient.identifier).is(compatibleWith: nutrient.unit), nutrient.field)
+        }
+    }
+
+    func testNutritionAsksForEveryNutrientButReadsTheMainOnesOnTheirOwn() {
+        let main = HealthRecordMapping.mainNutrients.map { HKQuantityType($0.identifier) as HKSampleType }
+        XCTAssertEqual(HealthDataType.nutrition.hkSampleTypes, main)
+        XCTAssertEqual(HealthDataType.nutrition.deletionSampleTypes, main)
+        XCTAssertEqual(HealthDataType.nutrition.hkReadTypes.count, 4 + HealthRecordMapping.foodOnlyNutrients.count)
+        XCTAssertTrue(HealthDataType.nutrition.hkReadTypes.contains(HKQuantityType(.dietaryCaffeine)))
+    }
+
+    func testTwoFoodsAtTheSameMomentKeepTheirOwnValues() {
+        let toastEnergy = nutrient(.dietaryEnergyConsumed, 180, .kilocalorie())
+        let toast = food([
+            toastEnergy,
+            nutrient(.dietaryProtein, 6),
+            nutrient(.dietaryCarbohydrates, 30),
+            nutrient(.dietaryFatTotal, 3),
+            nutrient(.dietarySodium, 0.35),
+            nutrient(.dietaryFiber, 4)
+        ], name: "Toast")
+        let coffeeEnergy = nutrient(.dietaryEnergyConsumed, 5, .kilocalorie())
+        let coffee = food([coffeeEnergy, nutrient(.dietaryCaffeine, 95, .gramUnit(with: .milli))], name: "Coffee")
+
+        let records = nutritionRecords([coffee, toast])
+        XCTAssertEqual(records.count, 2)
+        let byName = Dictionary(uniqueKeysWithValues: records.map { ($0["name"] as? String ?? "", $0) })
+        XCTAssertEqual(byName["Toast"]?["calories"] as? Double, 180)
+        XCTAssertEqual(byName["Toast"]?["carbs_grams"] as? Double, 30)
+        XCTAssertEqual(byName["Toast"]?["sodium_mg"] as? Double ?? 0, 350, accuracy: 0.0001)
+        XCTAssertEqual(byName["Toast"]?["dietary_fibre_g"] as? Double, 4)
+        XCTAssertNil(byName["Toast"]?["caffeine_mg"])
+        XCTAssertEqual(byName["Coffee"]?["caffeine_mg"] as? Double ?? 0, 95, accuracy: 0.0001)
+        XCTAssertNil(byName["Coffee"]?["protein_grams"])
+        // The energy sample's uuid, as 1.4 sent it, and a deletion target.
+        XCTAssertEqual(byName["Toast"]?["uuid"] as? String, toastEnergy.uuid.uuidString)
+        XCTAssertEqual(byName["Coffee"]?["uuid"] as? String, coffeeEnergy.uuid.uuidString)
+        for record in records {
+            XCTAssertTrue(Set(record.keys).isSubset(of: androidNutritionFields))
+            XCTAssertEqual(record["start_time"] as? String, "2026-01-01T08:00:00Z")
+        }
+        XCTAssertTrue(JSONSerialization.isValidJSONObject(records))
+    }
+
+    func testAFoodWithoutEnergyIsStillSentButOneWithoutAMainNutrientIsNot() {
+        let carbs = nutrient(.dietaryCarbohydrates, 22)
+        let records = nutritionRecords([food([carbs, nutrient(.dietaryFatTotal, 1)])])
+        XCTAssertEqual(records.count, 1)
+        XCTAssertEqual(records[0]["carbs_grams"] as? Double, 22)
+        XCTAssertNil(records[0]["calories"])
+        XCTAssertNil(records[0]["name"])
+        XCTAssertEqual(records[0]["uuid"] as? String, carbs.uuid.uuidString)
+
+        // Nothing observes or anchors caffeine, so such a food would go out only by chance.
+        XCTAssertTrue(nutritionRecords([food([nutrient(.dietaryCaffeine, 0.08)])]).isEmpty)
+    }
+
+    func testLoneNutrientsOfOneEntryBecomeOneRecord() {
+        let energy = nutrient(.dietaryEnergyConsumed, 420, .kilocalorie(), name: "Lunch")
+        let protein = nutrient(.dietaryProtein, 25, name: "Lunch")
+        let laterFat = nutrient(.dietaryFatTotal, 9, at: 1800)
+        let records = nutritionRecords([], loose: [protein, laterFat, energy])
+        XCTAssertEqual(records.count, 2)
+        XCTAssertEqual(records[0]["calories"] as? Double, 420)
+        XCTAssertEqual(records[0]["protein_grams"] as? Double, 25)
+        XCTAssertEqual(records[0]["name"] as? String, "Lunch")
+        XCTAssertEqual(records[0]["uuid"] as? String, energy.uuid.uuidString)
+        XCTAssertEqual(records[1]["fat_grams"] as? Double, 9)
+        XCTAssertEqual(records[1]["uuid"] as? String, laterFat.uuid.uuidString)
+    }
+
+    func testLoneNutrientsThatCannotBeToldApartAreSentOneByOne() {
+        // Two energy values at one moment: which protein goes with which is unknown.
+        let samples = [
+            nutrient(.dietaryEnergyConsumed, 100, .kilocalorie()),
+            nutrient(.dietaryEnergyConsumed, 250, .kilocalorie()),
+            nutrient(.dietaryProtein, 12)
+        ]
+        let records = nutritionRecords([], loose: samples)
+        XCTAssertEqual(records.count, 3)
+        XCTAssertEqual(records.compactMap { $0["calories"] as? Double }.reduce(0, +), 350)
+        XCTAssertEqual(records.compactMap { $0["protein_grams"] as? Double }, [12])
+        XCTAssertEqual(Set(records.compactMap { $0["uuid"] as? String }), Set(samples.map(\.uuid.uuidString)))
+    }
+
+    func testAFoodIsSentInTheWindowItStartsIn() {
+        let energy = nutrient(.dietaryEnergyConsumed, 300, .kilocalorie(), at: 10)
+        let early = food([energy], at: -50)
+        XCTAssertTrue(nutritionRecords([early]).isEmpty, "its energy is part of a food, not a lone value")
+        XCTAssertEqual(nutritionRecords([early], from: start.addingTimeInterval(-60)).count, 1)
+    }
+
     func testRecordsSerializeAsJSON() {
         let records: [[String: Any]] = [
             HealthRecordMapping.vo2MaxFields(quantitySample(.vo2Max, HKQuantity(unit: HealthRecordMapping.vo2MaxUnit, doubleValue: 40))),
