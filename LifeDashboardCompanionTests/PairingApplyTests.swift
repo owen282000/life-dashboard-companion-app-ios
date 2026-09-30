@@ -88,13 +88,6 @@ final class PairingApplyTests: XCTestCase {
         XCTAssertTrue(next.urlsWithoutHeaders.isEmpty)
     }
 
-    // MARK: - Drain
-
-    func testAQueuedItemOnlyGoesToAddressesStillListed() {
-        XCTAssertEqual(PairingApply.deliverable([mine, "https://removed/hook"], configuredUrls: [mine, link.url]), [mine])
-        XCTAssertTrue(PairingApply.deliverable(["https://removed/hook"], configuredUrls: [mine]).isEmpty)
-    }
-
     // MARK: - The ping after pairing
 
     private let requestSignature = "sha256=" + String(repeating: "1", count: 64)

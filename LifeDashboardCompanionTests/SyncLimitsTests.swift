@@ -147,41 +147,71 @@ final class SyncLimitsTests: XCTestCase {
         }
     }
 
-    /// The steps of HealthKitManager.readIncrementalDataForType for one sample type: anchored
-    /// query, read start, probe, capped read, and anchor and cursor saved after the read. A
-    /// sync that stops before its read ends saves nothing. Samples saved between the anchored
-    /// query and the read (`duringRead`) land behind the new anchor.
+    /// Where a model sync is ended by iOS: before the payload is queued, after it is queued
+    /// but before the anchors are saved, or not at all.
+    private enum Ending {
+        case beforeQueue, beforeCommit, none
+    }
+
+    /// The steps of HealthKitManager.readIncrementalDataForType for one sample type, with
+    /// HealthSyncManager's write-ahead around them: a page of added samples from the anchor,
+    /// the time read for the first week and its catch-up cursor, the added samples outside it
+    /// by uuid, then the payload queued (and so delivered sooner or later) before the anchor
+    /// and cursor are saved. Samples saved between the anchored query and the time read
+    /// (`duringRead`) land behind the new anchor.
     private struct Syncer {
         let limit: Int
         var anchor: Int?
         var cursor: Date?
-        var delivered: Set<Sample> = []
-        var largestRead = 0
+        var delivered: [Sample] = []
+        var largestTimeRead = 0
+        var largestPayload = 0
 
-        mutating func sync(_ store: inout Store, now: Date, duringRead: [Date], stops: Bool) {
-            let added = store.samples[(anchor ?? store.samples.count)...]
-            let newAnchor = store.samples.count
-            let start = SyncLimits.incrementalReadStart(
-                cursor: cursor,
-                earliestAdded: added.map(\.start).min().map { [$0] } ?? [],
-                firstReads: anchor == nil ? [now.addingTimeInterval(-7 * 86_400)] : []
+        static func uuid(_ id: Int) -> UUID {
+            UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", id))!
+        }
+
+        /// What one sync sent.
+        @discardableResult
+        mutating func sync(_ store: inout Store, now: Date, duringRead: [Date] = [], ending: Ending = .none) -> [Sample] {
+            let pageLimit = IncrementalRead.pageBudget(for: .heartRate, catchingUp: anchor == nil || cursor != nil)
+            var added: [Sample] = []
+            let newAnchor: Int
+            var firstRead: Date?
+            if let anchor {
+                added = Array(store.samples[anchor..<min(anchor + pageLimit, store.samples.count)])
+                newAnchor = anchor + added.count
+            } else {
+                newAnchor = store.samples.count
+                firstRead = now.addingTimeInterval(-7 * 86_400)
+            }
+            let plan = IncrementalRead.plan(
+                cursor: cursor, firstRead: firstRead,
+                added: added.map { AddedSample(uuid: Syncer.uuid($0.id), start: $0.start, end: $0.start) }, now: now
             )
+            var sent: [Sample] = []
             var newCursor: Date?
-            if let start, start < now {
+            if let start = plan.timeReadStart, start < now {
                 let probe = store.read(from: start, to: now, limit: limit).map(\.start)
                 let slice = SyncLimits.sliceEnd(probedStartDates: probe, limit: limit, from: start, to: now)
                 store.save(duringRead)
                 let read = store.read(from: start, to: slice.end, limit: limit)
-                if stops { return }
-                largestRead = max(largestRead, read.count)
-                delivered.formUnion(read)
+                largestTimeRead = max(largestTimeRead, read.count)
+                sent += read
                 newCursor = SyncLimits.catchUpCursor(afterSliceEndingAt: slice.end, now: now)
             } else {
                 store.save(duringRead)
-                if stops { return }
             }
+            let wanted = Set(plan.byUuid.map(\.uuid))
+            sent += added.filter { wanted.contains(Syncer.uuid($0.id)) }
+            largestPayload = max(largestPayload, sent.count)
+
+            if ending == .beforeQueue { return [] }
+            delivered += sent
+            if ending == .beforeCommit { return sent }
             anchor = newAnchor
             cursor = newCursor
+            return sent
         }
     }
 
@@ -197,22 +227,48 @@ final class SyncLimitsTests: XCTestCase {
 
         for round in 0..<40 {
             now += 600
-            // New samples keep coming, a few backdated by up to a day, some saved mid-read.
+            // New samples keep coming, some backdated by up to a day or a year, some saved
+            // mid-read, and an import of 1500 at once.
             var fresh = (0..<rng.next(40)).map { _ in now.addingTimeInterval(-TimeInterval(rng.next(600))) }
             if round % 4 == 1 { fresh.append(now.addingTimeInterval(-TimeInterval(rng.next(86_400)))) }
+            if round % 7 == 3 { fresh.append(now.addingTimeInterval(-TimeInterval(300 * 86_400 + rng.next(86_400)))) }
+            if round == 12 { fresh += (0..<1500).map { _ in now.addingTimeInterval(-TimeInterval(rng.next(30 * 86_400))) } }
             store.save(fresh)
             let duringRead = (0..<rng.next(30)).map { _ in now.addingTimeInterval(-TimeInterval(rng.next(3_600))) }
-            syncer.sync(&store, now: now, duringRead: duringRead, stops: round % 5 == 2)
+            let ending: Ending = round % 5 == 2 ? .beforeQueue : round % 5 == 4 ? .beforeCommit : .none
+            syncer.sync(&store, now: now, duringRead: duringRead, ending: ending)
         }
-        // Quiet at the end: let the last cursor run out.
+        // Quiet at the end: let the last page and cursor run out.
         for _ in 0..<5 {
             now += 600
-            syncer.sync(&store, now: now, duringRead: [], stops: false)
+            syncer.sync(&store, now: now)
         }
 
         XCTAssertNil(syncer.cursor)
+        XCTAssertEqual(syncer.anchor, store.samples.count)
         XCTAssertEqual(Set(store.samples).subtracting(syncer.delivered).count, 0, "samples that never went out")
-        XCTAssertLessThan(syncer.largestRead, 1000, "a read reached the cap and may have cut records off")
+        XCTAssertLessThan(syncer.largestTimeRead, 1000, "a time read reached the cap and may have cut records off")
+        XCTAssertLessThanOrEqual(syncer.largestPayload, 1000, "one payload carried more than the cap")
+    }
+
+    func testABackdatedSampleSendsItselfAndNotEverythingSince() {
+        let base = Date(timeIntervalSince1970: 1_800_000_000)
+        var store = Store()
+        store.save((0..<500).map { base.addingTimeInterval(TimeInterval($0 * 600)) })
+        var syncer = Syncer(limit: 200)
+        var now = base.addingTimeInterval(500 * 600)
+        // The first sync reads the lookback week, over as many syncs as the cap takes.
+        for _ in 0..<5 {
+            now += 60
+            syncer.sync(&store, now: now)
+        }
+        XCTAssertNil(syncer.cursor)
+
+        now += 60
+        store.save([now.addingTimeInterval(-365 * 86_400)])
+        let sent = syncer.sync(&store, now: now)
+
+        XCTAssertEqual(sent, [store.samples.last!])
     }
 }
 

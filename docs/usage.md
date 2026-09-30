@@ -5,7 +5,7 @@
 - An iPhone with iOS 17.0 or later
 - A Mac with Xcode 26 or later, to build the app (CI builds with Xcode 26.6)
 - An Apple Account; a free one is enough, see [below](#free-or-paid-apple-account)
-- Home Assistant with the Life Dashboard integration 0.7.0 or newer (HACS), a webhook endpoint, or an MQTT broker
+- Home Assistant with the Life Dashboard integration 0.7.1 or newer (HACS), a webhook endpoint, or an MQTT broker
 
 ## Build and install
 
@@ -53,7 +53,7 @@ Two routes, and neither needs YAML. The **Life Dashboard integration** is the re
 
 ### With the integration
 
-You need the integration 0.7.0 or newer; earlier versions do not accept the iPhone app. Installing it is the same as for the Android app, and the Android app's [usage.md](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/usage.md#with-the-integration) walks through it: add the repository to HACS, download **Life Dashboard**, restart Home Assistant, and add the integration under Settings > Devices & services, with a name for the phone. Then:
+You need the integration 0.7.1 or newer; earlier versions do not accept the iPhone app. Installing it is the same as for the Android app, and the Android app's [usage.md](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/usage.md#with-the-integration) walks through it: add the repository to HACS, download **Life Dashboard**, restart Home Assistant, and add the integration under Settings > Devices & services, with a name for the phone. Then:
 
 1. **Scan the code** the dialog shows with **Scan a pairing code** in the app, and tap **Pair**. [Pairing by QR code](#pairing-by-qr-code) has the details.
 2. **Grant and sync.** Switch on the types you want and tap **Sync Now**. The iPhone appears under Settings > Devices & services > Life Dashboard with a sensor for each type it sent. For the past, tap **Backfill** on the Health tab.
@@ -112,15 +112,15 @@ A sync or backfill that starts while the iPhone is locked cannot read Apple Heal
 
 ### MQTT sensors do not update
 
-Every sync with new records publishes today's totals and the types that have them, so a sensor only changes when new data arrives; a type that is still catching up on a long backlog is published once it has caught up. A broker that does not answer within 10 seconds, such as a home address dialled from outside the home network, fails the sync. If a publish fails, the Logs tab shows the broker's error; `NOT_AUTHORIZED` means the username or password is wrong.
+Every sync with new records publishes today's totals and the types that have them, so a sensor only changes when new data arrives; a type that is still catching up on a long backlog is published once it has caught up, and a record dated before the sensor's value, such as a weight entered for last week, does not replace it. A broker that does not answer within 10 seconds, such as a home address dialled from outside the home network, fails the sync. If a publish fails, the Logs tab shows the broker's error; `NOT_AUTHORIZED` means the username or password is wrong.
 
 ### Queued payloads disappear
 
-A payload that could not be delivered is kept for up to 7 days or 20 attempts, and then dropped. The Health tab shows how many are pending, and **Retry Now** sends them at once.
+A payload that could not be delivered is kept for 7 days, however many attempts that takes. After that, the next delivery that fails drops it. Each dropped payload leaves a row in the Logs tab with the payload and why it never arrived, and a notification says how many syncs were lost. The Health tab shows how many are pending, and **Retry Now** sends them at once, to the webhook URLs and with the headers configured now. A payload the receiver refuses for what it carries (HTTP 400, 413 or 422) stays queued without holding up the others; the receiver's own log says why it refuses it.
 
 ### Step, distance or calorie totals are far too high
 
-Apple Health often holds the same activity from the iPhone and the Watch, each as records of its own. Summing the raw records counts it twice. Use [`daily_totals`](webhook.md#daily-totals) for day totals, which are deduplicated by HealthKit the way the Health app does it, and deduplicate raw records on `uuid`, since Sync Now sends the last 7 days again.
+Apple Health often holds the same activity from the iPhone and the Watch, each as records of its own. Summing the raw records counts it twice. Use [`daily_totals`](webhook.md#daily-totals) for day totals, which are deduplicated by HealthKit the way the Health app does it, and deduplicate raw records on `uuid`, since Sync Now sends the last 7 days again and a delivery that iOS cut off is sent once more.
 
 ### The app says a pairing code is from a newer version
 

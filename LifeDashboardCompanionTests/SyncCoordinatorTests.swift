@@ -28,6 +28,33 @@ final class SyncCoordinatorTests: XCTestCase {
         /// What the runs did, in order: where each read started and ended.
         var events: [String] { lock.withLock { _events } }
 
+        /// Whether a run gets foreground time, as one started while the app is on screen does.
+        var foreground: Bool { get { lock.withLock { _foreground } } set { lock.withLock { _foreground = newValue } } }
+        private var _foreground = false
+        private var _holds = 0
+        private var _releases = 0
+        private var expiry: (@Sendable () -> Void)?
+
+        var holds: Int { lock.withLock { _holds } }
+        var releases: Int { lock.withLock { _releases } }
+
+        func hold(_ expired: @escaping @Sendable () -> Void) -> (@Sendable () -> Void)? {
+            lock.withLock {
+                guard _foreground else { return nil }
+                _holds += 1
+                expiry = expired
+                return { self.lock.withLock { self._releases += 1 } }
+            }
+        }
+
+        /// iOS taking the foreground time back.
+        func expire() {
+            let expired = lock.withLock { expiry }
+            expired?()
+        }
+
+        var held: Bool { lock.withLock { expiry != nil } }
+
         func count(_ body: (World) -> Void) { lock.withLock { body(self) } }
         func addDrain() { lock.withLock { drains += 1; _events.append("drain") } }
         func addIncremental() { lock.withLock { incrementals += 1; _events.append("incremental") } }
@@ -60,7 +87,8 @@ final class SyncCoordinatorTests: XCTestCase {
                     self.note("full done")
                     return self.result
                 },
-                replan: { self.addReplan($0) }
+                replan: { self.addReplan($0) },
+                holdInForeground: { self.hold($0) }
             )
         }
     }
@@ -299,6 +327,64 @@ final class SyncCoordinatorTests: XCTestCase {
         XCTAssertEqual(world.drains, 0)
         await coordinator.drain(automatic: false)
         XCTAssertEqual(world.drains, 1)
+    }
+
+    func testARunStartedOnScreenHoldsBackgroundTimeUntilItEnds() async {
+        let world = World()
+        await world.drainLatch.open()
+        world.foreground = true
+        let coordinator = SyncCoordinator(environment: world.environment)
+
+        let released = await finished(within: 30) { () -> [Int] in
+            let run = Task { await coordinator.runManual(full: true) }
+            await world.syncLatch.waitForArrivals(1)
+            _ = await settle { world.holds == 1 }
+            let whileRunning = world.releases
+            await world.syncLatch.open()
+            _ = await run.value
+            _ = await settle { world.releases == 1 }
+            return [world.holds, whileRunning, world.releases]
+        }
+
+        XCTAssertEqual(released, [1, 0, 1])
+    }
+
+    @MainActor
+    func testOnlyARunThatStartsInTheForegroundAsksForTime() {
+        XCTAssertTrue(ForegroundHold.wanted(in: .active))
+        XCTAssertTrue(ForegroundHold.wanted(in: .inactive))
+        XCTAssertFalse(ForegroundHold.wanted(in: .background))
+    }
+
+    func testWhenIOSTakesTheTimeBackTheRunIsCancelled() async {
+        let world = World()
+        await world.drainLatch.open()
+        world.foreground = true
+        let cancelled = Latch()
+        var environment = world.environment
+        environment.syncFull = {
+            world.addFull()
+            await withTaskCancellationHandler {
+                await world.syncLatch.wait()
+            } onCancel: {
+                Task { await cancelled.open() }
+            }
+            return Task.isCancelled ? .failure(error: AppDiagnostic.interrupted.rawValue) : .success(syncCounts: [:])
+        }
+        let coordinator = SyncCoordinator(environment: environment)
+
+        let result = await finished(within: 30) { () -> HealthSyncResult in
+            let run = Task { await coordinator.runManual(full: true) }
+            await world.syncLatch.waitForArrivals(1)
+            _ = await settle { world.held }
+            world.expire()
+            await cancelled.wait()
+            await world.syncLatch.open()
+            return await run.value
+        }
+
+        guard case .failure(let error)? = result else { return XCTFail("expected the run to end as cancelled") }
+        XCTAssertEqual(error, AppDiagnostic.interrupted.rawValue)
     }
 
     func testARunStoppedBeforeTheReadLeavesTheSyncOwed() async {

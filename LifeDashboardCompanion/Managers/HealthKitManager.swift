@@ -16,18 +16,26 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
 
     static let lookbackDays: Int = 7
 
-    /// Result type indicating why data reading failed or returned empty
+    /// Result type indicating why data reading failed or returned empty. The anchors and
+    /// catch-up cursors a read moved to come with it, unsaved: the caller saves them once what
+    /// was read is safe, delivered or in the retry queue (see `AnchorCommit`).
+    ///
+    /// `notCurrent` names the types whose records do not include their newest sample: a read
+    /// that stopped at the cap, or an added sample dated before what HealthKit already holds.
+    /// MQTT leaves those out, since a sensor shows the latest record it is given.
     enum ReadResult {
-        case data([String: Any])
-        case empty
+        case data([String: Any], AnchorCommit, notCurrent: Set<HealthDataType>)
+        case empty(AnchorCommit)
         case protectedDataUnavailable
     }
 
-    /// Payload fragments produced by reading a single data type, safe to move across
-    /// the task group boundary. @unchecked Sendable: the values are JSON value types
-    /// (String, Int, Double, arrays, dictionaries) freshly built per task.
-    private struct PayloadFragments: @unchecked Sendable {
-        let pairs: [(String, Any)]
+    /// What reading one type incrementally gave: its payload fragments, nil when there was
+    /// nothing to send, and the anchors and cursor to save afterwards.
+    private struct TypeRead {
+        let pairs: [(String, Any)]?
+        let anchors: [(HKSampleType, HKQueryAnchor)]
+        let cursor: Date?
+        let holdsNewest: Bool
     }
 
     private init() {
@@ -95,34 +103,98 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         )!
         let endDate = Date()
 
-        // Run all type queries in parallel; a failure in one type only skips that type
-        let results = await withTaskGroup(
-            of: PayloadFragments?.self
-        ) { group -> [String: Any] in
-            for dataType in enabledTypes {
+        // Every type reads on its own; one that fails or does not answer in time is skipped.
+        let fragments = await HealthKitManager.gather(enabledTypes) { dataType in
+            try await self.readDataForType(dataType, start: startDate, end: endDate)
+        } failed: { dataType, error in
+            self.logger.error("Read failed for \(dataType.rawValue): \(error.localizedDescription)")
+        }
+        return HealthKitManager.merge(fragments.values)
+    }
+
+    /// What MQTT gets from a full read. The full read is capped oldest first, so for a type
+    /// with more records in the lookback week than its cap, heart rate and steps from an Apple
+    /// Watch among others, its newest record is days old, and a sensor would show that as the
+    /// current value. Such a type is read again from the newest end (see
+    /// `SyncLimits.tailStart`); a type whose probe or read fails is left out, as the sensor
+    /// then keeps what it had.
+    func newestRecords(for types: Set<HealthDataType>, in read: [String: Any]) async -> [String: Any] {
+        let end = Date()
+        let start = Calendar.current.date(byAdding: .day, value: -HealthKitManager.lookbackDays, to: end)!
+        let tails = await HealthKitManager.gather(types) { dataType -> NewestRead? in
+            let limit = SyncLimits.maxRecordsPerSync(for: dataType)
+            let range = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+            var starts: [Date] = []
+            for sampleType in dataType.hkSampleTypes {
+                starts += try await self.boundedSampleQuery(type: sampleType, predicate: range, limit: limit, newestFirst: true).map(\.startDate)
+            }
+            guard let tailStart = SyncLimits.tailStart(probedStartDates: starts, limit: limit) else { return .whole }
+            return .tail(try await self.readDataForType(dataType, start: tailStart, end: end) ?? [])
+        } failed: { dataType, error in
+            self.logger.error("Newest records of \(dataType.rawValue) failed: \(error.localizedDescription)")
+        }
+        return HealthKitManager.newest(in: read, types: types, reads: tails)
+    }
+
+    enum NewestRead {
+        /// The full read holds the type's newest records.
+        case whole
+        /// The newest records, read again from the newest end.
+        case tail([(String, Any)])
+    }
+
+    /// The full read with each type's records as `reads` says; a type missing from `reads`
+    /// failed and is left out.
+    static func newest(in read: [String: Any], types: Set<HealthDataType>, reads: [HealthDataType: NewestRead]) -> [String: Any] {
+        var payload = read
+        for type in types {
+            switch reads[type] {
+            case .whole:
+                continue
+            case .tail(let pairs):
+                payload.removeValue(forKey: type.countedPayloadKey)
+                for (key, value) in pairs { payload[key] = value }
+            case nil:
+                payload.removeValue(forKey: type.countedPayloadKey)
+            }
+        }
+        return payload
+    }
+
+    /// Runs `read` for every type in a task of its own and returns what each one read. A type
+    /// that throws, a HealthKit query that ran out of time among others, is left out and passed
+    /// to `failed`; the other types go ahead.
+    static func gather<Fragment>(
+        _ types: Set<HealthDataType>,
+        read: @escaping @Sendable (HealthDataType) async throws -> Fragment?,
+        failed: @escaping @Sendable (HealthDataType, Error) -> Void
+    ) async -> [HealthDataType: Fragment] {
+        await withTaskGroup(of: (HealthDataType, Unchecked<Fragment>?).self) { group in
+            for dataType in types {
                 group.addTask {
                     do {
-                        guard let pairs = try await self.readDataForType(dataType, start: startDate, end: endDate) else {
-                            return nil
-                        }
-                        return PayloadFragments(pairs: pairs)
+                        return (dataType, try await read(dataType).map(Unchecked.init))
                     } catch {
-                        self.logger.error("Read failed for \(dataType.rawValue): \(error.localizedDescription)")
-                        return nil
+                        failed(dataType, error)
+                        return (dataType, nil)
                     }
                 }
             }
-
-            var payload: [String: Any] = [:]
-            for await result in group {
-                for (key, value) in result?.pairs ?? [] {
-                    payload[key] = value
-                }
+            var results: [HealthDataType: Fragment] = [:]
+            for await (dataType, fragment) in group {
+                if let fragment { results[dataType] = fragment.value }
             }
-            return payload
+            return results
         }
+    }
 
-        return results
+    /// The payload the per-type reads add up to.
+    static func merge<Pairs: Sequence>(_ fragments: Pairs) -> [String: Any] where Pairs.Element == [(String, Any)] {
+        var payload: [String: Any] = [:]
+        for pairs in fragments {
+            for (key, value) in pairs { payload[key] = value }
+        }
+        return payload
     }
 
     // MARK: - Daily Totals
@@ -173,56 +245,68 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         }
 
         let prefs = PreferencesManager.shared
+        let probeNewest = prefs.mqttConfigured
 
-        let results = await withTaskGroup(
-            of: PayloadFragments?.self
-        ) { group -> [String: Any] in
-            for dataType in enabledTypes {
-                group.addTask {
-                    do {
-                        guard let pairs = try await self.readIncrementalDataForType(dataType, prefs: prefs) else {
-                            return nil
-                        }
-                        return PayloadFragments(pairs: pairs)
-                    } catch {
-                        self.logger.error("Incremental read failed for \(dataType.rawValue): \(error.localizedDescription)")
-                        return nil
-                    }
-                }
-            }
-
-            var payload: [String: Any] = [:]
-            for await result in group {
-                for (key, value) in result?.pairs ?? [] {
-                    payload[key] = value
-                }
-            }
-            return payload
+        // A type that fails keeps its anchors and cursor, so the next sync reads it again.
+        let reads = await HealthKitManager.gather(enabledTypes) { dataType in
+            try await self.readIncrementalDataForType(dataType, prefs: prefs, probeNewest: probeNewest)
+        } failed: { dataType, error in
+            self.logger.error("Incremental read failed for \(dataType.rawValue): \(error.localizedDescription)")
         }
+        var commit = AnchorCommit()
+        for (dataType, read) in reads {
+            commit.anchors += read.anchors.map { AnchorCommit.Anchor(dataType: dataType, sampleType: $0.0, anchor: $0.1) }
+            commit.cursors.append((dataType, read.cursor))
+        }
+        let results = HealthKitManager.merge(reads.values.compactMap(\.pairs))
+        let notCurrent = Set(reads.filter { !$0.value.holdsNewest }.keys)
 
-        return results.isEmpty ? .empty : .data(results)
+        return results.isEmpty ? .empty(commit) : .data(results, commit, notCurrent: notCurrent)
     }
 
     /// Reads incremental data for a single type using HKAnchoredObjectQuery.
     ///
-    /// New samples are found through the anchors, then the type is re-read by time from an
-    /// hour before the earliest of them, which reuses the type-specific formatting. That read
-    /// stops at the per-type cap (see `nextSlice`), and whatever lies past the cap is left to
-    /// the catch-up cursor: the next sync continues there, so no record is skipped because
-    /// the anchor already moved past it. Anchors and cursor are saved once the read is done.
+    /// The anchored queries report the samples added since the last sync, a page of them for
+    /// the type (see `IncrementalRead.pageBudget`); what is past the page stays behind the
+    /// anchor for the next sync. Only those samples are sent, built by the same code as every
+    /// other read (see `readAdded`), so a back-dated entry sends itself and not every record
+    /// since its date.
+    ///
+    /// A sample type read for the first time has no anchor: its anchor is taken at the end of
+    /// the store and the lookback week is read by time, capped (see `nextSlice`), with the rest
+    /// left to the catch-up cursor, which the next syncs continue from. Anchors and cursor are
+    /// returned, for the caller to save once the records are delivered or queued.
     private func readIncrementalDataForType(
         _ dataType: HealthDataType,
-        prefs: PreferencesManager
-    ) async throws -> [(String, Any)]? {
-        var earliestAdded: [Date] = []
+        prefs: PreferencesManager,
+        probeNewest: Bool
+    ) async throws -> TypeRead {
+        let sampleTypes = dataType.hkSampleTypes
+        let catchingUp = prefs.loadCatchUpCursor(for: dataType) != nil
+            || sampleTypes.contains { prefs.loadAnchor(for: dataType, sampleType: $0) == nil }
+        // One budget for all sample types of the payload type, which the readers cap together,
+        // spent in an order that turns every minute, so a busy one (walking distance) cannot
+        // keep a quiet one (cycling distance) waiting for good.
+        var budget = IncrementalRead.pageBudget(for: dataType, catchingUp: catchingUp)
+        var added: [AddedSample] = []
+        var addedIds: [String: Set<UUID>] = [:]
+        var morePending = false
         var readsFirstTime = false
         var newAnchors: [(HKSampleType, HKQueryAnchor)] = []
 
-        for sampleType in dataType.hkSampleTypes {
+        for sampleType in IncrementalRead.rotated(sampleTypes, by: Int(Date().timeIntervalSince1970 / 60)) {
             if let anchor = prefs.loadAnchor(for: dataType, sampleType: sampleType) {
-                let (earliestNew, newAnchor) = try await anchoredQuery(sampleType: sampleType, anchor: anchor)
-                newAnchors.append((sampleType, newAnchor))
-                if let earliest = earliestNew { earliestAdded.append(earliest) }
+                // Nothing left: this sample type keeps its anchor for the next sync.
+                guard budget > 0 else {
+                    morePending = true
+                    continue
+                }
+                let page = try await anchoredPage(sampleType: sampleType, anchor: anchor, limit: budget)
+                newAnchors.append((sampleType, page.anchor ?? anchor))
+                added += page.added
+                addedIds[sampleType.identifier, default: []].formUnion(page.added.map(\.uuid))
+                morePending = morePending || page.count >= budget
+                budget -= page.count
             } else {
                 // First sync of this sample type: read the lookback window. The anchor is taken
                 // before that read, so a sample written in between is read now or next time.
@@ -230,33 +314,165 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 readsFirstTime = true
             }
         }
-        // The read ends after the anchored queries, which can page for seconds: a sample saved
-        // while they ran is behind the new anchors, so it has to fall inside this read.
+        // The read ends after the anchored queries: a sample saved while they ran is behind
+        // the new anchors, so it has to fall inside this read.
         let now = Date()
-        let firstReads = readsFirstTime
-            ? [Calendar.current.date(byAdding: .day, value: -HealthKitManager.lookbackDays, to: now)!]
-            : []
-        let readFrom = SyncLimits.incrementalReadStart(
-            cursor: prefs.loadCatchUpCursor(for: dataType), earliestAdded: earliestAdded, firstReads: firstReads
-        )
+        let firstRead = readsFirstTime
+            ? Calendar.current.date(byAdding: .day, value: -HealthKitManager.lookbackDays, to: now)!
+            : nil
+        let storedCursor = prefs.loadCatchUpCursor(for: dataType)
+        let plan = IncrementalRead.plan(cursor: storedCursor, firstRead: firstRead, added: added, now: now)
+        let timeReadStart = plan.timeReadStart
+        let byUuid = plan.byUuid
 
         var result: [(String, Any)]?
-        var cursor: Date?
-        if let start = readFrom, start < now {
+        // A cursor at or past now, after the clock was set back, is kept for when it is reached.
+        var cursor = storedCursor.flatMap { $0 >= now ? $0 : nil }
+        var timeReadReachedNow = false
+        if let start = timeReadStart, start < now {
             let slice = try await nextSlice(for: dataType, from: start, to: now)
             if !slice.exact {
                 logger.error("More than the cap of \(dataType.rawValue) samples share \(start.iso8601String); the excess is not sent")
             }
             result = try await readDataForType(dataType, start: start, end: slice.end)
             cursor = SyncLimits.catchUpCursor(afterSliceEndingAt: slice.end, now: now)
+            timeReadReachedNow = cursor == nil
         }
 
-        for (sampleType, anchor) in newAnchors {
-            prefs.saveAnchor(anchor, for: dataType, sampleType: sampleType)
+        if !byUuid.isEmpty {
+            // Every sample type whose samples are records of their own is named, a first
+            // read's with none, so a reader never falls back to everything in the span. A
+            // sample type that only adds fields to another's record, the diastolic value of a
+            // blood pressure reading or the carbs and fat of a meal, is read by time around
+            // them: its sample can be in another page than the one it belongs to.
+            let wanted = Set(byUuid.map(\.uuid))
+            let joined = Set(sampleTypes.map(\.identifier)).subtracting(dataType.deletionSampleTypes.map(\.identifier))
+            let only = Dictionary(uniqueKeysWithValues: sampleTypes.filter { !joined.contains($0.identifier) }.map {
+                ($0.identifier, (addedIds[$0.identifier] ?? []).intersection(wanted))
+            })
+            result = IncrementalRead.merge(result, try await readAdded(dataType, byUuid, only: only))
         }
-        prefs.saveCatchUpCursor(cursor, for: dataType)
-        return result
+
+        var newestInStore: Date?
+        if probeNewest, result != nil, !timeReadReachedNow, !byUuid.isEmpty {
+            do {
+                newestInStore = try await newestStart(of: dataType, notAfter: now)
+            } catch {
+                // Unknown is not current: the sensor keeps its value, the records still go.
+                newestInStore = .distantFuture
+            }
+        }
+        let holdsNewest = IncrementalRead.holdsNewest(
+            behind: morePending || cursor != nil,
+            timeReadReachedNow: timeReadReachedNow,
+            byUuidStarts: byUuid.map(\.start),
+            newestInStore: newestInStore,
+            now: now
+        )
+        return TypeRead(pairs: result, anchors: newAnchors, cursor: cursor, holdsNewest: holdsNewest)
     }
+
+    /// Records for exactly the added samples in `added`, from the same readers as every other
+    /// read. Most types read them by uuid (`onlySamples`). Sleep sessions and menstruation
+    /// periods are built from several samples, so their neighbours are read too, in a window
+    /// around each group of added samples, and only what holds an added sample is kept: a
+    /// night that gains a stage goes out whole, under the uuid derived from its first stage.
+    private func readAdded(
+        _ dataType: HealthDataType,
+        _ added: [AddedSample],
+        only: [String: Set<UUID>]
+    ) async throws -> [(String, Any)]? {
+        switch dataType {
+        case .sleep:
+            let limit = HealthKitManager.sessionReadLimit
+            var result: [(String, Any)]?
+            for window in IncrementalRead.sessionWindows(
+                for: added, gap: SleepSessionBuilder.sessionGap, padding: BackfillPlan.sleepPadding
+            ) {
+                let sessions = try await readSleepData(start: window.start, end: window.end, limit: limit)
+                let stages = sessions.reduce(0) { $0 + (($1["stages"] as? [Any])?.count ?? 0) }
+                // A night past the limit would be cut and its added stages lost behind the anchor.
+                guard stages < limit else { throw SessionReadTooLarge() }
+                let holding = IncrementalRead.sessions(sessions, holding: Set(added.map(\.uuid)))
+                if !holding.isEmpty { result = IncrementalRead.merge(result, [("sleep", holding)]) }
+            }
+            return result
+
+        case .menstruation:
+            // Flow days are records of their own and go by uuid; the periods built from them
+            // need the days around them, read past the flow read's cap of 200.
+            let flow = try await readByUuid(dataType, added, only: only)?.filter { $0.0 == "menstruation_flow" }
+            let limit = HealthKitManager.sessionReadLimit
+            var periods: [(String, Any)]?
+            for window in IncrementalRead.sessionWindows(
+                for: added, gap: MenstruationPeriodBuilder.maxGap, padding: BackfillPlan.periodPadding
+            ) {
+                let samples = try await readSamples(
+                    type: HKCategoryType(.menstrualFlow), start: window.start, end: window.end, limit: limit
+                )
+                guard samples.count < limit else { throw SessionReadTooLarge() }
+                // As the flow reader does: a day logged as no flow is not part of a period.
+                let days = samples.compactMap { $0 as? HKCategorySample }
+                    .filter { Self.menstrualFlow($0) != nil }
+                    .map { FlowSample(start: $0.startDate, end: $0.endDate, uuid: $0.uuid.uuidString, source: $0.sourceRevision.source.name) }
+                let holding = IncrementalRead.periods(MenstruationPeriodBuilder.periods(from: days), holding: added)
+                if !holding.isEmpty { periods = IncrementalRead.merge(periods, [("menstruation_period", holding)]) }
+            }
+            return IncrementalRead.merge(flow.flatMap { $0.isEmpty ? nil : $0 }, periods)
+
+        default:
+            return try await readByUuid(dataType, added, only: only)
+        }
+    }
+
+    /// Reads `dataType` around the added samples with `onlySamples` set, so the type's own
+    /// reader builds records for them and nothing else, and keeps the records whose uuid is an
+    /// added sample's. That drops a blood pressure reading or a food the reader finds by its
+    /// correlation, which is not filtered, when its own sample was sent before or comes in a
+    /// later page. The samples are read in spans (see `IncrementalRead.spans`), each a second
+    /// wider on both sides for what the readers pair within a second, so a back-dated sample
+    /// does not make the unfiltered reads cover the year in between.
+    private func readByUuid(
+        _ dataType: HealthDataType,
+        _ added: [AddedSample],
+        only: [String: Set<UUID>]
+    ) async throws -> [(String, Any)]? {
+        var result: [(String, Any)]?
+        for span in IncrementalRead.spans(of: added, gap: 86_400, maxCount: HealthKitManager.maxSpans) {
+            let read = try await HealthKitManager.$onlySamples.withValue(only) {
+                try await readDataForType(dataType, start: span.start.addingTimeInterval(-1), end: span.end.addingTimeInterval(1))
+            }
+            result = IncrementalRead.merge(result, read)
+        }
+        return IncrementalRead.records(result, withUuidIn: Set(added.map(\.uuid)))
+    }
+
+    /// Spans read per type in one sync, so an import scattered over a year costs a bounded
+    /// number of queries.
+    private static let maxSpans = 24
+
+    /// Stages read per window around added sleep stages: a night holds a few dozen.
+    private static let sessionReadLimit = 2000
+
+    private struct SessionReadTooLarge: Error {}
+
+    /// The start of the newest sample of `dataType` in HealthKit up to `now`, across its sample
+    /// types. A sample dated in the future is no current value, and would hold every later one
+    /// back from MQTT.
+    private func newestStart(of dataType: HealthDataType, notAfter now: Date) async throws -> Date? {
+        var newest: Date?
+        let past = HKQuery.predicateForSamples(withStart: nil, end: now, options: [])
+        for sampleType in dataType.hkSampleTypes {
+            if let start = try await boundedSampleQuery(type: sampleType, predicate: past, limit: 1, newestFirst: true).first?.startDate {
+                newest = max(newest ?? start, start)
+            }
+        }
+        return newest
+    }
+
+    /// While set, the record queries in this task return only these samples, by sample type
+    /// identifier. A sample type it does not name is read by time alone.
+    @TaskLocal static var onlySamples: [String: Set<UUID>]?
 
     /// Where a read of `dataType` from `start` has to stop to stay under its cap, so that
     /// nothing is cut off: a probe reads the start dates of the oldest samples of every
@@ -270,63 +486,60 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         return SyncLimits.sliceEnd(probedStartDates: startDates, limit: limit, from: start, to: end)
     }
 
-    /// Samples per page of an anchored query. Only the earliest start date of a page is kept,
-    /// so a type's whole history can go through without being held in memory at once.
+    /// Samples per page of the anchored query that finds the end of a store. Nothing of a
+    /// page is kept, so a type's whole history can go through without being held in memory.
     private static let anchorPageSize = 5000
-
-    /// Walks the anchored query from `anchor` to the end of the store in pages, and returns
-    /// the earliest start date among the samples added since `anchor` with the final anchor.
-    private func anchoredQuery(
-        sampleType: HKSampleType,
-        anchor: HKQueryAnchor?
-    ) async throws -> (earliest: Date?, anchor: HKQueryAnchor) {
-        var current = anchor
-        var earliest: Date?
-        while true {
-            let page = try await anchoredPage(sampleType: sampleType, anchor: current)
-            if let date = page.earliest { earliest = min(earliest ?? date, date) }
-            current = page.anchor
-            if page.count < HealthKitManager.anchorPageSize { break }
-        }
-        return (earliest, current ?? HKQueryAnchor(fromValue: 0))
-    }
 
     /// The current anchor of a sample type, for the first sync of it. A limit of 0 is
     /// HKObjectQueryNoLimit, which loaded the type's entire history at once; paging does not.
     private func queryAnchor(for sampleType: HKSampleType) async throws -> HKQueryAnchor {
-        try await anchoredQuery(sampleType: sampleType, anchor: nil).anchor
+        var current: HKQueryAnchor?
+        while true {
+            let page = try await anchoredPage(sampleType: sampleType, anchor: current, limit: HealthKitManager.anchorPageSize)
+            current = page.anchor ?? current
+            if page.count < HealthKitManager.anchorPageSize { break }
+        }
+        return current ?? HKQueryAnchor(fromValue: 0)
     }
 
     private struct AnchoredPage {
-        let earliest: Date?
+        let added: [AddedSample]
+        /// Added samples and deleted objects together: a page that returned `limit` of them
+        /// may have more behind it.
         let count: Int
         let anchor: HKQueryAnchor?
     }
 
     private func anchoredPage(
         sampleType: HKSampleType,
-        anchor: HKQueryAnchor?
+        anchor: HKQueryAnchor?,
+        limit: Int
     ) async throws -> AnchoredPage {
-        try await withCheckedThrowingContinuation { continuation in
+        let store = healthStore
+        let begin = Unchecked(value: (sampleType, anchor))
+        let page: Unchecked<AnchoredPage> = try await BoundedCall.run(timeout: HealthKitManager.recordQueryTimeout) { finish in
             let query = HKAnchoredObjectQuery(
-                type: sampleType,
+                type: begin.value.0,
                 predicate: nil,
-                anchor: anchor,
-                limit: HealthKitManager.anchorPageSize
-            ) { _, addedSamples, _, newAnchor, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
+                anchor: begin.value.1,
+                limit: limit
+            ) { _, addedSamples, deletedObjects, newAnchor, error in
+                if let error {
+                    finish(.failure(error))
                     return
                 }
                 let samples = addedSamples ?? []
-                continuation.resume(returning: AnchoredPage(
-                    earliest: samples.map(\.startDate).min(),
-                    count: samples.count,
-                    anchor: newAnchor ?? anchor
-                ))
+                finish(.success(Unchecked(value: AnchoredPage(
+                    added: samples.map { AddedSample(uuid: $0.uuid, start: $0.startDate, end: $0.endDate) },
+                    count: samples.count + (deletedObjects?.count ?? 0),
+                    anchor: newAnchor ?? begin.value.1
+                ))))
             }
-            healthStore.execute(query)
+            store.execute(query)
+            let running = Unchecked(value: query as HKQuery)
+            return { store.stop(running.value) }
         }
+        return page.value
     }
 
     /// Adds the stable HealthKit UUID and the writing app/device to a payload record,
@@ -732,6 +945,11 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
 
     // MARK: - Query Helpers
 
+    /// How long one HealthKit record query may take. HealthKit answers in well under a second
+    /// normally; one that does not answer would otherwise hold the sync, and Sync Now behind it,
+    /// for good. The type it belongs to fails for this sync, as the deletion step's reads do.
+    static let recordQueryTimeout: Duration = .seconds(10)
+
     /// Reads at most `limit` samples of any type in `[start, end)`, oldest first.
     func readSamples(
         type: HKSampleType,
@@ -739,24 +957,11 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         end: Date,
         limit: Int
     ) async throws -> [HKSample] {
-        try await withCheckedThrowingContinuation { continuation in
-            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
-            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
-
-            let query = HKSampleQuery(
-                sampleType: type,
-                predicate: predicate,
-                limit: limit,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                continuation.resume(returning: samples ?? [])
-            }
-            healthStore.execute(query)
+        var predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        if let only = HealthKitManager.onlySamples?[type.identifier] {
+            predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [predicate, HKQuery.predicateForObjects(with: only)])
         }
+        return try await boundedSampleQuery(type: type, predicate: predicate, limit: limit)
     }
 
     /// Reads at most `limit` samples, oldest first (ascending sort + query limit), so payload
@@ -767,24 +972,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         end: Date,
         limit: Int
     ) async throws -> [HKQuantitySample] {
-        try await withCheckedThrowingContinuation { continuation in
-            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
-            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
-
-            let query = HKSampleQuery(
-                sampleType: type,
-                predicate: predicate,
-                limit: limit,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                continuation.resume(returning: (samples as? [HKQuantitySample]) ?? [])
-            }
-            healthStore.execute(query)
-        }
+        try await readSamples(type: type, start: start, end: end, limit: limit).compactMap { $0 as? HKQuantitySample }
     }
 
     /// The correlations of `type` that start within `correlationMargin` of `[start, end)`, so
@@ -808,24 +996,46 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         end: Date,
         limit: Int
     ) async throws -> [HKCategorySample] {
-        try await withCheckedThrowingContinuation { continuation in
-            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
-            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+        try await readSamples(type: type, start: start, end: end, limit: limit).compactMap { $0 as? HKCategorySample }
+    }
 
+    /// One HKSampleQuery by start date, under `recordQueryTimeout`. A query that runs out of
+    /// time is stopped and throws `BoundedCall.TimedOut`; its late answer is dropped.
+    func boundedSampleQuery(
+        type: HKSampleType,
+        predicate: NSPredicate?,
+        limit: Int,
+        newestFirst: Bool = false
+    ) async throws -> [HKSample] {
+        let store = healthStore
+        let begin = SampleQueryStart(type: type, predicate: predicate, limit: limit, ascending: !newestFirst)
+        let batch: Unchecked<[HKSample]> = try await BoundedCall.run(timeout: HealthKitManager.recordQueryTimeout) { finish in
             let query = HKSampleQuery(
-                sampleType: type,
-                predicate: predicate,
-                limit: limit,
-                sortDescriptors: [sortDescriptor]
+                sampleType: begin.type,
+                predicate: begin.predicate,
+                limit: begin.limit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: begin.ascending)]
             ) { _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
+                if let error {
+                    finish(.failure(error))
+                } else {
+                    finish(.success(Unchecked(value: samples ?? [])))
                 }
-                continuation.resume(returning: (samples as? [HKCategorySample]) ?? [])
             }
-            healthStore.execute(query)
+            store.execute(query)
+            let running = Unchecked(value: query as HKQuery)
+            return { store.stop(running.value) }
         }
+        return batch.value
+    }
+
+    /// @unchecked Sendable: HealthKit query parameters are immutable once built, and
+    /// HKHealthStore accepts them from any thread.
+    private struct SampleQueryStart: @unchecked Sendable {
+        let type: HKSampleType
+        let predicate: NSPredicate?
+        let limit: Int
+        let ascending: Bool
     }
 
     func readSleepData(start: Date, end: Date, limit: Int) async throws -> [[String: Any]] {
@@ -861,24 +1071,11 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     }
 
     private func readWorkouts(start: Date, end: Date, limit: Int) async throws -> [[String: Any]] {
-        let workouts: [HKWorkout] = try await withCheckedThrowingContinuation { continuation in
-            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
-            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
-
-            let query = HKSampleQuery(
-                sampleType: HKWorkoutType.workoutType(),
-                predicate: predicate,
-                limit: limit,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                continuation.resume(returning: (samples as? [HKWorkout]) ?? [])
-            }
-            healthStore.execute(query)
-        }
+        let workouts = try await readSamples(
+            type: HKWorkoutType.workoutType(),
+            start: start, end: end,
+            limit: limit
+        ).compactMap { $0 as? HKWorkout }
 
         return workouts.map { workout in
             record([
@@ -904,7 +1101,40 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     }
 }
 
+/// Where an incremental read left each type: the anchors past what it read and the
+/// catch-up cursor. Saving it tells the next sync that those records are taken care of, so
+/// it is saved only after they are: an anchor saved before the payload was delivered or
+/// queued lost the records when iOS suspended or ended the app in between.
+struct AnchorCommit: @unchecked Sendable {
+    struct Anchor {
+        let dataType: HealthDataType
+        let sampleType: HKSampleType
+        let anchor: HKQueryAnchor
+    }
+
+    var anchors: [Anchor] = []
+    var cursors: [(HealthDataType, Date?)] = []
+
+    /// Cursors first: an app ended between the two then only reads a stretch again, where an
+    /// anchor saved without its cursor would skip what the cursor still had to read.
+    func save(to prefs: PreferencesManager = .shared) {
+        for (dataType, cursor) in cursors {
+            prefs.saveCatchUpCursor(cursor, for: dataType)
+        }
+        for saved in anchors {
+            prefs.saveAnchor(saved.anchor, for: saved.dataType, sampleType: saved.sampleType)
+        }
+    }
+}
+
 // MARK: - Extensions
+
+/// Carries a value that is not Sendable across a task boundary it crosses exactly once, such as
+/// a HealthKit result handed from its callback to the caller, or one type's payload fragment
+/// from its read task to the merge.
+struct Unchecked<Value>: @unchecked Sendable {
+    let value: Value
+}
 
 extension Date {
     // ISO8601DateFormatter is documented as thread-safe, unlike DateFormatter

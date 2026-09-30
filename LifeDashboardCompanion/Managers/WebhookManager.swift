@@ -19,12 +19,27 @@ actor WebhookManager {
     /// How a post to every URL ended. Interrupted is neither a delivery nor a failure: the
     /// request was cancelled, as when iOS ends a background task, and says nothing about the
     /// receiver. The caller queues the payload as for a failure.
+    ///
+    /// Refused is a failure where every URL that failed refused the payload itself (see
+    /// `WebhookRetryPolicy.refusesPayload`). With one URL down and another refusing, it is a
+    /// plain failure, so the queue waits for the one that is down, as Android's does.
     enum Outcome: Equatable {
         case delivered
         case failed
+        case refused
         case interrupted
 
         var delivered: Bool { self == .delivered }
+    }
+
+    /// A post's outcome with the error and status code of the last URL that failed, as its log
+    /// row stores them (the error in English; `AppDiagnostic.display` translates it).
+    struct Delivery: Equatable {
+        let outcome: Outcome
+        var error: String?
+        var statusCode: Int?
+
+        var delivered: Bool { outcome.delivered }
     }
 
     /// A cancelled task, as opposed to a receiver or network that failed. URLSession reports a
@@ -42,7 +57,8 @@ actor WebhookManager {
     ///
     /// Which URL gets the custom headers is decided here, per URL, at send time, so every
     /// caller obeys it: an address pairing added gets none. Any new way of posting must go
-    /// through this method for that reason.
+    /// through this method for that reason, with the headers configured now: the retry queue
+    /// passes the current ones too, not those of the day a payload was queued.
     func post(
         body jsonData: Data,
         urls: [String],
@@ -51,8 +67,8 @@ actor WebhookManager {
         dataType: String,
         recordCount: Int,
         logSuccess: Bool = true
-    ) async -> Outcome {
-        guard !urls.isEmpty else { return .failed }
+    ) async -> Delivery {
+        guard !urls.isEmpty else { return Delivery(outcome: .failed) }
 
         let prefs = PreferencesManager.shared
         let signingSecret = prefs.healthSigningSecret
@@ -66,6 +82,9 @@ actor WebhookManager {
         var anySuccess = false
         var anyFailed = false
         var anyInterrupted = false
+        var allRefused = true
+        var lastError: String?
+        var lastStatusCode: Int?
 
         for url in urls {
             var urlHeaders = PairingApply.headers(
@@ -91,6 +110,9 @@ actor WebhookManager {
                 anyInterrupted = true
             } else if !result.success {
                 anyFailed = true
+                lastError = result.errorMessage
+                lastStatusCode = result.statusCode
+                allRefused = allRefused && (result.statusCode.map(WebhookRetryPolicy.refusesPayload) ?? false)
             }
 
             let log = WebhookLog(
@@ -107,8 +129,10 @@ actor WebhookManager {
         }
 
         // A URL that failed before the cut is a failure of the whole post, as its row says.
-        if anySuccess { return .delivered }
-        return anyInterrupted && !anyFailed ? .interrupted : .failed
+        if anySuccess { return Delivery(outcome: .delivered) }
+        if anyInterrupted && !anyFailed { return Delivery(outcome: .interrupted) }
+        let outcome: Outcome = allRefused && !anyInterrupted ? .refused : .failed
+        return Delivery(outcome: outcome, error: lastError, statusCode: lastStatusCode)
     }
 
     static let atsRefusal = AppDiagnostic.plainHTTPBlocked.rawValue

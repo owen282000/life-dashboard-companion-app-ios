@@ -258,7 +258,7 @@ final class DeliveryInterruptionTests: XCTestCase {
             return await WebhookManager.shared.post(
                 body: Data("{}".utf8), urls: [url], headers: [:],
                 logType: .healthConnect, dataType: "health_connect", recordCount: 3
-            )
+            ).outcome
         }.value
         XCTAssertEqual(outcome, .interrupted)
 

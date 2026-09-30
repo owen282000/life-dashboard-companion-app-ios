@@ -11,7 +11,6 @@ enum AppDiagnostic: String, CaseIterable {
     case deviceLocked = "Device locked - data encrypted"
     case serializeFailed = "Failed to serialize payload"
     case queuedForRetry = "Webhook failed - queued for retry"
-    case retryFailed = "Retry failed"
     case invalidURL = "Invalid URL"
     case plainHTTPBlocked = "iOS blocks plain HTTP to this host. Use its IP address or https."
     case noResponse = "No response"
@@ -22,13 +21,13 @@ enum AppDiagnostic: String, CaseIterable {
     case brokerRefused = "Broker refused the connection (check credentials)"
     case brokerCancelled = "Connection cancelled"
     case interrupted = "Interrupted"
+    case droppedUndelivered = "Not delivered for a week, dropped from the queue"
 
     var localized: String {
         switch self {
         case .healthLocked, .deviceLocked: return String(localized: "iPhone is locked, Health data can't be read")
         case .serializeFailed: return String(localized: "Failed to serialize payload")
         case .queuedForRetry: return String(localized: "Webhook failed - queued for retry")
-        case .retryFailed: return String(localized: "Retry failed")
         case .invalidURL: return String(localized: "Invalid URL")
         case .plainHTTPBlocked: return String(localized: "iOS blocks plain HTTP to this host. Use its IP address or https.")
         case .noResponse: return String(localized: "No response")
@@ -39,12 +38,19 @@ enum AppDiagnostic: String, CaseIterable {
         case .brokerRefused: return String(localized: "Broker refused the connection (check credentials)")
         case .brokerCancelled: return String(localized: "Connection cancelled")
         case .interrupted: return String(localized: "Interrupted")
+        case .droppedUndelivered: return String(localized: "Not delivered for a week, dropped from the queue")
         }
     }
 
     // MARK: - Messages with a value
 
     static func http(_ status: Int) -> String { "HTTP \(status)" }
+
+    /// A queued payload every webhook kept refusing for what it carries (see
+    /// `WebhookRetryPolicy.refusesPayload`), dropped once it was a week old.
+    static func droppedRefused(_ status: Int) -> String {
+        "Refused for a week (HTTP \(status)), dropped from the queue"
+    }
 
     static func unknownAfterAttempts(_ attempts: Int) -> String {
         "Unknown error after \(attempts) attempts"
@@ -61,6 +67,9 @@ enum AppDiagnostic: String, CaseIterable {
         if let known = AppDiagnostic(rawValue: stored) { return known.localized }
         if let status = number(in: stored, prefix: "HTTP ", suffix: "") {
             return String(localized: "HTTP \(status)")
+        }
+        if let status = number(in: stored, prefix: "Refused for a week (HTTP ", suffix: "), dropped from the queue") {
+            return String(localized: "Refused for a week (HTTP \(status)), dropped from the queue")
         }
         if let attempts = number(in: stored, prefix: "Unknown error after ", suffix: " attempts") {
             return String(localized: "Unknown error after \(attempts) attempts")

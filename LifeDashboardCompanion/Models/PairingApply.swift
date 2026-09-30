@@ -65,12 +65,6 @@ enum PairingApply {
         guard configuredUrls.contains(url), !urlsWithoutHeaders.contains(url) else { return [:] }
         return custom
     }
-
-    /// The addresses a queued payload may still go to: removing an address stops delivery to it
-    /// at once, instead of for the week a queued item lives.
-    static func deliverable(_ queued: [String], configuredUrls: [String]) -> [String] {
-        queued.filter { configuredUrls.contains($0) }
-    }
 }
 
 /// How the test ping after pairing went.

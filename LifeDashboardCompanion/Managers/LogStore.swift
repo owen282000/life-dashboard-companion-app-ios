@@ -3,6 +3,11 @@ import OSLog
 
 /// File-based storage for webhook logs. Raw payloads contain health data, so logs live in
 /// Application Support with file protection instead of the unencrypted UserDefaults plist.
+///
+/// One file per row, in a directory: a new row writes its own file and the oldest past
+/// `maxLogs` is deleted. Up to 1.4.1 the log was one JSON array, up to 100 rows of up to
+/// 100,000 characters of payload each, read, decoded, encoded and written whole for every
+/// row: some 10 MB per delivery, several times per sync. That file is split into rows once.
 /// @unchecked Sendable: all file access is serialized on the internal queue.
 final class LogStore: @unchecked Sendable {
     static let shared = LogStore()
@@ -15,29 +20,35 @@ final class LogStore: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.owen282000.lifedashboard.logstore")
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
-    private let fileURL: URL
+    private let directory: URL
+    private let legacyFile: URL?
 
     private convenience init() {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
-        self.init(fileURL: support.appendingPathComponent("webhook_logs.json"))
+        self.init(
+            directory: support.appendingPathComponent("webhook_logs", isDirectory: true),
+            legacyFile: support.appendingPathComponent("webhook_logs.json")
+        )
         migrateFromUserDefaultsIfNeeded()
     }
 
-    /// The log keeps raw payloads, so it stays out of backups. A file from 1.4.0 and earlier is
-    /// in them until this marks it.
-    init(fileURL: URL) {
-        self.fileURL = fileURL
-        if FileManager.default.fileExists(atPath: fileURL.path) {
-            BackupExclusion.exclude(fileURL)
+    /// The log keeps raw payloads, so it stays out of backups. `legacyFile` is the one-file log
+    /// of 1.4.1 and earlier, split into rows here.
+    init(directory: URL, legacyFile: URL? = nil) {
+        self.directory = directory
+        self.legacyFile = legacyFile
+        if FileManager.default.fileExists(atPath: directory.path) {
+            BackupExclusion.exclude(directory)
         }
+        queue.sync { migrateLegacyFile() }
     }
 
     // MARK: - Public API
 
     func load(filterType: LogType? = nil) -> [WebhookLog] {
         queue.sync {
-            let logs = readAll()
+            let logs = readAll().map(\.log)
             guard let filterType = filterType else { return logs }
             return logs.filter { $0.logType == filterType }
         }
@@ -45,12 +56,8 @@ final class LogStore: @unchecked Sendable {
 
     func add(_ log: WebhookLog) {
         queue.sync {
-            var logs = readAll()
-            logs.insert(truncated(log), at: 0)
-            if logs.count > LogStore.maxLogs {
-                logs = Array(logs.prefix(LogStore.maxLogs))
-            }
-            writeAll(logs)
+            write(truncated(log))
+            trim()
             updateLifetimeStats(log)
         }
     }
@@ -76,33 +83,81 @@ final class LogStore: @unchecked Sendable {
     func clear(filterType: LogType? = nil) {
         queue.sync {
             if let filterType = filterType {
-                var logs = readAll()
-                logs.removeAll { $0.logType == filterType }
-                writeAll(logs)
+                for row in readAll() where row.log.logType == filterType {
+                    try? FileManager.default.removeItem(at: row.file)
+                }
             } else {
-                try? FileManager.default.removeItem(at: fileURL)
+                try? FileManager.default.removeItem(at: directory)
             }
         }
     }
 
     func delete(id: String) {
         queue.sync {
-            var logs = readAll()
-            logs.removeAll { $0.id == id }
-            writeAll(logs)
+            for file in rowFiles() where file.lastPathComponent.hasSuffix("-\(id).json") {
+                try? FileManager.default.removeItem(at: file)
+            }
         }
     }
 
     // MARK: - Private
 
-    private func readAll() -> [WebhookLog] {
-        guard let data = try? Data(contentsOf: fileURL) else { return [] }
-        return LogStore.decodeLogs(from: data, decoder: decoder)
+    /// Newest first. A file this build cannot read costs that row, not the log.
+    private func readAll() -> [(log: WebhookLog, file: URL)] {
+        rowFiles()
+            .compactMap { file in
+                guard let data = try? Data(contentsOf: file), let log = try? decoder.decode(WebhookLog.self, from: data) else {
+                    return nil
+                }
+                return (log, file)
+            }
+            .sorted { ($0.log.timestamp, $0.file.lastPathComponent) > ($1.log.timestamp, $1.file.lastPathComponent) }
+    }
+
+    private func rowFiles() -> [URL] {
+        let files = try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
+        )
+        return (files ?? []).filter { $0.pathExtension == "json" }
+    }
+
+    /// A row's file name starts with its time in microseconds, fixed width, so the names sort
+    /// oldest first without opening a file.
+    static func fileName(for log: WebhookLog) -> String {
+        let micros = UInt64(max(0, log.timestamp.timeIntervalSince1970) * 1_000_000)
+        return String(format: "%020llu", micros) + "-\(log.id).json"
+    }
+
+    private func write(_ log: WebhookLog) {
+        guard let data = try? encoder.encode(log) else { return }
+        do {
+            if !FileManager.default.fileExists(atPath: directory.path) {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            }
+            // completeUntilFirstUserAuthentication: encrypted at rest, still writable
+            // during background syncs after the first unlock.
+            try data.write(
+                to: directory.appendingPathComponent(LogStore.fileName(for: log)),
+                options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
+            )
+            // Again with every row: the directory's flag is what keeps the payloads out.
+            BackupExclusion.exclude(directory)
+        } catch {
+            logger.error("Failed to write webhook log: \(error.localizedDescription)")
+        }
+    }
+
+    /// Deletes the oldest rows past `maxLogs`, by file name.
+    private func trim() {
+        let files = rowFiles().sorted { $0.lastPathComponent < $1.lastPathComponent }
+        guard files.count > LogStore.maxLogs else { return }
+        for file in files.prefix(files.count - LogStore.maxLogs) {
+            try? FileManager.default.removeItem(at: file)
+        }
     }
 
     /// Decodes row by row, so a row this build cannot read costs that row and not the log:
-    /// decoding the array in one go returned nothing on a single bad row, and the next add
-    /// then wrote the file over with only the new row.
+    /// decoding the array in one go returned nothing on a single bad row.
     static func decodeLogs(from data: Data, decoder: JSONDecoder) -> [WebhookLog] {
         guard let rows = try? decoder.decode([LossyLog].self, from: data) else { return [] }
         return rows.compactMap(\.log)
@@ -116,16 +171,15 @@ final class LogStore: @unchecked Sendable {
         }
     }
 
-    private func writeAll(_ logs: [WebhookLog]) {
-        guard let data = try? encoder.encode(logs) else { return }
-        do {
-            // completeUntilFirstUserAuthentication: encrypted at rest, still writable
-            // during background syncs after the first unlock.
-            try data.write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-            BackupExclusion.exclude(fileURL)
-        } catch {
-            logger.error("Failed to write webhook logs: \(error.localizedDescription)")
+    /// Splits the one-file log of 1.4.1 and earlier into rows, and removes it.
+    private func migrateLegacyFile() {
+        guard let legacyFile, let data = try? Data(contentsOf: legacyFile) else { return }
+        let logs = LogStore.decodeLogs(from: data, decoder: decoder)
+        for log in logs.prefix(LogStore.maxLogs) {
+            write(truncated(log))
         }
+        try? FileManager.default.removeItem(at: legacyFile)
+        logger.info("Split the webhook log into \(logs.count) row files")
     }
 
     private func truncated(_ log: WebhookLog) -> WebhookLog {
@@ -141,9 +195,11 @@ final class LogStore: @unchecked Sendable {
     private func migrateFromUserDefaultsIfNeeded() {
         let key = "webhook_logs"
         guard let data = UserDefaults.standard.data(forKey: key) else { return }
-        if readAll().isEmpty {
-            let logs = LogStore.decodeLogs(from: data, decoder: decoder)
-            writeAll(Array(logs.prefix(LogStore.maxLogs)).map(truncated))
+        queue.sync {
+            if rowFiles().isEmpty {
+                let logs = LogStore.decodeLogs(from: data, decoder: decoder)
+                for log in logs.prefix(LogStore.maxLogs) { write(truncated(log)) }
+            }
         }
         UserDefaults.standard.removeObject(forKey: key)
         logger.info("Migrated webhook logs from UserDefaults to protected file storage")
