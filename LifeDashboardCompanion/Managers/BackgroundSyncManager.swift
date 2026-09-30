@@ -32,7 +32,7 @@ final class BackgroundSyncManager {
     func registerBackgroundTasks() {
         // Handlers run on the main queue so they can safely enter this MainActor class
 
-        // BGProcessingTask - runs when idle + charging (full catch-up sync)
+        // BGProcessingTask - runs when the device is idle: a chance for the scheduled sync (new records)
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: BackgroundSyncManager.healthSyncTaskId,
             using: .main
@@ -43,7 +43,7 @@ final class BackgroundSyncManager {
             }
         }
 
-        // BGAppRefreshTask - runs more frequently (every few hours), 30s window
+        // BGAppRefreshTask - about 30 s, when iOS chooses: a chance for the scheduled sync
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: BackgroundSyncManager.healthRefreshTaskId,
             using: .main

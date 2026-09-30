@@ -29,6 +29,9 @@ enum AutomaticSyncOutcome: Equatable, Sendable {
 /// A manual sync records nothing.
 ///
 /// The Shortcuts action runs in the app process, so one flight in this process is enough.
+/// HealthSyncManager keeps a SingleFlight of its own around the incremental sync and the queue
+/// drain; with every caller coming through here they never find a run in progress, and they
+/// are there for a caller that does not.
 actor SyncCoordinator {
     struct Environment: Sendable {
         var now: @Sendable () -> Date

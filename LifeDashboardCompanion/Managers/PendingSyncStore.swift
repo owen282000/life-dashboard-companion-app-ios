@@ -147,13 +147,13 @@ final class PendingSyncStore: @unchecked Sendable {
 /// second one: it hands its items to that run, which takes them in one more round before it
 /// ends. Two jobs use it.
 ///
-/// The retry queue drain goes through `run`. It is started from app launch, becoming active,
-/// the network coming back, both background tasks and Retry Now; the store hands every drain
-/// the same files, so two drains at once posted each payload twice. A caller that arrives
-/// mid-drain waits until the run is over, including the one more round its arrival asked for,
-/// so an item queued after the running drain listed the files is not left for the next
-/// trigger. Cancelling the caller that started the work cancels the work, as a background task
-/// that runs out of time does; a caller that only waits leaves it running.
+/// The retry queue drain goes through `run`. Every caller reaches it through SyncCoordinator,
+/// whose one flight already keeps two drains apart; the store hands every drain the same files,
+/// so a caller that came in any other way would post each payload twice, and this flight stops
+/// that. A caller that arrives mid-drain waits until the run is over, including the one more
+/// round its arrival asked for, so an item queued after the running drain listed the files is
+/// not left for the next trigger. Cancelling the caller that started the work cancels the work,
+/// as a background task that runs out of time does; a caller that only waits leaves it running.
 ///
 /// The incremental sync goes through `enter` and `next`: a second caller hands over its data
 /// types and returns at once, and the running sync reads them in one more round.

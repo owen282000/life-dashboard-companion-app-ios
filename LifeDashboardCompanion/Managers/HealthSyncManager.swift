@@ -101,13 +101,15 @@ final class HealthSyncManager: Sendable {
         }
     }
 
-    // MARK: - Incremental Sync (anchor-based, triggered by HKObserverQuery)
+    // MARK: - Incremental Sync (anchor-based, every automatic sync and the Shortcuts action)
 
-    /// One incremental sync at a time. The observer debounce, the refresh task and the
-    /// foreground catch-up can all start one; two at once read the same anchors and catch-up
-    /// cursors and save them over each other, and a newer anchor without its cursor skips
-    /// the records past the cap for good. A caller that finds a sync running hands its types
-    /// to it and returns: the running sync reads them in one more round before it ends.
+    /// One incremental sync at a time. Two at once read the same anchors and catch-up cursors
+    /// and save them over each other, and a newer anchor without its cursor skips the records
+    /// past the cap for good. A caller that finds a sync running hands its types to it and
+    /// returns: the running sync reads them in one more round before it ends.
+    ///
+    /// Callers go through SyncCoordinator, whose one flight already keeps syncs apart; this
+    /// gate holds the anchors safe for any caller that does not.
     func performIncrementalSync(types: Set<HealthDataType>) async -> HealthSyncResult {
         guard await incrementalGate.enter(types) else { return .noData }
         var round = types
@@ -190,7 +192,9 @@ final class HealthSyncManager: Sendable {
 
     private let drainFlight = SingleFlight<Never>()
 
-    /// Delivers what earlier syncs queued, oldest first, one drain at a time.
+    /// Delivers what earlier syncs queued, oldest first, one drain at a time. Called through
+    /// SyncCoordinator; the drain's own flight still keeps a payload from going out twice
+    /// should anything else call it.
     func drainPendingQueue() async {
         await drainFlight.run { [self] in
             await drainPendingQueueOnce()
