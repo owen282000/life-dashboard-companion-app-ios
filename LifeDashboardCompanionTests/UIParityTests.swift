@@ -174,6 +174,22 @@ final class UIParityTests: XCTestCase {
         XCTAssertEqual(SyncOutcome.pingFailed.tone, .failure)
     }
 
+    // MARK: - Onboarding
+
+    func testOnlyAFreshInstallSeesTheSetup() {
+        XCTAssertTrue(OnboardingView.isFreshInstall(webhookUrls: [], mqttHost: "", enabledTypes: []))
+        XCTAssertTrue(OnboardingView.isFreshInstall(webhookUrls: [], mqttHost: "  ", enabledTypes: []))
+        XCTAssertFalse(OnboardingView.isFreshInstall(webhookUrls: ["https://example.com/hook"], mqttHost: "", enabledTypes: []))
+        XCTAssertFalse(OnboardingView.isFreshInstall(webhookUrls: [], mqttHost: "192.168.1.10", enabledTypes: []))
+        XCTAssertFalse(OnboardingView.isFreshInstall(webhookUrls: [], mqttHost: "", enabledTypes: [.steps]))
+    }
+
+    func testTheEssentialsAreTypesTheAppReads() {
+        XCTAssertTrue(OnboardingView.essentials.isSubset(of: Set(HealthDataType.allCases)))
+        XCTAssertTrue(OnboardingView.essentials.contains(.steps))
+        XCTAssertLessThan(OnboardingView.essentials.count, HealthDataType.allCases.count)
+    }
+
     static let screenSymbols = [
         "waveform.path.ecg.rectangle", "clock", "link", "house", "slider.horizontal.3", "bell",
         "eye", "dot.radiowaves.left.and.right", "clock.arrow.circlepath", "qrcode.viewfinder",
@@ -184,6 +200,6 @@ final class UIParityTests: XCTestCase {
         "figure.mind.and.body", "signature", "antenna.radiowaves.left.and.right", "lock", "key",
         "internaldrive", "doc.text", "sparkles", "ladybug", "chevron.left.forwardslash.chevron.right",
         "cup.and.saucer", "hand.raised", "scroll", "arrow.up.right", "chevron.right",
-        "square.and.pencil", "envelope"
+        "square.and.pencil", "envelope", "star", "square.grid.2x2", "circle"
     ]
 }

@@ -5,43 +5,35 @@ struct ContentView: View {
     @State private var healthShowsAbout = false
     @State private var logsShowsAbout = false
     @StateObject private var pairing = PairingCoordinator()
+    // UI state, not a setting, so it stays out of PreferencesManager and the settings backup.
+    @AppStorage("onboarding_completed") private var onboardingCompleted = false
+    @State private var showOnboarding = false
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            NavigationStack {
-                HealthKitScreen()
-                    .navigationTitle("Health")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .aboutButton(isPresented: $healthShowsAbout)
+        Group {
+            if showOnboarding {
+                OnboardingView {
+                    onboardingCompleted = true
+                    showOnboarding = false
+                }
+            } else {
+                tabs
             }
-            .tabItem {
-                Label("Health", systemImage: "heart.fill")
-            }
-            .tag(0)
-
-            NavigationStack {
-                LogsScreen()
-                    .navigationTitle("Logs")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .aboutButton(isPresented: $logsShowsAbout)
-            }
-            .tabItem {
-                Label("Logs", systemImage: "clock.arrow.circlepath")
-            }
-            .tag(1)
         }
-        // Each tab in its own accent, as in the Android app: green for Health, blue for Logs.
-        .tint(selectedTab == 1 ? Brand.logsInk : Color.accentColor)
         .environmentObject(pairing)
         .onAppear {
-            #if DEBUG
-            // For screenshots of every page: -ld.tab 1 opens Logs, -ld.about YES opens About.
-            let arguments = UserDefaults.standard
-            selectedTab = arguments.integer(forKey: "ld.tab")
-            if arguments.bool(forKey: "ld.about") {
-                if selectedTab == 1 { logsShowsAbout = true } else { healthShowsAbout = true }
+            guard !onboardingCompleted else { return }
+            let prefs = PreferencesManager.shared
+            if OnboardingView.isFreshInstall(
+                webhookUrls: prefs.healthWebhookUrls,
+                mqttHost: prefs.mqttHost,
+                enabledTypes: prefs.healthEnabledDataTypes
+            ) {
+                showOnboarding = true
+            } else {
+                // An upgrade from a version without the setup: it is already set up.
+                onboardingCompleted = true
             }
-            #endif
         }
         // A lifedashboard:// link from the landing page, on a warm or a cold start.
         .onOpenURL { pairing.open($0) }
@@ -73,6 +65,44 @@ struct ContentView: View {
             Button("OK", role: .cancel) {}
         } message: { problem in
             Text(problem.message)
+        }
+    }
+
+    private var tabs: some View {
+        TabView(selection: $selectedTab) {
+            NavigationStack {
+                HealthKitScreen()
+                    .navigationTitle("Health")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .aboutButton(isPresented: $healthShowsAbout)
+            }
+            .tabItem {
+                Label("Health", systemImage: "heart.fill")
+            }
+            .tag(0)
+
+            NavigationStack {
+                LogsScreen()
+                    .navigationTitle("Logs")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .aboutButton(isPresented: $logsShowsAbout)
+            }
+            .tabItem {
+                Label("Logs", systemImage: "clock.arrow.circlepath")
+            }
+            .tag(1)
+        }
+        // Each tab in its own accent, as in the Android app: green for Health, blue for Logs.
+        .tint(selectedTab == 1 ? Brand.logsInk : Color.accentColor)
+        .onAppear {
+            #if DEBUG
+            // For screenshots of every page: -ld.tab 1 opens Logs, -ld.about YES opens About.
+            let arguments = UserDefaults.standard
+            selectedTab = arguments.integer(forKey: "ld.tab")
+            if arguments.bool(forKey: "ld.about") {
+                if selectedTab == 1 { logsShowsAbout = true } else { healthShowsAbout = true }
+            }
+            #endif
         }
     }
 }

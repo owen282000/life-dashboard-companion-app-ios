@@ -89,6 +89,7 @@
 		E96D61DED3B577885E3D582D /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1269CB2C47B555716CC30117 /* Brand.swift */; };
 		651A4695CC0AA81EA7E9BAC8 /* DesignKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69501226A791C5E30A8D9CCC /* DesignKit.swift */; };
 		01215321D2654E19C55801FF /* UIParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03064B9EB7FE0AA1605460D4 /* UIParityTests.swift */; };
+		D1D58134C55F699561A5C5BD /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C276EA26C2DFB2B5A9BAFF8D /* OnboardingView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -209,6 +210,7 @@
 		1269CB2C47B555716CC30117 /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
 		69501226A791C5E30A8D9CCC /* DesignKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignKit.swift; sourceTree = "<group>"; };
 		03064B9EB7FE0AA1605460D4 /* UIParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIParityTests.swift; sourceTree = "<group>"; };
+		C276EA26C2DFB2B5A9BAFF8D /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -338,6 +340,7 @@
 				8A0A76F35656FC9BBDF0216A /* SyncStatsCard.swift */,
 				1269CB2C47B555716CC30117 /* Brand.swift */,
 				69501226A791C5E30A8D9CCC /* DesignKit.swift */,
+				C276EA26C2DFB2B5A9BAFF8D /* OnboardingView.swift */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -512,6 +515,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D1D58134C55F699561A5C5BD /* OnboardingView.swift in Sources */,
 				651A4695CC0AA81EA7E9BAC8 /* DesignKit.swift in Sources */,
 				19DAC412C3CC920D90BE79DF /* Brand.swift in Sources */,
 				CD633342D71B7343BE6D42BF /* SyncStatsCard.swift in Sources */,
