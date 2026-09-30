@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-30
+
 ### Added
 
 - Six more data types, with the Android app's payload keys and fields: VO2 Max, Basal Body Temperature, Intermenstrual Bleeding, Ovulation Test, Cervical Mucus and Sexual Activity. Each starts off and asks for its own permission
@@ -129,7 +131,9 @@ All notable changes to this project are documented in this file. The format is b
 - Offline queue with retries and exponential backoff
 - Webhook logs with CSV/JSON export and payload preview
 
-[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.2.0...HEAD
+[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.4.0...HEAD
+[1.4.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.3.0...1.4.0
+[1.3.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.2.0...1.3.0
 [1.2.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/releases/tag/1.0.0
