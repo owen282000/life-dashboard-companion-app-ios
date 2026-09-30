@@ -51,7 +51,7 @@ The app has 28 data types. Menstruation sends two keys, so an iPhone can send 29
 | Key | Fields | Read from HealthKit |
 |---|---|---|
 | `steps` | `count`, `start_time`, `end_time` | step count |
-| `distance` | `meters`, `start_time`, `end_time` | walking and running distance |
+| `distance` | `meters`, `start_time`, `end_time` | every distance: walking and running, cycling, swimming, wheelchair, downhill snow sports, and from iOS 18 rowing, paddling, cross-country skiing and skating |
 | `active_calories` | `calories`, `start_time`, `end_time` | active energy |
 | `total_calories` | `calories`, `start_time`, `end_time` | resting and active energy records |
 | `exercise` | `type`, `start_time`, `end_time`, `duration_seconds` | workouts |
@@ -94,7 +94,7 @@ A type with more new records than one sync may send (1000 for heart rate and ste
 ## Per-type notes
 
 - **Heart rate variability** is SDNN, the measure Apple Health stores. Health Connect stores RMSSD. Both arrive in `heart_rate_variability_millis`, but the two are not the same number.
-- **Distance** is walking and running distance. Health Connect's distance covers every activity.
+- **Distance** covers every activity, as Health Connect's does: HealthKit keeps a distance type per kind of activity, and the app reads them all. They do not overlap, so adding them up counts nothing twice. A record does not say which activity it is from.
 - **Total calories** are resting plus active energy records, since HealthKit has no total energy type.
 - **Blood pressure** is read per reading: the systolic and diastolic values an app saved together, as HealthKit keeps them. The rare app that saves the two values separately gets them paired when they come from that app within a second of each other. A value without its other half is not sent, since the Android schema requires both. `uuid` is the systolic sample's.
 - **Nutrition**: a food an app logged, with every nutrient in it, is one record, with its name in `name` when the app gave one. Besides energy, protein, carbohydrates and fat, a food carries the 34 other nutrients HealthKit and Android share, under Android's keys (`dietary_fibre_g`, `sugars_g`, `sodium_mg`, `caffeine_mg` and so on, see [webhook-schema.json](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/webhook-schema.json)). HealthKit has no type for trans fat, unsaturated fat, energy from fat, folic acid or `meal_type`. Energy, protein, carbohydrate and fat values saved outside a food are sent too: values from one app with the same time and name become one record when no nutrient repeats, anything else a record per value. Those 34 nutrients are only read from inside a food that also has energy, protein, carbohydrates or fat; a food with none of those four, such as a coffee logged with caffeine only, is not sent. Every nutrient field is optional and left out when the food has no value for it. `uuid` is the uuid of the food's energy sample, else of its protein, carbohydrate or fat sample.
@@ -114,10 +114,7 @@ When an iPhone and a Watch both record steps, Apple Health holds each stretch tw
 ]
 ```
 
-There is one entry per local day in the phone's time zone, for today and the two days before, and only for enabled types. A field is left out for a day without data rather than sent as 0. A payload that only names deletions carries none. Where it differs from Android:
-
-- `distance_meters` is walking and running distance
-- `total_calories` is resting plus active energy and is only sent on days with resting energy. An iPhone without an Apple Watch usually records none.
+There is one entry per local day in the phone's time zone, for today and the two days before, and only for enabled types. A field is left out for a day without data rather than sent as 0. A payload that only names deletions carries none. `distance_meters` adds up every distance, as the `distance` records do. Where it differs from Android: `total_calories` is resting plus active energy and is only sent on days with resting energy. An iPhone without an Apple Watch usually records none.
 
 Use `daily_totals` for day totals and the raw records for detail. The setting **Daily totals in payload** switches it off.
 

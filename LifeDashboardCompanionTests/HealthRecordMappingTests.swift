@@ -62,6 +62,21 @@ final class HealthRecordMappingTests: XCTestCase {
         }
     }
 
+    func testDistanceReadsEveryActivity() {
+        let identifiers = HealthDataType.distance.hkSampleTypes.map(\.identifier)
+        for identifier: HKQuantityTypeIdentifier in [.distanceWalkingRunning, .distanceCycling, .distanceSwimming, .distanceWheelchair, .distanceDownhillSnowSports] {
+            XCTAssertTrue(identifiers.contains(identifier.rawValue), identifier.rawValue)
+        }
+        if #available(iOS 18.0, *) {
+            XCTAssertEqual(identifiers.count, 9)
+        }
+        XCTAssertEqual(Set(identifiers).count, identifiers.count)
+        XCTAssertEqual(HealthDataType.distance.deletionSampleTypes, HealthDataType.distance.hkSampleTypes)
+        for sampleType in HealthDataType.distance.hkSampleTypes {
+            XCTAssertTrue((sampleType as? HKQuantityType)?.is(compatibleWith: .meter()) == true, sampleType.identifier)
+        }
+    }
+
     // MARK: - Value mappings
 
     func testOvulationTestResultMapsToAndroidValues() {

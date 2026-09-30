@@ -359,11 +359,16 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
             return mapped.isEmpty ? nil : [("steps", mapped)]
 
         case .distance:
-            let records = try await readQuantitySamples(
-                type: HKQuantityType(.distanceWalkingRunning),
-                start: start, end: end,
-                limit: limit
-            )
+            var samples: [HKQuantitySample] = []
+            for identifier in HealthDataType.distanceIdentifiers {
+                samples += try await readQuantitySamples(
+                    type: HKQuantityType(identifier),
+                    start: start, end: end,
+                    limit: limit
+                )
+            }
+            let records = SyncLimits.capOldestFirst(samples, limit: limit, timeOf: { $0.startDate })
+                .sorted { $0.startDate < $1.startDate }
             let mapped = records.map { sample -> [String: Any] in
                 record([
                     "meters": sample.quantity.doubleValue(for: .meter()),

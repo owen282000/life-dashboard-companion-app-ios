@@ -109,7 +109,7 @@ enum HealthDataType: String, CaseIterable, Codable, Identifiable {
         case .heartRate:
             return [HKQuantityType(.heartRate)]
         case .distance:
-            return [HKQuantityType(.distanceWalkingRunning)]
+            return HealthDataType.distanceIdentifiers.map { HKQuantityType($0) }
         case .activeCalories:
             return [HKQuantityType(.activeEnergyBurned)]
         case .totalCalories:
@@ -161,6 +161,18 @@ enum HealthDataType: String, CaseIterable, Codable, Identifiable {
         case .sexualActivity:
             return [HKCategoryType(.sexualActivity)]
         }
+    }
+
+    /// Every distance HealthKit keeps, one type per kind of activity, so `distance` covers
+    /// what Health Connect's distance does. None of them overlaps another.
+    static var distanceIdentifiers: [HKQuantityTypeIdentifier] {
+        var identifiers: [HKQuantityTypeIdentifier] = [
+            .distanceWalkingRunning, .distanceCycling, .distanceSwimming, .distanceWheelchair, .distanceDownhillSnowSports
+        ]
+        if #available(iOS 18.0, *) {
+            identifiers += [.distanceRowing, .distancePaddleSports, .distanceCrossCountrySkiing, .distanceSkatingSports]
+        }
+        return identifiers
     }
 
     /// The payload array a sync counts for this type, the same key the Android app uses.
