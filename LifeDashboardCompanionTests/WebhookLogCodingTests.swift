@@ -116,3 +116,70 @@ final class WebhookLogCodingTests: XCTestCase {
         XCTAssertTrue(decode("[]").isEmpty)
     }
 }
+
+/// The log and the retry queue hold health data, so neither may reach an iCloud or computer
+/// backup, also after an atomic write has put a new file in place.
+final class BackupExclusionTests: XCTestCase {
+
+    private var root: URL!
+
+    override func setUpWithError() throws {
+        root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("backup-exclusion-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    }
+
+    override func tearDownWithError() throws {
+        try? FileManager.default.removeItem(at: root)
+    }
+
+    /// Read through a fresh URL: a URL caches the resource values it has read.
+    private func isExcluded(_ url: URL) throws -> Bool {
+        let fresh = URL(fileURLWithPath: url.path)
+        return try fresh.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true
+    }
+
+    private func failedRow() -> WebhookLog {
+        // Not delivered, so the lifetime counters in UserDefaults stay as they are.
+        WebhookLog(url: "https://example.com/hook", success: false, errorMessage: "HTTP 500", logType: .healthConnect)
+    }
+
+    func testTheLogFileStaysOutOfBackupsAfterEveryWrite() throws {
+        let file = root.appendingPathComponent("webhook_logs.json")
+        let store = LogStore(fileURL: file)
+        store.add(failedRow())
+        XCTAssertTrue(try isExcluded(file))
+
+        // Each add replaces the file; the new one is marked again.
+        store.add(failedRow())
+        XCTAssertEqual(store.load().count, 2)
+        XCTAssertTrue(try isExcluded(file))
+    }
+
+    func testALogFileFromAnEarlierVersionIsMarkedWhenTheStoreOpens() throws {
+        let file = root.appendingPathComponent("webhook_logs.json")
+        try Data("[]".utf8).write(to: file)
+        XCTAssertFalse(try isExcluded(file))
+        _ = LogStore(fileURL: file)
+        XCTAssertTrue(try isExcluded(file))
+    }
+
+    func testTheQueueDirectoryStaysOutOfBackups() throws {
+        let directory = root.appendingPathComponent("pending_sync", isDirectory: true)
+        let store = PendingSyncStore(directory: directory)
+        XCTAssertTrue(store.enqueue(
+            payload: Data("{}".utf8), urls: ["https://example.com/hook"], headers: [:],
+            logType: LogType.healthConnect.rawValue, dataType: "health_connect", recordCount: 1
+        ))
+        XCTAssertTrue(try isExcluded(directory))
+        XCTAssertEqual(store.pendingCount, 1)
+    }
+
+    func testAQueueDirectoryFromAnEarlierVersionIsMarkedWhenTheStoreOpens() throws {
+        let directory = root.appendingPathComponent("pending_sync", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        XCTAssertFalse(try isExcluded(directory))
+        _ = PendingSyncStore(directory: directory)
+        XCTAssertTrue(try isExcluded(directory))
+    }
+}

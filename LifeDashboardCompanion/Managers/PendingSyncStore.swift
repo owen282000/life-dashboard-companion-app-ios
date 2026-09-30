@@ -25,16 +25,29 @@ final class PendingSyncStore: @unchecked Sendable {
     private let maxAge: TimeInterval = 7 * 24 * 60 * 60 // 7 days
     private let maxAttempts = 20
 
+    private let root: URL
+
     private var directory: URL {
-        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("pending_sync", isDirectory: true)
-        if !fileManager.fileExists(atPath: dir.path) {
-            try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+        if !fileManager.fileExists(atPath: root.path) {
+            try? fileManager.createDirectory(at: root, withIntermediateDirectories: true)
+            BackupExclusion.exclude(root)
         }
-        return dir
+        return root
     }
 
-    private init() {}
+    private convenience init() {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        self.init(directory: appSupport.appendingPathComponent("pending_sync", isDirectory: true))
+    }
+
+    /// The queue holds whole payloads, so it stays out of backups. A directory from 1.4.0 and
+    /// earlier is in them until this marks it.
+    init(directory: URL) {
+        root = directory
+        if fileManager.fileExists(atPath: root.path) {
+            BackupExclusion.exclude(root)
+        }
+    }
 
     // MARK: - Public API
 
@@ -66,6 +79,8 @@ final class PendingSyncStore: @unchecked Sendable {
         guard let data = try? encoder.encode(item) else { return false }
         do {
             try data.write(to: fileURL, options: .atomic)
+            // Again with every file: the directory's flag is all that keeps the payload out.
+            BackupExclusion.exclude(directory)
             return true
         } catch {
             return false
@@ -140,6 +155,19 @@ final class PendingSyncStore: @unchecked Sendable {
         for fileURL in files {
             try? fileManager.removeItem(at: fileURL)
         }
+    }
+}
+
+/// Keeps a file or directory out of iCloud and computer backups, so the health data the app keeps
+/// stays on the iPhone. The flag belongs to the item: an atomic write puts a new file in place
+/// and loses it, so a file that is not inside an excluded directory is marked after every write.
+enum BackupExclusion {
+    @discardableResult
+    static func exclude(_ url: URL) -> Bool {
+        var item = url
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        return (try? item.setResourceValues(values)) != nil
     }
 }
 

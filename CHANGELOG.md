@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file. The format is b
 ### Fixed
 
 - The pairing sheet's title was cut off in Dutch ("Koppelen met een..."). It is now one word, Pairing, Koppeling or Kopplung, and shrinks a little before it is cut on a small iPhone with large text
+- About says "No cloud in between", but the log, whose rows keep the payload they sent, and the payloads queued for retry were part of the iPhone's iCloud and computer backups. Both are now left out of backups, the files 1.4.0 wrote included, as the deletion tracking state already was. A restored or new iPhone starts without them; your settings and the sync progress are still in the backup, so a payload that was still queued when the backup was made is not sent again from the restored iPhone, and Backfill History is the way to resend it. The privacy policy says so
 
 ## [1.4.0] - 2026-09-30
 

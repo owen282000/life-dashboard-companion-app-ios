@@ -17,11 +17,20 @@ final class LogStore: @unchecked Sendable {
     private let decoder = JSONDecoder()
     private let fileURL: URL
 
-    private init() {
+    private convenience init() {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
-        fileURL = support.appendingPathComponent("webhook_logs.json")
+        self.init(fileURL: support.appendingPathComponent("webhook_logs.json"))
         migrateFromUserDefaultsIfNeeded()
+    }
+
+    /// The log keeps raw payloads, so it stays out of backups. A file from 1.4.0 and earlier is
+    /// in them until this marks it.
+    init(fileURL: URL) {
+        self.fileURL = fileURL
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            BackupExclusion.exclude(fileURL)
+        }
     }
 
     // MARK: - Public API
@@ -113,6 +122,7 @@ final class LogStore: @unchecked Sendable {
             // completeUntilFirstUserAuthentication: encrypted at rest, still writable
             // during background syncs after the first unlock.
             try data.write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            BackupExclusion.exclude(fileURL)
         } catch {
             logger.error("Failed to write webhook logs: \(error.localizedDescription)")
         }
