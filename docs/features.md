@@ -59,7 +59,9 @@ MQTT is the other way, for a setup that already runs a broker:
 - **21 sensors for 20 of the 28 types** - heart rate, resting heart rate, HRV, last sleep duration, weight, height, blood glucose, oxygen saturation, body temperature, basal body temperature, respiratory rate, body fat, lean body mass, VO2 max, blood pressure (systolic and diastolic), and steps, distance, active calories, total calories and hydration
 - **Latest record, not a day total** - the steps, distance, calories and hydration sensors hold the newest record, and their names say "(latest record)". Use the integration or `daily_totals` for day totals
 - **Webhook only** - exercise, nutrition, mindfulness and the cycle tracking types are events rather than values, and a retained topic is no place for reproductive data
-- **Published on Sync Now** - MQTT goes out with **Sync Now**, which needs a webhook URL next to the broker. Background syncs, the Shortcuts action and backfill do not publish
+- **A destination of its own** - a broker without a webhook URL is enough, as in the Android app. **Sync Now**, the automatic syncs and the **Sync Health Data** action all publish, and the observers and background tasks start as soon as a broker is set, without reopening the app
+- **Every sync publishes** the latest value of each type that has new records. A type that is still catching up past the per-sync cap is left out until it has caught up, since its newest record read is not its newest record
+- **No queue, no deletions, no backfill** - MQTT has no retry queue, and deleted records and backfill payloads go to webhooks only. A webhook URL added after a time with only a broker gets what is new from then on; **Sync Now** or **Backfill** sends what came before
 - States and discovery configs are published retained; TLS and a username and password are optional, and the password is kept in the Keychain
 - Its own device id and base topic (`lifedashboard-ios`), so an iPhone never collides with the Android app's sensors in the same household
 - A built-in MQTT 3.1.1 client on Network.framework, so the app has no third-party dependencies
@@ -90,7 +92,7 @@ Each sends only what is new. Health data cannot be read while the iPhone is lock
 
 ## Automation
 
-- **Shortcuts and Siri** - a **Sync Health Data** action, for a Shortcuts automation at a set time, on arriving home, or by voice. It sends what is queued and what is new
+- **Shortcuts and Siri** - a **Sync Health Data** action, for a Shortcuts automation at a set time, on arriving home, or by voice. It sends what is queued and what is new, to the webhooks and the MQTT broker
 - **Home screen widget** - the last sync result, records delivered today, and a status mark, so a failing background sync shows
 - **Failure notifications** - a local notification after a number of failed syncs in a row, which you choose
 
@@ -123,7 +125,7 @@ The payload is the Android app's, but an iPhone is not an Android phone. Where i
 - **No writing into Apple Health.** The app asks for read access only, so the Android app's receiving from Home Assistant (a scale or blood pressure monitor written into Health Connect) is not built on iOS.
 - **Record source.** `source` is the name HealthKit gives the writing app or device, not a package name.
 - **No data resolution, no diagnostics.** The Android app's per-type averaging (`_resolutions`) and its `_diagnostics` block are not built on iOS. See [what iOS does not send](webhook.md#what-ios-does-not-send).
-- **MQTT** publishes the latest record per type, on **Sync Now** only, to one broker. The Android app also publishes today's totals.
+- **MQTT** publishes the latest record per type, to one broker. The Android app also publishes today's totals.
 - **No App Store or TestFlight build.** You build the app with Xcode; see [usage.md](usage.md#build-and-install).
 
 ## Tech stack

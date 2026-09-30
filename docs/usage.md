@@ -74,9 +74,9 @@ iOS decides in advance which plain `http://` addresses an app may use: an IP add
 
 1. In Home Assistant, install the **Mosquitto broker** add-on and add the **MQTT** integration if it is not there yet, and create a user for the app.
 2. In the app, open the Health tab, expand **MQTT**, switch on **Enable MQTT publishing** and fill in the broker host, port 1883, and that username and password. For a broker reached over the internet, switch on **TLS** (usually port 8883).
-3. Add a webhook URL as well, and tap **Sync Now**. MQTT is published with **Sync Now** only, and Sync Now needs a webhook URL. A device named **Life Dashboard Companion (iOS)** appears under Settings > Devices & services > MQTT, with a sensor for every synced type that has a value.
+3. Tap **Sync Now**. A broker alone is enough, and from then on every sync publishes, the automatic ones included. A device named **Life Dashboard Companion (iOS)** appears under Settings > Devices & services > MQTT, with a sensor for every synced type that has a value.
 
-The sensors hold the latest record of each type; [features.md](features.md#home-assistant-and-mqtt) lists them. Values are published retained, so they survive a Home Assistant restart. The Logs tab shows every publish, with the broker's answer when it fails.
+The sensors hold the latest record of each type; [features.md](features.md#home-assistant-and-mqtt) lists them. MQTT has no retry queue and gets no deleted records or backfill. If you add a webhook URL later, it gets what is new from then on; **Sync Now** or **Backfill** sends what came before. Values are published retained, so they survive a Home Assistant restart. The Logs tab shows every publish, with the broker's answer when it fails.
 
 ## Troubleshooting
 
@@ -102,7 +102,7 @@ A sync or backfill that starts while the iPhone is locked cannot read Apple Heal
 
 ### MQTT sensors do not update
 
-MQTT is published with **Sync Now**, not by background syncs, and Sync Now needs a webhook URL. If a publish fails, the Logs tab shows the broker's error; `NOT_AUTHORIZED` means the username or password is wrong.
+Every sync publishes the types with new records, so a sensor only changes when its type has new data; a type that is still catching up on a long backlog is published once it has caught up. A broker that does not answer within 10 seconds, such as a home address dialled from outside the home network, fails the sync. If a publish fails, the Logs tab shows the broker's error; `NOT_AUTHORIZED` means the username or password is wrong.
 
 ### Queued payloads disappear
 
