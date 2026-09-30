@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-09-30
+
 ### Fixed
 
 - The pairing sheet's title was cut off in Dutch ("Koppelen met een..."). It is now one word, Pairing, Koppeling or Kopplung, and shrinks a little before it is cut on a small iPhone with large text
@@ -137,7 +139,8 @@ All notable changes to this project are documented in this file. The format is b
 - Offline queue with retries and exponential backoff
 - Webhook logs with CSV/JSON export and payload preview
 
-[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.4.0...HEAD
+[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.4.1...HEAD
+[1.4.1]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.4.0...1.4.1
 [1.4.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.3.0...1.4.0
 [1.3.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.2.0...1.3.0
 [1.2.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.1.0...1.2.0
