@@ -41,7 +41,7 @@ This page lists what an iPhone sends and where it differs, so a receiver can han
 
 Every record carries:
 
-- `uuid`: the HealthKit sample's UUID. It stays the same for the life of the record, so deduplicate on it. A full sync (Sync Now) sends the last 7 days again. HealthKit never edits a record in place: an app that edits one deletes it and saves a new one under a new `uuid`, and the old one is named in [`deleted_records`](#deletions).
+- `uuid`: the HealthKit sample's UUID. It stays the same for the life of the record, so deduplicate on it. An automatic sync sends the records added since the last one, but Sync Now sends the last 7 days again, up to each type's cap per sync (1000 records for heart rate and steps, 500 for heart rate variability and respiratory rate, 200 for the rest), oldest first, and a delivery that iOS cut off is sent again from the retry queue, so a record can arrive more than once. HealthKit never edits a record in place: an app that edits one deletes it and saves a new one under a new `uuid`, and the old one is named in [`deleted_records`](#deletions).
 - `source`: the name HealthKit gives the app or device that wrote the record (`HKSource.name`), not a package name as on Android. For data the iPhone or Watch records itself, this is the device's name, which often includes the owner's name.
 
 ## What iOS sends
@@ -89,7 +89,7 @@ The four Android keys an iPhone never sends:
 | `skin_temperature` | Apple Health stores the absolute sleeping wrist temperature, not the change against a baseline that `delta_celsius` carries |
 | `basal_metabolic_rate` | Apple Health stores resting energy per interval, not a rate in kcal per day; it goes out as part of `total_calories` |
 
-A type with more new records than one sync may send (1000 for heart rate and steps, 500 for HRV and respiratory rate, 200 for the rest, as on Android) sends the oldest first, and the next sync continues where this one stopped.
+A type with more new records than one sync may send (1000 for heart rate and steps, 500 for HRV and respiratory rate, 200 for the rest, as on Android) sends that many, and the next sync continues where this one stopped. New records go in the order HealthKit saved them; the first week of a newly enabled type goes oldest first.
 
 ## Per-type notes
 
@@ -98,7 +98,8 @@ A type with more new records than one sync may send (1000 for heart rate and ste
 - **Total calories** are resting plus active energy records, since HealthKit has no total energy type.
 - **Blood pressure** pairs a systolic sample with the diastolic sample recorded at the same time. When there is no diastolic sample, `diastolic` is left out. The Android schema requires it, so a strict validator rejects such a record.
 - **Nutrition**: every nutrient field is optional and left out when the meal has no value for it.
-- **Sleep**: stage samples are grouped into sessions, and a gap of more than 1 hour starts a new session. Stage values are `in_bed`, `sleeping`, `light`, `deep`, `rem`, `awake` and `unknown`, as on Android. A session's `uuid` comes from its earliest stage, so it stays the same while a night grows at the end: replace the session when it comes back longer. Each stage carries its own sample's `uuid` and `source`.
+- **Exercise**: `type` is the HealthKit activity in snake_case, such as `running`, `walking` or `hiit`, and `other` for an activity the app has no name for. The Android app sends Health Connect's exercise type constant as a string instead, such as `"56"` for running, so a backend that serves both has to handle both.
+- **Sleep**: stage samples are grouped into sessions, and a gap of more than 1 hour starts a new session. Stage values are `in_bed`, `sleeping`, `light`, `deep`, `rem`, `awake` and `unknown`, as on Android. A session's `uuid` comes from its earliest stage, so it stays the same while a night grows at the end: replace the session when it comes back longer. A stage added later to a night that was already sent sends that whole night again. Each stage carries its own sample's `uuid` and `source`.
 - **Menstruation period**: HealthKit has no period record, so periods are derived from consecutive flow days, where a gap of up to 48 hours bridges one missed day. They carry no `uuid` or `source`. Replace the periods a payload covers.
 - **Cervical mucus**: HealthKit records no sensation, so `sensation` is always `unknown`, the value Android sends when none was logged.
 - **Ovulation test**: `result` is `positive` (LH surge), `high` (estrogen surge), `negative`, `inconclusive` or `unknown`.
@@ -164,7 +165,9 @@ A receiver written for Android works unchanged, as long as it treats these as op
 
 Every configured webhook URL receives each payload as a JSON POST. A sync counts as delivered when at least one URL accepted it. The Logs tab shows the result per URL.
 
-A failed post is tried up to 3 times in total, with 1 and 2 seconds in between, but only for network errors, timeouts, HTTP 408, 429 and 5xx. Other errors, such as 401 or 404, fail at once. When every attempt fails, the payload is queued on the phone and sent again when the network comes back, at the next background task, or with **Retry Now**. The queue retries only outside quiet hours. A queued payload is dropped after 7 days or 20 attempts.
+A failed post is tried up to 3 times in total, with 1 and 2 seconds in between, but only for network errors, timeouts, HTTP 408, 429 and 5xx. Other errors, such as 401 or 404, fail at once.
+
+Every sync payload goes into a queue on the phone before it is posted, and leaves it once a URL accepted it, so a sync that iOS suspends or ends halfway loses nothing: the payload is sent again, and can arrive twice. A payload that was not delivered is sent again when the network comes back, at the next sync or background task, or with **Retry Now**, oldest first; the automatic retries wait for quiet hours to end. A retry goes to the webhook URLs configured at that moment, with the custom headers and signing secret configured then, as in the Android app: a new API key or a new address also reaches what was queued before it, a removed address gets nothing more, and an address that pairing added still gets no custom headers. The queue stops at the first payload that fails, so the rest keep their order. A payload that every failing URL refused as such, with HTTP 400, 413 or 422, does not hold them up: it is skipped and stays queued, in case the receiver gets fixed. A payload older than 7 days is dropped when its next delivery fails, however many attempts it had before, so an iPhone that could not sync for a week still tries it once. The Logs tab then gets a failed row with its payload, saying whether it was refused or not delivered, and a notification says how many syncs were lost.
 
 iOS allows plain `http://` only to the home network: an IP address, a `.local` name or a name without a dot. Use `https://` for anything else.
 

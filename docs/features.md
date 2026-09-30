@@ -21,8 +21,8 @@ Reads Apple Health (HealthKit) and sends it to your webhooks, the Home Assistant
 
 These are the Apple Health types that have a counterpart in the Android app, under the Android app's payload keys. Menstruation sends both flow and periods, so the 28 toggles cover 29 of the Android app's 33 types. The four that stay out (bone mass, body water mass, skin temperature and basal metabolic rate) have no Apple Health type that means the same; [webhook.md](webhook.md#what-ios-sends) says why for each.
 
-- **Incremental sync** - each sync sends what is new since the last one, per type, from HealthKit's own change tracking. **Sync Now** sends the last 7 days again
-- **Bounded payloads** - at most 1000 records per sync for heart rate and steps, 500 for HRV and respiratory rate, and 200 for the rest, oldest first. The next sync continues where this one stopped
+- **Incremental sync** - each sync sends the records added since the last one, per type, from HealthKit's own change tracking, also when they are dated in the past. **Sync Now** sends the last 7 days again, up to the limits below, oldest first, and publishes the newest value of each type to MQTT
+- **Bounded payloads** - at most 1000 records per sync for heart rate and steps, 500 for HRV and respiratory rate, and 200 for the rest. The next sync continues where this one stopped
 - **Fault isolation** - a type that cannot be read is skipped, and the rest of the sync goes ahead
 - **Daily totals** - per-day steps, distance and calories as the Health app counts them, with overlapping iPhone and Watch data counted once, in the Android app's `daily_totals` format. **Daily totals in payload** under Advanced switches it off
 - **Deleted records** - a record deleted in Apple Health is named in `deleted_records`, so a receiver can drop it. See [webhook.md](webhook.md#deletions)
@@ -36,13 +36,13 @@ These are the Apple Health types that have a counterpart in the Android app, und
 
 ## Webhook configuration
 
-- **Pairing by QR code** - the [Home Assistant integration](https://github.com/owen282000/life-dashboard-ha) (0.7.0 or newer) shows a code, and **Scan a pairing code** under the webhook fills in the address and the signing secret after one confirmation. See [Pairing by QR code](usage.md#pairing-by-qr-code)
+- **Pairing by QR code** - the [Home Assistant integration](https://github.com/owen282000/life-dashboard-ha) (0.7.1 or newer) shows a code, and **Scan a pairing code** under the webhook fills in the address and the signing secret after one confirmation. See [Pairing by QR code](usage.md#pairing-by-qr-code)
 - **Multiple webhook URLs** - send to several endpoints at once; a sync counts as delivered when one of them accepted it
 - **Custom headers** - auth tokens, API keys or any other HTTP header, sent to the URLs you typed in and never to one that pairing added
 - **HMAC payload signing** - an optional `X-Signature` header, the Android app's scheme, so your server can verify the sender
 - **Test ping** - send a small test payload to check your server without waiting for real data
 - **Retries with backoff** - transient failures are retried; permanent errors fail at once
-- **Retry queue** - a payload that could not be delivered is kept on the phone for up to 7 days and sent again when the network comes back, at the next background task, or with **Retry Now**
+- **Retry queue** - every payload is queued on the phone before it is sent, so a sync that iOS cuts off loses nothing. One that was not delivered is sent again when the network comes back, at the next sync, or with **Retry Now**, to the URLs and with the headers configured at that moment. A payload the receiver refuses (HTTP 400, 413 or 422) does not hold up the ones after it. A payload older than 7 days is dropped when its next delivery fails, with a row in the Logs tab and a notification
 - **HTTPS, and plain HTTP on the home network** - iOS allows `http://` only to an IP address, a `.local` name or a name without a dot
 
 Delivery details, retry rules and signature verification are in [webhook.md](webhook.md#delivery-retries-and-signing).
@@ -60,7 +60,7 @@ MQTT is the other way, for a setup that already runs a broker:
 - **Latest record, not a day total** - the steps, distance, calories and hydration sensors hold the newest record, and their names say "(latest record)". Use the integration or `daily_totals` for day totals
 - **Webhook only** - exercise, nutrition, mindfulness and the cycle tracking types are events rather than values, and a retained topic is no place for reproductive data
 - **A destination of its own** - a broker without a webhook URL is enough, as in the Android app. **Sync Now**, the automatic syncs and the **Sync Health Data** action all publish, and the observers and background tasks start as soon as a broker is set, without reopening the app
-- **Every sync publishes** the latest value of each type that has new records. A type that is still catching up past the per-sync cap is left out until it has caught up, since its newest record read is not its newest record
+- **Every sync publishes** the latest value of each type that has new records. A type that is still catching up past the per-sync cap is left out until it has caught up, and so is a type whose new records are all older than its newest one, such as a weight entered for last week, since neither holds the current value. Sync Now reads a type with more records in the week than its cap again from the newest end
 - **No queue, no deletions, no backfill** - MQTT has no retry queue, and deleted records and backfill payloads go to webhooks only. A webhook URL added after a time with only a broker gets what is new from then on; **Sync Now** or **Backfill** sends what came before
 - States and discovery configs are published retained; TLS and a username and password are optional, and the password is kept in the Keychain
 - Its own device id and base topic (`lifedashboard-ios`), so an iPhone never collides with the Android app's sensors in the same household
