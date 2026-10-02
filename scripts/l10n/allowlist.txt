@@ -47,7 +47,6 @@ key:Localizable | Steps, last %lld days | no-plural | always 7
 key:Localizable | Unknown error after %lld attempts | no-plural | always WebhookRetryPolicy.maxAttempts, 3
 key:Localizable | Delivery failed after %lld of %lld windows. Resume continues from there. | no-plural | a backfill has at least 10 windows (30 days in 3-day chunks)
 key:Localizable | Stopped after %lld of %lld windows: HealthKit did not return %@. | no-plural | a backfill has at least 10 windows (30 days in 3-day chunks)
-key:Localizable | ... [truncated for display, %lld characters total - use the share button for the full payload] | no-plural | only above 100,000 characters
 key:Localizable | Life Dashboard | brand | the app's name
 key:Localizable | Companion | brand | second line of the app's name on the About page
 key:Localizable | Home Assistant | brand | product name
