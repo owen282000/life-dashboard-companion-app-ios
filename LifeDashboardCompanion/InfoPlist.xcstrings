@@ -58,19 +58,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard braucht Zugriff auf deine Gesundheitsdaten, um sie über Webhooks mit deinem eigenen Dashboard zu synchronisieren."
+            "value" : "Life Dashboard liest die Gesundheitsdatentypen, die du einschaltest, und sendet sie nur an deinen eigenen Webhook, Home Assistant oder MQTT-Broker."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Life Dashboard needs access to your health data to sync it to your personal dashboard via webhooks."
+            "value" : "Life Dashboard reads the health data types you switch on and sends them only to your own webhook, Home Assistant or MQTT broker."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard heeft toegang tot je gezondheidsdata nodig om die via webhooks naar je eigen dashboard te synchroniseren."
+            "value" : "Life Dashboard leest de types gezondheidsdata die je aanzet en stuurt ze alleen naar je eigen webhook, Home Assistant of MQTT-broker."
           }
         }
       }
@@ -82,19 +82,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard schreibt keine Gesundheitsdaten, aber das System verlangt diese Berechtigung."
+            "value" : "Life Dashboard speichert nie etwas in Apple Health. Es liest nur die Typen, die du einschaltest, und sendet sie an deinen eigenen Webhook, Home Assistant oder MQTT-Broker."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Life Dashboard does not write health data, but this permission is required by the system."
+            "value" : "Life Dashboard never saves anything to Apple Health. It only reads the types you switch on and sends them to your own webhook, Home Assistant or MQTT broker."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard schrijft geen gezondheidsdata, maar het systeem vereist deze toestemming."
+            "value" : "Life Dashboard slaat nooit iets op in Apple Gezondheid. Het leest alleen de types die je aanzet en stuurt ze naar je eigen webhook, Home Assistant of MQTT-broker."
           }
         }
       }

@@ -89,6 +89,7 @@
 		2ACD172A8D49AD1B2189288D /* AppDiagnostic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66E0043B745687663D70732A /* AppDiagnostic.swift */; };
 		E7F06130A2C6E123FC9BF861 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = ECCB056354A1F8AC8BCBA42D /* InfoPlist.xcstrings */; };
 		6FB1128BC0941BEF0BEA447F /* AppShortcuts.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 06CDA70350B6929629EB6C68 /* AppShortcuts.xcstrings */; };
+		043E0BDA2A86B051129E7703 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 54FE93E0BDACDD1D2E7277BB /* PrivacyInfo.xcprivacy */; };
 		E2C932B92E95D465DA6DC064 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 0A78769A40A4B8CD89B0672A /* Localizable.xcstrings */; };
 		CD633342D71B7343BE6D42BF /* SyncStatsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0A76F35656FC9BBDF0216A /* SyncStatsCard.swift */; };
 		681C2DAA9427B02EA5D9277F /* SyncStatsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA530B152D776D79491AAF31 /* SyncStatsTests.swift */; };
@@ -219,6 +220,7 @@
 		66E0043B745687663D70732A /* AppDiagnostic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDiagnostic.swift; sourceTree = "<group>"; };
 		ECCB056354A1F8AC8BCBA42D /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		06CDA70350B6929629EB6C68 /* AppShortcuts.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = AppShortcuts.xcstrings; sourceTree = "<group>"; };
+		54FE93E0BDACDD1D2E7277BB /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		0A78769A40A4B8CD89B0672A /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		8A0A76F35656FC9BBDF0216A /* SyncStatsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatsCard.swift; sourceTree = "<group>"; };
 		CA530B152D776D79491AAF31 /* SyncStatsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatsTests.swift; sourceTree = "<group>"; };
@@ -372,6 +374,7 @@
 				F1000029 /* Info.plist */,
 				F100002B /* LifeDashboardWidget.entitlements */,
 				0A78769A40A4B8CD89B0672A /* Localizable.xcstrings */,
+				54FE93E0BDACDD1D2E7277BB /* PrivacyInfo.xcprivacy */,
 			);
 			path = LifeDashboardWidget;
 			sourceTree = "<group>";
@@ -543,6 +546,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E2C932B92E95D465DA6DC064 /* Localizable.xcstrings in Resources */,
+				043E0BDA2A86B051129E7703 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -795,12 +799,12 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LifeDashboardCompanion/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Life Dashboard";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Life Dashboard needs access to your health data to sync it to your personal dashboard via webhooks.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Life Dashboard does not write health data, but this permission is required by the system.";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Life Dashboard reads the health data types you switch on and sends them only to your own webhook, Home Assistant or MQTT broker.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Life Dashboard never saves anything to Apple Health. It only reads the types you switch on and sends them to your own webhook, Home Assistant or MQTT broker.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -811,7 +815,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -828,12 +832,12 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LifeDashboardCompanion/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Life Dashboard";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Life Dashboard needs access to your health data to sync it to your personal dashboard via webhooks.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Life Dashboard does not write health data, but this permission is required by the system.";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Life Dashboard reads the health data types you switch on and sends them only to your own webhook, Home Assistant or MQTT broker.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Life Dashboard never saves anything to Apple Health. It only reads the types you switch on and sends them to your own webhook, Home Assistant or MQTT broker.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -844,7 +848,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -871,7 +875,7 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "WIDGET_EXTENSION $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -898,7 +902,7 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "WIDGET_EXTENSION $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -915,7 +919,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LifeDashboardCompanion.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LifeDashboardCompanion";
 			};
 			name = Debug;
@@ -933,7 +937,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LifeDashboardCompanion.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LifeDashboardCompanion";
 			};
 			name = Release;

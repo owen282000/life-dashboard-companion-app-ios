@@ -160,6 +160,13 @@ final class BackupExclusionTests: XCTestCase {
         XCTAssertTrue(try isExcluded(directory))
     }
 
+    func testANewLogDirectoryIsOutOfBackupsBeforeItsFirstRow() throws {
+        let directory = root.appendingPathComponent("webhook_logs", isDirectory: true)
+        try LogStore.createDirectory(at: directory)
+        XCTAssertTrue(try isExcluded(directory))
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), [])
+    }
+
     func testTheLogFileOfAnEarlierVersionIsSplitIntoRowsAndRemoved() throws {
         let file = root.appendingPathComponent("webhook_logs.json")
         let directory = root.appendingPathComponent("webhook_logs", isDirectory: true)
