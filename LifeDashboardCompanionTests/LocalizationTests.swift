@@ -111,4 +111,14 @@ final class LocalizationTests: XCTestCase {
         formatter.timeZone = TimeZone(identifier: "UTC")
         XCTAssertEqual(formatter.string(from: Date(timeIntervalSince1970: 1_790_000_000)), "2026-09-21 14:13:20")
     }
+
+    func testThePayloadPreviewSaysWhatItShowsInEachLanguage() {
+        XCTAssertEqual(resolve("Showing the first \("12.000") of \("40.000") characters.", "nl"),
+                       "De eerste 12.000 van 40.000 tekens worden getoond.")
+        XCTAssertEqual(resolve("Showing the first \("12.000") of \("40.000") characters.", "de"),
+                       "Die ersten 12.000 von 40.000 Zeichen werden angezeigt.")
+        XCTAssertEqual(resolve("Payload, \("40.000") characters", "nl"), "Payload, 40.000 tekens")
+        XCTAssertEqual(resolve("Use Share payload for the full payload.", "de"),
+                       "Nutze Payload teilen für den vollständigen Payload.")
+    }
 }
