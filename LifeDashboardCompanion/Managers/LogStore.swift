@@ -134,7 +134,7 @@ final class LogStore: @unchecked Sendable {
         guard let data = try? encoder.encode(log) else { return }
         do {
             if !FileManager.default.fileExists(atPath: directory.path) {
-                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                try LogStore.createDirectory(at: directory)
             }
             // completeUntilFirstUserAuthentication: encrypted at rest, still writable
             // during background syncs after the first unlock.
@@ -147,6 +147,13 @@ final class LogStore: @unchecked Sendable {
         } catch {
             logger.error("Failed to write webhook log: \(error.localizedDescription)")
         }
+    }
+
+    /// Makes the log directory and marks it out of backups before the first row goes in, so no
+    /// payload is ever in a directory a backup would take.
+    static func createDirectory(at directory: URL) throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        BackupExclusion.exclude(directory)
     }
 
     /// Deletes the oldest rows past `maxLogs`, by file name.
