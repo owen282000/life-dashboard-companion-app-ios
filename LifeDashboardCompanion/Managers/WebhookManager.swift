@@ -38,8 +38,16 @@ actor WebhookManager {
         let outcome: Outcome
         var error: String?
         var statusCode: Int?
+        /// The URLs that did not take the payload although another one did. The post counts as
+        /// delivered all the same, so nothing is queued for them; this only makes it visible.
+        var missedUrls: [String] = []
+        /// How many URLs the payload went to.
+        var urlCount = 0
 
         var delivered: Bool { outcome.delivered }
+
+        /// Which webhooks this post reached, for the result line and the partial streak.
+        var reach: DeliveryReach { DeliveryReach(missed: Set(missedUrls), total: urlCount) }
     }
 
     /// A cancelled task, as opposed to a receiver or network that failed. URLSession reports a
@@ -80,6 +88,7 @@ actor WebhookManager {
 
         let rawPayload = String(data: jsonData, encoding: .utf8)
         var anySuccess = false
+        var notTaken: [String] = []
         var anyFailed = false
         var anyInterrupted = false
         var allRefused = true
@@ -105,6 +114,8 @@ actor WebhookManager {
             if result.success {
                 anySuccess = true
                 if !logSuccess { continue }
+            } else {
+                notTaken.append(url)
             }
             if result.interrupted {
                 anyInterrupted = true
@@ -129,10 +140,12 @@ actor WebhookManager {
         }
 
         // A URL that failed before the cut is a failure of the whole post, as its row says.
-        if anySuccess { return Delivery(outcome: .delivered) }
-        if anyInterrupted && !anyFailed { return Delivery(outcome: .interrupted) }
+        // One URL that took it makes the post delivered, so the others miss this payload for
+        // good: they are named, not queued.
+        if anySuccess { return Delivery(outcome: .delivered, missedUrls: notTaken, urlCount: urls.count) }
+        if anyInterrupted && !anyFailed { return Delivery(outcome: .interrupted, urlCount: urls.count) }
         let outcome: Outcome = allRefused && !anyInterrupted ? .refused : .failed
-        return Delivery(outcome: outcome, error: lastError, statusCode: lastStatusCode)
+        return Delivery(outcome: outcome, error: lastError, statusCode: lastStatusCode, urlCount: urls.count)
     }
 
     static let atsRefusal = AppDiagnostic.plainHTTPBlocked.rawValue

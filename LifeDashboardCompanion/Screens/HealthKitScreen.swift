@@ -567,8 +567,11 @@ struct HealthKitScreen: View {
                 switch result {
                 case .noData:
                     report(.noData)
-                case .success(let counts):
-                    report(.synced(counts.values.reduce(0, +)))
+                case .success(let counts, let reach):
+                    let records = counts.values.reduce(0, +)
+                    report(reach.partial
+                           ? .partlySynced(records, delivered: reach.delivered, of: reach.total)
+                           : .synced(records))
                 case .failure(let error):
                     report(.failed(AppDiagnostic.display(error)))
                 }
@@ -672,6 +675,8 @@ struct HealthKitScreen: View {
 /// What Sync Now or Test ping last did. It decides the colour, instead of the text deciding it.
 enum SyncOutcome: Equatable {
     case synced(Int)
+    /// Delivered, but not to every webhook: those that missed it get nothing queued.
+    case partlySynced(Int, delivered: Int, of: Int)
     case noData
     case failed(String)
     case pingDelivered
@@ -681,6 +686,7 @@ enum SyncOutcome: Equatable {
     var text: Text {
         switch self {
         case .synced(let records): return Text("Synced \(records) records")
+        case .partlySynced: return Text(verbatim: announcement)
         case .noData: return Text("No data to sync")
         case .failed(let reason): return Text("Sync failed: \(reason)")
         case .pingDelivered: return Text("Test ping delivered")
@@ -692,6 +698,9 @@ enum SyncOutcome: Equatable {
     var announcement: String {
         switch self {
         case .synced(let records): return String(localized: "Synced \(records) records")
+        case .partlySynced(let records, let delivered, let total):
+            return String(localized: "Synced \(records) records") + " "
+                + String(localized: "Delivered to \(delivered) of \(total) destinations, see Logs.")
         case .noData: return String(localized: "No data to sync")
         case .failed(let reason): return String(localized: "Sync failed: \(reason)")
         case .pingDelivered: return String(localized: "Test ping delivered")
@@ -704,7 +713,7 @@ enum SyncOutcome: Equatable {
         switch self {
         case .synced, .pingDelivered: return .success
         case .noData: return .info
-        case .failed, .pingFailed, .exportFailed: return .failure
+        case .failed, .partlySynced, .pingFailed, .exportFailed: return .failure
         }
     }
 }

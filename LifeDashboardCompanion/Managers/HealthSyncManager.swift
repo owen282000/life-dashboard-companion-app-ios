@@ -82,7 +82,9 @@ final class HealthSyncManager: Sendable {
                 urls: webhookUrls, headers: headers, deletions: deletions, commit: nil
             )
             guard let outcome else { return .failure(error: AppDiagnostic.serializeFailed.rawValue) }
-            return outcome.delivered ? .success(syncCounts: syncCounts) : .failure(error: AppDiagnostic.queuedForRetry.rawValue)
+            return outcome.delivered
+                ? .success(syncCounts: syncCounts, reach: outcome.reach)
+                : .failure(error: AppDiagnostic.queuedForRetry.rawValue)
         } catch {
             return readFailed(error)
         }
@@ -207,7 +209,7 @@ final class HealthSyncManager: Sendable {
                 )
                 guard let outcome else { return .failure(error: AppDiagnostic.serializeFailed.rawValue) }
                 let result: HealthSyncResult = outcome.delivered
-                    ? .success(syncCounts: syncCounts)
+                    ? .success(syncCounts: syncCounts, reach: outcome.reach)
                     : .failure(error: AppDiagnostic.queuedForRetry.rawValue)
 
                 // Last, once the webhook's payload is delivered or queued: a HealthKit wakeup's
@@ -244,8 +246,9 @@ final class HealthSyncManager: Sendable {
     }
 
     /// Pushes the latest sync result to the app group so the home screen widget stays
-    /// current, and tracks the failure streak for the local failure notification. An
-    /// interrupted delivery changes neither: it is queued, and its retry counts.
+    /// current, and tracks the failure streak and the partial streak for the local
+    /// notifications. An interrupted delivery changes none of them: it is queued, and its
+    /// retry counts.
     private func updateWidgetStatus(_ delivery: WebhookManager.Delivery, records: Int) {
         guard delivery.outcome != .interrupted else { return }
         let success = delivery.delivered
@@ -253,6 +256,7 @@ final class HealthSyncManager: Sendable {
         WidgetCenter.shared.reloadAllTimelines()
         // The notification is read in the phone's language; the row keeps the English text.
         SyncFailureNotifier.shared.recordResult(success: success, lastError: delivery.error.map(AppDiagnostic.display))
+        SyncFailureNotifier.shared.recordReach(delivered: success, missedUrls: delivery.missedUrls)
     }
 
     // MARK: - Pending Queue Drain
@@ -371,7 +375,9 @@ final class HealthSyncManager: Sendable {
             urls: urls, headers: headers, deletions: deletions, commit: commit
         )
         guard let outcome else { return nil }
-        return outcome.delivered ? .success(syncCounts: [:]) : .failure(error: AppDiagnostic.queuedForRetry.rawValue)
+        return outcome.delivered
+            ? .success(syncCounts: [:], reach: outcome.reach)
+            : .failure(error: AppDiagnostic.queuedForRetry.rawValue)
     }
 
     // MARK: - Write-ahead delivery
@@ -487,15 +493,19 @@ final class HealthSyncManager: Sendable {
 }
 
 extension HealthSyncResult {
-    /// Combines the results of the rounds of one sync: a failure wins, record counts add up.
+    /// Combines the results of the rounds of one sync: a failure wins, record counts add up,
+    /// and a webhook that missed one round missed part of the sync.
     func merged(with other: HealthSyncResult) -> HealthSyncResult {
         switch (self, other) {
         case (.failure, _): return self
         case (_, .failure): return other
         case (.noData, _): return other
         case (_, .noData): return self
-        case let (.success(first), .success(second)):
-            return .success(syncCounts: first.merging(second, uniquingKeysWith: +))
+        case let (.success(first, firstReach), .success(second, secondReach)):
+            return .success(
+                syncCounts: first.merging(second, uniquingKeysWith: +),
+                reach: firstReach.merged(with: secondReach)
+            )
         }
     }
 }

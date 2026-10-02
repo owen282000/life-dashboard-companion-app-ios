@@ -11,6 +11,8 @@ final class SyncFailureNotifier: Sendable {
     private static let notificationId = "sync-failure"
     private static let droppedKey = "sync_dropped_count"
     private static let droppedNotificationId = "sync-dropped"
+    private static let partialStreakKey = "sync_partial_streak"
+    private static let partialNotificationId = "sync-partial"
 
     private let logger = Logger(subsystem: "com.owen282000.lifedashboard", category: "FailureNotifier")
 
@@ -77,6 +79,71 @@ final class SyncFailureNotifier: Sendable {
             }
         }
         logger.info("Posted sync failure notification (streak: \(streak))")
+    }
+
+    // MARK: - Partial delivery
+
+    /// The partial streak, next to the failure streak: deliveries in a row that one webhook took
+    /// and another missed. Such a delivery counts as done, so nothing is queued for the one that
+    /// missed it, and the failure streak never sees it. iOS syncs one category, Apple Health, so
+    /// there is one streak, as Android keeps one per category.
+    enum PartialStreak {
+        /// The streak after one delivery. A delivery that missed some webhooks counts up, one
+        /// that reached every webhook ends it, and a failure leaves it alone: the failure streak
+        /// covers that.
+        static func next(_ streak: Int, delivered: Bool, missedUrls: [String]) -> Int {
+            guard delivered else { return streak }
+            return missedUrls.isEmpty ? 0 : streak + 1
+        }
+
+        /// At the failure threshold and every multiple of it, like the failure notification.
+        static func notifies(_ streak: Int, threshold: Int, enabled: Bool) -> Bool {
+            enabled && streak > 0 && streak % max(1, threshold) == 0
+        }
+    }
+
+    static func partialTitle() -> String {
+        let category = String(localized: "Apple Health")
+        return String(localized: "Not every destination gets your \(category) data")
+    }
+
+    /// `count` deliveries in a row missed the webhooks at `hosts`, named by host alone.
+    static func partialBody(count: Int, hosts: String) -> String {
+        String(localized: "\(hosts) missed the last \(count) syncs. Another destination took them, so they are not queued for \(hosts). See the Logs tab.")
+    }
+
+    /// Records which webhooks one delivery reached (see `PartialStreak`), and notifies at the
+    /// failure threshold, naming the webhooks this delivery missed by their host.
+    func recordReach(delivered: Bool, missedUrls: [String]) {
+        let defaults = UserDefaults.standard
+        let before = defaults.integer(forKey: SyncFailureNotifier.partialStreakKey)
+        let streak = PartialStreak.next(before, delivered: delivered, missedUrls: missedUrls)
+        guard streak != before else { return }
+        defaults.set(streak, forKey: SyncFailureNotifier.partialStreakKey)
+        guard streak > 0 else {
+            UNUserNotificationCenter.current()
+                .removeDeliveredNotifications(withIdentifiers: [SyncFailureNotifier.partialNotificationId])
+            return
+        }
+
+        let prefs = PreferencesManager.shared
+        guard PartialStreak.notifies(
+            streak, threshold: prefs.failureNotificationThreshold, enabled: prefs.failureNotificationsEnabled
+        ) else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = SyncFailureNotifier.partialTitle()
+        content.body = SyncFailureNotifier.partialBody(count: streak, hosts: WebhookHosts.list(missedUrls))
+        content.sound = nil
+        let request = UNNotificationRequest(
+            identifier: SyncFailureNotifier.partialNotificationId, content: content, trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request) { [logger] error in
+            if let error {
+                logger.error("Failed to schedule partial delivery notification: \(error.localizedDescription)")
+            }
+        }
+        logger.info("Posted partial delivery notification (streak: \(streak))")
     }
 
     // MARK: - Dropped from the queue

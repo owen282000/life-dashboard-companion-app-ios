@@ -23,6 +23,9 @@ struct SectionChange: Equatable, Sendable {
     let replacesSecret: Bool
     /// How many other addresses are signed with the secret pairing replaces.
     let otherUrls: Int
+    /// The other addresses when the secret changes: they keep getting payloads, signed with the
+    /// new secret from then on, and one that checks signatures starts refusing them.
+    var othersSignedWithNewSecret: [String] = []
 
     var changesNothing: Bool { !addsUrl && !replacesSecret }
 }
@@ -37,10 +40,13 @@ struct SectionChange: Equatable, Sendable {
 enum PairingApply {
     static func preview(_ link: PairingLink, current: SectionWebhook) -> SectionChange {
         let secret = current.secret.trimmingCharacters(in: .whitespacesAndNewlines)
+        let replacesSecret = !secret.isEmpty && secret != link.secret
+        let others = current.urls.filter { $0 != link.url }
         return SectionChange(
             addsUrl: !current.urls.contains(link.url),
-            replacesSecret: !secret.isEmpty && secret != link.secret,
-            otherUrls: current.urls.filter { $0 != link.url }.count
+            replacesSecret: replacesSecret,
+            otherUrls: others.count,
+            othersSignedWithNewSecret: replacesSecret ? others : []
         )
     }
 

@@ -121,12 +121,41 @@ final class OutboxTests: XCTestCase {
             body: Data("{}".utf8), urls: [""], headers: [:],
             logType: .healthConnect, dataType: "health_connect", recordCount: 1
         )
-        XCTAssertEqual(delivery, WebhookManager.Delivery(outcome: .failed, error: AppDiagnostic.invalidURL.rawValue))
+        XCTAssertEqual(delivery, WebhookManager.Delivery(outcome: .failed, error: AppDiagnostic.invalidURL.rawValue, urlCount: 1))
         for row in LogStore.shared.load() where row.url.isEmpty { LogStore.shared.delete(id: row.id) }
 
         let body = SyncFailureNotifier.failureBody(streak: 3, lastError: delivery.error.map(AppDiagnostic.display))
         XCTAssertTrue(body.hasSuffix("Last error: Invalid URL"), body)
         XCTAssertFalse(SyncFailureNotifier.failureBody(streak: 3, lastError: nil).contains("Last error"))
+    }
+
+    // MARK: - Partial delivery notification
+
+    func testThePartialStreakCountsMissesEndsOnAFullDeliveryAndIgnoresFailures() {
+        let missed = ["https://down.example/hook"]
+        typealias Streak = SyncFailureNotifier.PartialStreak
+        XCTAssertEqual(Streak.next(0, delivered: true, missedUrls: missed), 1)
+        XCTAssertEqual(Streak.next(2, delivered: true, missedUrls: missed), 3)
+        XCTAssertEqual(Streak.next(4, delivered: true, missedUrls: []), 0)
+        // A total failure is the failure streak's: the partial one stays where it was.
+        XCTAssertEqual(Streak.next(2, delivered: false, missedUrls: []), 2)
+        XCTAssertEqual(Streak.next(0, delivered: false, missedUrls: []), 0)
+    }
+
+    func testThePartialNotificationComesAtTheThresholdAndItsMultiples() {
+        typealias Streak = SyncFailureNotifier.PartialStreak
+        let notified = (1...9).filter { Streak.notifies($0, threshold: 3, enabled: true) }
+        XCTAssertEqual(notified, [3, 6, 9])
+        XCTAssertFalse(Streak.notifies(3, threshold: 3, enabled: false), "only with failure notifications on")
+        XCTAssertFalse(Streak.notifies(0, threshold: 3, enabled: true))
+        XCTAssertTrue(Streak.notifies(1, threshold: 0, enabled: true), "a threshold below 1 counts as 1")
+    }
+
+    func testThePartialNotificationNamesHostsOnly() {
+        let hosts = WebhookHosts.list(["https://down.example/api/webhook/secret-id?token=t", "http://10.0.0.2:1880/hook"])
+        let body = SyncFailureNotifier.partialBody(count: 3, hosts: hosts)
+        XCTAssertFalse(body.contains("secret-id") || body.contains("token") || body.contains("/hook"), body)
+        XCTAssertTrue(body.contains("down.example, 10.0.0.2"), body)
     }
 
     // MARK: - Queue files
@@ -377,6 +406,26 @@ final class OutboxTests: XCTestCase {
         XCTAssertEqual(unauthorized.outcome, .failed)
         let oneTookIt = await post([400, 204])
         XCTAssertEqual(oneTookIt.outcome, .delivered)
+    }
+
+    func testAPostThatOneOfTwoAddressesMissedNamesThatOne() async {
+        let partly = await post([404, 204])
+        XCTAssertEqual(partly.outcome, .delivered, "what counts as delivered does not change")
+        XCTAssertEqual(partly.urlCount, 2)
+        XCTAssertEqual(partly.missedUrls.count, 1)
+        XCTAssertTrue(partly.missedUrls[0].hasPrefix("https://status-404-"), partly.missedUrls[0])
+        XCTAssertTrue(partly.reach.partial)
+        XCTAssertEqual(partly.reach.delivered, 1)
+
+        let everywhere = await post([204, 200])
+        XCTAssertEqual(everywhere.missedUrls, [])
+        XCTAssertEqual(everywhere.urlCount, 2)
+        XCTAssertFalse(everywhere.reach.partial)
+
+        // Nobody took it: a failure, which the queue keeps, not a miss.
+        let nowhere = await post([404, 404])
+        XCTAssertEqual(nowhere.outcome, .failed)
+        XCTAssertEqual(nowhere.missedUrls, [])
     }
 }
 

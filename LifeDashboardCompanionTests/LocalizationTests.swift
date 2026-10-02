@@ -51,6 +51,40 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(resolve("\(2) of \(10) windows, \(1) records sent", "nl"), "2 van 10 blokken, 1 record verstuurd")
     }
 
+    func testAPartialDeliveryIsSaidInEachLanguage() {
+        XCTAssertEqual(resolve("Delivered to \(1) of \(2) destinations, see Logs.", "nl"),
+                       "Afgeleverd bij 1 van 2 bestemmingen, zie Logs.")
+        XCTAssertEqual(resolve("Delivered to \(1) of \(2) destinations, see Logs.", "de"),
+                       "An 1 von 2 Zielen zugestellt, siehe Logs.")
+        XCTAssertEqual(resolve("Not every destination gets your \("Apple Gezondheid") data", "nl"),
+                       "Niet elke bestemming krijgt je Apple Gezondheid-gegevens")
+        XCTAssertEqual(resolve("Not every destination gets your \("Apple Health") data", "de"),
+                       "Nicht jedes Ziel bekommt deine Apple Health-Daten")
+    }
+
+    func testThePartialNotificationVariesByPluralAndNamesTheHostTwice() {
+        let host = "ha.example"
+        XCTAssertEqual(resolve("\(host) missed the last \(1) syncs. Another destination took them, so they are not queued for \(host). See the Logs tab.", "en"),
+                       "ha.example missed the last sync. Another destination took it, so it is not queued for ha.example. See the Logs tab.")
+        XCTAssertEqual(resolve("\(host) missed the last \(3) syncs. Another destination took them, so they are not queued for \(host). See the Logs tab.", "en"),
+                       "ha.example missed the last 3 syncs. Another destination took them, so they are not queued for ha.example. See the Logs tab.")
+        XCTAssertEqual(resolve("\(host) missed the last \(1) syncs. Another destination took them, so they are not queued for \(host). See the Logs tab.", "nl"),
+                       "ha.example heeft de laatste synchronisatie gemist. Een andere bestemming kreeg hem wel, dus voor ha.example staat hij niet in de wachtrij. Zie het tabblad Logs.")
+        XCTAssertEqual(resolve("\(host) missed the last \(3) syncs. Another destination took them, so they are not queued for \(host). See the Logs tab.", "nl"),
+                       "ha.example heeft de laatste 3 synchronisaties gemist. Een andere bestemming kreeg ze wel, dus voor ha.example staan ze niet in de wachtrij. Zie het tabblad Logs.")
+        XCTAssertEqual(resolve("\(host) missed the last \(1) syncs. Another destination took them, so they are not queued for \(host). See the Logs tab.", "de"),
+                       "ha.example hat die letzte Synchronisierung verpasst. Ein anderes Ziel hat sie bekommen, deshalb steht sie für ha.example nicht in der Warteschlange. Sieh im Tab Logs nach.")
+        XCTAssertEqual(resolve("\(host) missed the last \(3) syncs. Another destination took them, so they are not queued for \(host). See the Logs tab.", "de"),
+                       "ha.example hat die letzten 3 Synchronisierungen verpasst. Ein anderes Ziel hat sie bekommen, deshalb stehen sie für ha.example nicht in der Warteschlange. Sieh im Tab Logs nach.")
+    }
+
+    func testThePairingSheetNamesTheOtherAddressesInEachLanguage() {
+        XCTAssertEqual(resolve("Replaces the signing secret this section uses now. \("a.example, b.example") gets payloads signed with the new one from then on: if it checks signatures, give it the new secret too, or remove it.", "nl"),
+                       "Vervangt het ondertekeningsgeheim dat dit onderdeel nu gebruikt. a.example, b.example krijgt vanaf dan payloads met het nieuwe: controleert het handtekeningen, geef het dan ook het nieuwe geheim, of haal het weg.")
+        XCTAssertEqual(resolve("Replaces the signing secret this section uses now. \("a.example") gets payloads signed with the new one from then on: if it checks signatures, give it the new secret too, or remove it.", "de"),
+                       "Ersetzt das Signaturgeheimnis, das dieser Bereich jetzt verwendet. a.example bekommt ab dann Payloads, die mit dem neuen signiert sind: Prüft es Signaturen, gib ihm auch das neue Geheimnis, oder entferne es.")
+    }
+
     // MARK: - Stored in English, shown translated
 
     func testEveryStoredMessageIsRecognized() {
