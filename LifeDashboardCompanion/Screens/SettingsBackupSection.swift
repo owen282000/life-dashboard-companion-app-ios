@@ -227,7 +227,7 @@ private struct ExportSheet: View {
                 if let errorMessage {
                     Section {
                         Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundColor(.red)
+                            .foregroundColor(Brand.errorInk)
                     }
                 }
             }
@@ -353,7 +353,7 @@ private struct ImportSheet: View {
             } footer: {
                 if let errorMessage {
                     Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                        .foregroundColor(.red)
+                        .foregroundColor(Brand.errorInk)
                 }
             }
         }
@@ -406,7 +406,7 @@ private struct ImportSheet: View {
         case .failure(let error):
             Form {
                 Label(SettingsBackupSection.message(for: error), systemImage: "exclamationmark.triangle.fill")
-                    .foregroundColor(.red)
+                    .foregroundColor(Brand.errorInk)
             }
             .navigationTitle("Import settings?")
             .toolbar {
