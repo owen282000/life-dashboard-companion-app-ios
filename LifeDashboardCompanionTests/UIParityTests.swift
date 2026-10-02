@@ -173,6 +173,8 @@ final class UIParityTests: XCTestCase {
         XCTAssertEqual(SyncOutcome.failed("timed out").tone, .failure)
         XCTAssertEqual(SyncOutcome.pingFailed.tone, .failure)
         XCTAssertEqual(SyncOutcome.exportFailed("locked").tone, .failure)
+        // Delivered, but a webhook missed it and gets nothing queued: it reads as a problem.
+        XCTAssertEqual(SyncOutcome.partlySynced(4, delivered: 1, of: 2).tone, .failure)
     }
 
     // MARK: - Onboarding

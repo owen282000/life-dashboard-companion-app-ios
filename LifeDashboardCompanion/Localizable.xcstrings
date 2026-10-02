@@ -265,6 +265,94 @@
         }
       }
     },
+    "%@ missed the last %lld syncs. Another destination took them, so they are not queued for %@. See the Logs tab." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@missed@"
+          },
+          "substitutions" : {
+            "missed" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@ hat die letzte Synchronisierung verpasst. Ein anderes Ziel hat sie bekommen, deshalb steht sie für %3$@ nicht in der Warteschlange. Sieh im Tab Logs nach."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@ hat die letzten %arg Synchronisierungen verpasst. Ein anderes Ziel hat sie bekommen, deshalb stehen sie für %3$@ nicht in der Warteschlange. Sieh im Tab Logs nach."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@missed@"
+          },
+          "substitutions" : {
+            "missed" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@ missed the last sync. Another destination took it, so it is not queued for %3$@. See the Logs tab."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@ missed the last %arg syncs. Another destination took them, so they are not queued for %3$@. See the Logs tab."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@missed@"
+          },
+          "substitutions" : {
+            "missed" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@ heeft de laatste synchronisatie gemist. Een andere bestemming kreeg hem wel, dus voor %3$@ staat hij niet in de wachtrij. Zie het tabblad Logs."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@ heeft de laatste %arg synchronisaties gemist. Een andere bestemming kreeg ze wel, dus voor %3$@ staan ze niet in de wachtrij. Zie het tabblad Logs."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%@ to %lld webhooks" : {
       "localizations" : {
         "de" : {
@@ -2518,6 +2606,28 @@
         }
       }
     },
+    "Delivered to %lld of %lld destinations, see Logs." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An %1$lld von %2$lld Zielen zugestellt, siehe Logs."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delivered to %1$lld of %2$lld destinations, see Logs."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afgeleverd bij %1$lld van %2$lld bestemmingen, zie Logs."
+          }
+        }
+      }
+    },
     "Delivered, but the Life Dashboard integration did not answer. Check that the entry for this phone still exists." : {
       "localizations" : {
         "de" : {
@@ -4719,6 +4829,22 @@
         }
       }
     },
+    "Not every destination gets your %@ data" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht jedes Ziel bekommt deine %@-Daten"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niet elke bestemming krijgt je %@-gegevens"
+          }
+        }
+      }
+    },
     "Not included" : {
       "localizations" : {
         "de" : {
@@ -5797,18 +5923,18 @@
         }
       }
     },
-    "Replaces the signing secret for all your webhook URLs. A receiver that checks the old one will refuse your data." : {
+    "Replaces the signing secret this section uses now. %@ gets payloads signed with the new one from then on: if it checks signatures, give it the new secret too, or remove it." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ersetzt das Signaturgeheimnis für alle deine Webhook-URLs. Ein Empfänger, der das alte prüft, lehnt deine Daten ab."
+            "value" : "Ersetzt das Signaturgeheimnis, das dieser Bereich jetzt verwendet. %@ bekommt ab dann Payloads, die mit dem neuen signiert sind: Prüft es Signaturen, gib ihm auch das neue Geheimnis, oder entferne es."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vervangt het ondertekeningsgeheim voor al je webhook-URL's. Een ontvanger die het oude controleert, weigert je data."
+            "value" : "Vervangt het ondertekeningsgeheim dat dit onderdeel nu gebruikt. %@ krijgt vanaf dan payloads met het nieuwe: controleert het handtekeningen, geef het dan ook het nieuwe geheim, of haal het weg."
           }
         }
       }

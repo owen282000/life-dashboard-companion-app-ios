@@ -43,7 +43,7 @@ struct SyncHealthDataIntent: AppIntent, LiveActivityIntent {
         }
         let result = await SyncCoordinator.shared.runManual(full: false)
         switch result {
-        case .success(let syncCounts):
+        case .success(let syncCounts, _):
             let total = syncCounts.values.reduce(0, +)
             return .result(dialog: "Synced \(total) health records.")
         case .noData:

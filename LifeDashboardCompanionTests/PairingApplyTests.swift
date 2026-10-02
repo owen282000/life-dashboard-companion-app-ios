@@ -58,6 +58,39 @@ final class PairingApplyTests: XCTestCase {
         XCTAssertFalse(change.replacesSecret)
     }
 
+    func testThePreviewNamesTheOtherAddressesOnlyWhenTheSecretIsReplaced() {
+        let replaced = PairingApply.preview(link, current: section([mine, link.url], secret: "old"))
+        XCTAssertEqual(replaced.othersSignedWithNewSecret, [mine])
+        XCTAssertEqual(WebhookHosts.list(replaced.othersSignedWithNewSecret), "my.server")
+
+        // Same secret, or none before: nothing the other addresses get changes.
+        XCTAssertEqual(PairingApply.preview(link, current: section([mine], secret: "new-secret")).othersSignedWithNewSecret, [])
+        XCTAssertEqual(PairingApply.preview(link, current: section([mine])).othersSignedWithNewSecret, [])
+        // Only the paired address: no other to name.
+        XCTAssertEqual(PairingApply.preview(link, current: section([link.url], secret: "old")).othersSignedWithNewSecret, [])
+    }
+
+    // MARK: - Hosts
+
+    func testAHostNeverCarriesThePathOrTheQuery() {
+        XCTAssertEqual(WebhookHosts.host(of: "https://ha.example.com:8123/api/webhook/abc123?token=secret#frag"), "ha.example.com")
+        XCTAssertEqual(WebhookHosts.host(of: "https://user:pass@n8n.example.org/webhook/xyz"), "n8n.example.org")
+        XCTAssertEqual(WebhookHosts.host(of: "http://[fd00::1]:8123/api/webhook/abc"), "[fd00::1]")
+        // Not a URL Foundation reads: cut by hand, still without path, query, user or port.
+        for odd in ["http://my host:8123/api/webhook/abc?token=secret", "my host/api/webhook/abc?token=secret"] {
+            let host = WebhookHosts.host(of: odd)
+            XCTAssertEqual(host, "my host", odd)
+            XCTAssertFalse(host.contains("/") || host.contains("?") || host.contains("abc") || host.contains("secret"), odd)
+        }
+    }
+
+    func testSeveralHostsAreJoinedOnceEach() {
+        XCTAssertEqual(WebhookHosts.list([
+            "https://a.example/hook/1?k=v", "https://b.example/hook", "https://a.example/hook/2"
+        ]), "a.example, b.example")
+        XCTAssertEqual(WebhookHosts.list([]), "")
+    }
+
     func testABlankSecretCountsAsNone() {
         XCTAssertFalse(PairingApply.preview(link, current: section([mine], secret: "  ")).replacesSecret)
     }

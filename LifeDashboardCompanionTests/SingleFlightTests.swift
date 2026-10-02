@@ -131,9 +131,19 @@ final class SingleFlightTests: XCTestCase {
     func testResultsOfRoundsCombine() {
         let one = HealthSyncResult.success(syncCounts: [.steps: 3])
         let two = HealthSyncResult.success(syncCounts: [.steps: 2, .sleep: 1])
-        guard case .success(let counts) = one.merged(with: two) else { return XCTFail("expected success") }
+        guard case .success(let counts, _) = one.merged(with: two) else { return XCTFail("expected success") }
         XCTAssertEqual(counts, [.steps: 5, .sleep: 1])
         guard case .failure = one.merged(with: .failure(error: "down")) else { return XCTFail("expected failure") }
         guard case .success = HealthSyncResult.noData.merged(with: one) else { return XCTFail("expected success") }
+    }
+
+    func testAWebhookThatMissedOneRoundMissedPartOfTheSync() {
+        let one = HealthSyncResult.success(syncCounts: [.steps: 1], reach: DeliveryReach(missed: ["https://a/1"], total: 2))
+        let two = HealthSyncResult.success(syncCounts: [.steps: 1], reach: DeliveryReach(missed: [], total: 2))
+        guard case .success(_, let reach) = one.merged(with: two) else { return XCTFail("expected success") }
+        XCTAssertEqual(reach, DeliveryReach(missed: ["https://a/1"], total: 2))
+        XCTAssertTrue(reach.partial)
+        XCTAssertEqual(reach.delivered, 1)
+        XCTAssertFalse(DeliveryReach(missed: ["https://a/1"], total: 1).partial, "missed by every webhook is a failure")
     }
 }

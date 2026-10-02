@@ -161,10 +161,11 @@ struct PairingSheet: View {
             lines.append(Line(text: "Adds this address to your webhook URLs.", icon: "plus.circle", color: .primary))
         }
         if change.replacesSecret {
-            lines.append(change.otherUrls > 0
-                ? Line(text: "Replaces the signing secret for all your webhook URLs. A receiver that checks the old one will refuse your data.",
-                       icon: "exclamationmark.triangle", color: .orange)
-                : Line(text: "Replaces the signing secret.", icon: "key", color: .primary))
+            let others = WebhookHosts.list(change.othersSignedWithNewSecret)
+            lines.append(others.isEmpty
+                ? Line(text: "Replaces the signing secret.", icon: "key", color: .primary)
+                : Line(text: "Replaces the signing secret this section uses now. \(others) gets payloads signed with the new one from then on: if it checks signatures, give it the new secret too, or remove it.",
+                       icon: "exclamationmark.triangle", color: .orange))
         }
         switch link.reach {
         case .secure:
