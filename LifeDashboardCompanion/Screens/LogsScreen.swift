@@ -268,14 +268,15 @@ struct LogRow: View {
             }
 
             if let payload = log.rawPayload {
-                Text(verbatim: payload.count > 1500
-                     ? String(payload.prefix(1500)) + "\n" + String(localized: "... [share for the full payload]")
-                     : payload)
-                    .font(.system(.caption2, design: .monospaced))
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                    .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                PayloadPreviewText(
+                    preview: PayloadPreview.of(payload),
+                    font: .system(.caption2, design: .monospaced),
+                    whereTheRestIs: Text("Use Share payload for the full payload.")
+                )
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
 
             HStack {
@@ -293,6 +294,38 @@ struct LogRow: View {
                 .tint(Brand.errorInk)
             }
             .frame(minHeight: 44)
+        }
+    }
+}
+
+/// A payload on screen, capped like the Android app (P2-11): at most 12,000 characters, a line
+/// that says how many there are and where the rest is, and for VoiceOver the size instead of the
+/// whole text. The lines under it stay readable on their own.
+struct PayloadPreviewText: View {
+    let preview: PayloadPreview
+    let font: Font
+    /// Where the rest of a payload cut for display is, in the words of the screen's own button.
+    let whereTheRestIs: Text
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(verbatim: preview.text)
+                .font(font)
+                .accessibilityLabel(Text("Payload, \(preview.totalCount.formatted()) characters"))
+            if preview.cutForDisplay || preview.cutInStorage {
+                VStack(alignment: .leading, spacing: 2) {
+                    if preview.cutForDisplay {
+                        Text("Showing the first \(PayloadPreview.maxCharacters.formatted()) of \(preview.totalCount.formatted()) characters.")
+                    }
+                    // A payload the log cut short is shared cut short too, so Share is no answer.
+                    if preview.cutInStorage {
+                        Text("Only the first \(LogStore.maxRawPayloadCharacters.formatted()) characters of this payload were stored.")
+                    } else {
+                        whereTheRestIs
+                    }
+                }
+                .font(.caption2)
+            }
         }
     }
 }

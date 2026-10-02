@@ -182,3 +182,43 @@ final class ExportManager {
         }
     }
 }
+
+/// The part of a payload the Logs and the Health Data Preview put on screen (P2-11), the same as
+/// the Android app.
+///
+/// A payload can be 100,000 characters in the log and more in the preview. SwiftUI lays a Text
+/// out in one go, compact JSON without spaces being the slowest case, and VoiceOver would get all
+/// of it. So the screen shows the first 12,000 characters; Share has the whole payload.
+///
+/// `cutForDisplay` says the screen shows less than there is; `cutInStorage` says the log kept only
+/// the first `LogStore.maxRawPayloadCharacters`, so sharing gives that part too. `totalCount`
+/// counts what there is to show, without the log's marker.
+struct PayloadPreview: Equatable, Sendable {
+    /// Characters shown at most, the same on Android.
+    static let maxCharacters = 12_000
+
+    /// How far before the limit a line end may be, to end the preview on a whole line.
+    private static let lineSlack = 500
+
+    let text: String
+    let totalCount: Int
+    let cutForDisplay: Bool
+    let cutInStorage: Bool
+
+    /// The first `limit` characters of `payload`, ending on a whole line when one is close.
+    /// Counts grapheme clusters, so an emoji is never split.
+    static func of(_ payload: String, limit: Int = maxCharacters) -> PayloadPreview {
+        let cutInStorage = payload.hasSuffix(LogStore.truncationMarker)
+        let body = cutInStorage ? String(payload.dropLast(LogStore.truncationMarker.count)) : payload
+        guard let limitIndex = body.index(body.startIndex, offsetBy: limit, limitedBy: body.endIndex),
+              limitIndex < body.endIndex else {
+            return PayloadPreview(text: body, totalCount: body.count, cutForDisplay: false, cutInStorage: cutInStorage)
+        }
+        var end = limitIndex
+        let slackStart = body.index(limitIndex, offsetBy: -lineSlack, limitedBy: body.startIndex) ?? body.startIndex
+        if let lineEnd = body[slackStart..<limitIndex].lastIndex(of: "\n") {
+            end = lineEnd
+        }
+        return PayloadPreview(text: String(body[..<end]), totalCount: body.count, cutForDisplay: true, cutInStorage: cutInStorage)
+    }
+}

@@ -20,7 +20,7 @@ struct HealthKitScreen: View {
     @State private var phoneNameText = PreferencesManager.shared.phoneName
     @FocusState private var phoneNameFocused: Bool
     @State private var showPreview = false
-    @State private var previewPayload: String = ""
+    @State private var previewPayload: PayloadPreview?
     @State private var previewFullPayload: String = ""
     @State private var isLoadingPreview = false
     @State private var isSyncing = false
@@ -615,23 +615,15 @@ struct HealthKitScreen: View {
     private func loadPreview() {
         isLoadingPreview = true
         Task {
-            // Build and format off the main thread; rendering megabytes of JSON
-            // in a Text view freezes the UI, so the display copy is truncated.
-            let result: (display: String, full: String) = await Task.detached(priority: .userInitiated) {
+            // Build, format and cap off the main thread: laying out more than PayloadPreview's
+            // 12,000 characters in one Text stalls the screen (P2-11). Share has all of it.
+            let result: (display: PayloadPreview?, full: String) = await Task.detached(priority: .userInitiated) {
                 do {
                     let payload = try await HealthSyncManager.shared.buildPreviewPayload()
                     let formatted = ExportManager.formatPayloadForPreview(payload)
-                    let displayLimit = 100_000
-                    if formatted.count > displayLimit {
-                        let display = String(formatted.prefix(displayLimit))
-                            + "\n\n"
-                            + String(localized: "... [truncated for display, \(formatted.count) characters total - use the share button for the full payload]")
-                        return (display, formatted)
-                    }
-                    return (formatted, formatted)
+                    return (PayloadPreview.of(formatted), formatted)
                 } catch {
-                    let message = String(localized: "Error: \(error.localizedDescription)")
-                    return (message, message)
+                    return (nil, String(localized: "Error: \(error.localizedDescription)"))
                 }
             }.value
             previewPayload = result.display
@@ -644,10 +636,21 @@ struct HealthKitScreen: View {
     private var previewSheet: some View {
         NavigationStack {
             ScrollView {
-                Text(verbatim: previewPayload)
-                    .font(.system(.caption, design: .monospaced))
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Group {
+                    if let preview = previewPayload {
+                        PayloadPreviewText(
+                            preview: preview,
+                            font: .system(.caption, design: .monospaced),
+                            whereTheRestIs: Text("Use the share button for the full payload.")
+                        )
+                    } else {
+                        // The error a failed build left in previewFullPayload, read as it is.
+                        Text(verbatim: previewFullPayload)
+                            .font(.system(.caption, design: .monospaced))
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .navigationTitle("Health Data Preview")
             .navigationBarTitleDisplayMode(.inline)

@@ -102,4 +102,50 @@ final class HealthExportTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: first.path), "an export holds health data: only the newest stays")
         XCTAssertEqual(try String(contentsOf: second, encoding: .utf8), ExportManager.healthDataCSV(from: payload))
     }
+
+    // MARK: - What the screen shows of a payload (P2-11)
+
+    func testAShortPayloadIsShownWhole() {
+        let preview = PayloadPreview.of("{\"steps\":[]}")
+        XCTAssertEqual(preview.text, "{\"steps\":[]}")
+        XCTAssertFalse(preview.cutForDisplay)
+        XCTAssertFalse(preview.cutInStorage)
+    }
+
+    func testAPayloadOfExactlyTheLimitIsShownWhole() {
+        let preview = PayloadPreview.of(String(repeating: "a", count: PayloadPreview.maxCharacters))
+        XCTAssertEqual(preview.text.count, PayloadPreview.maxCharacters)
+        XCTAssertFalse(preview.cutForDisplay)
+    }
+
+    func testALongPayloadStopsAtTwelveThousandCharactersAndKnowsItsLength() {
+        let preview = PayloadPreview.of(String(repeating: "a", count: 300_000))
+        XCTAssertEqual(preview.text.count, 12_000, "the same limit as Android")
+        XCTAssertEqual(preview.totalCount, 300_000)
+        XCTAssertTrue(preview.cutForDisplay)
+        XCTAssertFalse(preview.cutInStorage)
+    }
+
+    func testACutEndsOnALineWhenOneIsClose() {
+        let line = "  \"count\" : 1234,\n"
+        let payload = String(repeating: line, count: PayloadPreview.maxCharacters / line.count + 100)
+        let preview = PayloadPreview.of(payload)
+        XCTAssertLessThanOrEqual(preview.text.count, PayloadPreview.maxCharacters)
+        XCTAssertTrue(payload.hasPrefix(preview.text + "\n"), "ends on a whole line")
+    }
+
+    func testTheCutNeverSplitsAnEmoji() {
+        let payload = String(repeating: "a", count: PayloadPreview.maxCharacters - 1) + "👍🏽" + String(repeating: "a", count: 100)
+        let preview = PayloadPreview.of(payload)
+        XCTAssertEqual(preview.text.last, "👍🏽")
+        XCTAssertEqual(preview.text.count, PayloadPreview.maxCharacters)
+    }
+
+    func testTheLogsMarkerBecomesAFlagAndLeavesTheText() {
+        let stored = String(repeating: "a", count: LogStore.maxRawPayloadCharacters) + LogStore.truncationMarker
+        let preview = PayloadPreview.of(stored)
+        XCTAssertTrue(preview.cutInStorage)
+        XCTAssertFalse(preview.text.contains("[truncated]"))
+        XCTAssertEqual(preview.totalCount, LogStore.maxRawPayloadCharacters)
+    }
 }

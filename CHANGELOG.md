@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- An opened log row and the Health Data Preview show the first 12,000 characters of a payload, as the Android app does, with a line that says how many there are and where the rest is: Share payload in the row, the share button in the preview. The log row showed 1,500 and the preview 100,000, a length that stalls the screen while it is laid out. A payload the log kept shortened, past 100,000 characters, says so, since sharing it gives that part too. VoiceOver reads "Payload" and the number of characters instead of the whole payload
+
 ## [1.5.0] - 2026-09-30
 
 ### Added

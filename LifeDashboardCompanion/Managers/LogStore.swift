@@ -15,6 +15,8 @@ final class LogStore: @unchecked Sendable {
     static let maxLogs = 100
     /// Raw payloads are capped so the log file stays small; the payload is for debugging only.
     static let maxRawPayloadCharacters = 100_000
+    /// Ends a payload cut at `maxRawPayloadCharacters`; the preview turns it into a note (P2-11).
+    static let truncationMarker = "... [truncated]"
 
     private let logger = Logger(subsystem: "com.owen282000.lifedashboard", category: "LogStore")
     private let queue = DispatchQueue(label: "com.owen282000.lifedashboard.logstore")
@@ -187,7 +189,7 @@ final class LogStore: @unchecked Sendable {
             return log
         }
         var copy = log
-        copy.rawPayload = String(payload.prefix(LogStore.maxRawPayloadCharacters)) + "... [truncated]"
+        copy.rawPayload = String(payload.prefix(LogStore.maxRawPayloadCharacters)) + LogStore.truncationMarker
         return copy
     }
 

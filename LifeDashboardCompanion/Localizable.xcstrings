@@ -1,38 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "... [share for the full payload]" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "... [teilen für den vollständigen Payload]"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "... [deel voor de volledige payload]"
-          }
-        }
-      }
-    },
-    "... [truncated for display, %lld characters total - use the share button for the full payload]" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "... [für die Anzeige gekürzt, insgesamt %lld Zeichen - teile ihn für den vollständigen Payload]"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "... [ingekort voor weergave, %lld tekens in totaal - deel voor de volledige payload]"
-          }
-        }
-      }
-    },
     "%@ · %lld records" : {
       "localizations" : {
         "de" : {
@@ -4969,6 +4937,22 @@
         }
       }
     },
+    "Only the first %@ characters of this payload were stored." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von diesem Payload wurden nur die ersten %@ Zeichen gespeichert."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Van deze payload zijn alleen de eerste %@ tekens bewaard."
+          }
+        }
+      }
+    },
     "Only to the destinations you enter or pair: your own webhook URLs, the Life Dashboard integration in your own Home Assistant, and your own MQTT broker. The app contacts no other server. There are no analytics, no crash reporting services and no advertising SDKs. Besides the types you switch on, each payload carries the app version, and each record the name of the app or device that wrote it, which on an iPhone often includes your name. MQTT is unencrypted unless you switch on TLS. States are published retained, so the broker keeps the latest value of each sensor even after you switch MQTT off in the app: clear the topics on the broker if you stop using it." : {
       "localizations" : {
         "de" : {
@@ -5291,6 +5275,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Payload"
+          }
+        }
+      }
+    },
+    "Payload, %@ characters" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payload, %@ Zeichen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payload, %@ tekens"
           }
         }
       }
@@ -6273,6 +6273,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nerd-stats tonen"
+          }
+        }
+      }
+    },
+    "Showing the first %@ of %@ characters." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die ersten %1$@ von %2$@ Zeichen werden angezeigt."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De eerste %1$@ van %2$@ tekens worden getoond."
           }
         }
       }
@@ -7556,6 +7572,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gebruik een automatisering in Opdrachten"
+          }
+        }
+      }
+    },
+    "Use Share payload for the full payload." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nutze Payload teilen für den vollständigen Payload."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebruik Payload delen voor de volledige payload."
+          }
+        }
+      }
+    },
+    "Use the share button for the full payload." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nutze den Teilen-Knopf für den vollständigen Payload."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebruik de deelknop voor de volledige payload."
           }
         }
       }
