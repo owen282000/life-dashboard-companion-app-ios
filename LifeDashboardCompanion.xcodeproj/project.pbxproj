@@ -46,6 +46,7 @@
 		B1000018 /* WebhookRetryPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000018 /* WebhookRetryPolicy.swift */; };
 		B1000019 /* SleepSessionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000019 /* SleepSessionBuilder.swift */; };
 		B100001A /* WebhookSignerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001A /* WebhookSignerTests.swift */; };
+		8D4AE005B3DA6EFB999B6F10 /* ClientCertificateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E6132151964D2990AAA12E2 /* ClientCertificateTests.swift */; };
 		B100001B /* WebhookRetryPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001B /* WebhookRetryPolicyTests.swift */; };
 		2C04B7A4289E2A9A25E9AC88 /* WebhookRedirectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C49B66C48BF9092BA068409 /* WebhookRedirectTests.swift */; };
 		B100001C /* SleepSessionBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001C /* SleepSessionBuilderTests.swift */; };
@@ -178,6 +179,7 @@
 		F1000018 /* WebhookRetryPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookRetryPolicy.swift; sourceTree = "<group>"; };
 		F1000019 /* SleepSessionBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSessionBuilder.swift; sourceTree = "<group>"; };
 		F100001A /* WebhookSignerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookSignerTests.swift; sourceTree = "<group>"; };
+		5E6132151964D2990AAA12E2 /* ClientCertificateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientCertificateTests.swift; sourceTree = "<group>"; };
 		F100001B /* WebhookRetryPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookRetryPolicyTests.swift; sourceTree = "<group>"; };
 		6C49B66C48BF9092BA068409 /* WebhookRedirectTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookRedirectTests.swift; sourceTree = "<group>"; };
 		F100001C /* SleepSessionBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSessionBuilderTests.swift; sourceTree = "<group>"; };
@@ -391,6 +393,7 @@
 			isa = PBXGroup;
 			children = (
 				F100001A /* WebhookSignerTests.swift */,
+				5E6132151964D2990AAA12E2 /* ClientCertificateTests.swift */,
 				03064B9EB7FE0AA1605460D4 /* UIParityTests.swift */,
 				8CDD3C4A463A122FCDB59F69 /* HealthExportTests.swift */,
 				CC1C740614BFF69060EAE315 /* PairingApplyTests.swift */,
@@ -644,6 +647,7 @@
 				9888D092D2F480F0DE06CB71 /* LocalizationTests.swift in Sources */,
 				B245FE77AA68002A4EFCEBEC /* WebhookLogCodingTests.swift in Sources */,
 				B100001A /* WebhookSignerTests.swift in Sources */,
+				8D4AE005B3DA6EFB999B6F10 /* ClientCertificateTests.swift in Sources */,
 				A1034D6271A9AAF51EC89672 /* PairingApplyTests.swift in Sources */,
 				18DD5CECDB84654192BECE02 /* PairingLinkTests.swift in Sources */,
 				DC3F56B7B12AAB0A0F646E19 /* MqttPacketTests.swift in Sources */,
