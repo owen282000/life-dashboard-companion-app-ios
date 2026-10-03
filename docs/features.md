@@ -26,6 +26,7 @@ These are the Apple Health types that have a counterpart in the Android app, und
 - **Fault isolation** - a type that cannot be read is skipped, and the rest of the sync goes ahead
 - **Daily totals** - per-day steps, distance and calories as the Health app counts them, with overlapping iPhone and Watch data counted once, in the Android app's `daily_totals` format. **Daily totals in payload** under Advanced switches it off
 - **Deleted records** - a record deleted in Apple Health is named in `deleted_records`, so a receiver can drop it. See [webhook.md](webhook.md#deletions)
+- **Data resolution** - per type, every record or one value per 1, 5 or 15 minutes, or per hour, as in the Android app: heart rate, HRV, oxygen saturation and respiratory rate are averaged with their minimum and maximum, steps, distance and both calories are summed. Windows align to the clock and say how many samples went in; a window still filling is held until it closes, so an automatic sync sends it once, whole. Everything starts at every record. See [webhook.md](webhook.md#data-resolution)
 
 ## History
 
@@ -129,7 +130,8 @@ The payload is the Android app's, but an iPhone is not an Android phone. Where i
 - **A locked iPhone cannot be read.** iOS encrypts Apple Health while the iPhone is locked (Apple, [Protecting user privacy](https://developer.apple.com/documentation/healthkit/protecting-user-privacy)). A sync that starts then waits for the unlock, and a backfill pauses.
 - **No writing into Apple Health.** The app asks for read access only, so the Android app's receiving from Home Assistant (a scale or blood pressure monitor written into Health Connect) is not built on iOS.
 - **Record source.** `source` is the name HealthKit gives the writing app or device, not a package name.
-- **No data resolution, no diagnostics.** The Android app's per-type averaging (`_resolutions`) and its `_diagnostics` block are not built on iOS. See [what iOS does not send](webhook.md#what-ios-does-not-send).
+- **No diagnostics.** The Android app's `_diagnostics` block is not built on iOS. See [what iOS does not send](webhook.md#what-ios-does-not-send).
+- **Sync Now sends the week again,** also as data resolution windows: their closed windows go out again, whole, where the Android app's Sync Now only sends what is new. See [webhook.md](webhook.md#data-resolution).
 - **MQTT** publishes the types a sync carries, where the Android app publishes every sensor it has published before, so a new broker sees the whole device at once. On the iPhone a new broker gets each sensor with the next record of its type; **Sync Now** sends them all.
 - **No App Store or TestFlight build.** You build the app with Xcode; see [usage.md](usage.md#build-and-install).
 

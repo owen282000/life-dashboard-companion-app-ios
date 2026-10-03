@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Data resolution per type, as in the Android app: under Data Resolution in the Advanced card on the Health tab, heart rate, heart rate variability, oxygen saturation, respiratory rate, steps, distance, active calories and total calories can each be sent as one value per 1, 5 or 15 minutes, or per hour, instead of every record. Measurements are averaged with their `min` and `max`, quantities summed into `total`, every bucket carries `bucket_start`, `bucket_end` and `sample_count`, and `_resolutions` names the window per series, the Android app's shape. A window still filling is held on the iPhone until it closes, saved together with how far the sync has read, so a sync that iOS cuts off sends it neither twice nor without those samples. Sync Now sends the closed windows of the last 7 days again, and Backfill sends each window once, with the backfill window it starts in. MQTT, deletions and `daily_totals` are unchanged. Everything starts at every record, and the setting travels in the settings backup under Android's `series_resolutions`
+
 ### Changed
 
 - With more than one webhook URL, a sync counts as delivered once one of them took it, so a URL that failed missed that payload for good, with nothing queued for it and nothing to say so. Delivery stays the same, but now it shows: after Sync Now the result line adds "Delivered to 1 of 2 destinations, see Logs." in red, and when it keeps happening, as many syncs in a row as the failure notification waits for, a notification names the address that misses them, by its host alone, never its path or query. A sync that reaches every URL clears it. Pairing with Home Assistant replaces the signing secret, so the pairing sheet now names the other addresses that get payloads signed with the new secret from then on, so you can give one that checks signatures the new secret too, or remove it

@@ -11,6 +11,7 @@ This page lists what an iPhone sends and where it differs, so a receiver can han
 - [Per-type notes](#per-type-notes)
 - [Daily totals](#daily-totals)
 - [Deletions](#deletions)
+- [Data resolution](#data-resolution)
 - [Backfill](#backfill)
 - [What iOS does not send](#what-ios-does-not-send)
 - [Delivery, retries and signing](#delivery-retries-and-signing)
@@ -142,6 +143,30 @@ Where this differs from Android:
 - `menstruation_period` never appears in `deleted_records`.
 - Tracking starts with the first sync of a type after installing or updating the app. After a restore onto another iPhone, the enabled types are named once in `deletions_unavailable`.
 
+## Data resolution
+
+Under **Data Resolution** on the Health tab, each dense type can be sent as one value per window of 1, 5 or 15 minutes, or per hour, instead of every record, as in the Android app. Heart rate, heart rate variability, oxygen saturation and respiratory rate are averaged, with `min` and `max`; steps, distance, active calories and total calories are summed into `total`. Every type starts at every record, so nothing changes for a receiver until you choose otherwise.
+
+The shape is the Android app's, described with the merge rules on its page under [Data resolution](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/webhook.md#data-resolution): a bucketed series replaces its records under the same key, every bucket has `bucket_start`, `bucket_end` and `sample_count` and never the record's own field, windows are aligned to the clock in UTC, and `_resolutions` names the window per series:
+
+```json
+"heart_rate": [
+  { "bucket_start": "2026-02-05T08:00:00Z", "bucket_end": "2026-02-05T08:01:00Z",
+    "sample_count": 12, "avg": 72.4, "min": 66, "max": 81, "sources": ["Owen's Apple Watch"] }
+],
+"_resolutions": { "heart_rate": "1m" }
+```
+
+`sources` holds the records' `source` names, so HealthKit's names here too. An interval record (steps, distance, calories) counts whole in the window it starts in. The records' `uuid`s do not travel with a bucket, and deletions of records in a bucketed series still name those `uuid`s in `deleted_records`.
+
+When the windows go out:
+
+- **The automatic syncs and the Sync Health Data action** send a window once it has closed, whole, as the Android app does. The samples of a window still filling stay on the iPhone, encrypted and out of iCloud backups, and are saved together with how far the sync has read, so a sync that iOS cuts off sends a window neither twice nor without them. A type still catching up past its cap per sync keeps the window its next read continues in open as well. A sync whose new records all fall in windows still filling posts nothing.
+- **Sync Now** sends the last 7 days again, and with them their closed windows again, whole. The window still filling is left to the automatic syncs. The payload preview shows what Sync Now sends.
+- **Backfill** sends each window once, whole, with the backfill window it starts in, so a bucket can end a few minutes after that payload's `window_end`. The window cut by the start of the backfill range and the one still filling at its end are left out.
+
+So a window can arrive more than once. Sync Now sends it again with at least the samples it had before. A record that reaches the iPhone late, from a Watch that syncs hours afterwards, makes its window go out a second time with only the late samples, as on Android. A receiver cannot tell the two apart from the bucket alone: keeping the bucket with the larger `sample_count` per `bucket_start` is right for every copy Sync Now sends, and misses late samples only until a Sync Now sends that window whole. Adding buckets up, the Android page's rule for late samples, counts a Sync Now copy twice. MQTT and `daily_totals` are not affected: they never carried records.
+
 ## Backfill
 
 **Backfill** on the Health tab sends the last 30, 90 or 365 days in 3-day windows, oldest first, with the Android app's fields: `backfill`, `window_start`, `window_end` and `window_complete`. The records are the ones a sync sends, `uuid` included, so the overlap deduplicates. `daily_totals` in a backfill payload covers every whole day of its window. Each sleep session and menstruation period goes out once, in the window it ends or starts in.
@@ -153,7 +178,7 @@ Backfill payloads go only to webhooks, never to MQTT or the retry queue.
 ## What iOS does not send
 
 - `screen_time` and the Screen Time payload: see [What iOS does differently](features.md#what-ios-does-differently)
-- `sequence`, `_diagnostics`, `_resolutions` and `records_outside_window`
+- `sequence`, `_diagnostics` and `records_outside_window`
 - the writeback block and anything from the Android page's "Inbound" section: the iPhone app does not write into Apple Health
 
 A receiver written for Android works unchanged, as long as it treats these as optional.
