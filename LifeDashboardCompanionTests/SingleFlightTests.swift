@@ -36,12 +36,11 @@ final class SingleFlightTests: XCTestCase {
         let work = work(counter, latch)
 
         let owner = Task { await flight.run(work) }
-        let started = await settle { await counter.runs == 1 }
-        XCTAssertTrue(started)
+        await latch.waitForArrivals(1)
 
         let joiners = (0..<5).map { _ in Task { await flight.run(work) } }
-        // Give every joiner the chance to reach the flight before the run ends.
-        for _ in 0..<200 { await Task.yield() }
+        // Every joiner is queued behind the run before it may end, however busy the machine.
+        await flight.untilWaiting(5)
         await latch.open()
 
         let ownerRan = await owner.value

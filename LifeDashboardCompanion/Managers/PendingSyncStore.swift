@@ -299,6 +299,7 @@ actor SingleFlight<Item: Hashable & Sendable> {
     private var rerunRequested = false
     private var pending: Set<Item> = []
     private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var waiterWatchers: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
 
     /// True when the caller may run now. False when a run is under way; `items` are then
     /// handed to it through `next()`.
@@ -328,7 +329,12 @@ actor SingleFlight<Item: Hashable & Sendable> {
     @discardableResult
     func run(_ work: @escaping @Sendable () async -> Void) async -> Bool {
         guard enter() else {
-            await withCheckedContinuation { waiters.append($0) }
+            await withCheckedContinuation {
+                waiters.append($0)
+                let arrived = waiterWatchers.filter { $0.count <= waiters.count }
+                waiterWatchers.removeAll { $0.count <= waiters.count }
+                arrived.forEach { $0.continuation.resume() }
+            }
             return false
         }
         repeat {
@@ -342,6 +348,13 @@ actor SingleFlight<Item: Hashable & Sendable> {
         // Cancelled: the rounds asked for are dropped, as the whole drain is.
         if running { finish() }
         return true
+    }
+
+    /// Returns once `count` callers wait for the run in flight, however long the scheduler takes
+    /// to get them there, so a test knows they are queued before it lets the run end.
+    func untilWaiting(_ count: Int) async {
+        if waiters.count >= count { return }
+        await withCheckedContinuation { waiterWatchers.append((count, $0)) }
     }
 
     private func finish() {
