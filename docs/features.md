@@ -131,7 +131,7 @@ The payload is the Android app's, but an iPhone is not an Android phone. Where i
 - **No writing into Apple Health.** The app asks for read access only, so the Android app's receiving from Home Assistant (a scale or blood pressure monitor written into Health Connect) is not built on iOS.
 - **Record source.** `source` is the name HealthKit gives the writing app or device, not a package name.
 - **No diagnostics.** The Android app's `_diagnostics` block is not built on iOS. See [what iOS does not send](webhook.md#what-ios-does-not-send).
-- **Sync Now sends the week again,** also as data resolution windows: their closed windows go out again, whole, where the Android app's Sync Now only sends what is new. See [webhook.md](webhook.md#data-resolution).
+- **Sync Now sends the week again,** except for types with a data resolution, which it syncs the way an automatic sync does, so their windows still go out once. See [webhook.md](webhook.md#data-resolution).
 - **MQTT** publishes the types a sync carries, where the Android app publishes every sensor it has published before, so a new broker sees the whole device at once. On the iPhone a new broker gets each sensor with the next record of its type; **Sync Now** sends them all.
 - **No App Store or TestFlight build.** You build the app with Xcode; see [usage.md](usage.md#build-and-install).
 
