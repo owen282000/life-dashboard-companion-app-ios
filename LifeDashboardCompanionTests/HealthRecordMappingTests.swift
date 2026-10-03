@@ -447,6 +447,43 @@ final class HealthRecordMappingTests: XCTestCase {
         XCTAssertEqual(nutritionRecords([early], from: start.addingTimeInterval(-60)).count, 1)
     }
 
+    // MARK: - Workouts
+
+    /// Every HKWorkoutActivityType of the SDK the app builds with: 1 to 84 without 81, which
+    /// Apple never used, and 3000 for other. A case added later is named by the compiler, as
+    /// `name` switches over every case.
+    private let workoutRawValues: [UInt] = Array(1...80) + Array(82...84) + [3000]
+
+    func testEveryWorkoutTypeHasANameOfItsOwn() throws {
+        var seen: [String: UInt] = [:]
+        for raw in workoutRawValues {
+            let type = try XCTUnwrap(HKWorkoutActivityType(rawValue: raw))
+            let name = type.name
+            XCTAssertTrue(type == .other || name != "other", "\(raw) is sent as other")
+            XCTAssertNotNil(name.range(of: "^[a-z]+(_[a-z]+)*$", options: .regularExpression), "\(name) is not snake_case")
+            XCTAssertNil(seen[name], "\(raw) and \(seen[name] ?? 0) share \(name)")
+            seen[name] = raw
+        }
+    }
+
+    func testTheWorkoutsThatWereOtherHaveTheirNames() {
+        let named: [(HKWorkoutActivityType, String)] = [
+            (.downhillSkiing, "downhill_skiing"), (.snowboarding, "snowboarding"), (.crossCountrySkiing, "cross_country_skiing"),
+            (.kickboxing, "kickboxing"), (.jumpRope, "jump_rope"), (.taiChi, "tai_chi"), (.pickleball, "pickleball"),
+            (.barre, "barre"), (.cardioDance, "cardio_dance"), (.socialDance, "social_dance"), (.mixedCardio, "mixed_cardio"),
+            (.stepTraining, "step_training"), (.fitnessGaming, "fitness_gaming"), (.discSports, "disc_sports"),
+            (.handCycling, "hand_cycling"), (.swimBikeRun, "swim_bike_run"), (.transition, "transition"),
+            (.underwaterDiving, "underwater_diving"), (.wheelchairWalkPace, "wheelchair_walk_pace"),
+            (.wheelchairRunPace, "wheelchair_run_pace"), (.stairs, "stairs")
+        ]
+        for (type, name) in named { XCTAssertEqual(type.name, name) }
+        // Names that went out before stay as they were.
+        XCTAssertEqual(HKWorkoutActivityType.highIntensityIntervalTraining.name, "hiit")
+        XCTAssertEqual(HKWorkoutActivityType.running.name, "running")
+        XCTAssertEqual(HKWorkoutActivityType.other.name, "other")
+        XCTAssertEqual(HKWorkoutActivityType(rawValue: 81)?.name, "other", "a value HealthKit does not define")
+    }
+
     func testRecordsSerializeAsJSON() {
         let records: [[String: Any]] = [
             HealthRecordMapping.vo2MaxFields(quantitySample(.vo2Max, HKQuantity(unit: HealthRecordMapping.vo2MaxUnit, doubleValue: 40))),

@@ -1216,6 +1216,9 @@ extension Date {
 }
 
 extension HKWorkoutActivityType {
+    /// The payload's `type`: a snake_case name for every activity HealthKit has, so a receiver
+    /// never sees "other" for a workout HealthKit named. Names that went out before stay as
+    /// they were (`hiit` among them). The deprecated cases still name workouts saved under them.
     var name: String {
         switch self {
         case .americanFootball: return "american_football"
@@ -1232,6 +1235,7 @@ extension HKWorkoutActivityType {
         case .curling: return "curling"
         case .cycling: return "cycling"
         case .dance: return "dance"
+        case .danceInspiredTraining: return "dance_inspired_training"
         case .elliptical: return "elliptical"
         case .equestrianSports: return "equestrian_sports"
         case .fencing: return "fencing"
@@ -1246,6 +1250,7 @@ extension HKWorkoutActivityType {
         case .lacrosse: return "lacrosse"
         case .martialArts: return "martial_arts"
         case .mindAndBody: return "mind_and_body"
+        case .mixedMetabolicCardioTraining: return "mixed_metabolic_cardio_training"
         case .paddleSports: return "paddle_sports"
         case .play: return "play"
         case .preparationAndRecovery: return "preparation_and_recovery"
@@ -1273,12 +1278,36 @@ extension HKWorkoutActivityType {
         case .waterSports: return "water_sports"
         case .wrestling: return "wrestling"
         case .yoga: return "yoga"
-        case .pilates: return "pilates"
-        case .highIntensityIntervalTraining: return "hiit"
+        case .barre: return "barre"
         case .coreTraining: return "core_training"
+        case .crossCountrySkiing: return "cross_country_skiing"
+        case .downhillSkiing: return "downhill_skiing"
         case .flexibility: return "flexibility"
+        case .highIntensityIntervalTraining: return "hiit"
+        case .jumpRope: return "jump_rope"
+        case .kickboxing: return "kickboxing"
+        case .pilates: return "pilates"
+        case .snowboarding: return "snowboarding"
+        case .stairs: return "stairs"
+        case .stepTraining: return "step_training"
+        case .wheelchairWalkPace: return "wheelchair_walk_pace"
+        case .wheelchairRunPace: return "wheelchair_run_pace"
+        case .taiChi: return "tai_chi"
+        case .mixedCardio: return "mixed_cardio"
+        case .handCycling: return "hand_cycling"
+        case .discSports: return "disc_sports"
+        case .fitnessGaming: return "fitness_gaming"
+        case .cardioDance: return "cardio_dance"
+        case .socialDance: return "social_dance"
+        case .pickleball: return "pickleball"
         case .cooldown: return "cooldown"
-        default: return "other"
+        case .swimBikeRun: return "swim_bike_run"
+        case .transition: return "transition"
+        case .underwaterDiving: return "underwater_diving"
+        case .other: return "other"
+        // A type from a later iOS than the SDK this was built with; the compiler names any
+        // case of the SDK missing above.
+        @unknown default: return "other"
         }
     }
 }

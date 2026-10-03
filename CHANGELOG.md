@@ -13,6 +13,7 @@ All notable changes to this project are documented in this file. The format is b
 ### Fixed
 
 - Distance could stop arriving after the update to 1.5.0. Distance reads cycling, swimming and the other new kinds of distance since then, and until you answer the Health sheet for them, HealthKit refuses every read of one, which failed the whole type: no `distance` records, no `distance_meters` in `daily_totals` and no Distance Today on MQTT. A kind of distance HealthKit may not read is now left out on its own and the others are sent, in the records, the daily totals and the deletion step, which no longer counts it as a failed read. The Health tab now also asks for Health access once by itself when there is something to ask for the types you have on, as after this update, instead of only showing Grant
+- About 20 kinds of workout went out with `type` `other`, among them downhill skiing, snowboarding, cross-country skiing, kickboxing, jump rope, tai chi, pickleball, barre, cardio and social dance, mixed cardio, step training, fitness gaming, disc sports, hand cycling, the triathlon's swim bike run and transition, underwater diving and the two wheelchair paces. Every activity HealthKit has now gets a snake_case name of its own, such as `downhill_skiing`; the names sent before stay as they were
 - The error lines of the settings backup (a wrong password, a file that cannot be read) were in the system red, 3.6:1 on white, under the 4.5:1 that small text needs. They now use the darker red the rest of the app uses for error text
 
 ## [1.5.0] - 2026-09-30
