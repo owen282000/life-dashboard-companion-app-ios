@@ -55,9 +55,11 @@
 		5FD4BA2492A1C35EFA84CDF9 /* DailyTotals.swift in Sources */ = {isa = PBXBuildFile; fileRef = C888638AD21A073D47F7FF06 /* DailyTotals.swift */; };
 		B100001E /* MenstruationPeriodBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001E /* MenstruationPeriodBuilder.swift */; };
 		B100001F /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001F /* KeychainStore.swift */; };
+		425BFE57DA06ECDE64B15227 /* ClientCertificate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D24CBAEE6AE7E654EDF25D9 /* ClientCertificate.swift */; };
 		B1000022 /* LogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000022 /* LogStore.swift */; };
 		B1000023 /* AboutScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000023 /* AboutScreen.swift */; };
 		5421F067D17AD5AB87506A15 /* SettingsBackupSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018102528A19E8A6D938C8D8 /* SettingsBackupSection.swift */; };
+		14182D20158F46BA308D1682 /* ClientCertificateLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45CCA38AF03491D63BED34B /* ClientCertificateLine.swift */; };
 		B1000040 /* DashboardCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000040 /* DashboardCard.swift */; };
 		B1000024 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F1000024 /* PrivacyInfo.xcprivacy */; };
 		B1000025 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F1000025 /* Localizable.xcstrings */; };
@@ -187,9 +189,11 @@
 		C888638AD21A073D47F7FF06 /* DailyTotals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTotals.swift; sourceTree = "<group>"; };
 		F100001E /* MenstruationPeriodBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenstruationPeriodBuilder.swift; sourceTree = "<group>"; };
 		F100001F /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		8D24CBAEE6AE7E654EDF25D9 /* ClientCertificate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientCertificate.swift; sourceTree = "<group>"; };
 		F1000022 /* LogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStore.swift; sourceTree = "<group>"; };
 		F1000023 /* AboutScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutScreen.swift; sourceTree = "<group>"; };
 		018102528A19E8A6D938C8D8 /* SettingsBackupSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBackupSection.swift; sourceTree = "<group>"; };
+		D45CCA38AF03491D63BED34B /* ClientCertificateLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientCertificateLine.swift; sourceTree = "<group>"; };
 		F1000040 /* DashboardCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardCard.swift; sourceTree = "<group>"; };
 		F1000024 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F1000025 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
@@ -339,6 +343,7 @@
 				9471E366C4A2C6F56FEA371E /* SyncSchedule.swift */,
 				F100001E /* MenstruationPeriodBuilder.swift */,
 				F100001F /* KeychainStore.swift */,
+				8D24CBAEE6AE7E654EDF25D9 /* ClientCertificate.swift */,
 				F1000022 /* LogStore.swift */,
 				F100002C /* SharedSyncStatus.swift */,
 				F100002D /* SyncHealthDataIntent.swift */,
@@ -359,6 +364,7 @@
 				F1000012 /* LogsScreen.swift */,
 				F1000023 /* AboutScreen.swift */,
 				018102528A19E8A6D938C8D8 /* SettingsBackupSection.swift */,
+				D45CCA38AF03491D63BED34B /* ClientCertificateLine.swift */,
 				F1000040 /* DashboardCard.swift */,
 				6DF59FC78BB30C4555721CEB /* SyncScheduleSection.swift */,
 				8A0A76F35656FC9BBDF0216A /* SyncStatsCard.swift */,
@@ -602,9 +608,11 @@
 				3926DFCA91F5E32EEA0CF958 /* SyncSchedule.swift in Sources */,
 				B100001E /* MenstruationPeriodBuilder.swift in Sources */,
 				B100001F /* KeychainStore.swift in Sources */,
+				425BFE57DA06ECDE64B15227 /* ClientCertificate.swift in Sources */,
 				B1000022 /* LogStore.swift in Sources */,
 				B1000023 /* AboutScreen.swift in Sources */,
 				5421F067D17AD5AB87506A15 /* SettingsBackupSection.swift in Sources */,
+				14182D20158F46BA308D1682 /* ClientCertificateLine.swift in Sources */,
 				B1000040 /* DashboardCard.swift in Sources */,
 				281FA2D70D2BF104CD99B6F4 /* SyncScheduleSection.swift in Sources */,
 				B100002A /* SharedSyncStatus.swift in Sources */,

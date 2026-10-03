@@ -22,6 +22,8 @@ enum AppDiagnostic: String, CaseIterable {
     case brokerCancelled = "Connection cancelled"
     case interrupted = "Interrupted"
     case droppedUndelivered = "Not delivered for a week, dropped from the queue"
+    case clientCertificateUnavailable = "Client certificate is unavailable. Import it again under Advanced."
+    case clientCertificateLocked = "Client certificate cannot be read until the iPhone is unlocked"
 
     var localized: String {
         switch self {
@@ -39,6 +41,8 @@ enum AppDiagnostic: String, CaseIterable {
         case .brokerCancelled: return String(localized: "Connection cancelled")
         case .interrupted: return String(localized: "Interrupted")
         case .droppedUndelivered: return String(localized: "Not delivered for a week, dropped from the queue")
+        case .clientCertificateUnavailable: return String(localized: "Client certificate is unavailable. Import it again under Advanced.")
+        case .clientCertificateLocked: return String(localized: "Client certificate cannot be read until the iPhone is unlocked")
         }
     }
 
