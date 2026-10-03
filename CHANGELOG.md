@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Every payload carries `sequence`, the Android app's counter: one higher with every payload the iPhone builds, syncs, deletions-only payloads and backfill chunks alike. A payload waiting in the retry queue keeps its number, so a receiver can tell a retry that arrives after a newer payload: its records still count, but not over a newer deletion of the same `uuid` or newer daily totals. The counter survives restarts and updates; View and Export take no number
+
 ### Changed
 
 - With more than one webhook URL, a sync counts as delivered once one of them took it, so a URL that failed missed that payload for good, with nothing queued for it and nothing to say so. Delivery stays the same, but now it shows: after Sync Now the result line adds "Delivered to 1 of 2 destinations, see Logs." in red, and when it keeps happening, as many syncs in a row as the failure notification waits for, a notification names the address that misses them, by its host alone, never its path or query. A sync that reaches every URL clears it. Pairing with Home Assistant replaces the signing secret, so the pairing sheet now names the other addresses that get payloads signed with the new secret from then on, so you can give one that checks signatures the new secret too, or remove it

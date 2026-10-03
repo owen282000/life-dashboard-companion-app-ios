@@ -12,6 +12,7 @@ final class HealthSyncManager: Sendable {
     private let pendingStore = PendingSyncStore.shared
     private let incrementalGate = SingleFlight<HealthDataType>()
     private let deletionStore = DeletionStore.shared
+    private let sequence = PayloadSequence.shared
     private let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
 
     private init() {}
@@ -64,6 +65,7 @@ final class HealthSyncManager: Sendable {
             payload["timestamp"] = Date().iso8601String
             payload["app_version"] = appVersion
             payload["source"] = "healthkit_ios"
+            payload["sequence"] = sequence.next()
             let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
             let totalsDay = await attachDailyTotals(to: &payload, types: enabledTypes)
 
@@ -212,6 +214,7 @@ final class HealthSyncManager: Sendable {
                 payload["timestamp"] = Date().iso8601String
                 payload["app_version"] = appVersion
                 payload["source"] = "healthkit_ios"
+                payload["sequence"] = sequence.next()
                 let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
                 let totalsDay = await attachDailyTotals(to: &payload, types: prefs.healthEnabledDataTypes)
 
@@ -339,6 +342,8 @@ final class HealthSyncManager: Sendable {
 
     // MARK: - Preview
 
+    /// What View and Export show: no `sequence`, since looking is not sending, and a number
+    /// taken here would leave a gap in what a receiver sees.
     func buildPreviewPayload() async throws -> [String: Any] {
         let enabledTypes = prefs.healthEnabledDataTypes
 
@@ -384,6 +389,7 @@ final class HealthSyncManager: Sendable {
         ]
         let deletions = await attachDeletions(to: &payload, records: [:], readGeneration: readGeneration)
         guard !deletions.summary.isEmpty else { return nil }
+        payload["sequence"] = sequence.next()
 
         let outcome = await send(
             payload, totalsDay: nil, recordCount: 0,
@@ -524,6 +530,34 @@ extension HealthSyncResult {
                 syncCounts: first.merging(second, uniquingKeysWith: +),
                 reach: firstReach.merged(with: secondReach)
             )
+        }
+    }
+}
+
+/// The `sequence` every payload carries, live, deletions only, queued or backfill, Android's
+/// counter under Android's key: one number per payload, taken when the payload is built and
+/// one higher than the last, also after the app was ended. A queued payload keeps the number
+/// it was built with, so a receiver that keeps the highest sequence it applied can tell a
+/// retry that arrives after a newer payload, and ignore it. The preview and the export take
+/// none.
+///
+/// The lock keeps two payloads built at once, a sync and a backfill, from sharing a number.
+final class PayloadSequence: @unchecked Sendable {
+    static let shared = PayloadSequence(defaults: .standard)
+    static let key = "health_sync_sequence"
+
+    private let defaults: UserDefaults
+    private let lock = NSLock()
+
+    init(defaults: UserDefaults) {
+        self.defaults = defaults
+    }
+
+    func next() -> Int {
+        lock.withLock {
+            let value = defaults.integer(forKey: PayloadSequence.key) + 1
+            defaults.set(value, forKey: PayloadSequence.key)
+            return value
         }
     }
 }

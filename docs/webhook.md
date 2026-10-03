@@ -22,6 +22,7 @@ This page lists what an iPhone sends and where it differs, so a receiver can han
   "timestamp": "2026-02-05T12:00:00Z",
   "app_version": "1.3.0",
   "source": "healthkit_ios",
+  "sequence": 42,
   "steps": [
     {
       "count": 1234,
@@ -38,6 +39,8 @@ This page lists what an iPhone sends and where it differs, so a receiver can han
 ```
 
 `source` at the top is `healthkit_ios`, where the Android app says `health_connect`. Only enabled types with records are included.
+
+`sequence` goes up by one with every payload the iPhone builds, from the same counter for a sync, a payload with only deletions and a backfill chunk, as in the Android app. It is taken when the payload is built and kept while the payload waits in the retry queue, so a retry carries the number it was built with, and it survives restarts and updates. A payload that waited in the queue can arrive after a newer one, and it still holds records that no later payload repeats, so do not ignore it as a whole: apply its records, deduplicated on `uuid`, and use `sequence` to settle the rest. A record from a payload with a lower number than the one that named it in `deleted_records` stays deleted, and `daily_totals` for a date come from the payload with the highest number that carried that date. View and Export take no number. Payloads from 1.5.0 and older have none, so treat a missing one as unknown rather than zero.
 
 Every record carries:
 
@@ -153,7 +156,7 @@ Backfill payloads go only to webhooks, never to MQTT or the retry queue.
 ## What iOS does not send
 
 - `screen_time` and the Screen Time payload: see [What iOS does differently](features.md#what-ios-does-differently)
-- `sequence`, `_diagnostics`, `_resolutions` and `records_outside_window`
+- `_diagnostics`, `_resolutions` and `records_outside_window`
 - the writeback block and anything from the Android page's "Inbound" section: the iPhone app does not write into Apple Health
 
 A receiver written for Android works unchanged, as long as it treats these as optional.

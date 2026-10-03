@@ -121,10 +121,43 @@ final class OutboxTests: XCTestCase {
         XCTAssertNil(PayloadBody.encode(["heart_rate": [["bpm": Double.infinity]]]))
         XCTAssertNil(BackfillPayload.body(
             records: [("weight", [["kilograms": Double.nan]])], window: DateInterval(start: Date(), duration: 60),
-            extras: [:], appVersion: "1.0", now: Date()
+            extras: [:], appVersion: "1.0", sequence: 1, now: Date()
         ))
         let body = try XCTUnwrap(PayloadBody.encode(["steps": [["count": 12]], "source": "healthkit_ios"]))
         XCTAssertEqual(String(data: body, encoding: .utf8), #"{"source":"healthkit_ios","steps":[{"count":12}]}"#)
+    }
+
+    // MARK: - Sequence
+
+    private func sequenceDefaults() -> UserDefaults {
+        let suite = "sequence-tests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        return defaults
+    }
+
+    func testTheSequenceGoesUpByOneAndCarriesOnAfterARestart() {
+        let defaults = sequenceDefaults()
+        let first = PayloadSequence(defaults: defaults)
+        XCTAssertEqual([first.next(), first.next(), first.next()], [1, 2, 3])
+        // A new process reads the same stored counter.
+        let afterRestart = PayloadSequence(defaults: defaults)
+        XCTAssertEqual(afterRestart.next(), 4)
+        XCTAssertEqual(defaults.integer(forKey: "health_sync_sequence"), 4, "Android's key")
+        // The queued copy of a payload drops today's totals and keeps its number.
+        let queued = DailyTotals.forQueue(["sequence": 4, "daily_totals": [["date": "2026-10-03"]]], builtOn: "2026-10-03")
+        XCTAssertEqual(queued["sequence"] as? Int, 4)
+    }
+
+    func testTwoPayloadsBuiltAtOnceNeverShareANumber() {
+        let counter = PayloadSequence(defaults: sequenceDefaults())
+        let lock = NSLock()
+        var taken: [Int] = []
+        DispatchQueue.concurrentPerform(iterations: 200) { _ in
+            let value = counter.next()
+            lock.withLock { taken.append(value) }
+        }
+        XCTAssertEqual(taken.sorted(), Array(1...200))
     }
 
     func testAPayloadThatCannotBeSerializedLeavesAFailedRow() {
