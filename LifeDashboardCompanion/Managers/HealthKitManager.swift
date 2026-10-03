@@ -1145,12 +1145,9 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         ).compactMap { $0 as? HKWorkout }
 
         return workouts.map { workout in
-            record([
-                "type": workout.workoutActivityType.name,
-                "start_time": workout.startDate.iso8601String,
-                "end_time": workout.endDate.iso8601String,
-                "duration_seconds": Int(workout.duration)
-            ], from: workout)
+            record(HealthRecordMapping.exerciseFields(
+                type: workout.workoutActivityType.name, start: workout.startDate, end: workout.endDate
+            ), from: workout)
         }
     }
 

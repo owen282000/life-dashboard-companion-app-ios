@@ -466,6 +466,14 @@ final class HealthRecordMappingTests: XCTestCase {
         }
     }
 
+    func testExerciseDurationIsEndMinusStartAsOnAndroid() {
+        let fields = HealthRecordMapping.exerciseFields(type: "running", start: start, end: start.addingTimeInterval(3_725.9))
+        XCTAssertEqual(fields["duration_seconds"] as? Int, 3_725, "whole seconds, pauses included, as Duration.seconds")
+        XCTAssertEqual(fields["type"] as? String, "running")
+        XCTAssertEqual(fields["start_time"] as? String, "2026-01-01T08:00:00Z")
+        XCTAssertEqual(fields["end_time"] as? String, "2026-01-01T09:02:05Z")
+    }
+
     func testTheWorkoutsThatWereOtherHaveTheirNames() {
         let named: [(HKWorkoutActivityType, String)] = [
             (.downhillSkiing, "downhill_skiing"), (.snowboarding, "snowboarding"), (.crossCountrySkiing, "cross_country_skiing"),

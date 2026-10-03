@@ -341,6 +341,18 @@ enum HealthRecordMapping {
         ]
     }
 
+    /// `duration_seconds` is the end minus the start, pauses included, as Android's exercise
+    /// session gives it, so one key means one thing whichever phone sent it. HKWorkout.duration
+    /// leaves the pauses out, which made a run with a coffee stop shorter on iOS.
+    static func exerciseFields(type: String, start: Date, end: Date) -> [String: Any] {
+        [
+            "type": type,
+            "start_time": start.iso8601String,
+            "end_time": end.iso8601String,
+            "duration_seconds": Int(end.timeIntervalSince(start))
+        ]
+    }
+
     static func vo2MaxFields(_ sample: HKQuantitySample) -> [String: Any] {
         [
             "vo2_ml_per_min_per_kg": sample.quantity.doubleValue(for: vo2MaxUnit),
