@@ -389,7 +389,7 @@ final class HealthSyncManager: Sendable {
             payload, totalsDay: nil, recordCount: 0,
             urls: urls, headers: headers, deletions: deletions, commit: commit
         )
-        guard let outcome else { return nil }
+        guard let outcome else { return .failure(error: AppDiagnostic.serializeFailed.rawValue) }
         return outcome.delivered
             ? .success(syncCounts: [:], reach: outcome.reach)
             : .failure(error: AppDiagnostic.queuedForRetry.rawValue)
@@ -406,8 +406,10 @@ final class HealthSyncManager: Sendable {
     /// goes out twice, which the receiver deduplicates on `uuid`.
     ///
     /// The live post carries today's daily totals; the queued copy leaves them out (see
-    /// `queuedBody`). Nil when the payload cannot be serialized: the anchors are saved anyway,
-    /// since reading the same records again would fail the same way every sync.
+    /// `queuedBody`). Nil when the payload cannot be serialized: nothing is queued or posted,
+    /// the anchors stay where they were and the deletions in the store, so no record is
+    /// skipped, and a failed row says why. A sync that keeps failing this way shows it on
+    /// every run instead of losing the records without a word.
     private func send(
         _ payload: [String: Any],
         totalsDay: String?,
@@ -417,8 +419,9 @@ final class HealthSyncManager: Sendable {
         deletions: DeletionPlan,
         commit: AnchorCommit?
     ) async -> WebhookManager.Delivery? {
-        guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
-            commit?.save()
+        guard let body = PayloadBody.encode(payload) else {
+            logger.error("Sync payload (\(recordCount) records) cannot be serialized; the anchors stay")
+            prefs.addWebhookLog(PayloadBody.unserializableLog(urls: urls, recordCount: recordCount))
             return nil
         }
         let queued = queuedBody(body, payload: payload, totalsDay: totalsDay)
@@ -490,7 +493,7 @@ final class HealthSyncManager: Sendable {
     private func queuedBody(_ body: Data, payload: [String: Any], totalsDay: String?) -> Data {
         guard let totalsDay else { return body }
         let queued = DailyTotals.forQueue(payload, builtOn: totalsDay)
-        return (try? JSONSerialization.data(withJSONObject: queued, options: [.sortedKeys])) ?? body
+        return PayloadBody.encode(queued) ?? body
     }
 
     // MARK: - Private Helpers
@@ -522,6 +525,30 @@ extension HealthSyncResult {
                 reach: firstReach.merged(with: secondReach)
             )
         }
+    }
+}
+
+/// A payload as the JSON that goes out.
+enum PayloadBody {
+    /// The payload's JSON, nil when it cannot be JSON. JSONSerialization raises an Objective-C
+    /// exception for a value JSON cannot hold, such as a NaN, which `try?` does not catch and
+    /// which ends the app, so the payload is checked first.
+    static func encode(_ payload: [String: Any]) -> Data? {
+        guard JSONSerialization.isValidJSONObject(payload) else { return nil }
+        return try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+    }
+
+    /// The failed row for a sync payload that could not be serialized: no webhook was
+    /// contacted, and there is no payload to show.
+    static func unserializableLog(urls: [String], recordCount: Int) -> WebhookLog {
+        WebhookLog(
+            url: urls.joined(separator: ", "),
+            success: false,
+            errorMessage: AppDiagnostic.serializeFailed.rawValue,
+            dataType: "health_connect",
+            recordCount: recordCount,
+            logType: .healthConnect
+        )
     }
 }
 

@@ -195,7 +195,7 @@ enum BackfillPayload {
         payload["window_start"] = window.start.iso8601String
         payload["window_end"] = window.end.iso8601String
         payload["window_complete"] = false
-        return try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+        return PayloadBody.encode(payload)
     }
 
     static func recordCount(_ records: [(String, Any)]) -> Int {

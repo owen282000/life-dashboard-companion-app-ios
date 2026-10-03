@@ -114,6 +114,29 @@ final class OutboxTests: XCTestCase {
         XCTAssertEqual(delivered.anchorPast, [1, 2])
     }
 
+    // MARK: - Serializing
+
+    func testAPayloadJSONCannotHoldIsNilInsteadOfEndingTheApp() throws {
+        XCTAssertNil(PayloadBody.encode(["weight": [["kilograms": Double.nan]]]))
+        XCTAssertNil(PayloadBody.encode(["heart_rate": [["bpm": Double.infinity]]]))
+        XCTAssertNil(BackfillPayload.body(
+            records: [("weight", [["kilograms": Double.nan]])], window: DateInterval(start: Date(), duration: 60),
+            extras: [:], appVersion: "1.0", now: Date()
+        ))
+        let body = try XCTUnwrap(PayloadBody.encode(["steps": [["count": 12]], "source": "healthkit_ios"]))
+        XCTAssertEqual(String(data: body, encoding: .utf8), #"{"source":"healthkit_ios","steps":[{"count":12}]}"#)
+    }
+
+    func testAPayloadThatCannotBeSerializedLeavesAFailedRow() {
+        let row = PayloadBody.unserializableLog(urls: ["https://a.example/hook", "https://b.example/hook"], recordCount: 7)
+        XCTAssertFalse(row.success)
+        XCTAssertEqual(row.errorMessage, "Failed to serialize payload")
+        XCTAssertEqual(row.url, "https://a.example/hook, https://b.example/hook")
+        XCTAssertEqual(row.recordCount, 7)
+        XCTAssertEqual(row.dataType, "health_connect")
+        XCTAssertNil(row.rawPayload)
+    }
+
     // MARK: - Failure notification
 
     func testAFailedPostSaysWhyAndTheNotificationShowsIt() async {

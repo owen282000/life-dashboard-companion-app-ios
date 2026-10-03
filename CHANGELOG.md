@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- A sync whose payload could not be turned into JSON marked its records as sent and said nothing, so they never went out; a value such as a NaN could also end the app. Such a payload is now checked first, the records stay unsent, and the Logs tab gets a failed row saying the payload could not be built
 - A sync in which every type failed or ran out of time reported "No new data", so a HealthKit that stopped answering looked like a quiet day. It now fails, with a row in the Logs tab under Apple Health that says no type answered, as the Android app does. Deleted records it had to send still go out
 - Total calories went out at most 200 records per sync, where the Android app sends 1000. It combines active and resting energy, which an Apple Watch writes about once a minute each, so a day of it took a dozen syncs to catch up. It now has the cap of heart rate and steps, as on Android
 - The error lines of the settings backup (a wrong password, a file that cannot be read) were in the system red, 3.6:1 on white, under the 4.5:1 that small text needs. They now use the darker red the rest of the app uses for error text
