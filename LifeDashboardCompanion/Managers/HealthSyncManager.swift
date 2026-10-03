@@ -302,9 +302,14 @@ final class HealthSyncManager: Sendable {
         let pendingStore = self.pendingStore
         let logger = self.logger
         var dropped: [(PendingSyncItem, QueueDrop)] = []
+        let startedAt = Date()
         await QueueDrain(
-            now: Date(),
+            now: startedAt,
             retryRefused: retryRefused,
+            hasTime: {
+                let remaining = await MainActor.run { UIApplication.shared.backgroundTimeRemaining }
+                return DrainBudget.allowsAnotherPost(elapsed: Date().timeIntervalSince(startedAt), backgroundTimeRemaining: remaining)
+            },
             urls: { prefs.healthWebhookUrls },
             headers: { prefs.healthWebhookHeaders },
             post: { item, urls, headers in
@@ -630,6 +635,22 @@ struct WriteAhead {
     }
 }
 
+/// How long one drain may go on posting. Android's PendingDrainer stops after 2 minutes: a full
+/// queue of 700 payloads at a second each would hold the sync behind it for over ten. In the
+/// background iOS gives far less, about 30 seconds to a HealthKit wakeup or a background task
+/// and to Sync Now once the app leaves the screen, and suspends the app when it is up; a post
+/// cut off there is only sent again later, and the sync after the drain never runs. So the
+/// drain also stops while some of that time is left, `backgroundReserve`, for the sync. On
+/// screen iOS reports no limit, and only the 2 minutes count.
+enum DrainBudget {
+    static let seconds: TimeInterval = 120
+    static let backgroundReserve: TimeInterval = 10
+
+    static func allowsAnotherPost(elapsed: TimeInterval, backgroundTimeRemaining: TimeInterval) -> Bool {
+        elapsed < seconds && backgroundTimeRemaining > backgroundReserve
+    }
+}
+
 /// One pass over the retry queue, oldest first, apart from the stores and the network so the
 /// tests can run it. Every item is posted with the webhook settings of that moment, as Android's
 /// PendingDrainer does: to the URLs configured now, which WebhookManager gives the headers
@@ -653,6 +674,9 @@ struct QueueDrain {
     var now: Date
     /// Retry Now: refused items go too, however recently they were refused.
     var retryRefused = false
+    /// Asked before every post; false ends the pass and leaves the rest for the next drain
+    /// (see `DrainBudget`).
+    var hasTime: () async -> Bool = { true }
     /// The URLs configured now; none leaves every item waiting.
     var urls: () -> [String]
     var headers: () -> [String: String]
@@ -667,6 +691,7 @@ struct QueueDrain {
     func run(_ items: [PendingSyncItem]) async {
         for item in items {
             if !retryRefused && item.restsAfterRefusal(at: now) { continue }
+            guard await hasTime() else { return }
             let urls = urls()
             guard !urls.isEmpty else { return }
             let delivery = await post(item, urls, headers())

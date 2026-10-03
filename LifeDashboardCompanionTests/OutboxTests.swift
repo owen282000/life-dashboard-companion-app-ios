@@ -523,6 +523,30 @@ final class OutboxTests: XCTestCase {
         XCTAssertFalse(stored.restsAfterRefusal(at: now))
     }
 
+    func testADrainStopsWhenItsTimeIsUpAndLeavesTheRestQueued() async {
+        let receiver = Receiver()
+        var asked = 0
+        var drain = receiver.drain
+        drain.hasTime = {
+            asked += 1
+            return asked <= 2
+        }
+        await drain.run([item("a"), item("b"), item("c")])
+        XCTAssertEqual(receiver.posted.map(\.id), ["a", "b"])
+        XCTAssertEqual(receiver.removed, ["a", "b"])
+        XCTAssertTrue(receiver.attempts.isEmpty && receiver.dropped.isEmpty, "c waits for the next drain, untouched")
+    }
+
+    func testTheDrainBudgetIsTwoMinutesAndLeavesTheSyncItsShareOfBackgroundTime() {
+        let onScreen = TimeInterval.greatestFiniteMagnitude
+        XCTAssertTrue(DrainBudget.allowsAnotherPost(elapsed: 0, backgroundTimeRemaining: onScreen))
+        XCTAssertTrue(DrainBudget.allowsAnotherPost(elapsed: 119, backgroundTimeRemaining: onScreen))
+        XCTAssertFalse(DrainBudget.allowsAnotherPost(elapsed: 120, backgroundTimeRemaining: onScreen), "Android's 120 s")
+        XCTAssertTrue(DrainBudget.allowsAnotherPost(elapsed: 5, backgroundTimeRemaining: 20))
+        XCTAssertFalse(DrainBudget.allowsAnotherPost(elapsed: 5, backgroundTimeRemaining: 10), "the rest is the sync's")
+        XCTAssertFalse(DrainBudget.allowsAnotherPost(elapsed: 0, backgroundTimeRemaining: 0))
+    }
+
     // MARK: - Refusals
 
     /// Answers every request with the status code in its host name, "status-400.test".
