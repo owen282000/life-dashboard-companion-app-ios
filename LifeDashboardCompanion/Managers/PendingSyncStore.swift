@@ -20,11 +20,21 @@ struct PendingSyncItem: Codable, Identifiable {
     var lastAttemptAt: Date?
     var lastError: String?
     var lastStatusCode: Int?
+    /// When a receiver last refused it for what it carries (see `WebhookRetryPolicy`); nil
+    /// once an attempt failed otherwise.
+    var lastRefusedAt: Date?
 
     /// Past `PendingSyncStore.maxAge`: the next delivery that a receiver answers with a
     /// failure is its last.
     func expired(at now: Date) -> Bool {
         now.timeIntervalSince(createdAt) > PendingSyncStore.maxAge
+    }
+
+    /// Refused less than `PendingSyncStore.refusedRetryInterval` ago: the queue leaves it
+    /// alone until then, since the same payload gets the same answer.
+    func restsAfterRefusal(at now: Date) -> Bool {
+        guard let lastRefusedAt else { return false }
+        return now.timeIntervalSince(lastRefusedAt) < PendingSyncStore.refusedRetryInterval
     }
 }
 
@@ -59,6 +69,10 @@ final class PendingSyncStore: @unchecked Sendable {
     /// minutes with room for manual ones. Since an iPhone that is offline drops nothing by age,
     /// this is what bounds the queue; past it the oldest payload goes.
     static let maxItems = 700
+
+    /// How often the queue offers a refused payload again on its own: once a day, so a week of
+    /// refusals is about seven rows in the log, not one per sync. Retry Now offers it at once.
+    static let refusedRetryInterval: TimeInterval = 24 * 60 * 60
 
     private let root: URL
     private let maxItems: Int
@@ -209,16 +223,18 @@ final class PendingSyncStore: @unchecked Sendable {
         try? fileManager.removeItem(at: fileURL)
     }
 
-    /// Counts one failed delivery of the item, with its error and status code.
-    func updateAttempt(id: String, error: String?, statusCode: Int? = nil) {
+    /// Counts one failed delivery of the item, with its error and status code, and whether the
+    /// receiver refused the payload itself.
+    func updateAttempt(id: String, error: String?, statusCode: Int? = nil, refused: Bool = false, at now: Date = Date()) {
         let fileURL = directory.appendingPathComponent("\(id).json")
         guard let data = try? Data(contentsOf: fileURL),
               var item = try? decoder.decode(PendingSyncItem.self, from: data) else { return }
 
         item.attemptCount += 1
-        item.lastAttemptAt = Date()
+        item.lastAttemptAt = now
         item.lastError = error
         item.lastStatusCode = statusCode
+        item.lastRefusedAt = refused ? now : nil
         item.headers = [:]
 
         if let updated = try? encoder.encode(item) {

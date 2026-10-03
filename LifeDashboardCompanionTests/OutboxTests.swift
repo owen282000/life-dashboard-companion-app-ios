@@ -330,10 +330,12 @@ final class OutboxTests: XCTestCase {
         var removed: [String] = []
         var attempts: [String] = []
         var dropped: [(String, QueueDrop)] = []
+        var retryRefused = false
 
         var drain: QueueDrain {
             QueueDrain(
                 now: now,
+                retryRefused: retryRefused,
                 urls: { self.configured },
                 headers: { self.headers },
                 post: { item, urls, headers in
@@ -351,12 +353,15 @@ final class OutboxTests: XCTestCase {
         }
     }
 
-    private func item(_ id: String, age days: Double = 0) -> PendingSyncItem {
-        PendingSyncItem(
+    /// `refused`: how many hours ago a receiver last refused it.
+    private func item(_ id: String, age days: Double = 0, refused hours: Double? = nil) -> PendingSyncItem {
+        var item = PendingSyncItem(
             id: id, createdAt: Date().addingTimeInterval(-days * 86_400), payload: Data("{}".utf8),
             urls: ["https://old.example/hook"],
             logType: LogType.healthConnect.rawValue, dataType: "health_connect", recordCount: 1, attemptCount: 0
         )
+        item.lastRefusedAt = hours.map { Date().addingTimeInterval(-$0 * 3600) }
+        return item
     }
 
     func testEveryRetryGoesWhereAndWithWhatIsConfiguredNow() async {
@@ -473,6 +478,49 @@ final class OutboxTests: XCTestCase {
         )
         XCTAssertEqual(AppDiagnostic.display(row.errorMessage ?? ""), row.errorMessage)
         XCTAssertEqual(PendingSyncStore.maxItems, 700, "Android's MAX_HEALTH_ITEMS")
+    }
+
+    func testARefusedPayloadIsOfferedOnceADayAndRetryNowOffersItAtOnce() async {
+        let refusedRecently = item("bad", refused: 3)
+        let refusedYesterday = item("old-bad", refused: 25)
+
+        let automatic = Receiver()
+        await automatic.drain.run([refusedRecently, refusedYesterday, item("good")])
+        XCTAssertEqual(automatic.posted.map(\.id), ["old-bad", "good"], "refused 3 hours ago, so it rests")
+        XCTAssertEqual(automatic.removed, ["old-bad", "good"])
+
+        let retryNow = Receiver()
+        retryNow.retryRefused = true
+        await retryNow.drain.run([refusedRecently, item("good")])
+        XCTAssertEqual(retryNow.posted.map(\.id), ["bad", "good"])
+
+        // A week old and refused again a day later: the week limit and its row still apply.
+        let expired = Receiver()
+        expired.answers = ["bad": .refused]
+        await expired.drain.run([item("bad", age: 8, refused: 24.5)])
+        XCTAssertEqual(expired.dropped.map(\.0), ["bad"])
+        XCTAssertEqual(expired.dropped.first?.1, .refused(400))
+        let resting = Receiver()
+        await resting.drain.run([item("bad", age: 8, refused: 2)])
+        XCTAssertTrue(resting.posted.isEmpty && resting.dropped.isEmpty, "dropped at its next daily try")
+    }
+
+    func testOnlyARefusalMakesAPayloadRest() throws {
+        let store = PendingSyncStore(directory: try temporaryDirectory())
+        let item = try XCTUnwrap(store.enqueue(
+            payload: Data("{}".utf8), urls: ["https://example.com/hook"],
+            logType: LogType.healthConnect.rawValue, dataType: "health_connect", recordCount: 1
+        ))
+        let now = Date()
+        store.updateAttempt(id: item.id, error: "HTTP 422", statusCode: 422, refused: true, at: now)
+        var stored = try XCTUnwrap(store.dequeueAll().first)
+        XCTAssertTrue(stored.restsAfterRefusal(at: now.addingTimeInterval(23 * 3600)))
+        XCTAssertFalse(stored.restsAfterRefusal(at: now.addingTimeInterval(24 * 3600)))
+
+        // The same status as part of a plain failure (another URL down) does not make it rest.
+        store.updateAttempt(id: item.id, error: "HTTP 400", statusCode: 400, refused: false, at: now)
+        stored = try XCTUnwrap(store.dequeueAll().first)
+        XCTAssertFalse(stored.restsAfterRefusal(at: now))
     }
 
     // MARK: - Refusals

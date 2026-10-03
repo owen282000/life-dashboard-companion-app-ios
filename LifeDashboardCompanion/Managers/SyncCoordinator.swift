@@ -41,7 +41,9 @@ actor SyncCoordinator {
         var schedule: @Sendable () -> SyncSchedule
         var loadState: @Sendable () -> ScheduleState
         var saveState: @Sendable (ScheduleState) -> Void
-        var drain: @Sendable () async -> Void
+        /// Delivers the retry queue; true for Retry Now, which also offers what a receiver
+        /// refused less than a day ago.
+        var drain: @Sendable (_ retryRefused: Bool) async -> Void
         var syncIncremental: @Sendable () async -> HealthSyncResult
         var syncFull: @Sendable () async -> HealthSyncResult
         /// Re-aims the background task requests; true after a run the lock stopped.
@@ -93,7 +95,7 @@ actor SyncCoordinator {
         let env = self.env
         let outcome = await fly { () -> AutomaticSyncOutcome in
             guard await env.isUnlocked() else { return .locked }
-            await env.drain()
+            await env.drain(false)
             guard !Task.isCancelled else { return .cancelled }
             let result = await env.syncIncremental()
             if case .failure = result, await !env.isUnlocked() {
@@ -119,7 +121,7 @@ actor SyncCoordinator {
         while let flight { await wait(for: flight) }
         let env = self.env
         let result = await fly { () -> HealthSyncResult in
-            await env.drain()
+            await env.drain(false)
             return full ? await env.syncFull() : await env.syncIncremental()
         }
         await env.replan(false)
@@ -132,13 +134,14 @@ actor SyncCoordinator {
     /// back) waits for quiet hours; Retry Now does not.
     func drain(automatic: Bool) async {
         if automatic, !env.schedule().allowsDelivery(at: env.now(), timeZone: env.timeZone()) { return }
-        if let flight {
+        while let flight {
             // Every run drains first, and the drain itself runs once more for late arrivals.
             await wait(for: flight)
-            return
+            // That drain left alone what was refused today, which Retry Now offers as well.
+            if automatic { return }
         }
         let env = self.env
-        await fly { await env.drain() }
+        await fly { await env.drain(!automatic) }
     }
 
     // MARK: - Flight
@@ -205,7 +208,7 @@ extension SyncCoordinator.Environment {
         schedule: { PreferencesManager.shared.healthSyncSchedule },
         loadState: { PreferencesManager.shared.healthScheduleState },
         saveState: { PreferencesManager.shared.healthScheduleState = $0 },
-        drain: { await HealthSyncManager.shared.drainPendingQueue() },
+        drain: { retryRefused in await HealthSyncManager.shared.drainPendingQueue(retryRefused: retryRefused) },
         syncIncremental: {
             await HealthSyncManager.shared.performIncrementalSync(types: PreferencesManager.shared.healthEnabledDataTypes)
         },

@@ -12,6 +12,7 @@ final class SyncCoordinatorTests: XCTestCase {
         private var _state = ScheduleState(changedAt: Date(timeIntervalSince1970: 1_789_300_000))
         private var _result: HealthSyncResult = .success(syncCounts: [:])
         private(set) var drains = 0
+        private(set) var retriedRefused: [Bool] = []
         private(set) var incrementals = 0
         private(set) var fulls = 0
         private(set) var replans: [Bool] = []
@@ -56,7 +57,9 @@ final class SyncCoordinatorTests: XCTestCase {
         var held: Bool { lock.withLock { expiry != nil } }
 
         func count(_ body: (World) -> Void) { lock.withLock { body(self) } }
-        func addDrain() { lock.withLock { drains += 1; _events.append("drain") } }
+        func addDrain(retryRefused: Bool = false) {
+            lock.withLock { drains += 1; retriedRefused.append(retryRefused); _events.append("drain") }
+        }
         func addIncremental() { lock.withLock { incrementals += 1; _events.append("incremental") } }
         func addFull() { lock.withLock { fulls += 1; _events.append("full") } }
         func addReplan(_ locked: Bool) { lock.withLock { replans.append(locked) } }
@@ -71,8 +74,8 @@ final class SyncCoordinatorTests: XCTestCase {
                 schedule: { self.schedule },
                 loadState: { self.state },
                 saveState: { self.state = $0 },
-                drain: {
-                    self.addDrain()
+                drain: { retryRefused in
+                    self.addDrain(retryRefused: retryRefused)
                     await self.drainLatch.wait()
                 },
                 syncIncremental: {
@@ -327,6 +330,29 @@ final class SyncCoordinatorTests: XCTestCase {
         XCTAssertEqual(world.drains, 0)
         await coordinator.drain(automatic: false)
         XCTAssertEqual(world.drains, 1)
+        XCTAssertEqual(world.retriedRefused, [true], "Retry Now offers what was refused today too")
+
+        world.schedule = SyncSchedule()
+        await coordinator.drain(automatic: true)
+        _ = await coordinator.runAutomatic(.observer)
+        _ = await coordinator.runManual(full: false)
+        XCTAssertEqual(world.retriedRefused, [true, false, false, false])
+    }
+
+    func testRetryNowDuringARunStillOffersWhatWasRefusedToday() async {
+        let world = World()
+        await world.drainLatch.open()
+        let coordinator = SyncCoordinator(environment: world.environment)
+
+        let run = Task { await coordinator.runManual(syncNow: false) }
+        _ = await settle { world.incrementals == 1 }
+        let retry = Task { await coordinator.drain(automatic: false) }
+        _ = await settle { await coordinator.waiting == 1 }
+        await world.syncLatch.open()
+        _ = await run.value
+        await retry.value
+
+        XCTAssertEqual(world.retriedRefused, [false, true], "the run's drain, then Retry Now's own")
     }
 
     func testARunStartedOnScreenHoldsBackgroundTimeUntilItEnds() async {
@@ -394,7 +420,7 @@ final class SyncCoordinatorTests: XCTestCase {
         // on only once the coordinator gets there; the drain lets go after that.
         let workCancelled = Latch()
         var environment = world.environment
-        environment.drain = {
+        environment.drain = { _ in
             world.addDrain()
             await withTaskCancellationHandler {
                 await world.drainLatch.wait()

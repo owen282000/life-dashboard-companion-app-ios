@@ -283,15 +283,16 @@ final class HealthSyncManager: Sendable {
 
     /// Delivers what earlier syncs queued, oldest first, one drain at a time. Called through
     /// SyncCoordinator; the drain's own flight still keeps a payload from going out twice
-    /// should anything else call it.
-    func drainPendingQueue() async {
+    /// should anything else call it. `retryRefused` is Retry Now: a payload refused less than
+    /// a day ago goes too.
+    func drainPendingQueue(retryRefused: Bool = false) async {
         await drainFlight.run { [self] in
-            await drainPendingQueueOnce()
+            await drainPendingQueueOnce(retryRefused: retryRefused)
         }
     }
 
     /// Delivers the queue (see `QueueDrain`), and reports what it dropped.
-    private func drainPendingQueueOnce() async {
+    private func drainPendingQueueOnce(retryRefused: Bool) async {
         let items = pendingStore.dequeueAll()
         guard !items.isEmpty else { return }
 
@@ -303,6 +304,7 @@ final class HealthSyncManager: Sendable {
         var dropped: [(PendingSyncItem, QueueDrop)] = []
         await QueueDrain(
             now: Date(),
+            retryRefused: retryRefused,
             urls: { prefs.healthWebhookUrls },
             headers: { prefs.healthWebhookHeaders },
             post: { item, urls, headers in
@@ -317,7 +319,9 @@ final class HealthSyncManager: Sendable {
             },
             remove: { pendingStore.remove(id: $0.id) },
             attempt: { item, delivery in
-                pendingStore.updateAttempt(id: item.id, error: delivery.error, statusCode: delivery.statusCode)
+                pendingStore.updateAttempt(
+                    id: item.id, error: delivery.error, statusCode: delivery.statusCode, refused: delivery.outcome == .refused
+                )
                 logger.info("Pending sync item \(item.id) not delivered: \(delivery.error ?? "", privacy: .public)")
             },
             // A delivered retry is a delivered sync: the widget counts its records and the
@@ -469,7 +473,9 @@ final class HealthSyncManager: Sendable {
             },
             delivered: { pendingStore.remove(id: $0) },
             failed: { id, delivery in
-                pendingStore.updateAttempt(id: id, error: delivery.error, statusCode: delivery.statusCode)
+                pendingStore.updateAttempt(
+                    id: id, error: delivery.error, statusCode: delivery.statusCode, refused: delivery.outcome == .refused
+                )
             }
         ).run()
 
@@ -633,7 +639,9 @@ struct WriteAhead {
 /// The pass stops at the first item that fails, so the rest wait in order for a receiver that
 /// answers again. An item refused for what it carries (400, 413, 422) does not hold them up: it
 /// is skipped and stays queued, since the refusal can also come from a receiver bug that an
-/// update fixes. An interruption ends the pass without counting an attempt.
+/// update fixes. It is offered again once a day, not on every pass, which would add a failed
+/// row to the log for every sync of the week; Retry Now offers it at once. An interruption
+/// ends the pass without counting an attempt.
 ///
 /// An item older than a week is dropped when a receiver answers a delivery of it with a
 /// failure, refused or not: a phone that got no chance to sync for a week still tries once. A
@@ -643,6 +651,8 @@ struct WriteAhead {
 /// queue instead.
 struct QueueDrain {
     var now: Date
+    /// Retry Now: refused items go too, however recently they were refused.
+    var retryRefused = false
     /// The URLs configured now; none leaves every item waiting.
     var urls: () -> [String]
     var headers: () -> [String: String]
@@ -656,6 +666,7 @@ struct QueueDrain {
 
     func run(_ items: [PendingSyncItem]) async {
         for item in items {
+            if !retryRefused && item.restsAfterRefusal(at: now) { continue }
             let urls = urls()
             guard !urls.isEmpty else { return }
             let delivery = await post(item, urls, headers())
