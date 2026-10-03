@@ -185,7 +185,8 @@ enum SettingsBackup {
 
     /// Published on PreferencesManager but deliberately not carried by the backup.
     static let notBackedUp: [String: String] = [
-        "mqttLastStatus": "the result of the last publish on this device"
+        "mqttLastStatus": "the result of the last publish on this device",
+        "clientCertificate": "the private key never leaves this iPhone's Keychain, and its name means nothing on another phone"
     ]
 
     /// Android splits cycle tracking into two record types where iOS has one toggle. Written

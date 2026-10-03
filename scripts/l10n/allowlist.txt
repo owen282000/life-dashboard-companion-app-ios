@@ -20,6 +20,7 @@ LifeDashboardCompanion/Managers/BackgroundSyncManager.swift | health sync | debu
 LifeDashboardCompanion/Managers/DeletionReader.swift | Unknown sample type %arg | debug-name | the error is counted per type, its text is never shown
 LifeDashboardCompanion/Managers/DeletionReader.swift | Stored anchor unreadable | debug-name | the error is counted per type, its text is never shown
 LifeDashboardCompanion/Managers/SettingsBackup.swift | the result of the last publish on this device | debug-name | documents a setting the backup leaves out
+LifeDashboardCompanion/Managers/SettingsBackup.swift | the private key never leaves this iPhone's Keychain, and its name means nothing on another phone | debug-name | documents a setting the backup leaves out
 LifeDashboardCompanion/Models/SyncStats.swift | Apple Health | diagnostic | source of a read failure in the log row; the Sync History card shows it translated
 LifeDashboardCompanion/Models/AppDiagnostic.swift | HTTP %arg | diagnostic | stored form, display() translates it
 LifeDashboardCompanion/Models/AppDiagnostic.swift | Unknown error after %arg attempts | diagnostic | stored form, display() translates it

@@ -94,6 +94,26 @@ actor WebhookManager {
         guard !urls.isEmpty else { return Delivery(outcome: .failed) }
 
         let prefs = PreferencesManager.shared
+        let rawPayload = String(data: jsonData, encoding: .utf8)
+
+        // As on Android: an imported certificate this iPhone cannot present sends nothing, and
+        // every URL gets a row that says why, since the log is where the user looks.
+        if let reason = ClientCertificateStore.unavailableReason(configured: prefs.clientCertificateConfigured) {
+            for url in urls {
+                prefs.addWebhookLog(WebhookLog(
+                    url: url,
+                    statusCode: nil,
+                    success: false,
+                    errorMessage: reason,
+                    dataType: dataType,
+                    recordCount: recordCount,
+                    rawPayload: rawPayload,
+                    logType: logType
+                ))
+            }
+            return Delivery(outcome: .failed, error: reason, urlCount: urls.count)
+        }
+
         let signingSecret = prefs.healthSigningSecret
         let signature = signingSecret.isEmpty
             ? nil
@@ -101,7 +121,6 @@ actor WebhookManager {
         let configuredUrls = prefs.healthWebhookUrls
         let urlsWithoutHeaders = prefs.storedUrlsWithoutHeaders
 
-        let rawPayload = String(data: jsonData, encoding: .utf8)
         var anySuccess = false
         var notTaken: [String] = []
         var anyFailed = false
@@ -172,9 +191,10 @@ actor WebhookManager {
         var statusCode: Int?
         var answer = Data()
         var answerSignature: String?
-        var failure: String?
+        // A certificate that cannot be presented sends nothing, as for a sync.
+        var failure = ClientCertificateStore.unavailableReason(configured: PreferencesManager.shared.clientCertificateConfigured)
 
-        if let url = URL(string: urlString) {
+        if failure == nil, let url = URL(string: urlString) {
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.httpBody = body
@@ -196,7 +216,7 @@ actor WebhookManager {
             } catch {
                 failure = error.localizedDescription
             }
-        } else {
+        } else if failure == nil {
             failure = AppDiagnostic.invalidURL.rawValue
         }
 
@@ -220,6 +240,12 @@ actor WebhookManager {
             logType: .healthConnect
         ))
         return outcome
+    }
+
+    /// After a certificate was imported or removed: a pooled connection, or a TLS session it
+    /// resumes, would otherwise go on with the identity it was opened with.
+    func dropConnections() async {
+        await session.reset()
     }
 
     private struct Sent {
@@ -324,10 +350,10 @@ actor WebhookManager {
 /// built: still a POST with the same body and headers. Any other redirect is not followed, so
 /// URLSession returns the 3xx itself and the delivery fails with a line that names its target.
 ///
-/// A handler for authentication challenges, such as a client certificate, belongs here as
-/// well. A client certificate or server trust challenge is one for the connection, and reaches
-/// this task delegate only because the session has no delegate of its own: a session delegate
-/// that implements `urlSession(_:didReceive:)` would take them away from here.
+/// It also answers the authentication challenges, for the client certificate. A client
+/// certificate or server trust challenge is one for the connection, and reaches this task
+/// delegate only because the session has no delegate of its own: a session delegate that
+/// implements `urlSession(_:didReceive:)` would take them away from here.
 final class WebhookTaskDelegate: NSObject, URLSessionTaskDelegate, Sendable {
     private let request: URLRequest
     private let state = OSAllocatedUnfairLock(initialState: (followed: 0, stoppedAtLimit: false))
@@ -361,5 +387,15 @@ final class WebhookTaskDelegate: NSObject, URLSessionTaskDelegate, Sendable {
         var next = request
         next.url = followed
         return next
+    }
+
+    /// The imported client certificate when the server asks for one, iOS's own handling for
+    /// everything else, server trust included.
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didReceive challenge: URLAuthenticationChallenge
+    ) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
+        ClientCertificateStore.answer(challenge)
     }
 }

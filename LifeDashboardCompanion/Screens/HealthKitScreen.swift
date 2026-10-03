@@ -421,7 +421,8 @@ struct HealthKitScreen: View {
         ExpandableRow(
             title: "Advanced",
             systemImage: "slider.horizontal.3",
-            subtitle: prefs.includeDailyTotals ? Text("Daily totals") : Text("No daily totals"),
+            subtitle: advancedSubtitle,
+            subtitleColor: prefs.clientCertificate?.needsAttention() == true ? Brand.warningInk : .secondary,
             isExpanded: $showAdvanced
         ) {
             Toggle("Daily totals in payload", isOn: $prefs.includeDailyTotals)
@@ -430,6 +431,17 @@ struct HealthKitScreen: View {
             Text("Per-day totals (steps, distance, calories) as the Health app counts them, with overlapping iPhone and Watch data counted once")
                 .font(.footnote)
                 .foregroundColor(.secondary)
+            Divider()
+            ClientCertificateLine(prefs: prefs)
+        }
+    }
+
+    private var advancedSubtitle: Text {
+        switch (prefs.includeDailyTotals, prefs.clientCertificate != nil) {
+        case (true, false): return Text("Daily totals")
+        case (false, false): return Text("No daily totals")
+        case (true, true): return Text("Daily totals, client certificate")
+        case (false, true): return Text("No daily totals, client certificate")
         }
     }
 

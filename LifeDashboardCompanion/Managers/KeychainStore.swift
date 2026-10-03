@@ -20,13 +20,13 @@ enum KeychainStore {
         return result as? Data
     }
 
-    static func setData(_ value: Data, forKey key: String) {
+    static func setData(_ value: Data, forKey key: String, accessible: CFString = kSecAttrAccessibleAfterFirstUnlock) {
         removeValue(forKey: key)
         let attributes: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+            kSecAttrAccessible as String: accessible,
             kSecValueData as String: value
         ]
         SecItemAdd(attributes as CFDictionary, nil)
