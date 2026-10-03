@@ -38,8 +38,10 @@
 		6834543E155CE8FC8B45ED25 /* MqttPacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF73E5D5E207F8C511EF06F5 /* MqttPacket.swift */; };
 		CF775D282F2EDF1259F96E3B /* MqttSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FBDAA116A38516E98827EFA /* MqttSupport.swift */; };
 		A6EF25DF6E9049216FEDF0BC /* MqttPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EAE9DB642137B4DAEE89D40 /* MqttPublisher.swift */; };
+		51E5C10E69505D2FA3BD79E1 /* MqttSensorCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08ECB9F59A0968A49D4EE71 /* MqttSensorCache.swift */; };
 		DC3F56B7B12AAB0A0F646E19 /* MqttPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7844ED7AB1F0D76FD282CC18 /* MqttPacketTests.swift */; };
 		71995D4DCF9914D64779CC97 /* MqttSupportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B7F64070EB24778B41A051B /* MqttSupportTests.swift */; };
+		2D38008FC1CC03B2BC52FE88 /* MqttSensorCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 054BDD3BE4551645EAC31E8C /* MqttSensorCacheTests.swift */; };
 		75AE7368B36783B99C63DFC7 /* AndroidFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC4BF029DE8F7BA1F448D602 /* AndroidFixtures.swift */; };
 		15E26639D4E91D957D451C8C /* SettingsBackupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A0B3417331E8F6C4B4D39C /* SettingsBackupTests.swift */; };
 		5CF46D678145B967DC6B4B70 /* SettingsBackupCryptoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5044D8F8014A310603CBB122 /* SettingsBackupCryptoTests.swift */; };
@@ -167,8 +169,10 @@
 		EF73E5D5E207F8C511EF06F5 /* MqttPacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttPacket.swift; sourceTree = "<group>"; };
 		7FBDAA116A38516E98827EFA /* MqttSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttSupport.swift; sourceTree = "<group>"; };
 		5EAE9DB642137B4DAEE89D40 /* MqttPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttPublisher.swift; sourceTree = "<group>"; };
+		C08ECB9F59A0968A49D4EE71 /* MqttSensorCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttSensorCache.swift; sourceTree = "<group>"; };
 		7844ED7AB1F0D76FD282CC18 /* MqttPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttPacketTests.swift; sourceTree = "<group>"; };
 		4B7F64070EB24778B41A051B /* MqttSupportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttSupportTests.swift; sourceTree = "<group>"; };
+		054BDD3BE4551645EAC31E8C /* MqttSensorCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttSensorCacheTests.swift; sourceTree = "<group>"; };
 		BC4BF029DE8F7BA1F448D602 /* AndroidFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AndroidFixtures.swift; sourceTree = "<group>"; };
 		38A0B3417331E8F6C4B4D39C /* SettingsBackupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBackupTests.swift; sourceTree = "<group>"; };
 		5044D8F8014A310603CBB122 /* SettingsBackupCryptoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBackupCryptoTests.swift; sourceTree = "<group>"; };
@@ -327,6 +331,7 @@
 				EF73E5D5E207F8C511EF06F5 /* MqttPacket.swift */,
 				7FBDAA116A38516E98827EFA /* MqttSupport.swift */,
 				5EAE9DB642137B4DAEE89D40 /* MqttPublisher.swift */,
+				C08ECB9F59A0968A49D4EE71 /* MqttSensorCache.swift */,
 				F1000018 /* WebhookRetryPolicy.swift */,
 				F1000019 /* SleepSessionBuilder.swift */,
 				F100001D /* SyncLimits.swift */,
@@ -389,6 +394,7 @@
 				B7F82E34A9A6016BACEFD2B5 /* PairingLinkTests.swift */,
 				7844ED7AB1F0D76FD282CC18 /* MqttPacketTests.swift */,
 				4B7F64070EB24778B41A051B /* MqttSupportTests.swift */,
+				054BDD3BE4551645EAC31E8C /* MqttSensorCacheTests.swift */,
 				BC4BF029DE8F7BA1F448D602 /* AndroidFixtures.swift */,
 				38A0B3417331E8F6C4B4D39C /* SettingsBackupTests.swift */,
 				5044D8F8014A310603CBB122 /* SettingsBackupCryptoTests.swift */,
@@ -589,6 +595,7 @@
 				6834543E155CE8FC8B45ED25 /* MqttPacket.swift in Sources */,
 				CF775D282F2EDF1259F96E3B /* MqttSupport.swift in Sources */,
 				A6EF25DF6E9049216FEDF0BC /* MqttPublisher.swift in Sources */,
+				51E5C10E69505D2FA3BD79E1 /* MqttSensorCache.swift in Sources */,
 				B1000018 /* WebhookRetryPolicy.swift in Sources */,
 				B1000019 /* SleepSessionBuilder.swift in Sources */,
 				B100001D /* SyncLimits.swift in Sources */,
@@ -637,6 +644,7 @@
 				18DD5CECDB84654192BECE02 /* PairingLinkTests.swift in Sources */,
 				DC3F56B7B12AAB0A0F646E19 /* MqttPacketTests.swift in Sources */,
 				71995D4DCF9914D64779CC97 /* MqttSupportTests.swift in Sources */,
+				2D38008FC1CC03B2BC52FE88 /* MqttSensorCacheTests.swift in Sources */,
 				75AE7368B36783B99C63DFC7 /* AndroidFixtures.swift in Sources */,
 				15E26639D4E91D957D451C8C /* SettingsBackupTests.swift in Sources */,
 				5CF46D678145B967DC6B4B70 /* SettingsBackupCryptoTests.swift in Sources */,

@@ -2,29 +2,79 @@ import Foundation
 import Network
 import OSLog
 
-/// Publishes the latest synced values to the user's MQTT broker with Home Assistant
-/// Discovery, using the in-process MQTT 3.1.1 encoder over Network.framework (no third-party
+/// Publishes the latest synced values to the user's MQTT broker with Home Assistant Discovery,
+/// using the in-process MQTT 3.1.1 encoder over Network.framework (no third-party
 /// dependencies). Connect-publish-disconnect per sync; all messages are retained so Home
-/// Assistant keeps the last values across restarts. Failures never block the webhook sync;
-/// the outcome is stored for display in the MQTT settings section.
+/// Assistant keeps the last values across restarts. Every publish sends the whole sensor cache
+/// (`MqttSensorCache`), as the Android app does. Failures never block the webhook sync; the
+/// outcome is stored for display in the MQTT settings section.
 final class MqttPublisher: @unchecked Sendable {
     static let shared = MqttPublisher()
     private let logger = Logger(subsystem: "com.owen282000.lifedashboard", category: "Mqtt")
     private let queue = DispatchQueue(label: "com.owen282000.lifedashboard.mqtt")
+    private let store = MqttSensorStore.shared
 
     private init() {}
 
     /// Returns the error when the broker could not be reached, nil when the sensors went out or
-    /// there was nothing to publish.
+    /// there was nothing to publish. The fresh values join the cache, and the whole cache goes
+    /// out; a payload without a sensor publishes only when the cache is owed to the broker.
+    /// `freshIsNewest` is for Sync Now, whose payload holds each type's newest records: its
+    /// values replace the cached ones even when they are older (`MqttSensorCache.merged`).
     @discardableResult
-    func publish(healthPayload: [String: Any]) async -> String? {
+    func publish(healthPayload: [String: Any], freshIsNewest: Bool = false) async -> String? {
         let prefs = PreferencesManager.shared
-        guard prefs.mqttConfigured else { return nil }
+        guard prefs.mqttConfigured else {
+            store.clear()
+            return nil
+        }
 
-        let sensors = await MqttSupport.sensors(from: withTodaysTotals(healthPayload, prefs: prefs), today: today())
-        guard !sensors.isEmpty else { return nil }
+        let today = today()
+        let fresh = await MqttSupport.sensors(from: withTodaysTotals(healthPayload, prefs: prefs), today: today)
+        let target = target(prefs)
+        // A cache that cannot be read yet, which takes an iPhone not unlocked since a restart and
+        // so a HealthKit that cannot be read either, is left as it is: the fresh values go out
+        // alone, and once it reads again a publish may send an older cached value until the
+        // next record of its type.
+        let planned: (sensors: [MqttSensor], pending: Bool) = store.update { cache in
+            let pending = cache.shouldRepublish(to: target, now: Date())
+            cache.sensors = MqttSensorCache.merged(cached: cache.sensors, fresh: fresh, today: today, freshIsNewest: freshIsNewest)
+            return (cache.sensors, pending)
+        } ?? (fresh, false)
+        guard !fresh.isEmpty || planned.pending, !planned.sensors.isEmpty else { return nil }
+        return await send(planned.sensors, target: target, prefs: prefs)
+    }
 
-        let baseTopic = prefs.mqttBaseTopic.isEmpty ? MqttSupport.defaultBaseTopic : prefs.mqttBaseTopic
+    /// For a sync with nothing new: publishes the cache again when the last publish failed or
+    /// was cut off, or the broker, port, TLS, base topic or phone name changed since, so the
+    /// broker does not wait for the next record of each type. A broker that failed is tried
+    /// again after `MqttSensorCache.retryPause`, not by every wakeup. Nil when nothing was
+    /// owed or it went out.
+    @discardableResult
+    func republishIfPending() async -> String? {
+        let prefs = PreferencesManager.shared
+        guard prefs.mqttConfigured else {
+            store.clear()
+            return nil
+        }
+        guard !Task.isCancelled,
+              store.load()?.shouldRepublish(to: target(prefs), now: Date()) == true else { return nil }
+        return await publish(healthPayload: [:])
+    }
+
+    private func target(_ prefs: PreferencesManager) -> String {
+        MqttSensorCache.target(
+            host: prefs.mqttHost, port: prefs.mqttPort, useTls: prefs.mqttUseTls,
+            baseTopic: baseTopic(prefs), slug: MqttSupport.phoneSlug(prefs.phoneName)
+        )
+    }
+
+    private func baseTopic(_ prefs: PreferencesManager) -> String {
+        prefs.mqttBaseTopic.isEmpty ? MqttSupport.defaultBaseTopic : prefs.mqttBaseTopic
+    }
+
+    private func send(_ sensors: [MqttSensor], target: String, prefs: PreferencesManager) async -> String? {
+        let baseTopic = baseTopic(prefs)
         let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
         let prefix = MqttSupport.defaultDiscoveryPrefix
         let phoneName = prefs.phoneName
@@ -78,6 +128,7 @@ final class MqttPublisher: @unchecked Sendable {
             }
             prefs.mqttLastStatus = MqttStatus.published(sensors: sensors.count, at: Date())
             prefs.mqttPublishedSlug = slug
+            store.update { $0.recordPublish(to: target, success: true, at: Date()) }
             logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: nil)
             return nil
         } catch where Task.isCancelled || WebhookManager.isInterruption(error, taskCancelled: false) {
@@ -85,12 +136,14 @@ final class MqttPublisher: @unchecked Sendable {
             // nothing wrong, so the MQTT status keeps its last publish.
             let message = AppDiagnostic.interrupted.rawValue
             logger.info("MQTT publish interrupted")
+            store.update { $0.recordPublish(to: target, success: false, at: Date()) }
             logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: message)
             return message
         } catch {
             let message = error.localizedDescription
             logger.error("MQTT publish failed: \(message)")
             prefs.mqttLastStatus = MqttStatus.failed(message)
+            store.update { $0.recordPublish(to: target, success: false, at: Date()) }
             logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: message)
             return message
         }
