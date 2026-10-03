@@ -23,10 +23,25 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     /// `notCurrent` names the types whose records do not include their newest sample: a read
     /// that stopped at the cap, or an added sample dated before what HealthKit already holds.
     /// MQTT leaves those out, since a sensor shows the latest record it is given.
+    ///
+    /// `unanswered` is a read in which every type failed or ran out of time: nothing was read,
+    /// and nothing says that there was nothing new either.
     enum ReadResult {
         case data([String: Any], AnchorCommit, notCurrent: Set<HealthDataType>)
         case empty(AnchorCommit)
+        case unanswered
         case protectedDataUnavailable
+    }
+
+    /// Every type of a read failed or ran out of time, as Android's "Health Connect did not
+    /// answer for any data type". A sync reports it as a failure instead of "no new data".
+    struct NoTypeAnswered: LocalizedError {
+        var errorDescription: String? { AppDiagnostic.healthUnanswered.localized }
+    }
+
+    /// True when there were types to read and every one of them failed.
+    static func answeredNone(_ types: Set<HealthDataType>, failed: Set<HealthDataType>) -> Bool {
+        !types.isEmpty && failed.isSuperset(of: types)
     }
 
     /// What reading one type incrementally gave: its payload fragments, nil when there was
@@ -103,13 +118,15 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         )!
         let endDate = Date()
 
-        // Every type reads on its own; one that fails or does not answer in time is skipped.
-        let fragments = await HealthKitManager.gather(enabledTypes) { dataType in
+        // Every type reads on its own; one that fails or does not answer in time is skipped,
+        // and a read that every type failed throws.
+        let gathered = await HealthKitManager.gatherReporting(enabledTypes) { dataType in
             try await self.readDataForType(dataType, start: startDate, end: endDate)
         } failed: { dataType, error in
             self.logger.error("Read failed for \(dataType.rawValue): \(error.localizedDescription)")
         }
-        return HealthKitManager.merge(fragments.values)
+        if HealthKitManager.answeredNone(enabledTypes, failed: gathered.failed) { throw NoTypeAnswered() }
+        return HealthKitManager.merge(gathered.fragments.values)
     }
 
     /// What MQTT gets from a full read. The full read is capped oldest first, so for a type
@@ -169,22 +186,34 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         read: @escaping @Sendable (HealthDataType) async throws -> Fragment?,
         failed: @escaping @Sendable (HealthDataType, Error) -> Void
     ) async -> [HealthDataType: Fragment] {
-        await withTaskGroup(of: (HealthDataType, Unchecked<Fragment>?).self) { group in
+        await gatherReporting(types, read: read, failed: failed).fragments
+    }
+
+    /// `gather`, with the types that failed, so a caller can tell a read that found nothing
+    /// from one in which no type answered.
+    static func gatherReporting<Fragment>(
+        _ types: Set<HealthDataType>,
+        read: @escaping @Sendable (HealthDataType) async throws -> Fragment?,
+        failed: @escaping @Sendable (HealthDataType, Error) -> Void
+    ) async -> (fragments: [HealthDataType: Fragment], failed: Set<HealthDataType>) {
+        await withTaskGroup(of: (HealthDataType, Unchecked<Fragment>?, failed: Bool).self) { group in
             for dataType in types {
                 group.addTask {
                     do {
-                        return (dataType, try await read(dataType).map(Unchecked.init))
+                        return (dataType, try await read(dataType).map(Unchecked.init), false)
                     } catch {
                         failed(dataType, error)
-                        return (dataType, nil)
+                        return (dataType, nil, true)
                     }
                 }
             }
             var results: [HealthDataType: Fragment] = [:]
-            for await (dataType, fragment) in group {
+            var failures: Set<HealthDataType> = []
+            for await (dataType, fragment, didFail) in group {
                 if let fragment { results[dataType] = fragment.value }
+                if didFail { failures.insert(dataType) }
             }
-            return results
+            return (results, failures)
         }
     }
 
@@ -248,11 +277,13 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         let probeNewest = prefs.mqttConfigured
 
         // A type that fails keeps its anchors and cursor, so the next sync reads it again.
-        let reads = await HealthKitManager.gather(enabledTypes) { dataType in
+        let gathered = await HealthKitManager.gatherReporting(enabledTypes) { dataType in
             try await self.readIncrementalDataForType(dataType, prefs: prefs, probeNewest: probeNewest)
         } failed: { dataType, error in
             self.logger.error("Incremental read failed for \(dataType.rawValue): \(error.localizedDescription)")
         }
+        if HealthKitManager.answeredNone(enabledTypes, failed: gathered.failed) { return .unanswered }
+        let reads = gathered.fragments
         var commit = AnchorCommit()
         for (dataType, read) in reads {
             commit.anchors += read.anchors.map { AnchorCommit.Anchor(dataType: dataType, sampleType: $0.0, anchor: $0.1) }

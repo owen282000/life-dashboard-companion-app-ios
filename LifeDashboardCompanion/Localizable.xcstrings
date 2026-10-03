@@ -1771,6 +1771,22 @@
         }
       }
     },
+    "Apple Health did not answer for any data type; the next sync tries again" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Health hat für keinen Datentyp geantwortet; die nächste Synchronisierung versucht es erneut"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Gezondheid gaf voor geen enkel datatype antwoord; de volgende synchronisatie probeert het opnieuw"
+          }
+        }
+      }
+    },
     "Apple Health is not available" : {
       "localizations" : {
         "de" : {

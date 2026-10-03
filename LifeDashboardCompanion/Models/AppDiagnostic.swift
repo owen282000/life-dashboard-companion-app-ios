@@ -22,6 +22,7 @@ enum AppDiagnostic: String, CaseIterable {
     case brokerCancelled = "Connection cancelled"
     case interrupted = "Interrupted"
     case droppedUndelivered = "Not delivered for a week, dropped from the queue"
+    case healthUnanswered = "Apple Health did not answer for any data type; the next sync tries again"
 
     var localized: String {
         switch self {
@@ -39,6 +40,7 @@ enum AppDiagnostic: String, CaseIterable {
         case .brokerCancelled: return String(localized: "Connection cancelled")
         case .interrupted: return String(localized: "Interrupted")
         case .droppedUndelivered: return String(localized: "Not delivered for a week, dropped from the queue")
+        case .healthUnanswered: return String(localized: "Apple Health did not answer for any data type; the next sync tries again")
         }
     }
 

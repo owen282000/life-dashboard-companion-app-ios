@@ -93,15 +93,19 @@ final class HealthSyncManager: Sendable {
     /// Reading failed before anything was sent, so the row names Apple Health and not a
     /// webhook URL or a broker that was never contacted.
     private func readFailed(_ error: Error) -> HealthSyncResult {
+        // Stored in English, like every message the app writes itself.
+        let message = error is HealthKitManager.NoTypeAnswered
+            ? AppDiagnostic.healthUnanswered.rawValue
+            : error.localizedDescription
         let log = WebhookLog(
             url: SyncStats.readFailureSource,
             success: false,
-            errorMessage: error.localizedDescription,
+            errorMessage: message,
             dataType: WebhookLog.readFailureDataType,
             logType: .healthConnect
         )
         prefs.addWebhookLog(log)
-        return .failure(error: error.localizedDescription)
+        return .failure(error: message)
     }
 
     /// A sync with the MQTT broker and no webhook URL, as on Android: the latest value of each
@@ -162,6 +166,8 @@ final class HealthSyncManager: Sendable {
                 switch try await healthKit.readIncrementalData(for: types) {
                 case .protectedDataUnavailable:
                     return .failure(error: AppDiagnostic.deviceLocked.rawValue)
+                case .unanswered:
+                    return readFailed(HealthKitManager.NoTypeAnswered())
                 case .empty(let commit):
                     commit.save()
                     return .noData
@@ -184,6 +190,15 @@ final class HealthSyncManager: Sendable {
             switch readResult {
             case .protectedDataUnavailable:
                 return .failure(error: AppDiagnostic.deviceLocked.rawValue)
+            case .unanswered:
+                // As on Android: deletions read before still go out, and a sync that sent them
+                // did something. Without them, no type answering is a failure, not "no data".
+                if let result = await postDeletionsOnly(
+                    readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: nil
+                ) {
+                    return result
+                }
+                return readFailed(HealthKitManager.NoTypeAnswered())
             case .empty(let commit):
                 guard let result = await postDeletionsOnly(
                     readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: commit

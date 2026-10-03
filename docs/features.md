@@ -23,7 +23,7 @@ These are the Apple Health types that have a counterpart in the Android app, und
 
 - **Incremental sync** - each sync sends the records added since the last one, per type, from HealthKit's own change tracking, also when they are dated in the past. **Sync Now** sends the last 7 days again, up to the limits below, oldest first, and publishes the newest value of each type to MQTT
 - **Bounded payloads** - at most 1000 records per sync for heart rate, steps and total calories, 500 for HRV and respiratory rate, and 200 for the rest. The next sync continues where this one stopped
-- **Fault isolation** - a type that cannot be read is skipped, and the rest of the sync goes ahead
+- **Fault isolation** - a type that cannot be read is skipped, and the rest of the sync goes ahead. When no type answers at all, the sync fails with a row in the Logs tab instead of reporting no new data, as in the Android app
 - **Daily totals** - per-day steps, distance and calories as the Health app counts them, with overlapping iPhone and Watch data counted once, in the Android app's `daily_totals` format. **Daily totals in payload** under Advanced switches it off
 - **Deleted records** - a record deleted in Apple Health is named in `deleted_records`, so a receiver can drop it. See [webhook.md](webhook.md#deletions)
 
