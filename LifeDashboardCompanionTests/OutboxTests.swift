@@ -114,6 +114,62 @@ final class OutboxTests: XCTestCase {
         XCTAssertEqual(delivered.anchorPast, [1, 2])
     }
 
+    // MARK: - Serializing
+
+    func testAPayloadJSONCannotHoldIsNilInsteadOfEndingTheApp() throws {
+        XCTAssertNil(PayloadBody.encode(["weight": [["kilograms": Double.nan]]]))
+        XCTAssertNil(PayloadBody.encode(["heart_rate": [["bpm": Double.infinity]]]))
+        XCTAssertNil(BackfillPayload.body(
+            records: [("weight", [["kilograms": Double.nan]])], window: DateInterval(start: Date(), duration: 60),
+            extras: [:], appVersion: "1.0", sequence: 1, now: Date()
+        ))
+        let body = try XCTUnwrap(PayloadBody.encode(["steps": [["count": 12]], "source": "healthkit_ios"]))
+        XCTAssertEqual(String(data: body, encoding: .utf8), #"{"source":"healthkit_ios","steps":[{"count":12}]}"#)
+    }
+
+    // MARK: - Sequence
+
+    private func sequenceDefaults() -> UserDefaults {
+        let suite = "sequence-tests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        return defaults
+    }
+
+    func testTheSequenceGoesUpByOneAndCarriesOnAfterARestart() {
+        let defaults = sequenceDefaults()
+        let first = PayloadSequence(defaults: defaults)
+        XCTAssertEqual([first.next(), first.next(), first.next()], [1, 2, 3])
+        // A new process reads the same stored counter.
+        let afterRestart = PayloadSequence(defaults: defaults)
+        XCTAssertEqual(afterRestart.next(), 4)
+        XCTAssertEqual(defaults.integer(forKey: "health_sync_sequence"), 4, "Android's key")
+        // The queued copy of a payload drops today's totals and keeps its number.
+        let queued = DailyTotals.forQueue(["sequence": 4, "daily_totals": [["date": "2026-10-03"]]], builtOn: "2026-10-03")
+        XCTAssertEqual(queued["sequence"] as? Int, 4)
+    }
+
+    func testTwoPayloadsBuiltAtOnceNeverShareANumber() {
+        let counter = PayloadSequence(defaults: sequenceDefaults())
+        let lock = NSLock()
+        var taken: [Int] = []
+        DispatchQueue.concurrentPerform(iterations: 200) { _ in
+            let value = counter.next()
+            lock.withLock { taken.append(value) }
+        }
+        XCTAssertEqual(taken.sorted(), Array(1...200))
+    }
+
+    func testAPayloadThatCannotBeSerializedLeavesAFailedRow() {
+        let row = PayloadBody.unserializableLog(urls: ["https://a.example/hook", "https://b.example/hook"], recordCount: 7)
+        XCTAssertFalse(row.success)
+        XCTAssertEqual(row.errorMessage, "Failed to serialize payload")
+        XCTAssertEqual(row.url, "https://a.example/hook, https://b.example/hook")
+        XCTAssertEqual(row.recordCount, 7)
+        XCTAssertEqual(row.dataType, "health_connect")
+        XCTAssertNil(row.rawPayload)
+    }
+
     // MARK: - Failure notification
 
     func testAFailedPostSaysWhyAndTheNotificationShowsIt() async {
@@ -121,7 +177,7 @@ final class OutboxTests: XCTestCase {
             body: Data("{}".utf8), urls: [""], headers: [:],
             logType: .healthConnect, dataType: "health_connect", recordCount: 1
         )
-        XCTAssertEqual(delivery, WebhookManager.Delivery(outcome: .failed, error: AppDiagnostic.invalidURL.rawValue, urlCount: 1))
+        XCTAssertEqual(delivery, WebhookManager.Delivery(outcome: .failed, error: AppDiagnostic.invalidURL.rawValue, urlCount: 1, unanswered: true))
         for row in LogStore.shared.load() where row.url.isEmpty { LogStore.shared.delete(id: row.id) }
 
         let body = SyncFailureNotifier.failureBody(streak: 3, lastError: delivery.error.map(AppDiagnostic.display))
@@ -255,7 +311,10 @@ final class OutboxTests: XCTestCase {
         XCTAssertEqual(refused.statusCode, 413)
         XCTAssertEqual(AppDiagnostic.display(refused.errorMessage ?? ""), "Refused for a week (HTTP 413), dropped from the queue")
         XCTAssertEqual(AppDiagnostic.display(undelivered.errorMessage ?? ""), "Not delivered for a week, dropped from the queue")
-        XCTAssertTrue(SyncFailureNotifier.droppedBody(count: 2).hasPrefix("2 undelivered syncs"))
+        XCTAssertEqual(
+            SyncFailureNotifier.droppedBody(count: 2),
+            "2 undelivered syncs were dropped from the queue, so their records are lost. Check the Logs tab for details."
+        )
     }
 
     // MARK: - Draining
@@ -263,16 +322,20 @@ final class OutboxTests: XCTestCase {
     private final class Receiver: @unchecked Sendable {
         var now = Date()
         var answers: [String: WebhookManager.Outcome] = [:]
+        /// The status a receiver answered a failure with; none means it reached no receiver.
+        var codes: [String: Int] = [:]
         var headers = ["Authorization": "Bearer old-key"]
         var configured = ["https://new.example/hook"]
         var posted: [QueuedPost] = []
         var removed: [String] = []
         var attempts: [String] = []
         var dropped: [(String, QueueDrop)] = []
+        var retryRefused = false
 
         var drain: QueueDrain {
             QueueDrain(
                 now: now,
+                retryRefused: retryRefused,
                 urls: { self.configured },
                 headers: { self.headers },
                 post: { item, urls, headers in
@@ -280,7 +343,7 @@ final class OutboxTests: XCTestCase {
                     // The key is rotated while the queue drains.
                     self.headers = ["Authorization": "Bearer new-key"]
                     let outcome = self.answers[item.id] ?? .delivered
-                    return WebhookManager.Delivery(outcome: outcome, statusCode: outcome == .refused ? 400 : nil)
+                    return WebhookManager.Delivery(outcome: outcome, statusCode: outcome == .refused ? 400 : self.codes[item.id])
                 },
                 remove: { self.removed.append($0.id) },
                 attempt: { item, _ in self.attempts.append(item.id) },
@@ -290,12 +353,15 @@ final class OutboxTests: XCTestCase {
         }
     }
 
-    private func item(_ id: String, age days: Double = 0) -> PendingSyncItem {
-        PendingSyncItem(
+    /// `refused`: how many hours ago a receiver last refused it.
+    private func item(_ id: String, age days: Double = 0, refused hours: Double? = nil) -> PendingSyncItem {
+        var item = PendingSyncItem(
             id: id, createdAt: Date().addingTimeInterval(-days * 86_400), payload: Data("{}".utf8),
             urls: ["https://old.example/hook"],
             logType: LogType.healthConnect.rawValue, dataType: "health_connect", recordCount: 1, attemptCount: 0
         )
+        item.lastRefusedAt = hours.map { Date().addingTimeInterval(-$0 * 3600) }
+        return item
     }
 
     func testEveryRetryGoesWhereAndWithWhatIsConfiguredNow() async {
@@ -346,6 +412,7 @@ final class OutboxTests: XCTestCase {
 
         let down = Receiver()
         down.answers = ["old": .failed, "older": .failed]
+        down.codes = ["old": 502, "older": 502]
         await down.drain.run([item("older", age: 9), item("old", age: 8)])
         XCTAssertEqual(down.dropped.map(\.0), ["older"], "one per pass")
         XCTAssertEqual(down.dropped.first?.1, .undelivered)
@@ -357,6 +424,127 @@ final class OutboxTests: XCTestCase {
         XCTAssertEqual(refusing.dropped.map(\.0), ["old"])
         XCTAssertEqual(refusing.dropped.first?.1, .refused(400))
         XCTAssertEqual(refusing.removed, ["old", "new"])
+    }
+
+    func testAnIPhoneThatIsOfflineDropsNothingHoweverOld() async {
+        let offline = Receiver()
+        offline.answers = ["old": .failed]
+        await offline.drain.run([item("old", age: 30), item("new")])
+        XCTAssertTrue(offline.dropped.isEmpty, "no receiver answered")
+        XCTAssertTrue(offline.removed.isEmpty)
+        XCTAssertEqual(offline.attempts, ["old"], "counted, and the drain stops there")
+
+        let unauthorized = Receiver()
+        unauthorized.answers = ["old": .failed]
+        unauthorized.codes = ["old": 401]
+        await unauthorized.drain.run([item("old", age: 8)])
+        XCTAssertEqual(unauthorized.dropped.map(\.0), ["old"], "a receiver that answers with a failure for a week")
+        XCTAssertEqual(unauthorized.dropped.first?.1, .undelivered)
+
+        let young = Receiver()
+        young.answers = ["new": .failed]
+        young.codes = ["new": 500]
+        await young.drain.run([item("new", age: 6)])
+        XCTAssertTrue(young.dropped.isEmpty)
+    }
+
+    func testAFullQueuePushesOutItsOldestPayloadsButNeverTheNewOne() throws {
+        let directory = try temporaryDirectory()
+        let store = PendingSyncStore(directory: directory, maxItems: 3)
+        var ids: [String] = []
+        for count in 1...3 {
+            let item = try XCTUnwrap(store.enqueue(
+                payload: Data("{}".utf8), urls: ["https://example.com/hook"],
+                logType: LogType.healthConnect.rawValue, dataType: "health_connect", recordCount: count
+            ))
+            ids.append(item.id)
+            XCTAssertTrue(store.enforceCap(keeping: item.id).isEmpty, "fits")
+        }
+        // Written with an older creation date than everything queued: still the one that stays.
+        let late = """
+        {"id":"LATE","createdAt":\(Date().addingTimeInterval(-86_400).timeIntervalSinceReferenceDate),"payload":"e30=",
+        "urls":["https://example.com/hook"],"logType":"HEALTH_CONNECT","dataType":"health_connect",
+        "recordCount":9,"attemptCount":0}
+        """
+        try Data(late.utf8).write(to: directory.appendingPathComponent("LATE.json"))
+        let pushedOut = store.enforceCap(keeping: "LATE")
+        XCTAssertEqual(pushedOut.map(\.id), [ids[0]], "the oldest of the others")
+        XCTAssertEqual(Set(store.dequeueAll().map(\.id)), Set(["LATE", ids[1], ids[2]]))
+
+        let row = PendingSyncStore.droppedLog(for: pushedOut[0], reason: .full)
+        XCTAssertEqual(
+            row.errorMessage,
+            "Dropped from the queue: it was full (\(PendingSyncStore.maxItems) undelivered syncs), so its records are lost"
+        )
+        XCTAssertEqual(AppDiagnostic.display(row.errorMessage ?? ""), row.errorMessage)
+        XCTAssertEqual(PendingSyncStore.maxItems, 700, "Android's MAX_HEALTH_ITEMS")
+    }
+
+    func testARefusedPayloadIsOfferedOnceADayAndRetryNowOffersItAtOnce() async {
+        let refusedRecently = item("bad", refused: 3)
+        let refusedYesterday = item("old-bad", refused: 25)
+
+        let automatic = Receiver()
+        await automatic.drain.run([refusedRecently, refusedYesterday, item("good")])
+        XCTAssertEqual(automatic.posted.map(\.id), ["old-bad", "good"], "refused 3 hours ago, so it rests")
+        XCTAssertEqual(automatic.removed, ["old-bad", "good"])
+
+        let retryNow = Receiver()
+        retryNow.retryRefused = true
+        await retryNow.drain.run([refusedRecently, item("good")])
+        XCTAssertEqual(retryNow.posted.map(\.id), ["bad", "good"])
+
+        // A week old and refused again a day later: the week limit and its row still apply.
+        let expired = Receiver()
+        expired.answers = ["bad": .refused]
+        await expired.drain.run([item("bad", age: 8, refused: 24.5)])
+        XCTAssertEqual(expired.dropped.map(\.0), ["bad"])
+        XCTAssertEqual(expired.dropped.first?.1, .refused(400))
+        let resting = Receiver()
+        await resting.drain.run([item("bad", age: 8, refused: 2)])
+        XCTAssertTrue(resting.posted.isEmpty && resting.dropped.isEmpty, "dropped at its next daily try")
+    }
+
+    func testOnlyARefusalMakesAPayloadRest() throws {
+        let store = PendingSyncStore(directory: try temporaryDirectory())
+        let item = try XCTUnwrap(store.enqueue(
+            payload: Data("{}".utf8), urls: ["https://example.com/hook"],
+            logType: LogType.healthConnect.rawValue, dataType: "health_connect", recordCount: 1
+        ))
+        let now = Date()
+        store.updateAttempt(id: item.id, error: "HTTP 422", statusCode: 422, refused: true, at: now)
+        var stored = try XCTUnwrap(store.dequeueAll().first)
+        XCTAssertTrue(stored.restsAfterRefusal(at: now.addingTimeInterval(23 * 3600)))
+        XCTAssertFalse(stored.restsAfterRefusal(at: now.addingTimeInterval(24 * 3600)))
+
+        // The same status as part of a plain failure (another URL down) does not make it rest.
+        store.updateAttempt(id: item.id, error: "HTTP 400", statusCode: 400, refused: false, at: now)
+        stored = try XCTUnwrap(store.dequeueAll().first)
+        XCTAssertFalse(stored.restsAfterRefusal(at: now))
+    }
+
+    func testADrainStopsWhenItsTimeIsUpAndLeavesTheRestQueued() async {
+        let receiver = Receiver()
+        var asked = 0
+        var drain = receiver.drain
+        drain.hasTime = {
+            asked += 1
+            return asked <= 2
+        }
+        await drain.run([item("a"), item("b"), item("c")])
+        XCTAssertEqual(receiver.posted.map(\.id), ["a", "b"])
+        XCTAssertEqual(receiver.removed, ["a", "b"])
+        XCTAssertTrue(receiver.attempts.isEmpty && receiver.dropped.isEmpty, "c waits for the next drain, untouched")
+    }
+
+    func testTheDrainBudgetIsTwoMinutesAndLeavesTheSyncItsShareOfBackgroundTime() {
+        let onScreen = TimeInterval.greatestFiniteMagnitude
+        XCTAssertTrue(DrainBudget.allowsAnotherPost(elapsed: 0, backgroundTimeRemaining: onScreen))
+        XCTAssertTrue(DrainBudget.allowsAnotherPost(elapsed: 119, backgroundTimeRemaining: onScreen))
+        XCTAssertFalse(DrainBudget.allowsAnotherPost(elapsed: 120, backgroundTimeRemaining: onScreen), "Android's 120 s")
+        XCTAssertTrue(DrainBudget.allowsAnotherPost(elapsed: 5, backgroundTimeRemaining: 20))
+        XCTAssertFalse(DrainBudget.allowsAnotherPost(elapsed: 5, backgroundTimeRemaining: 10), "the rest is the sync's")
+        XCTAssertFalse(DrainBudget.allowsAnotherPost(elapsed: 0, backgroundTimeRemaining: 0))
     }
 
     // MARK: - Refusals
@@ -371,7 +559,12 @@ final class OutboxTests: XCTestCase {
 
         override func startLoading() {
             let host = request.url?.host ?? ""
-            let code = Int(host.dropFirst("status-".count).prefix(3)) ?? 500
+            let code = Int(host.dropFirst("status-".count).prefix { $0.isNumber }) ?? 500
+            // status-0: no server answers, as when the iPhone is offline.
+            if code == 0 {
+                client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+                return
+            }
             let response = HTTPURLResponse(url: request.url!, statusCode: code, httpVersion: nil, headerFields: nil)!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: Data())
@@ -382,10 +575,10 @@ final class OutboxTests: XCTestCase {
     }
 
     private func post(_ codes: [Int]) async -> WebhookManager.Delivery {
-        URLProtocol.registerClass(StatusStub.self)
-        defer { URLProtocol.unregisterClass(StatusStub.self) }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StatusStub.self]
         let urls = codes.map { "https://status-\($0)-\(UUID().uuidString.prefix(8)).test/hook" }
-        let delivery = await WebhookManager.shared.post(
+        let delivery = await WebhookManager(configuration: configuration).post(
             body: Data("{}".utf8), urls: urls, headers: [:],
             logType: .healthConnect, dataType: "health_connect", recordCount: 1
         )
@@ -406,6 +599,18 @@ final class OutboxTests: XCTestCase {
         XCTAssertEqual(unauthorized.outcome, .failed)
         let oneTookIt = await post([400, 204])
         XCTAssertEqual(oneTookIt.outcome, .delivered)
+    }
+
+    func testAnExpiredPayloadIsDroppedOnlyWhenEveryFailedAddressAnswered() async {
+        let bothAnswered = await post([401, 404])
+        XCTAssertEqual(bothAnswered.outcome, .failed)
+        XCTAssertTrue(bothAnswered.receiverAnswered)
+        // The unreachable address first or last, the queue keeps waiting for it.
+        for codes in [[0, 404], [404, 0]] {
+            let oneUnreachable = await post(codes)
+            XCTAssertEqual(oneUnreachable.outcome, .failed)
+            XCTAssertFalse(oneUnreachable.receiverAnswered, "\(codes)")
+        }
     }
 
     func testAPostThatOneOfTwoAddressesMissedNamesThatOne() async {

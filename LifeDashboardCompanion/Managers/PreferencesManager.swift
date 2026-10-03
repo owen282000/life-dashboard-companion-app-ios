@@ -44,6 +44,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         static let mqttLastStatus = "mqtt_last_status"
         static let phoneName = "phone_name"
         static let mqttPublishedSlug = "mqtt_published_slug"
+        static let clientCertificate = "client_certificate"
     }
 
     // MARK: - Constants
@@ -243,6 +244,27 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         defaults.object(forKey: Keys.mqttPublishedSlug) != nil || !mqttLastStatus.isEmpty
     }
 
+    // MARK: - Client certificate (mTLS)
+
+    /// The imported client certificate, nil for none. Only its summary lives here; the identity
+    /// is in the Keychain (ClientCertificateStore). A summary whose identity is gone, as after
+    /// moving to a new iPhone through a backup, makes every webhook fail with a clear message
+    /// instead of sending without the certificate.
+    @Published var clientCertificate: ClientCertificateInfo? {
+        didSet {
+            if let clientCertificate, let data = try? encoder.encode(clientCertificate) {
+                defaults.set(data, forKey: Keys.clientCertificate)
+            } else {
+                defaults.removeObject(forKey: Keys.clientCertificate)
+            }
+        }
+    }
+
+    /// The same, read from UserDefaults for WebhookManager off the main actor.
+    var clientCertificateConfigured: Bool {
+        defaults.data(forKey: Keys.clientCertificate) != nil
+    }
+
     // MARK: - Init
 
     /// The app uses `shared`; tests pass an isolated defaults suite and an in-memory secret store.
@@ -307,6 +329,8 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         self.mqttBaseTopic = defaults.string(forKey: Keys.mqttBaseTopic) ?? MqttSupport.defaultBaseTopic
         self.mqttLastStatus = defaults.string(forKey: Keys.mqttLastStatus) ?? ""
         self.phoneName = defaults.string(forKey: Keys.phoneName) ?? ""
+        self.clientCertificate = defaults.data(forKey: Keys.clientCertificate)
+            .flatMap { try? JSONDecoder().decode(ClientCertificateInfo.self, from: $0) }
     }
 
     // MARK: - Sync schedule

@@ -41,7 +41,7 @@ struct SyncHealthDataIntent: AppIntent, LiveActivityIntent {
         guard Self.rateLimit.tryAccept() else {
             return .result(dialog: "A sync started less than a minute ago. Try again in a minute.")
         }
-        let result = await SyncCoordinator.shared.runManual(full: false)
+        let result = await SyncCoordinator.shared.runManual(syncNow: false)
         switch result {
         case .success(let syncCounts, _):
             let total = syncCounts.values.reduce(0, +)
