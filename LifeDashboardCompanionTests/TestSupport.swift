@@ -6,13 +6,24 @@ import Foundation
 actor ManualClock {
     private var now: TimeInterval = 0
     private var waiters: [(deadline: TimeInterval, continuation: CheckedContinuation<Void, Never>)] = []
+    private var watchers: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
 
     var waiterCount: Int { waiters.count }
 
     func sleep(_ seconds: TimeInterval) async {
         await withCheckedContinuation { continuation in
             waiters.append((now + seconds, continuation))
+            let arrived = watchers.filter { $0.count <= waiters.count }
+            watchers.removeAll { $0.count <= waiters.count }
+            arrived.forEach { $0.continuation.resume() }
         }
+    }
+
+    /// Suspends until at least `count` sleepers wait, however long the scheduler takes to get
+    /// them there. Unlike `settle` it has no budget of turns to run out of.
+    func untilSleepers(_ count: Int) async {
+        if waiters.count >= count { return }
+        await withCheckedContinuation { watchers.append((count, $0)) }
     }
 
     func advance(by seconds: TimeInterval) {
