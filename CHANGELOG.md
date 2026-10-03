@@ -12,6 +12,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- A webhook behind a login proxy (Authelia, Authentik, Cloudflare Access) lost payloads without a word. The proxy answers with a redirect to its login page, iOS followed it as a GET without the body, the login page answered 200, and the app counted that as delivered and took the payload out of the queue. iOS followed any redirect that way, so the signature and the custom headers went to the other host as well. A delivery now follows a redirect only on the same host, the same port or `http` on 80 up to `https` on 443, at most 5 in a row, and sends the same POST there with its body, signature and headers, as the Android app does. Any other redirect fails the delivery, keeps the payload queued and names the host it pointed at in the log. The pairing check follows the same rule
+- A webhook that did not answer kept a payload waiting 30 seconds per attempt, about a minute and a half over three attempts. An attempt now gives up once the connection stands still for 10 seconds, as on Android
 - The error lines of the settings backup (a wrong password, a file that cannot be read) were in the system red, 3.6:1 on white, under the 4.5:1 that small text needs. They now use the darker red the rest of the app uses for error text
 
 ## [1.5.0] - 2026-09-30

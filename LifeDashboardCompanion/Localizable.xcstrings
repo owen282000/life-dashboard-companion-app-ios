@@ -3729,6 +3729,66 @@
         }
       }
     },
+    "HTTP %lld: more than %lld redirects, the last to %@. Enter the final address as the webhook URL." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP %lld: mehr als %lld Weiterleitungen, die letzte zu %@. Trag die endgültige Adresse als Webhook-URL ein."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "HTTP %1$lld: more than %2$lld redirects, the last to %3$@. Enter the final address as the webhook URL."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP %lld: meer dan %lld doorverwijzingen, de laatste naar %@. Vul het uiteindelijke adres in als webhook-URL."
+          }
+        }
+      }
+    },
+    "HTTP %lld: redirect not followed, so nothing was sent there. Only a redirect on the same host is followed; enter the final address as the webhook URL." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP %lld: Weiterleitung nicht gefolgt, dorthin wurde also nichts gesendet. Nur einer Weiterleitung auf demselben Host wird gefolgt; trag die endgültige Adresse als Webhook-URL ein."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP %lld: doorverwijzing niet gevolgd, er is daar dus niets heen gestuurd. Alleen een doorverwijzing op dezelfde host wordt gevolgd; vul het uiteindelijke adres in als webhook-URL."
+          }
+        }
+      }
+    },
+    "HTTP %lld: redirect to %@ not followed, so nothing was sent there. Only a redirect on the same host is followed; enter the final address as the webhook URL." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP %lld: Weiterleitung zu %@ nicht gefolgt, dorthin wurde also nichts gesendet. Nur einer Weiterleitung auf demselben Host wird gefolgt; trag die endgültige Adresse als Webhook-URL ein."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "HTTP %1$lld: redirect to %2$@ not followed, so nothing was sent there. Only a redirect on the same host is followed; enter the final address as the webhook URL."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP %lld: doorverwijzing naar %@ niet gevolgd, er is daar dus niets heen gestuurd. Alleen een doorverwijzing op dezelfde host wordt gevolgd; vul het uiteindelijke adres in als webhook-URL."
+          }
+        }
+      }
+    },
     "Hydration" : {
       "localizations" : {
         "de" : {
