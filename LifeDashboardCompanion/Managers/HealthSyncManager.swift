@@ -54,7 +54,7 @@ final class HealthSyncManager: Sendable {
         guard !webhookUrls.isEmpty else {
             do {
                 let healthData = try await healthKit.readHealthData(for: enabledTypes)
-                return await publishOnly(healthData, sensorsFrom: await healthKit.newestRecords(for: enabledTypes, in: healthData))
+                return await publishOnly(healthData, sensorsFrom: await healthKit.newestRecords(for: enabledTypes, in: healthData), freshIsNewest: true)
             } catch {
                 return readFailed(error)
             }
@@ -83,7 +83,7 @@ final class HealthSyncManager: Sendable {
     /// type that cannot be read is left alone there.
     private func publishNewest(of types: Set<HealthDataType>) async {
         guard let healthData = try? await healthKit.readHealthData(for: types) else { return }
-        await MqttPublisher.shared.publish(healthPayload: await healthKit.newestRecords(for: types, in: healthData))
+        await MqttPublisher.shared.publish(healthPayload: await healthKit.newestRecords(for: types, in: healthData), freshIsNewest: true)
     }
 
     /// Reading failed before anything was sent, so the row names Apple Health and not a
@@ -115,11 +115,11 @@ final class HealthSyncManager: Sendable {
     /// A broker that cannot be reached fails the sync and shows on the widget. It does not add
     /// to the failure notification's streak, whose text is about webhooks and a retry queue
     /// that MQTT does not have; the MQTT status and the Logs tab carry the error.
-    private func publishOnly(_ healthData: [String: Any], sensorsFrom sensorData: [String: Any]) async -> HealthSyncResult {
+    private func publishOnly(_ healthData: [String: Any], sensorsFrom sensorData: [String: Any], freshIsNewest: Bool = false) async -> HealthSyncResult {
         guard !healthData.isEmpty else { return .noData }
         var syncCounts: [HealthDataType: Int] = [:]
         let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
-        if let error = await MqttPublisher.shared.publish(healthPayload: sensorData) {
+        if let error = await MqttPublisher.shared.publish(healthPayload: sensorData, freshIsNewest: freshIsNewest) {
             // Cut off by iOS: the widget keeps the last sync that finished.
             if error != AppDiagnostic.interrupted.rawValue {
                 SharedSyncStatus.record(success: false, records: 0)
@@ -174,9 +174,9 @@ final class HealthSyncManager: Sendable {
 
         guard !webhookUrls.isEmpty else {
             do {
-                // MQTT keeps no queue to write ahead to: a sensor holds the latest value, and a
-                // publish that fails is not retried, so the anchors are saved as soon as the
-                // read is done.
+                // MQTT keeps no queue to write ahead to: a sensor holds the latest value, and
+                // the publisher's sensor cache sends it again after a failed publish, so the
+                // anchors are saved as soon as the read is done.
                 switch try await healthKit.readIncrementalData(for: types) {
                 case .protectedDataUnavailable:
                     return (.failure(error: AppDiagnostic.deviceLocked.rawValue), [])
@@ -184,6 +184,7 @@ final class HealthSyncManager: Sendable {
                     return (readFailed(HealthKitManager.NoTypeAnswered()), [])
                 case .empty(let commit):
                     commit.save()
+                    if publishesToMqtt { await MqttPublisher.shared.republishIfPending() }
                     return (.noData, commit.behind)
                 case .data(let healthData, let commit, let notCurrent):
                     commit.save()
@@ -218,6 +219,7 @@ final class HealthSyncManager: Sendable {
                     readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: commit
                 ) else {
                     commit.save()
+                    if publishesToMqtt { await MqttPublisher.shared.republishIfPending() }
                     return (.noData, commit.behind)
                 }
                 return (result, commit.behind)
@@ -243,8 +245,8 @@ final class HealthSyncManager: Sendable {
                     : .failure(error: AppDiagnostic.queuedForRetry.rawValue)
 
                 // Last, once the webhook's payload is delivered or queued: a HealthKit wakeup's
-                // time budget is for that first. New records only, so a type without any keeps
-                // its retained value on the broker.
+                // time budget is for that first. The new records join the sensor cache, and the
+                // whole cache goes out.
                 if publishesToMqtt, !Task.isCancelled {
                     await MqttPublisher.shared.publish(healthPayload: withDailyTotals(current(healthData, leaving: notCurrent), from: payload))
                 }

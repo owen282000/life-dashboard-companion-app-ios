@@ -284,3 +284,16 @@ final class PairingLinkTests: XCTestCase {
         XCTAssertEqual(QRCaptureController.recommendedZoom(minimumFocusDistance: 5000, fieldOfView: 70, maxZoom: 3), 3)
     }
 }
+
+/// The pairing check, the Health tab and the setup send one request.
+final class TestPingTests: XCTestCase {
+    func testTheTestPingIsTheSameRequestEverywhere() throws {
+        let body = try XCTUnwrap(TestPing.body())
+        let object = try XCTUnwrap(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(Set(object.keys), ["test", "message", "timestamp", "app_version", "source"])
+        XCTAssertEqual(object["test"] as? Bool, true)
+        XCTAssertEqual(object["source"] as? String, "healthkit_ios")
+        XCTAssertEqual(object["message"] as? String, "Test ping from Life Dashboard Companion")
+        XCTAssertNotNil(ISO8601DateFormatter().date(from: try XCTUnwrap(object["timestamp"] as? String)))
+    }
+}

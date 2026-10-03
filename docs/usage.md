@@ -34,7 +34,7 @@ To update, pull the repository and run it again from Xcode. Your settings stay.
 
 ## First run
 
-A fresh install opens a short setup: what the app does, where the data should go (the Home Assistant pairing scanner, which is recommended, a webhook URL or an MQTT broker), which data types to start with (the essentials, all 28, or none yet), and Apple Health access. Every step can be skipped, and everything it sets can be changed later on the Health tab.
+A fresh install opens a short setup: what the app does, where the data should go (the Home Assistant pairing scanner, which is recommended, a webhook URL, with a **Test ping** to check it, or an MQTT broker), which data types to start with (the essentials, all 28, or none yet), and Apple Health access. Every step can be skipped, and everything it sets can be changed later on the Health tab.
 
 After the setup:
 
@@ -78,7 +78,7 @@ iOS decides in advance which plain `http://` addresses an app may use: an IP add
 
 Two iPhones on one broker: give each a **Phone name** at the bottom of the MQTT card, and each becomes a device of its own, with the name in its device, ids and topics. The Android app and the iPhone already use different devices and topics, so they need no name for each other. Leave it empty on a single iPhone: then nothing changes. After a rename, the next sync removes the old device's sensors from the broker.
 
-Steps, distance and calories are today's totals, the other sensors hold the latest record of their type; [features.md](features.md#home-assistant-and-mqtt) lists them. MQTT has no retry queue and gets no deleted records or backfill. If you add a webhook URL later, it gets what is new from then on; **Backfill** sends what came before. Values are published retained, so they survive a Home Assistant restart. The Logs tab shows every publish, with the broker's answer when it fails.
+Steps, distance and calories are today's totals, the other sensors hold the latest record of their type; [features.md](features.md#home-assistant-and-mqtt) lists them. MQTT has no retry queue: the app keeps the newest value of each sensor and publishes them all with every sync that has something new, and again after a publish that failed or a change of broker or phone name, also when nothing new came in. It gets no deleted records or backfill. If you add a webhook URL later, it gets what is new from then on; **Backfill** sends what came before. Values are published retained, so they survive a Home Assistant restart. The Logs tab shows every publish, with the broker's answer when it fails.
 
 ## A server that requires a client certificate
 
@@ -132,7 +132,7 @@ When the certificate is there and the server still refuses the connection, the s
 
 ### MQTT sensors do not update
 
-Every sync with new records publishes today's totals and the types that have them, so a sensor only changes when new data arrives; a type that is still catching up on a long backlog is published once it has caught up, and a record dated before the sensor's value, such as a weight entered for last week, does not replace it. A broker that does not answer within 10 seconds, such as a home address dialled from outside the home network, fails the sync. If a publish fails, the Logs tab shows the broker's error; `NOT_AUTHORIZED` means the username or password is wrong.
+Every sync with new records publishes every sensor with the newest value the app has, so a sensor only changes when new data arrives; a type that is still catching up on a long backlog is published once it has caught up, and a record dated before the sensor's value, such as a weight entered for last week, does not replace it. After a failed publish, a later sync sends every sensor again, also when it has nothing new. A broker that does not answer within 10 seconds, such as a home address dialled from outside the home network, fails a sync that has new records; a sync with nothing new tries such a broker again at most every 30 minutes and stays a sync with no data. If a publish fails, the Logs tab shows the broker's error; `NOT_AUTHORIZED` means the username or password is wrong.
 
 ### Queued payloads disappear
 

@@ -283,14 +283,7 @@ struct PairingSheet: View {
     /// network, which a background sync cannot do.
     private func check() async {
         phase = .checking
-        let payload: [String: Any] = [
-            "test": true,
-            "message": "Test ping from Life Dashboard Companion",
-            "timestamp": Date().iso8601String,
-            "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
-            "source": "healthkit_ios"
-        ]
-        guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
+        guard let body = TestPing.body() else {
             phase = .done(.failed(AppDiagnostic.testPingNotBuilt.rawValue))
             return
         }

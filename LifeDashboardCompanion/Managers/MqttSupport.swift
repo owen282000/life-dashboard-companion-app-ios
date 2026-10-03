@@ -1,6 +1,6 @@
 import Foundation
 
-struct MqttSensor: Equatable {
+struct MqttSensor: Equatable, Codable {
     let key: String
     let name: String
     let state: String
@@ -111,11 +111,16 @@ enum MqttSupport {
         previousSlug == currentSlug ? [] : topicsFor(baseTopic: baseTopic, discoveryPrefix: discoveryPrefix, keys: keys, slug: previousSlug)
     }
 
-    /// Every sensor key `sensors(from:)` can produce. Unlike the Android app, which keeps the
-    /// sensors it published, the iPhone publishes only what a sync carries, so a rename clears
-    /// every key the old device may hold.
+    /// Every sensor key `sensors(from:)` can produce. A rename clears all of them under the old
+    /// slug, not only the ones in the sensor cache, which starts empty on the update that
+    /// brought it and is not in backups.
     static var allSensorKeys: [String] {
         dayTotals.map(\.sensorKey) + mappings.map(\.sensorKey) + ["blood_pressure_systolic", "blood_pressure_diastolic"]
+    }
+
+    /// The keys of today's totals, which hold one day and carry it in a `date` attribute.
+    static var daySensorKeys: [String] {
+        dayTotals.map(\.sensorKey)
     }
 
     /// Keys that versions up to 1.4.1 published as "(latest record)" sensors, replaced by the
