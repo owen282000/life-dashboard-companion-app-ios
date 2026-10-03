@@ -148,7 +148,11 @@ enum MqttSupport {
         let timeField: String
         let unit: String?
         let deviceClass: String?
-        var scale: Double = 1
+        /// Decimals of the state, the Android app's for the same sensor, so a value shows the
+        /// same on both and its precision never changes between publishes.
+        let decimals: Int
+        /// Seconds shown as whole minutes, cut as Android's Duration.toMinutes() cuts them.
+        var wholeMinutes = false
     }
 
     // Event-like types (exercise, nutrition, mindfulness, cycle tracking, sexual activity) are
@@ -156,36 +160,41 @@ enum MqttSupport {
     // topic on the broker is no place for reproductive data. They remain webhook-only.
     private static let mappings: [Mapping] = [
         Mapping(payloadKey: "heart_rate", sensorKey: "heart_rate", name: "Heart Rate",
-                valueField: "bpm", timeField: "time", unit: "bpm", deviceClass: nil),
+                valueField: "bpm", timeField: "time", unit: "bpm", deviceClass: nil, decimals: 0),
         Mapping(payloadKey: "resting_heart_rate", sensorKey: "resting_heart_rate", name: "Resting Heart Rate",
-                valueField: "bpm", timeField: "time", unit: "bpm", deviceClass: nil),
+                valueField: "bpm", timeField: "time", unit: "bpm", deviceClass: nil, decimals: 0),
         Mapping(payloadKey: "heart_rate_variability", sensorKey: "heart_rate_variability", name: "Heart Rate Variability",
-                valueField: "heart_rate_variability_millis", timeField: "time", unit: "ms", deviceClass: nil),
+                valueField: "heart_rate_variability_millis", timeField: "time", unit: "ms", deviceClass: nil, decimals: 1),
         Mapping(payloadKey: "sleep", sensorKey: "sleep_duration", name: "Last Sleep Duration",
-                valueField: "duration_seconds", timeField: "session_end_time", unit: "min", deviceClass: "duration", scale: 1.0 / 60.0),
+                valueField: "duration_seconds", timeField: "session_end_time", unit: "min", deviceClass: "duration",
+                decimals: 0, wholeMinutes: true),
         Mapping(payloadKey: "weight", sensorKey: "weight", name: "Weight",
-                valueField: "kilograms", timeField: "time", unit: "kg", deviceClass: "weight"),
+                valueField: "kilograms", timeField: "time", unit: "kg", deviceClass: "weight", decimals: 1),
         Mapping(payloadKey: "height", sensorKey: "height", name: "Height",
-                valueField: "meters", timeField: "time", unit: "m", deviceClass: "distance"),
+                valueField: "meters", timeField: "time", unit: "m", deviceClass: "distance", decimals: 2),
         Mapping(payloadKey: "blood_glucose", sensorKey: "blood_glucose", name: "Blood Glucose",
-                valueField: "mmol_per_liter", timeField: "time", unit: "mmol/L", deviceClass: nil),
+                valueField: "mmol_per_liter", timeField: "time", unit: "mmol/L", deviceClass: nil, decimals: 2),
         Mapping(payloadKey: "oxygen_saturation", sensorKey: "oxygen_saturation", name: "Oxygen Saturation",
-                valueField: "percentage", timeField: "time", unit: "%", deviceClass: nil),
+                valueField: "percentage", timeField: "time", unit: "%", deviceClass: nil, decimals: 1),
         Mapping(payloadKey: "body_temperature", sensorKey: "body_temperature", name: "Body Temperature",
-                valueField: "celsius", timeField: "time", unit: "°C", deviceClass: "temperature"),
+                valueField: "celsius", timeField: "time", unit: "°C", deviceClass: "temperature", decimals: 1),
         Mapping(payloadKey: "basal_body_temperature", sensorKey: "basal_body_temperature", name: "Basal Body Temperature",
-                valueField: "celsius", timeField: "time", unit: "°C", deviceClass: "temperature"),
+                valueField: "celsius", timeField: "time", unit: "°C", deviceClass: "temperature", decimals: 1),
         Mapping(payloadKey: "respiratory_rate", sensorKey: "respiratory_rate", name: "Respiratory Rate",
-                valueField: "rate", timeField: "time", unit: "breaths/min", deviceClass: nil),
+                valueField: "rate", timeField: "time", unit: "breaths/min", deviceClass: nil, decimals: 1),
         Mapping(payloadKey: "hydration", sensorKey: "hydration", name: "Hydration (latest record)",
-                valueField: "liters", timeField: "end_time", unit: "L", deviceClass: "volume"),
+                valueField: "liters", timeField: "end_time", unit: "L", deviceClass: "volume", decimals: 2),
         Mapping(payloadKey: "body_fat", sensorKey: "body_fat", name: "Body Fat",
-                valueField: "percentage", timeField: "time", unit: "%", deviceClass: nil),
+                valueField: "percentage", timeField: "time", unit: "%", deviceClass: nil, decimals: 1),
         Mapping(payloadKey: "lean_body_mass", sensorKey: "lean_body_mass", name: "Lean Body Mass",
-                valueField: "kilograms", timeField: "time", unit: "kg", deviceClass: "weight"),
+                valueField: "kilograms", timeField: "time", unit: "kg", deviceClass: "weight", decimals: 1),
         Mapping(payloadKey: "vo2_max", sensorKey: "vo2_max", name: "VO2 Max",
-                valueField: "vo2_ml_per_min_per_kg", timeField: "time", unit: "mL/min/kg", deviceClass: nil)
+                valueField: "vo2_ml_per_min_per_kg", timeField: "time", unit: "mL/min/kg", deviceClass: nil, decimals: 1)
     ]
+
+    /// Android sends a blood pressure value as Kotlin writes the double, 121.0; one decimal is
+    /// that for every reading a monitor takes.
+    static let bloodPressureDecimals = 1
 
     /// `today` is the `yyyy-MM-dd` whose `daily_totals` entry becomes the day sensors; an entry
     /// for another day is not today's total, and a type without one publishes no day sensor.
@@ -211,11 +220,11 @@ enum MqttSupport {
         for mapping in mappings {
             guard let records = payload[mapping.payloadKey] as? [[String: Any]],
                   let latest = latestRecord(records, timeField: mapping.timeField),
-                  let value = numericValue(latest[mapping.valueField]) else { continue }
+                  let value = numericValue(latest[mapping.valueField]), value.isFinite, value.magnitude < 1e15 else { continue }
             sensors.append(MqttSensor(
                 key: mapping.sensorKey,
                 name: mapping.name,
-                state: format(value * mapping.scale),
+                state: mapping.wholeMinutes ? String(Int(value) / 60) : fixed(value, decimals: mapping.decimals),
                 unit: mapping.unit,
                 deviceClass: mapping.deviceClass,
                 attributes: attributes(from: latest, timeField: mapping.timeField)
@@ -226,13 +235,13 @@ enum MqttSupport {
         if let records = payload["blood_pressure"] as? [[String: Any]],
            let latest = latestRecord(records, timeField: "time") {
             let attrs = attributes(from: latest, timeField: "time")
-            if let systolic = numericValue(latest["systolic"]) {
+            if let systolic = numericValue(latest["systolic"]), systolic.isFinite {
                 sensors.append(MqttSensor(key: "blood_pressure_systolic", name: "Blood Pressure Systolic",
-                                          state: format(systolic), unit: "mmHg", deviceClass: nil, attributes: attrs))
+                                          state: fixed(systolic, decimals: bloodPressureDecimals), unit: "mmHg", deviceClass: nil, attributes: attrs))
             }
-            if let diastolic = numericValue(latest["diastolic"]) {
+            if let diastolic = numericValue(latest["diastolic"]), diastolic.isFinite {
                 sensors.append(MqttSensor(key: "blood_pressure_diastolic", name: "Blood Pressure Diastolic",
-                                          state: format(diastolic), unit: "mmHg", deviceClass: nil, attributes: attrs))
+                                          state: fixed(diastolic, decimals: bloodPressureDecimals), unit: "mmHg", deviceClass: nil, attributes: attrs))
             }
         }
         return sensors
@@ -293,11 +302,14 @@ enum MqttSupport {
         }
     }
 
-    private static func format(_ value: Double) -> String {
-        if value.rounded() == value && abs(value) < 1_000_000_000 {
-            return String(Int(value))
-        }
-        return String((value * 100).rounded() / 100)
+    private static let posix = Locale(identifier: "en_US_POSIX")
+
+    /// `value` with exactly `decimals` decimals, as the Android app's String.format("%.Nf")
+    /// writes it: rounded half up from the shortest form of the double, in the POSIX locale
+    /// whatever the phone's language.
+    static func fixed(_ value: Double, decimals: Int) -> String {
+        let rounded = PayloadJSON.decimal(value, decimals: decimals).map { NSDecimalNumber(decimal: $0).doubleValue } ?? value
+        return String(format: "%.\(decimals)f", locale: posix, rounded)
     }
 
     private static func attributes(from record: [String: Any], timeField: String) -> [String: String] {
