@@ -447,6 +447,152 @@ final class HealthRecordMappingTests: XCTestCase {
         XCTAssertEqual(nutritionRecords([early], from: start.addingTimeInterval(-60)).count, 1)
     }
 
+    // MARK: - Workouts
+
+    /// Every HKWorkoutActivityType of the SDK the app builds with: 1 to 84 without 81, which
+    /// Apple never used, and 3000 for other. A case added later is named by the compiler, as
+    /// `name` switches over every case.
+    private let workoutRawValues: [UInt] = Array(1...80) + Array(82...84) + [3000]
+
+    func testEveryWorkoutTypeHasANameOfItsOwn() throws {
+        var seen: [String: UInt] = [:]
+        for raw in workoutRawValues {
+            let type = try XCTUnwrap(HKWorkoutActivityType(rawValue: raw))
+            let name = type.name
+            XCTAssertTrue(type == .other || name != "other", "\(raw) is sent as other")
+            XCTAssertNotNil(name.range(of: "^[a-z]+(_[a-z]+)*$", options: .regularExpression), "\(name) is not snake_case")
+            XCTAssertNil(seen[name], "\(raw) and \(seen[name] ?? 0) share \(name)")
+            seen[name] = raw
+        }
+    }
+
+    func testExerciseDurationIsEndMinusStartAsOnAndroid() {
+        let fields = HealthRecordMapping.exerciseFields(type: "running", start: start, end: start.addingTimeInterval(3_725.9))
+        XCTAssertEqual(fields["duration_seconds"] as? Int, 3_725, "whole seconds, pauses included, as Duration.seconds")
+        XCTAssertEqual(fields["type"] as? String, "running")
+        XCTAssertEqual(fields["start_time"] as? String, "2026-01-01T08:00:00Z")
+        XCTAssertEqual(fields["end_time"] as? String, "2026-01-01T09:02:05Z")
+    }
+
+    func testTheWorkoutsThatWereOtherHaveTheirNames() {
+        let named: [(HKWorkoutActivityType, String)] = [
+            (.downhillSkiing, "downhill_skiing"), (.snowboarding, "snowboarding"), (.crossCountrySkiing, "cross_country_skiing"),
+            (.kickboxing, "kickboxing"), (.jumpRope, "jump_rope"), (.taiChi, "tai_chi"), (.pickleball, "pickleball"),
+            (.barre, "barre"), (.cardioDance, "cardio_dance"), (.socialDance, "social_dance"), (.mixedCardio, "mixed_cardio"),
+            (.stepTraining, "step_training"), (.fitnessGaming, "fitness_gaming"), (.discSports, "disc_sports"),
+            (.handCycling, "hand_cycling"), (.swimBikeRun, "swim_bike_run"), (.transition, "transition"),
+            (.underwaterDiving, "underwater_diving"), (.wheelchairWalkPace, "wheelchair_walk_pace"),
+            (.wheelchairRunPace, "wheelchair_run_pace"), (.stairs, "stairs")
+        ]
+        for (type, name) in named { XCTAssertEqual(type.name, name) }
+        // Names that went out before stay as they were.
+        XCTAssertEqual(HKWorkoutActivityType.highIntensityIntervalTraining.name, "hiit")
+        XCTAssertEqual(HKWorkoutActivityType.running.name, "running")
+        XCTAssertEqual(HKWorkoutActivityType.other.name, "other")
+        XCTAssertEqual(HKWorkoutActivityType(rawValue: 81)?.name, "other", "a value HealthKit does not define")
+    }
+
+    // MARK: - Serialization
+
+    private func json(_ payload: [String: Any]) throws -> String {
+        try XCTUnwrap(PayloadJSON.data(payload).flatMap { String(data: $0, encoding: .utf8) })
+    }
+
+    func testNumbersGoOutWithoutFloatNoise() throws {
+        let text = try json([
+            "weight": [["kilograms": 172.4 * 0.45359237, "time": "t"]],
+            "height": [["meters": 1.8]],
+            "distance": [["meters": 12.300000000000001]],
+            "oxygen_saturation": [["percentage": 0.97 * 100]],
+            "body_temperature": [["celsius": (98.7 - 32) / 1.8]],
+            "hydration": [["liters": 0.1 + 0.2]],
+            "blood_pressure": [["systolic": 121.0, "diastolic": 79.99999999999999]],
+            "nutrition": [["calories": 452.05, "sodium_mg": 0.1 + 0.2, "protein_grams": 20.000000000000004]],
+            "daily_totals": [["date": "2026-10-01", "steps": 8002, "distance_meters": 6210.4567, "active_calories": 312.5000001]]
+        ])
+        for expected in [
+            #""kilograms":78.2"#, #""meters":1.8"#, #""meters":12.3"#, #""percentage":97"#, #""celsius":37.06"#,
+            #""liters":0.3"#, #""systolic":121"#, #""diastolic":80"#, #""calories":452.05"#, #""sodium_mg":0.3"#,
+            #""protein_grams":20"#, #""steps":8002"#, #""distance_meters":6210.46"#, #""active_calories":312.5"#
+        ] {
+            XCTAssertTrue(text.contains(expected), "\(expected) in \(text)")
+        }
+        XCTAssertFalse(text.contains("0000"), text)
+        XCTAssertFalse(text.contains("9999"), text)
+    }
+
+    func testIntegersBooleansAndTextStayAsTheyAre() throws {
+        let text = try json([
+            "backfill": true, "window_complete": false, "app_version": "1.6.0",
+            "heart_rate": [["bpm": 72, "time": "t"]],
+            "sleep": [["duration_seconds": 27_000, "stages": [["stage": "deep", "duration_seconds": 600]]]]
+        ])
+        for expected in [#""backfill":true"#, #""window_complete":false"#, #""app_version":"1.6.0""#, #""bpm":72"#, #""duration_seconds":600"#] {
+            XCTAssertTrue(text.contains(expected), "\(expected) in \(text)")
+        }
+    }
+
+    func testAFieldWithoutFixedDecimalsKeepsItsShortestExactForm() throws {
+        let text = try json(["future": [["ratio": 0.1 + 0.2, "small": 0.000123]]])
+        XCTAssertTrue(text.contains(#""ratio":0.30000000000000004"#), text)
+        XCTAssertTrue(text.contains(#""small":0.000123"#), text)
+    }
+
+    func testFractionsRoundHalfUpFromTheirShortestForm() throws {
+        let text = try json(["oxygen_saturation": [["percentage": 97.45]], "weight": [["kilograms": 0.125]]])
+        XCTAssertTrue(text.contains(#""percentage":97.5"#), text)
+        XCTAssertTrue(text.contains(#""kilograms":0.13"#), text)
+    }
+
+    /// The fields of every record a mapper builds, and the fields readDataForType writes
+    /// itself, each with fixed decimals wherever it holds a fraction.
+    func testEveryNumericFieldTheAppSendsHasItsDecimals() {
+        func fractionFields(_ value: Any, field: String? = nil) -> Set<String> {
+            switch value {
+            case let dictionary as [String: Any]:
+                return dictionary.reduce(into: Set<String>()) { $0.formUnion(fractionFields($1.value, field: $1.key)) }
+            case let array as [Any]:
+                return array.reduce(into: Set<String>()) { $0.formUnion(fractionFields($1, field: field)) }
+            case is Double:
+                return field.map { [$0] } ?? []
+            default:
+                return []
+            }
+        }
+        let everyNutrient = (HealthRecordMapping.mainNutrients + HealthRecordMapping.foodOnlyNutrients).map {
+            nutrient($0.identifier, 1.5, $0.unit)
+        }
+        let records: [Any] = [
+            HealthRecordMapping.vo2MaxFields(quantitySample(.vo2Max, HKQuantity(unit: HealthRecordMapping.vo2MaxUnit, doubleValue: 40.5))),
+            HealthRecordMapping.basalBodyTemperatureFields(quantitySample(.basalBodyTemperature, HKQuantity(unit: .degreeCelsius(), doubleValue: 36.4))),
+            pressureRecords([reading(pressure(.bloodPressureSystolic, 121.5), pressure(.bloodPressureDiastolic, 79.5))], systolic: [], diastolic: []),
+            nutritionRecords([food(everyNutrient)]),
+            DailyTotals.entries(days: ["2026-01-01"], sums: [
+                .stepCount: ["2026-01-01": 8002], .activeEnergyBurned: ["2026-01-01": 312.5],
+                .basalEnergyBurned: ["2026-01-01": 1600.5]
+            ].merging(HealthDataType.distanceIdentifiers.map { ($0, ["2026-01-01": 10.5]) }) { $1 })
+        ]
+        let mapped = fractionFields(records)
+        XCTAssertTrue(mapped.isSuperset(of: ["vo2_ml_per_min_per_kg", "celsius", "systolic", "calories", "caffeine_mg", "distance_meters"]))
+        let written = ["meters", "kilograms", "calories", "celsius", "liters", "mmol_per_liter", "percentage", "rate",
+                       "heart_rate_variability_millis"]
+        for field in mapped.union(written) {
+            XCTAssertNotNil(PayloadJSON.decimals(for: field), field)
+        }
+    }
+
+    func testANumberJSONCannotHoldIsLeftOutAndTheRestGoes() throws {
+        let text = try json([
+            "weight": [["kilograms": Double.nan, "time": "t"]],
+            "height": [["meters": 5e-324, "time": "t"]],
+            "steps": [["count": 5]]
+        ])
+        XCTAssertFalse(text.contains("kilograms"), text)
+        XCTAssertTrue(text.contains(#""time":"t""#), text)
+        XCTAssertTrue(text.contains(#""meters":0"#), text)
+        XCTAssertTrue(text.contains(#""count":5"#), text)
+    }
+
     func testRecordsSerializeAsJSON() {
         let records: [[String: Any]] = [
             HealthRecordMapping.vo2MaxFields(quantitySample(.vo2Max, HKQuantity(unit: HealthRecordMapping.vo2MaxUnit, doubleValue: 40))),
