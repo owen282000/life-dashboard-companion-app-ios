@@ -155,6 +155,14 @@ actor SyncCoordinator {
     /// Callers inside a wait for the flight, counted until they are back on this actor. Tests
     /// read it to know a caller is queued.
     private(set) var waiting = 0
+    private var waitingWatchers: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
+
+    /// Returns once `count` callers wait for the flight, from the same actor turn that counts
+    /// them, so a test knows they are queued without a budget of turns to run out of.
+    func untilWaiting(_ count: Int) async {
+        if waiting >= count { return }
+        await withCheckedContinuation { waitingWatchers.append((count, $0)) }
+    }
 
     /// Runs `operation` as the one flight. Cancelling the caller cancels the work, which is how a
     /// background task that runs out of time stops its run.
@@ -200,6 +208,9 @@ actor SyncCoordinator {
 
     private func wait(for flight: Task<Void, Never>) async {
         waiting += 1
+        let arrived = waitingWatchers.filter { $0.count <= waiting }
+        waitingWatchers.removeAll { $0.count <= waiting }
+        arrived.forEach { $0.continuation.resume() }
         await flight.value
         waiting -= 1
     }

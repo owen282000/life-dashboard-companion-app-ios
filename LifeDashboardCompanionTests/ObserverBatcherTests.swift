@@ -123,11 +123,15 @@ final class ObserverBatcherTests: XCTestCase {
         let latch = Latch()
         let calls = Calls()
         let cancelled = Flag()
+        let cut = expectation(description: "the run is cancelled")
+        let released = expectation(description: "HealthKit is let go for both wakeups")
+        released.expectedFulfillmentCount = 2
         let batcher = ObserverBatcher(debounce: 5, maxWait: 10, sleep: { await clock.sleep($0) }, now: { wall.now }, run: {
             await withTaskCancellationHandler {
                 await latch.wait()
             } onCancel: {
                 cancelled.set()
+                cut.fulfill()
             }
         })
         func advance(_ seconds: TimeInterval) async {
@@ -136,25 +140,28 @@ final class ObserverBatcherTests: XCTestCase {
         }
 
         // The second wakeup came later and has more time; the first one's budget decides.
-        batcher.add(completion(calls), budgetEnd: wall.start.addingTimeInterval(25))
-        batcher.add(completion(calls), budgetEnd: wall.start.addingTimeInterval(30))
+        for end in [25.0, 30] {
+            batcher.add(OnceCallback { calls.record($0); released.fulfill() }, budgetEnd: wall.start.addingTimeInterval(end))
+        }
         // The maximum wait, and the first debounce, cancelled but still asleep, and its successor.
-        _ = await settle { await clock.waiterCount == 3 }
+        await clock.untilSleepers(3)
         await advance(5)
         // Running from 5 s on: the maximum wait, and the watchdog for the 20 s left.
-        let armed = await settle { await clock.waiterCount == 2 }
-        XCTAssertTrue(armed)
+        await latch.waitForArrivals(1)
+        await clock.untilSleepers(2)
 
         await advance(19.5)
-        let early = await settle { cancelled.isSet }
-        XCTAssertFalse(early, "half a second of the budget is left")
+        // Nothing is due before 25 s, so nothing can have cancelled the run yet.
+        XCTAssertFalse(cancelled.isSet, "half a second of the budget is left")
         await advance(0.5)
-        let atBudget = await settle { cancelled.isSet }
-        XCTAssertTrue(atBudget, "cut off at the budget, so a post in flight ends as interrupted")
+        // Waits for the cut itself rather than a number of turns; the timeout only catches a
+        // watchdog that never fires.
+        await fulfillment(of: [cut], timeout: 30)
+        XCTAssertTrue(cancelled.isSet, "cut off at the budget, so a post in flight ends as interrupted")
 
         await latch.open()
-        let completed = await settle { calls.all.count == 2 }
-        XCTAssertTrue(completed)
+        await fulfillment(of: [released], timeout: 30)
+        XCTAssertEqual(calls.all, [true, true])
     }
 
     func testACompletionRunsOnceWhicheverPathReachesItFirst() {
