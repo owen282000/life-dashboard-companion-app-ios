@@ -95,6 +95,9 @@ final class HealthSyncManager: Sendable {
     /// Reading failed before anything was sent, so the row names Apple Health and not a
     /// webhook URL or a broker that was never contacted.
     private func readFailed(_ error: Error) -> HealthSyncResult {
+        // Cut off, as a HealthKit wakeup is at its budget: every read threw for that, which
+        // says nothing about Apple Health, so no row blames it.
+        if Task.isCancelled { return .failure(error: AppDiagnostic.interrupted.rawValue) }
         // Stored in English, like every message the app writes itself.
         let message = error is HealthKitManager.NoTypeAnswered
             ? AppDiagnostic.healthUnanswered.rawValue

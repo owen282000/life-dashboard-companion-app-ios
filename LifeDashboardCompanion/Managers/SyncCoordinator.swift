@@ -98,6 +98,9 @@ actor SyncCoordinator {
             await env.drain(false)
             guard !Task.isCancelled else { return .cancelled }
             let result = await env.syncIncremental()
+            // Cut off mid-sync: what it sent is sent and the rest is queued or still ahead of
+            // the anchors, but the scheduled time stays owed.
+            guard !Task.isCancelled else { return .cancelled }
             if case .failure = result, await !env.isUnlocked() {
                 // Locked while reading: nothing was read, so the time stays owed.
                 return .locked

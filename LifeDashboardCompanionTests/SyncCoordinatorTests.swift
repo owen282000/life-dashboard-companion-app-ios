@@ -355,6 +355,21 @@ final class SyncCoordinatorTests: XCTestCase {
         XCTAssertEqual(world.retriedRefused, [false, true], "the run's drain, then Retry Now's own")
     }
 
+    func testARunCutOffMidSyncLeavesTheSyncOwed() async {
+        let world = World()
+        await world.drainLatch.open()
+        let coordinator = SyncCoordinator(environment: world.environment)
+
+        let run = Task { await coordinator.runAutomatic(.observer) }
+        _ = await settle { world.incrementals == 1 }
+        run.cancel()
+        await world.syncLatch.open()
+
+        let outcome = await run.value
+        XCTAssertEqual(outcome, .cancelled)
+        XCTAssertNil(world.state.lastRun, "the next chance syncs again")
+    }
+
     func testARunStartedOnScreenHoldsBackgroundTimeUntilItEnds() async {
         let world = World()
         await world.drainLatch.open()
