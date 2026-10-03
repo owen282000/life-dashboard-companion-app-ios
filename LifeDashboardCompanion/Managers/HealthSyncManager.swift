@@ -200,6 +200,9 @@ final class HealthSyncManager: Sendable {
         let readGeneration = await DeletionStep.run(for: prefs.healthEnabledDataTypes.union(types))
 
         do {
+            // Windows close by the time the read began: a sample written while it ran may still
+            // belong to the last of them.
+            let readStart = Date()
             let readResult = try await healthKit.readIncrementalData(for: types)
 
             switch readResult {
@@ -223,17 +226,35 @@ final class HealthSyncManager: Sendable {
                     return (.noData, commit.behind)
                 }
                 return (result, commit.behind)
-            case .data(let healthData, let commit, let notCurrent):
+            case .data(let healthData, let readCommit, let notCurrent):
                 var payload: [String: Any] = healthData
                 payload["timestamp"] = Date().iso8601String
                 payload["app_version"] = appVersion
                 payload["source"] = "healthkit_ios"
-                payload["sequence"] = sequence.next()
                 let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
                 let totalsDay = await attachDailyTotals(to: &payload, types: prefs.healthEnabledDataTypes)
+                var commit = readCommit
+                let resolved = resolveSeries(
+                    in: &payload, commit: &commit, readStart: readStart,
+                    deleted: Set(deletions.summary.deleted.map(\.uuid))
+                )
 
                 var syncCounts: [HealthDataType: Int] = [:]
                 let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
+                // Every record went into a window still filling: nothing to post, as on Android,
+                // and no sequence number taken. The anchors and the carry are saved together, or
+                // go with the deletions. MQTT still gets the new records.
+                if resolved.leavesNothingToSend(of: totalRecords) {
+                    let posted = await postDeletionsOnly(
+                        readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: commit, records: healthData
+                    )
+                    if posted == nil { commit.save() }
+                    if publishesToMqtt, !Task.isCancelled {
+                        await MqttPublisher.shared.publish(healthPayload: withDailyTotals(current(healthData, leaving: notCurrent), from: payload))
+                    }
+                    return (posted?.counting(syncCounts) ?? .success(syncCounts: syncCounts), commit.behind)
+                }
+                payload["sequence"] = sequence.next()
 
                 let outcome = await send(
                     payload, totalsDay: totalsDay, recordCount: totalRecords,
@@ -375,6 +396,7 @@ final class HealthSyncManager: Sendable {
         payload["app_version"] = appVersion
         payload["source"] = "healthkit_ios"
         await attachDailyTotals(to: &payload, types: enabledTypes)
+        payload = previewSeries(payload)
 
         return payload
     }
@@ -403,14 +425,16 @@ final class HealthSyncManager: Sendable {
         readGeneration: Int,
         urls: [String],
         headers: [String: String],
-        commit: AnchorCommit?
+        commit: AnchorCommit?,
+        records: [String: Any] = [:]
     ) async -> HealthSyncResult? {
         var payload: [String: Any] = [
             "timestamp": Date().iso8601String,
             "app_version": appVersion,
             "source": "healthkit_ios"
         ]
-        let deletions = await attachDeletions(to: &payload, records: [:], readGeneration: readGeneration)
+        // Records read but held in open windows still exist, so their deletions stay out.
+        let deletions = await attachDeletions(to: &payload, records: records, readGeneration: readGeneration)
         guard !deletions.summary.isEmpty else { return nil }
         payload["sequence"] = sequence.next()
 
@@ -505,6 +529,65 @@ final class HealthSyncManager: Sendable {
         return delivery
     }
 
+    // MARK: - Data resolution
+
+    /// Buckets the series that have a resolution (see ResolutionApplier) and puts the samples
+    /// of the windows still filling on `commit`, which saves them with its anchors.
+    ///
+    /// A window counts as filling up to where a type's next read starts: its catch-up cursor,
+    /// or the newest measurement read for a type the read left behind (`AnchorCommit.behind`,
+    /// past the cap or a page left for the next pass). A type this round did not read holds what it has, since samples behind
+    /// its anchor may belong to its windows. A type switched off lets go of what it held, and
+    /// a sample deleted since it was read leaves the carry.
+    private func resolveSeries(
+        in payload: inout [String: Any],
+        commit: inout AnchorCommit,
+        readStart: Date,
+        deleted: Set<String>
+    ) -> ResolvedSeries {
+        let resolutions = prefs.storedSeriesResolutions
+        let enabled = prefs.healthEnabledDataTypes
+        let carriedIn = BucketCarryStore.shared.load()
+            .filter { enabled.contains($0.key) }
+            .mapValues { held in held.filter { $0.uuid.map { !deleted.contains($0) } ?? true } }
+        let cursors = Dictionary(commit.cursors, uniquingKeysWith: { _, last in last })
+        var boundaries: [HealthDataType: Date] = [:]
+        for type in ResolutionFamily.configurableTypes where (resolutions[type] ?? .raw) != .raw {
+            guard let cursor = cursors[type] else {
+                boundaries[type] = .distantPast
+                continue
+            }
+            var boundary = min(readStart, cursor ?? readStart)
+            if commit.behind.contains(type),
+               let newest = ResolutionApplier.newestMeasurement(of: type, in: payload, carried: carriedIn[type] ?? [], notAfter: readStart) {
+                boundary = min(boundary, newest)
+            }
+            boundaries[type] = boundary
+        }
+        let resolved = ResolutionApplier.apply(
+            to: payload, resolutions: resolutions, carriedIn: carriedIn, now: readStart, boundaries: boundaries
+        )
+        payload = resolved.payload
+        commit.bucketCarry = resolved.carriedOut
+        return resolved
+    }
+
+    /// The preview reads the last week, as Sync Now does, and shows the series with a
+    /// resolution in their buckets, the windows closed now, the way the automatic syncs send
+    /// them. It stores nothing. A type whose week holds more than its cap stops at its newest
+    /// record read, so the window that holds it is left out.
+    private func previewSeries(_ payload: [String: Any]) -> [String: Any] {
+        let now = Date()
+        var boundaries: [HealthDataType: Date] = [:]
+        for type in ResolutionFamily.configurableTypes
+        where ((payload[type.countedPayloadKey] as? [Any])?.count ?? 0) >= SyncLimits.maxRecordsPerSync(for: type) {
+            boundaries[type] = ResolutionApplier.newestMeasurement(of: type, in: payload, notAfter: now)
+        }
+        return ResolutionApplier.apply(
+            to: payload, resolutions: prefs.storedSeriesResolutions, now: now, boundaries: boundaries
+        ).payload
+    }
+
     // MARK: - Daily Totals
 
     /// Puts the totals of today and the two days before on the payload when the setting is on,
@@ -547,6 +630,13 @@ final class HealthSyncManager: Sendable {
 }
 
 extension HealthSyncResult {
+    /// A deletions-only delivery that stands for a sync whose records all went into windows
+    /// still filling: it reports those records, as the Android app counts them.
+    func counting(_ syncCounts: [HealthDataType: Int]) -> HealthSyncResult {
+        guard case .success(_, let reach) = self else { return self }
+        return .success(syncCounts: syncCounts, reach: reach)
+    }
+
     /// Combines the results of the rounds of one sync: a failure wins, record counts add up,
     /// and a webhook that missed one round missed part of the sync.
     func merged(with other: HealthSyncResult) -> HealthSyncResult {

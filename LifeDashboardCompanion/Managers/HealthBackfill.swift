@@ -50,6 +50,17 @@ enum BackfillPlan {
     static func ownsPeriod(startingAt start: Date, window: DateInterval) -> Bool {
         start >= window.start && start < window.end
     }
+
+    /// The stretch a type is read over in `window`. A type with a data resolution is read from
+    /// the first bucket that starts in the window to the end of the last one, so each bucket
+    /// goes out once, whole, with the window it starts in. The bucket cut by the start of the
+    /// range is left out, as is the one still filling at its end, which the syncs send.
+    static func readWindow(for window: DateInterval, rangeEnd: Date, resolution: SeriesResolution?) -> DateInterval {
+        guard let resolution, resolution != .raw else { return window }
+        let start = SeriesBucketing.alignUp(window.start, resolution: resolution)
+        let end = min(SeriesBucketing.alignUp(window.end, resolution: resolution), rangeEnd)
+        return DateInterval(start: start, end: max(start, end))
+    }
 }
 
 // MARK: - Job
@@ -257,6 +268,9 @@ struct BackfillEngine: Sendable {
     /// The enabled types, asked for at the start of every window.
     var enabledTypes: @Sendable () async -> [HealthDataType]
     var windowExtras: @Sendable (DateInterval) async -> BackfillExtras = { _ in .none }
+    /// The data resolution per type, asked for once per run, so a change while it runs cannot
+    /// leave a stretch between two windows out or send it twice.
+    var resolutions: @Sendable () async -> [HealthDataType: SeriesResolution] = { [:] }
     /// Asked between passes; a reason ends the run with the job paused for it.
     var shouldStop: @Sendable () async -> BackfillJob.PauseReason? = { nil }
     var onProgress: @Sendable (BackfillProgress) async -> Void = { _ in }
@@ -277,11 +291,12 @@ struct BackfillEngine: Sendable {
         job.failure = nil
         let range = job.range
         let windowCount = job.windowCount
+        let resolutions = await resolutions()
 
         while job.nextWindow < windowCount {
             if let reason = await shouldStop() { return job.paused(reason, at: now()) }
             let window = BackfillPlan.window(job.nextWindow, of: range)
-            let outcome = await drain(window, of: job, rangeEnd: range.end)
+            let outcome = await drain(window, of: job, rangeEnd: range.end, resolutions: resolutions)
             switch outcome {
             case .stopped(let stopped):
                 return stopped
@@ -306,10 +321,25 @@ struct BackfillEngine: Sendable {
     /// Sends one window: each pass reads the next slice of every type still draining and posts
     /// them as one payload. A window with nothing in it still sends one payload, so a receiver
     /// sees that it was covered.
-    private func drain(_ window: DateInterval, of job: BackfillJob, rangeEnd: Date) async -> WindowOutcome {
+    private func drain(
+        _ window: DateInterval,
+        of job: BackfillJob,
+        rangeEnd: Date,
+        resolutions: [HealthDataType: SeriesResolution]
+    ) async -> WindowOutcome {
         let types = await enabledTypes().sorted { $0.rawValue < $1.rawValue }
         let extras = await windowExtras(window)
-        var cursors = Dictionary(uniqueKeysWithValues: types.map { ($0, window.start) })
+        let reads = Dictionary(uniqueKeysWithValues: types.map { type in
+            (type, BackfillPlan.readWindow(
+                for: window, rangeEnd: rangeEnd, resolution: ResolutionFamily.of(type) == nil ? nil : resolutions[type]
+            ))
+        })
+        // Samples of a bucket a later chunk may still add to, see `bucketed`.
+        var held: [HealthDataType: [CarriedSample]] = [:]
+        var cursors: [HealthDataType: Date] = [:]
+        for type in types {
+            if let read = reads[type], read.duration > 0 { cursors[type] = read.start }
+        }
         var records = 0
         var sent = 0
         var truncated = false
@@ -321,10 +351,10 @@ struct BackfillEngine: Sendable {
             var chunk: [(String, Any)] = []
             var next = cursors
             for type in types {
-                guard let cursor = cursors[type] else { continue }
+                guard let cursor = cursors[type], let read = reads[type] else { continue }
                 let slice: BackfillSlice
                 do {
-                    slice = try await reader.readSlice(type, from: cursor, window: window, rangeEnd: rangeEnd)
+                    slice = try await reader.readSlice(type, from: cursor, window: read, rangeEnd: rangeEnd)
                 } catch BackfillReadError.locked {
                     return .stopped(job.paused(.locked, at: now()))
                 } catch {
@@ -337,11 +367,16 @@ struct BackfillEngine: Sendable {
                     truncated = true
                     Self.logger.error("Backfill window from \(window.start.iso8601String): more \(type.rawValue) samples at one instant than one read holds")
                 }
-                next[type] = slice.end >= window.end ? nil : slice.end
+                next[type] = slice.end >= read.end ? nil : slice.end
             }
 
             let count = BackfillPayload.recordCount(chunk)
-            if count > 0 || sent == 0 {
+            var buckets = 0
+            if !resolutions.isEmpty {
+                (chunk, buckets) = bucketed(chunk, resolutions: resolutions, held: &held, next: next, reads: reads, rangeEnd: rangeEnd)
+            }
+            // A pass can read nothing and still close a bucket an earlier one held.
+            if count > 0 || buckets > 0 || sent == 0 {
                 guard let body = BackfillPayload.body(
                     records: chunk, window: window, extras: extras.fields, appVersion: appVersion,
                     sequence: sequence(), now: now()
@@ -364,5 +399,33 @@ struct BackfillEngine: Sendable {
         }
         Self.logger.error("Backfill window from \(window.start.iso8601String) needs more than \(BackfillPlan.maxPassesPerWindow) passes")
         return .delivered(records: records, truncated: true)
+    }
+
+    /// One chunk with the data resolution applied, as a sync applies it. A type still draining
+    /// is read in time order, so its buckets are complete up to where its next slice starts;
+    /// the one that slice may still add to is held for the next chunk. A type that is done has
+    /// read its whole stretch (see `BackfillPlan.readWindow`), which ends on a bucket bound but
+    /// at the end of the range, where the bucket still filling is left to the syncs.
+    private func bucketed(
+        _ chunk: [(String, Any)],
+        resolutions: [HealthDataType: SeriesResolution],
+        held: inout [HealthDataType: [CarriedSample]],
+        next: [HealthDataType: Date],
+        reads: [HealthDataType: DateInterval],
+        rangeEnd: Date
+    ) -> (records: [(String, Any)], buckets: Int) {
+        var boundaries: [HealthDataType: Date] = [:]
+        for (type, read) in reads {
+            boundaries[type] = next[type] ?? read.end
+        }
+        let resolved = ResolutionApplier.apply(
+            to: Dictionary(chunk, uniquingKeysWith: { _, last in last }),
+            resolutions: resolutions,
+            carriedIn: held,
+            now: rangeEnd,
+            boundaries: boundaries
+        )
+        held = resolved.carriedOut
+        return (resolved.payload.map { ($0.key, $0.value) }, resolved.bucketCount)
     }
 }

@@ -1213,12 +1213,19 @@ struct AnchorCommit: @unchecked Sendable {
 
     var anchors: [Anchor] = []
     var cursors: [(HealthDataType, Date?)] = []
+    /// The samples of bucketed windows still open after this read (see ResolutionApplier),
+    /// saved with the anchors that read them and never earlier. Nil leaves the stored carry
+    /// alone.
+    var bucketCarry: [HealthDataType: [CarriedSample]]?
     /// The types the read left records behind for, which the next read continues with.
     var behind: Set<HealthDataType> = []
 
-    /// Cursors first: an app ended between the two then only reads a stretch again, where an
-    /// anchor saved without its cursor would skip what the cursor still had to read.
-    func save(to prefs: PreferencesManager = .shared) {
+    /// The carry first, then cursors, then anchors. An app ended in between reads a stretch
+    /// again: a carried sample read again counts once, by its uuid, and an anchor saved without
+    /// its cursor, or without the carry, would skip what they still had to hold. A carry that
+    /// cannot be written keeps the anchors where they were, for the same reason.
+    func save(to prefs: PreferencesManager = .shared, carryStore: BucketCarryStore = .shared) {
+        if let bucketCarry, !carryStore.save(bucketCarry) { return }
         for (dataType, cursor) in cursors {
             prefs.saveCatchUpCursor(cursor, for: dataType)
         }

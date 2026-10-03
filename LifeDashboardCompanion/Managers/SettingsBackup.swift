@@ -119,6 +119,10 @@ struct OptionsConfig: Codable, Equatable {
     /// The phone's name for MQTT (Android 1.20.0). An export writes an empty string for a phone
     /// without one, as Android does; absent, it leaves the name alone.
     var phoneName: String?
+    /// Type name to resolution name, only for the types not at raw ("HEART_RATE": "ONE_MINUTE").
+    /// Empty means every type sends every record; absent, in a file from before Android 1.14.0,
+    /// it leaves the setting alone.
+    var seriesResolutions: [String: String]?
 
     enum CodingKeys: String, CodingKey {
         case enabledDataTypes = "enabled_data_types"
@@ -127,6 +131,7 @@ struct OptionsConfig: Codable, Equatable {
         case failureNotificationThreshold = "failure_notification_threshold"
         case failureNotificationsEnabled = "failure_notifications_enabled"
         case phoneName = "phone_name"
+        case seriesResolutions = "series_resolutions"
     }
 }
 
@@ -154,6 +159,7 @@ struct SettingsSnapshot: Equatable, Sendable {
     var healthSyncSchedule: SyncSchedule
     var healthEnabledDataTypes: Set<HealthDataType>
     var includeDailyTotals: Bool
+    var seriesResolutions: [HealthDataType: SeriesResolution]
     var failureNotificationsEnabled: Bool
     var failureNotificationThreshold: Int
     var mqttEnabled: Bool
@@ -242,7 +248,10 @@ enum SettingsBackup {
                 allowHttpWebhooks: settings.healthWebhookUrls.contains { $0.lowercased().hasPrefix("http://") },
                 failureNotificationThreshold: settings.failureNotificationThreshold,
                 failureNotificationsEnabled: settings.failureNotificationsEnabled,
-                phoneName: settings.phoneName.trimmingCharacters(in: .whitespacesAndNewlines)
+                phoneName: settings.phoneName.trimmingCharacters(in: .whitespacesAndNewlines),
+                seriesResolutions: Dictionary(uniqueKeysWithValues: settings.seriesResolutions
+                    .filter { $0.value != .raw }
+                    .map { ($0.key.rawValue, $0.value.rawValue) })
             )
         )
     }
@@ -623,6 +632,17 @@ enum SettingsImport {
             if unknown > 0 { notes.append(.unavailableTypes(unknown)) }
         }
         if let include = options.includeDailyTotals { result.includeDailyTotals = include }
+        if let stored = options.seriesResolutions {
+            // Android's skin temperature, which iPhone does not have, is left out like an
+            // unknown resolution, which reads as raw.
+            var resolutions: [HealthDataType: SeriesResolution] = [:]
+            for (name, resolutionName) in stored {
+                guard let type = HealthDataType(rawValue: name), ResolutionFamily.of(type) != nil else { continue }
+                let resolution = SeriesResolution.from(resolutionName)
+                if resolution != .raw { resolutions[type] = resolution }
+            }
+            result.seriesResolutions = resolutions
+        }
         if let threshold = options.failureNotificationThreshold {
             // The picker offers 3, 5 and 10; the nearest, the lower one on a tie.
             let snapped = thresholdChoices.min { abs($0 - threshold) < abs($1 - threshold) } ?? 3
@@ -683,6 +703,7 @@ extension PreferencesManager {
             healthSyncSchedule: healthSyncSchedule,
             healthEnabledDataTypes: healthEnabledDataTypes,
             includeDailyTotals: includeDailyTotals,
+            seriesResolutions: seriesResolutions,
             failureNotificationsEnabled: failureNotificationsEnabled,
             failureNotificationThreshold: failureNotificationThreshold,
             mqttEnabled: mqttEnabled,
@@ -720,6 +741,7 @@ extension PreferencesManager {
         if new.healthSyncSchedule != old.healthSyncSchedule { healthSyncSchedule = new.healthSyncSchedule }
         if new.healthEnabledDataTypes != old.healthEnabledDataTypes { healthEnabledDataTypes = new.healthEnabledDataTypes }
         if new.includeDailyTotals != old.includeDailyTotals { includeDailyTotals = new.includeDailyTotals }
+        if new.seriesResolutions != old.seriesResolutions { seriesResolutions = new.seriesResolutions }
         if new.failureNotificationsEnabled != old.failureNotificationsEnabled { failureNotificationsEnabled = new.failureNotificationsEnabled }
         if new.failureNotificationThreshold != old.failureNotificationThreshold { failureNotificationThreshold = new.failureNotificationThreshold }
         if new.mqttHost != old.mqttHost { mqttHost = new.mqttHost }

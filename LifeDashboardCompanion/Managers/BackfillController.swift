@@ -124,6 +124,7 @@ final class BackfillController: ObservableObject {
                 )
                 return totals.isEmpty ? .none : BackfillExtras(fields: [DailyTotals.payloadKey: totals])
             },
+            resolutions: { prefs.storedSeriesResolutions },
             shouldStop: { await BackfillController.shared.stopRequest(for: token) },
             onProgress: { progress in await BackfillController.shared.report(progress, for: token) },
             onWindowDone: { job, records in await BackfillController.shared.commit(job, windowRecords: records, for: token) }

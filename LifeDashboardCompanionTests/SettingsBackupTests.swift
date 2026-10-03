@@ -30,6 +30,7 @@ final class SettingsBackupTests: XCTestCase {
             .intermenstrualBleeding, .ovulationTest, .cervicalMucus, .sexualActivity
         ],
         includeDailyTotals: false,
+        seriesResolutions: [.heartRate: .oneMinute, .steps: .hourly],
         failureNotificationsEnabled: false,
         failureNotificationThreshold: 10,
         mqttEnabled: true,
@@ -145,6 +146,41 @@ final class SettingsBackupTests: XCTestCase {
         XCTAssertEqual(options["allow_http_webhooks"] as? Bool, true)
         XCTAssertEqual(options["failure_notifications_enabled"] as? Bool, false)
         XCTAssertEqual(options["phone_name"] as? String, "Zoë's iPhone")
+        XCTAssertEqual(options["series_resolutions"] as? [String: String], ["HEART_RATE": "ONE_MINUTE", "STEPS": "HOURLY"])
+    }
+
+    /// Android always writes the map, empty when every type sends every record, and an empty
+    /// one sets every type back to raw on import.
+    func testEveryRecordExportsAnEmptyResolutionMapThatClearsOnImport() throws {
+        var settings = fixture
+        settings.seriesResolutions = [:]
+        XCTAssertEqual(SettingsBackup.export(settings, includeSecrets: false, appVersion: nil).options?.seriesResolutions, [:])
+        let plan = try roundTrip(settings, includeSecrets: true, into: fixture)
+        XCTAssertEqual(plan.result.seriesResolutions, [:])
+    }
+
+    func testResolutionsWithoutTheKeyAreLeftAlone() throws {
+        let plan = try SettingsImport.plan(file(#"{"version":1,"options":{"include_daily_totals":true}}"#), current: fixture)
+        XCTAssertEqual(plan.result.seriesResolutions, fixture.seriesResolutions)
+    }
+
+    /// Skin temperature has no iPhone counterpart, a type without a window has no setting, and
+    /// a resolution this version does not know reads as every record.
+    func testImportKeepsOnlyResolutionsThisIPhoneCanApply() throws {
+        let plan = try SettingsImport.plan(file("""
+        {"version":1,"options":{"series_resolutions":{
+          "HEART_RATE":"FIFTEEN_MINUTES","SKIN_TEMPERATURE":"ONE_MINUTE","WEIGHT":"HOURLY",
+          "STEPS":"TWO_HOURS","DISTANCE":"RAW","TOTAL_CALORIES":"FIVE_MINUTES"}}}
+        """), current: fixture)
+        XCTAssertEqual(plan.result.seriesResolutions, [.heartRate: .fifteenMinutes, .totalCalories: .fiveMinutes])
+    }
+
+    func testResolutionsAreStoredInAndroidsFormat() {
+        let prefs = makePrefs()
+        prefs.seriesResolutions = [.steps: .hourly, .heartRate: .oneMinute, .distance: .raw]
+        XCTAssertEqual(PreferencesManager.formatResolutions(prefs.seriesResolutions), "HEART_RATE=ONE_MINUTE,STEPS=HOURLY")
+        XCTAssertEqual(prefs.storedSeriesResolutions, [.heartRate: .oneMinute, .steps: .hourly])
+        XCTAssertEqual(PreferencesManager.parseResolutions("HEART_RATE=ONE_MINUTE,BOGUS=HOURLY,STEPS=WEEKLY,broken"), [.heartRate: .oneMinute])
     }
 
     /// Android writes an empty name for a phone without one, and so does the iPhone.
@@ -188,6 +224,7 @@ final class SettingsBackupTests: XCTestCase {
         XCTAssertNil(result.healthSyncSchedule.quietWindow)
         XCTAssertEqual(result.healthEnabledDataTypes, [.steps, .heartRate, .menstruation])
         XCTAssertTrue(result.includeDailyTotals)
+        XCTAssertEqual(result.seriesResolutions, [.heartRate: .fiveMinutes])
         XCTAssertTrue(plan.notes.contains(.unavailableTypes(1)), "BONE_MASS has no iPhone counterpart")
         XCTAssertEqual(result.mqttEnabled, true)
         XCTAssertEqual(result.mqttHost, "mqtt.local")
