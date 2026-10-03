@@ -592,12 +592,12 @@ final class PayloadSequence: @unchecked Sendable {
 
 /// A payload as the JSON that goes out.
 enum PayloadBody {
-    /// The payload's JSON, nil when it cannot be JSON. JSONSerialization raises an Objective-C
-    /// exception for a value JSON cannot hold, such as a NaN, which `try?` does not catch and
-    /// which ends the app, so the payload is checked first.
+    /// The payload's JSON, through `PayloadJSON`, which rounds every fraction to its field's
+    /// decimals and leaves out a NaN or infinity with its key. Nil when it still cannot be
+    /// JSON: JSONSerialization raises an Objective-C exception for such a value, which `try?`
+    /// does not catch and which ends the app, so the payload is checked first.
     static func encode(_ payload: [String: Any]) -> Data? {
-        guard JSONSerialization.isValidJSONObject(payload) else { return nil }
-        return try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+        PayloadJSON.data(payload)
     }
 
     /// The failed row for a sync payload that could not be serialized: no webhook was

@@ -117,12 +117,17 @@ final class OutboxTests: XCTestCase {
     // MARK: - Serializing
 
     func testAPayloadJSONCannotHoldIsNilInsteadOfEndingTheApp() throws {
-        XCTAssertNil(PayloadBody.encode(["weight": [["kilograms": Double.nan]]]))
-        XCTAssertNil(PayloadBody.encode(["heart_rate": [["bpm": Double.infinity]]]))
+        // A value that is no JSON type at all.
+        XCTAssertNil(PayloadBody.encode(["weight": [["time": Date()]]]))
         XCTAssertNil(BackfillPayload.body(
-            records: [("weight", [["kilograms": Double.nan]])], window: DateInterval(start: Date(), duration: 60),
+            records: [("weight", [["time": Date()]])], window: DateInterval(start: Date(), duration: 60),
             extras: [:], appVersion: "1.0", sequence: 1, now: Date()
         ))
+        // A NaN or infinity is left out with its key; the rest of the payload goes.
+        let withNaN = try XCTUnwrap(PayloadBody.encode(["weight": [["kilograms": Double.nan, "time": "t"]]]))
+        XCTAssertEqual(String(data: withNaN, encoding: .utf8), #"{"weight":[{"time":"t"}]}"#)
+        let withInfinity = try XCTUnwrap(PayloadBody.encode(["heart_rate": [["bpm": Double.infinity]]]))
+        XCTAssertEqual(String(data: withInfinity, encoding: .utf8), #"{"heart_rate":[{}]}"#)
         let body = try XCTUnwrap(PayloadBody.encode(["steps": [["count": 12]], "source": "healthkit_ios"]))
         XCTAssertEqual(String(data: body, encoding: .utf8), #"{"source":"healthkit_ios","steps":[{"count":12}]}"#)
     }

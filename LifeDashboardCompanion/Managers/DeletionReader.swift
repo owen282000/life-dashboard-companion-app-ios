@@ -14,6 +14,8 @@ struct DeletedPage: Sendable {
 enum DeletionReadError: Error, Equatable {
     /// The phone is locked and HealthKit's store is encrypted; nothing can be read now.
     case databaseInaccessible
+    /// HealthKit may not read the sample type (see `HealthKitManager.isUnanswered`).
+    case notReadable
     case failed(String)
 }
 
@@ -49,6 +51,10 @@ struct HealthKitDeletionSource: DeletedObjectSource {
                 limit: begin.limit
             ) { _, _, deletedObjects, newAnchor, error in
                 if let error {
+                    if HealthKitManager.isUnanswered(error) {
+                        finish(.failure(DeletionReadError.notReadable))
+                        return
+                    }
                     let inaccessible = (error as? HKError)?.code == .errorDatabaseInaccessible
                     finish(.failure(inaccessible ? DeletionReadError.databaseInaccessible : DeletionReadError.failed(error.localizedDescription)))
                     return
@@ -364,6 +370,10 @@ struct DeletionReader: Sendable {
                     )
                 } catch DeletionReadError.databaseInaccessible {
                     return .skipped
+                } catch DeletionReadError.notReadable {
+                    // Not a failure: a target that never got to tracking waits without an
+                    // anchor, uncounted and unnamed, until the user allows its sample type.
+                    break
                 } catch is CancellationError {
                     stopAll = true
                     break

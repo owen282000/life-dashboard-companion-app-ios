@@ -187,7 +187,8 @@ extension HealthKitManager {
     }
 
     /// Day sums of one identifier keyed by `yyyy-MM-dd`; days without samples are absent. Nil
-    /// when the query failed (a locked device among others) or did not answer in time.
+    /// when the query failed (a locked device among others) or did not answer in time; empty
+    /// when HealthKit may not read the identifier (see `HealthKitManager.isUnanswered`).
     private func dailySums(
         of identifier: HKQuantityTypeIdentifier,
         unit: HKUnit,
@@ -207,6 +208,12 @@ extension HealthKitManager {
                 intervalComponents: DateComponents(day: 1)
             )
             query.initialResultsHandler = { _, collection, error in
+                if let error, HealthKitManager.isUnanswered(error) {
+                    // No samples, as a denied read gives: a distance the user was never asked
+                    // about leaves the others' total as it is instead of taking it down.
+                    if once.claim() { continuation.resume(returning: [:]) }
+                    return
+                }
                 guard let collection, error == nil else {
                     dailyTotalsLogger.error("Daily totals for \(identifier.rawValue) failed: \(error?.localizedDescription ?? "no result")")
                     if once.claim() { continuation.resume(returning: nil) }
