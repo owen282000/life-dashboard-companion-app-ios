@@ -47,6 +47,7 @@
 		B1000019 /* SleepSessionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000019 /* SleepSessionBuilder.swift */; };
 		B100001A /* WebhookSignerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001A /* WebhookSignerTests.swift */; };
 		B100001B /* WebhookRetryPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001B /* WebhookRetryPolicyTests.swift */; };
+		2C04B7A4289E2A9A25E9AC88 /* WebhookRedirectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C49B66C48BF9092BA068409 /* WebhookRedirectTests.swift */; };
 		B100001C /* SleepSessionBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001C /* SleepSessionBuilderTests.swift */; };
 		4A789195CF646BC598EE3895 /* HealthBackfill.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE10A6EA3D001E3511511497 /* HealthBackfill.swift */; };
 		4B362D4265214953E4922095 /* BackfillController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF33929F5514CE184DEC6C /* BackfillController.swift */; };
@@ -176,6 +177,7 @@
 		F1000019 /* SleepSessionBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSessionBuilder.swift; sourceTree = "<group>"; };
 		F100001A /* WebhookSignerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookSignerTests.swift; sourceTree = "<group>"; };
 		F100001B /* WebhookRetryPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookRetryPolicyTests.swift; sourceTree = "<group>"; };
+		6C49B66C48BF9092BA068409 /* WebhookRedirectTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookRedirectTests.swift; sourceTree = "<group>"; };
 		F100001C /* SleepSessionBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSessionBuilderTests.swift; sourceTree = "<group>"; };
 		F1000020 /* LifeDashboardCompanion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LifeDashboardCompanion.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F1000021 /* LifeDashboardCompanionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LifeDashboardCompanionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -393,6 +395,7 @@
 				38A0B3417331E8F6C4B4D39C /* SettingsBackupTests.swift */,
 				5044D8F8014A310603CBB122 /* SettingsBackupCryptoTests.swift */,
 				F100001B /* WebhookRetryPolicyTests.swift */,
+				6C49B66C48BF9092BA068409 /* WebhookRedirectTests.swift */,
 				CA530B152D776D79491AAF31 /* SyncStatsTests.swift */,
 				A4AB8927050AF0BB9A93B658 /* LocalizationTests.swift */,
 				D8B7BE1BD86868C3A951B716 /* WebhookLogCodingTests.swift */,
@@ -641,6 +644,7 @@
 				15E26639D4E91D957D451C8C /* SettingsBackupTests.swift in Sources */,
 				5CF46D678145B967DC6B4B70 /* SettingsBackupCryptoTests.swift in Sources */,
 				B100001B /* WebhookRetryPolicyTests.swift in Sources */,
+				2C04B7A4289E2A9A25E9AC88 /* WebhookRedirectTests.swift in Sources */,
 				B100001C /* SleepSessionBuilderTests.swift in Sources */,
 				B1000026 /* SyncLimitsTests.swift in Sources */,
 				96485F6059B429FF98E9CF1E /* OutboxTests.swift in Sources */,
