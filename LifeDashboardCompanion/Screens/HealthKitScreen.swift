@@ -573,7 +573,7 @@ struct HealthKitScreen: View {
         isSyncing = true
         outcome = nil
         Task {
-            let result = await SyncCoordinator.shared.runManual(full: true)
+            let result = await SyncCoordinator.shared.runManual(syncNow: true)
             await MainActor.run {
                 isSyncing = false
                 switch result {

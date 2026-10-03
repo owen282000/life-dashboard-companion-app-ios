@@ -22,9 +22,10 @@ final class BackgroundSyncManager {
     private var replanTask: Task<Void, Never>?
     private var notificationTokens: [NSObjectProtocol] = []
     /// How long a HealthKit wakeup may keep HealthKit waiting: the debounce, one read and one
-    /// delivery fit comfortably, and it stays under the roughly 30 seconds iOS gives. An MQTT
-    /// publish after a slow webhook can run past it; iOS may then suspend the app before the
-    /// broker has everything, and the next sync publishes again.
+    /// delivery fit comfortably, and it stays under the roughly 30 seconds iOS gives. The sync
+    /// of the batch is cancelled when the first wakeup in it reaches this, since iOS may suspend
+    /// the app from then on: a post cut off there ends as interrupted, with its payload already
+    /// queued, instead of hanging until the app comes back and then counting as failed.
     nonisolated static let observerBudgetSeconds: TimeInterval = 25
 
     private init() {}
@@ -90,11 +91,12 @@ final class BackgroundSyncManager {
                     }
                     // The budget runs from HealthKit's own callback, not from whenever the main
                     // actor gets to it during a busy background launch.
+                    let budgetEnd = Date().addingTimeInterval(BackgroundSyncManager.observerBudgetSeconds)
                     DispatchQueue.global().asyncAfter(deadline: .now() + BackgroundSyncManager.observerBudgetSeconds) {
                         completion.call(false)
                     }
                     Task { @MainActor in
-                        BackgroundSyncManager.shared.handleHealthKitUpdate(for: dataType, completion: completion)
+                        BackgroundSyncManager.shared.handleHealthKitUpdate(for: dataType, completion: completion, budgetEnd: budgetEnd)
                     }
                 }
 
@@ -129,7 +131,7 @@ final class BackgroundSyncManager {
     /// due releases HealthKit at once. One that is due joins the next batch, and its completion
     /// handler is called when the sync that batch goes into has ended. The sync reads every
     /// enabled type, since a scheduled sync is about all of them, not the one that woke the app.
-    private func handleHealthKitUpdate(for dataType: HealthDataType, completion: OnceCallback) {
+    private func handleHealthKitUpdate(for dataType: HealthDataType, completion: OnceCallback, budgetEnd: Date) {
         guard case .due = prefs.healthSyncSchedule.decide(
             state: prefs.healthScheduleState, now: Date(), timeZone: .autoupdatingCurrent
         ) else {
@@ -137,7 +139,7 @@ final class BackgroundSyncManager {
             return
         }
         logger.info("HealthKit update for \(dataType.rawValue, privacy: .public), sync due")
-        observerBatcher.add(completion)
+        observerBatcher.add(completion, budgetEnd: budgetEnd)
     }
 
     private static func runObserverSync() async {
@@ -354,6 +356,9 @@ private final class TaskHolder: @unchecked Sendable {
 /// of samples during a workout still syncs. The timers only decide when to start; the sync runs
 /// in a task of its own that no later wakeup cancels. Wakeups that arrive while it runs form the
 /// next batch, which starts when this one ends.
+///
+/// A wakeup can bring the end of its time budget. The sync of a batch is cancelled at the
+/// earliest of them, which is when HealthKit is let go and iOS may suspend the app.
 @MainActor
 final class ObserverBatcher {
     typealias Sleep = @Sendable (TimeInterval) async -> Void
@@ -361,9 +366,10 @@ final class ObserverBatcher {
     private let debounce: TimeInterval
     private let maxWait: TimeInterval
     private let sleep: Sleep
+    private let now: @Sendable () -> Date
     private let run: @MainActor () async -> Void
 
-    private var pending: [OnceCallback] = []
+    private var pending: [(completion: OnceCallback, budgetEnd: Date?)] = []
     private var debounceTimer: Task<Void, Never>?
     private var maxWaitTimer: Task<Void, Never>?
     private var isRunning = false
@@ -372,16 +378,18 @@ final class ObserverBatcher {
         debounce: TimeInterval = 5,
         maxWait: TimeInterval = 10,
         sleep: @escaping Sleep = { try? await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000)) },
+        now: @escaping @Sendable () -> Date = { Date() },
         run: @escaping @MainActor () async -> Void
     ) {
         self.debounce = debounce
         self.maxWait = maxWait
         self.sleep = sleep
+        self.now = now
         self.run = run
     }
 
-    func add(_ completion: OnceCallback) {
-        pending.append(completion)
+    func add(_ completion: OnceCallback, budgetEnd: Date? = nil) {
+        pending.append((completion, budgetEnd))
         guard !isRunning else { return }
         debounceTimer?.cancel()
         debounceTimer = timer(after: debounce)
@@ -408,9 +416,18 @@ final class ObserverBatcher {
         let batch = pending
         pending.removeAll()
         isRunning = true
+        let work = Task { await self.run() }
+        let watchdog = batch.compactMap(\.budgetEnd).min().map { end in
+            Task { [sleep, now] in
+                await sleep(max(0, end.timeIntervalSince(now())))
+                guard !Task.isCancelled else { return }
+                work.cancel()
+            }
+        }
         Task {
-            await self.run()
-            batch.forEach { $0.call(true) }
+            await work.value
+            watchdog?.cancel()
+            batch.forEach { $0.completion.call(true) }
             self.isRunning = false
             if !self.pending.isEmpty {
                 self.fire()

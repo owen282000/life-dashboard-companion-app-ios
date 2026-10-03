@@ -22,6 +22,8 @@ enum AppDiagnostic: String, CaseIterable {
     case brokerCancelled = "Connection cancelled"
     case interrupted = "Interrupted"
     case droppedUndelivered = "Not delivered for a week, dropped from the queue"
+    case droppedFull = "Dropped from the queue: it was full (700 undelivered syncs), so its records are lost"
+    case healthUnanswered = "Apple Health did not answer for any data type; the next sync tries again"
     case clientCertificateUnavailable = "Client certificate is unavailable. Import it again under Advanced."
     case clientCertificateLocked = "Client certificate cannot be read until the iPhone is unlocked"
 
@@ -41,6 +43,8 @@ enum AppDiagnostic: String, CaseIterable {
         case .brokerCancelled: return String(localized: "Connection cancelled")
         case .interrupted: return String(localized: "Interrupted")
         case .droppedUndelivered: return String(localized: "Not delivered for a week, dropped from the queue")
+        case .droppedFull: return String(localized: "Dropped from the queue: it was full (700 undelivered syncs), so its records are lost")
+        case .healthUnanswered: return String(localized: "Apple Health did not answer for any data type; the next sync tries again")
         case .clientCertificateUnavailable: return String(localized: "Client certificate is unavailable. Import it again under Advanced.")
         case .clientCertificateLocked: return String(localized: "Client certificate cannot be read until the iPhone is unlocked")
         }

@@ -316,8 +316,8 @@ struct SyncSchedule: Hashable, Sendable {
     }
 
     /// Whether an automatic retry of a queued payload may go out at `now`. Quiet hours hold it;
-    /// the weekday filter does not, because the queue drops a payload after seven days and a
-    /// one-day-a-week schedule would let it expire unsent.
+    /// the weekday filter does not, because the queue drops a payload that a receiver keeps
+    /// failing for seven days, and a one-day-a-week schedule would let it expire unsent.
     func allowsDelivery(at now: Date, timeZone: TimeZone) -> Bool {
         guard let quiet = quietWindow else { return true }
         return !quiet.contains(secondOfDay: LocalDateTime(now, in: timeZone).second)

@@ -12,16 +12,25 @@ final class HealthSyncManager: Sendable {
     private let pendingStore = PendingSyncStore.shared
     private let incrementalGate = SingleFlight<HealthDataType>()
     private let deletionStore = DeletionStore.shared
+    private let sequence = PayloadSequence.shared
     private let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
 
     private init() {}
 
-    // MARK: - Full Sync (all enabled types, always last 7 days)
+    // MARK: - Sync Now
 
-    func performSync() async -> HealthSyncResult {
+    /// Sync Now in the app: the incremental sync, as every other sync, in passes while a type is
+    /// still catching up, as Android's sync runs up to 8 passes. It used to send the last 7 days
+    /// again, capped oldest first, so with an Apple Watch it sent the oldest 1000 heart rate and
+    /// step samples of the week and today's only came with the next automatic sync. A pass reads
+    /// only the types the one before left behind (see `CatchUpPasses`). Backfill sends history.
+    ///
+    /// MQTT gets the newest value of every enabled type once the passes are done, read from the
+    /// newest end of the week (see `HealthKitManager.newestRecords`), so a new broker sees every
+    /// sensor at once. With a broker and no webhook URL that is all Sync Now does.
+    func performSyncNow() async -> HealthSyncResult {
         let enabledTypes = prefs.healthEnabledDataTypes
         let webhookUrls = prefs.healthWebhookUrls
-        let headers = prefs.healthWebhookHeaders
 
         guard !enabledTypes.isEmpty, !webhookUrls.isEmpty || prefs.mqttConfigured else {
             return .noData
@@ -51,57 +60,51 @@ final class HealthSyncManager: Sendable {
             }
         }
 
-        let readGeneration = await DeletionStep.run(for: enabledTypes)
-
-        do {
-            let healthData = try await healthKit.readHealthData(for: enabledTypes)
-
-            guard !healthData.isEmpty else {
-                return await postDeletionsOnly(readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: nil) ?? .noData
-            }
-
-            var payload: [String: Any] = healthData
-            payload["timestamp"] = Date().iso8601String
-            payload["app_version"] = appVersion
-            payload["source"] = "healthkit_ios"
-            let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
-            let totalsDay = await attachDailyTotals(to: &payload, types: enabledTypes)
-
-            // Publish latest values to MQTT (Home Assistant Discovery) when configured;
-            // failures never block the webhook sync and surface in the MQTT section status.
-            if prefs.mqttConfigured {
-                let newest = await healthKit.newestRecords(for: enabledTypes, in: healthData)
-                await MqttPublisher.shared.publish(healthPayload: withDailyTotals(newest, from: payload))
-            }
-
-            var syncCounts: [HealthDataType: Int] = [:]
-            let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
-
-            let outcome = await send(
-                payload, totalsDay: totalsDay, recordCount: totalRecords,
-                urls: webhookUrls, headers: headers, deletions: deletions, commit: nil
-            )
-            guard let outcome else { return .failure(error: AppDiagnostic.serializeFailed.rawValue) }
-            return outcome.delivered
-                ? .success(syncCounts: syncCounts, reach: outcome.reach)
-                : .failure(error: AppDiagnostic.queuedForRetry.rawValue)
-        } catch {
-            return readFailed(error)
+        let result = await gated(enabledTypes) { types in await self.catchUp(types) }
+        if prefs.mqttConfigured, !Task.isCancelled {
+            await publishNewest(of: enabledTypes)
         }
+        return result
+    }
+
+    /// Incremental passes over `types`, see `CatchUpPasses`.
+    private func catchUp(_ types: Set<HealthDataType>) async -> HealthSyncResult {
+        let startedAt = Date()
+        return await CatchUpPasses(
+            pass: { round in await self.runIncrementalSync(types: round, publishesToMqtt: false) },
+            hasTime: {
+                let remaining = await MainActor.run { UIApplication.shared.backgroundTimeRemaining }
+                return DrainBudget.allowsAnotherPost(elapsed: Date().timeIntervalSince(startedAt), backgroundTimeRemaining: remaining)
+            }
+        ).run(types)
+    }
+
+    /// The newest value of each type on the broker, failures in the MQTT status as always. A
+    /// type that cannot be read is left alone there.
+    private func publishNewest(of types: Set<HealthDataType>) async {
+        guard let healthData = try? await healthKit.readHealthData(for: types) else { return }
+        await MqttPublisher.shared.publish(healthPayload: await healthKit.newestRecords(for: types, in: healthData))
     }
 
     /// Reading failed before anything was sent, so the row names Apple Health and not a
     /// webhook URL or a broker that was never contacted.
     private func readFailed(_ error: Error) -> HealthSyncResult {
+        // Cut off, as a HealthKit wakeup is at its budget: every read threw for that, which
+        // says nothing about Apple Health, so no row blames it.
+        if Task.isCancelled { return .failure(error: AppDiagnostic.interrupted.rawValue) }
+        // Stored in English, like every message the app writes itself.
+        let message = error is HealthKitManager.NoTypeAnswered
+            ? AppDiagnostic.healthUnanswered.rawValue
+            : error.localizedDescription
         let log = WebhookLog(
             url: SyncStats.readFailureSource,
             success: false,
-            errorMessage: error.localizedDescription,
+            errorMessage: message,
             dataType: WebhookLog.readFailureDataType,
             logType: .healthConnect
         )
         prefs.addWebhookLog(log)
-        return .failure(error: error.localizedDescription)
+        return .failure(error: message)
     }
 
     /// A sync with the MQTT broker and no webhook URL, as on Android: the latest value of each
@@ -138,21 +141,36 @@ final class HealthSyncManager: Sendable {
     /// Callers go through SyncCoordinator, whose one flight already keeps syncs apart; this
     /// gate holds the anchors safe for any caller that does not.
     func performIncrementalSync(types: Set<HealthDataType>) async -> HealthSyncResult {
+        await gated(types) { round in await self.runIncrementalSync(types: round).result }
+    }
+
+    /// Runs `body` with `types` inside the incremental gate, and once more for the types any
+    /// caller handed over meanwhile.
+    private func gated(
+        _ types: Set<HealthDataType>,
+        _ body: (Set<HealthDataType>) async -> HealthSyncResult
+    ) async -> HealthSyncResult {
         guard await incrementalGate.enter(types) else { return .noData }
         var round = types
         var result = HealthSyncResult.noData
         while true {
-            result = result.merged(with: await runIncrementalSync(types: round))
+            result = result.merged(with: await body(round))
             guard let pending = await incrementalGate.next() else { return result }
             round = pending
         }
     }
 
-    private func runIncrementalSync(types: Set<HealthDataType>) async -> HealthSyncResult {
+    /// One incremental read and its delivery. `behind` names the types it left records behind
+    /// for, past the cap or still catching up on their first week, which another pass can
+    /// take. `publishesToMqtt` is false for Sync Now, which publishes every type at the end.
+    private func runIncrementalSync(
+        types: Set<HealthDataType>,
+        publishesToMqtt: Bool = true
+    ) async -> (result: HealthSyncResult, behind: Set<HealthDataType>) {
         let webhookUrls = prefs.healthWebhookUrls
         let headers = prefs.healthWebhookHeaders
 
-        guard !types.isEmpty, !webhookUrls.isEmpty || prefs.mqttConfigured else { return .noData }
+        guard !types.isEmpty, !webhookUrls.isEmpty || prefs.mqttConfigured else { return (.noData, []) }
 
         guard !webhookUrls.isEmpty else {
             do {
@@ -161,16 +179,18 @@ final class HealthSyncManager: Sendable {
                 // read is done.
                 switch try await healthKit.readIncrementalData(for: types) {
                 case .protectedDataUnavailable:
-                    return .failure(error: AppDiagnostic.deviceLocked.rawValue)
+                    return (.failure(error: AppDiagnostic.deviceLocked.rawValue), [])
+                case .unanswered:
+                    return (readFailed(HealthKitManager.NoTypeAnswered()), [])
                 case .empty(let commit):
                     commit.save()
-                    return .noData
+                    return (.noData, commit.behind)
                 case .data(let healthData, let commit, let notCurrent):
                     commit.save()
-                    return await publishOnly(healthData, sensorsFrom: current(healthData, leaving: notCurrent))
+                    return (await publishOnly(healthData, sensorsFrom: current(healthData, leaving: notCurrent)), commit.behind)
                 }
             } catch {
-                return .failure(error: error.localizedDescription)
+                return (.failure(error: error.localizedDescription), [])
             }
         }
 
@@ -183,20 +203,30 @@ final class HealthSyncManager: Sendable {
 
             switch readResult {
             case .protectedDataUnavailable:
-                return .failure(error: AppDiagnostic.deviceLocked.rawValue)
+                return (.failure(error: AppDiagnostic.deviceLocked.rawValue), [])
+            case .unanswered:
+                // As on Android: deletions read before still go out, and a sync that sent them
+                // did something. Without them, no type answering is a failure, not "no data".
+                if let result = await postDeletionsOnly(
+                    readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: nil
+                ) {
+                    return (result, [])
+                }
+                return (readFailed(HealthKitManager.NoTypeAnswered()), [])
             case .empty(let commit):
                 guard let result = await postDeletionsOnly(
                     readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: commit
                 ) else {
                     commit.save()
-                    return .noData
+                    return (.noData, commit.behind)
                 }
-                return result
+                return (result, commit.behind)
             case .data(let healthData, let commit, let notCurrent):
                 var payload: [String: Any] = healthData
                 payload["timestamp"] = Date().iso8601String
                 payload["app_version"] = appVersion
                 payload["source"] = "healthkit_ios"
+                payload["sequence"] = sequence.next()
                 let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
                 let totalsDay = await attachDailyTotals(to: &payload, types: prefs.healthEnabledDataTypes)
 
@@ -207,7 +237,7 @@ final class HealthSyncManager: Sendable {
                     payload, totalsDay: totalsDay, recordCount: totalRecords,
                     urls: webhookUrls, headers: headers, deletions: deletions, commit: commit
                 )
-                guard let outcome else { return .failure(error: AppDiagnostic.serializeFailed.rawValue) }
+                guard let outcome else { return (.failure(error: AppDiagnostic.serializeFailed.rawValue), []) }
                 let result: HealthSyncResult = outcome.delivered
                     ? .success(syncCounts: syncCounts, reach: outcome.reach)
                     : .failure(error: AppDiagnostic.queuedForRetry.rawValue)
@@ -215,13 +245,13 @@ final class HealthSyncManager: Sendable {
                 // Last, once the webhook's payload is delivered or queued: a HealthKit wakeup's
                 // time budget is for that first. New records only, so a type without any keeps
                 // its retained value on the broker.
-                if !Task.isCancelled {
+                if publishesToMqtt, !Task.isCancelled {
                     await MqttPublisher.shared.publish(healthPayload: withDailyTotals(current(healthData, leaving: notCurrent), from: payload))
                 }
-                return result
+                return (result, commit.behind)
             }
         } catch {
-            return .failure(error: error.localizedDescription)
+            return (.failure(error: error.localizedDescription), [])
         }
     }
 
@@ -265,15 +295,16 @@ final class HealthSyncManager: Sendable {
 
     /// Delivers what earlier syncs queued, oldest first, one drain at a time. Called through
     /// SyncCoordinator; the drain's own flight still keeps a payload from going out twice
-    /// should anything else call it.
-    func drainPendingQueue() async {
+    /// should anything else call it. `retryRefused` is Retry Now: a payload refused less than
+    /// a day ago goes too.
+    func drainPendingQueue(retryRefused: Bool = false) async {
         await drainFlight.run { [self] in
-            await drainPendingQueueOnce()
+            await drainPendingQueueOnce(retryRefused: retryRefused)
         }
     }
 
     /// Delivers the queue (see `QueueDrain`), and reports what it dropped.
-    private func drainPendingQueueOnce() async {
+    private func drainPendingQueueOnce(retryRefused: Bool) async {
         let items = pendingStore.dequeueAll()
         guard !items.isEmpty else { return }
 
@@ -283,8 +314,14 @@ final class HealthSyncManager: Sendable {
         let pendingStore = self.pendingStore
         let logger = self.logger
         var dropped: [(PendingSyncItem, QueueDrop)] = []
+        let startedAt = Date()
         await QueueDrain(
-            now: Date(),
+            now: startedAt,
+            retryRefused: retryRefused,
+            hasTime: {
+                let remaining = await MainActor.run { UIApplication.shared.backgroundTimeRemaining }
+                return DrainBudget.allowsAnotherPost(elapsed: Date().timeIntervalSince(startedAt), backgroundTimeRemaining: remaining)
+            },
             urls: { prefs.healthWebhookUrls },
             headers: { prefs.healthWebhookHeaders },
             post: { item, urls, headers in
@@ -299,7 +336,9 @@ final class HealthSyncManager: Sendable {
             },
             remove: { pendingStore.remove(id: $0.id) },
             attempt: { item, delivery in
-                pendingStore.updateAttempt(id: item.id, error: delivery.error, statusCode: delivery.statusCode)
+                pendingStore.updateAttempt(
+                    id: item.id, error: delivery.error, statusCode: delivery.statusCode, refused: delivery.outcome == .refused
+                )
                 logger.info("Pending sync item \(item.id) not delivered: \(delivery.error ?? "", privacy: .public)")
             },
             // A delivered retry is a delivered sync: the widget counts its records and the
@@ -318,12 +357,14 @@ final class HealthSyncManager: Sendable {
         for (item, reason) in dropped {
             prefs.addWebhookLog(PendingSyncStore.droppedLog(for: item, reason: reason))
         }
-        logger.error("Dropped \(dropped.count) undelivered payload(s) older than a week from the queue")
+        logger.error("Dropped \(dropped.count) undelivered payload(s) from the queue")
         SyncFailureNotifier.shared.notifyDropped(count: dropped.count)
     }
 
     // MARK: - Preview
 
+    /// What View and Export show: no `sequence`, since looking is not sending, and a number
+    /// taken here would leave a gap in what a receiver sees.
     func buildPreviewPayload() async throws -> [String: Any] {
         let enabledTypes = prefs.healthEnabledDataTypes
 
@@ -369,12 +410,13 @@ final class HealthSyncManager: Sendable {
         ]
         let deletions = await attachDeletions(to: &payload, records: [:], readGeneration: readGeneration)
         guard !deletions.summary.isEmpty else { return nil }
+        payload["sequence"] = sequence.next()
 
         let outcome = await send(
             payload, totalsDay: nil, recordCount: 0,
             urls: urls, headers: headers, deletions: deletions, commit: commit
         )
-        guard let outcome else { return nil }
+        guard let outcome else { return .failure(error: AppDiagnostic.serializeFailed.rawValue) }
         return outcome.delivered
             ? .success(syncCounts: [:], reach: outcome.reach)
             : .failure(error: AppDiagnostic.queuedForRetry.rawValue)
@@ -391,8 +433,10 @@ final class HealthSyncManager: Sendable {
     /// goes out twice, which the receiver deduplicates on `uuid`.
     ///
     /// The live post carries today's daily totals; the queued copy leaves them out (see
-    /// `queuedBody`). Nil when the payload cannot be serialized: the anchors are saved anyway,
-    /// since reading the same records again would fail the same way every sync.
+    /// `queuedBody`). Nil when the payload cannot be serialized: nothing is queued or posted,
+    /// the anchors stay where they were and the deletions in the store, so no record is
+    /// skipped, and a failed row says why. A sync that keeps failing this way shows it on
+    /// every run instead of losing the records without a word.
     private func send(
         _ payload: [String: Any],
         totalsDay: String?,
@@ -402,8 +446,9 @@ final class HealthSyncManager: Sendable {
         deletions: DeletionPlan,
         commit: AnchorCommit?
     ) async -> WebhookManager.Delivery? {
-        guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
-            commit?.save()
+        guard let body = PayloadBody.encode(payload) else {
+            logger.error("Sync payload (\(recordCount) records) cannot be serialized; the anchors stay")
+            prefs.addWebhookLog(PayloadBody.unserializableLog(urls: urls, recordCount: recordCount))
             return nil
         }
         let queued = queuedBody(body, payload: payload, totalsDay: totalsDay)
@@ -421,7 +466,12 @@ final class HealthSyncManager: Sendable {
                     recordCount: recordCount
                 )?.id
                 // On its way, not waiting: the Health tab leaves it out of the pending count.
-                if let queuedId { pendingStore.beginSending(id: queuedId) }
+                if let queuedId {
+                    pendingStore.beginSending(id: queuedId)
+                    // Reported before the post: iOS may end the app during it, and the payloads
+                    // pushed out are gone already.
+                    self.reportDropped(pendingStore.enforceCap(keeping: queuedId).map { ($0, .full) })
+                }
                 return queuedId
             },
             commit: {
@@ -440,7 +490,9 @@ final class HealthSyncManager: Sendable {
             },
             delivered: { pendingStore.remove(id: $0) },
             failed: { id, delivery in
-                pendingStore.updateAttempt(id: id, error: delivery.error, statusCode: delivery.statusCode)
+                pendingStore.updateAttempt(
+                    id: id, error: delivery.error, statusCode: delivery.statusCode, refused: delivery.outcome == .refused
+                )
             }
         ).run()
 
@@ -475,7 +527,7 @@ final class HealthSyncManager: Sendable {
     private func queuedBody(_ body: Data, payload: [String: Any], totalsDay: String?) -> Data {
         guard let totalsDay else { return body }
         let queued = DailyTotals.forQueue(payload, builtOn: totalsDay)
-        return (try? JSONSerialization.data(withJSONObject: queued, options: [.sortedKeys])) ?? body
+        return PayloadBody.encode(queued) ?? body
     }
 
     // MARK: - Private Helpers
@@ -507,6 +559,58 @@ extension HealthSyncResult {
                 reach: firstReach.merged(with: secondReach)
             )
         }
+    }
+}
+
+/// The `sequence` every payload carries, live, deletions only, queued or backfill, Android's
+/// counter under Android's key: one number per payload, taken when the payload is built and
+/// one higher than the last, also after the app was ended. A queued payload keeps the number
+/// it was built with, so a receiver that keeps the highest sequence it applied can tell a
+/// retry that arrives after a newer payload, and ignore it. The preview and the export take
+/// none.
+///
+/// The lock keeps two payloads built at once, a sync and a backfill, from sharing a number.
+final class PayloadSequence: @unchecked Sendable {
+    static let shared = PayloadSequence(defaults: .standard)
+    static let key = "health_sync_sequence"
+
+    private let defaults: UserDefaults
+    private let lock = NSLock()
+
+    init(defaults: UserDefaults) {
+        self.defaults = defaults
+    }
+
+    func next() -> Int {
+        lock.withLock {
+            let value = defaults.integer(forKey: PayloadSequence.key) + 1
+            defaults.set(value, forKey: PayloadSequence.key)
+            return value
+        }
+    }
+}
+
+/// A payload as the JSON that goes out.
+enum PayloadBody {
+    /// The payload's JSON, nil when it cannot be JSON. JSONSerialization raises an Objective-C
+    /// exception for a value JSON cannot hold, such as a NaN, which `try?` does not catch and
+    /// which ends the app, so the payload is checked first.
+    static func encode(_ payload: [String: Any]) -> Data? {
+        guard JSONSerialization.isValidJSONObject(payload) else { return nil }
+        return try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+    }
+
+    /// The failed row for a sync payload that could not be serialized: no webhook was
+    /// contacted, and there is no payload to show.
+    static func unserializableLog(urls: [String], recordCount: Int) -> WebhookLog {
+        WebhookLog(
+            url: urls.joined(separator: ", "),
+            success: false,
+            errorMessage: AppDiagnostic.serializeFailed.rawValue,
+            dataType: "health_connect",
+            recordCount: recordCount,
+            logType: .healthConnect
+        )
     }
 }
 
@@ -543,6 +647,50 @@ struct WriteAhead {
     }
 }
 
+/// Sync Now's passes, as Android's sync loops while a type is capped: each pass reads only the
+/// types the one before left behind, at most 8 passes, within the same time budget as a drain
+/// (see `DrainBudget`), so in the background it stops while the time iOS gives still covers a
+/// post. A pass that failed ends it: what it read waits in the retry queue, and more passes
+/// would only queue more. One that found nothing to send, a page of deletions or an empty
+/// stretch of a first week, goes on while a type is behind. Apart from HealthKit and the
+/// network, so the tests can run it.
+struct CatchUpPasses {
+    static let maxPasses = 8
+
+    var pass: (Set<HealthDataType>) async -> (result: HealthSyncResult, behind: Set<HealthDataType>)
+    /// Asked before every pass after the first; false ends them.
+    var hasTime: () async -> Bool
+
+    func run(_ types: Set<HealthDataType>) async -> HealthSyncResult {
+        var result = HealthSyncResult.noData
+        var round = types
+        for number in 1...CatchUpPasses.maxPasses {
+            let outcome = await pass(round)
+            result = result.merged(with: outcome.result)
+            if case .failure = outcome.result { break }
+            guard number < CatchUpPasses.maxPasses, !outcome.behind.isEmpty, !Task.isCancelled, await hasTime() else { break }
+            round = outcome.behind
+        }
+        return result
+    }
+}
+
+/// How long one drain may go on posting. Android's PendingDrainer stops after 2 minutes: a full
+/// queue of 700 payloads at a second each would hold the sync behind it for over ten. In the
+/// background iOS gives far less, about 30 seconds to a HealthKit wakeup or a background task
+/// and to Sync Now once the app leaves the screen, and suspends the app when it is up; a post
+/// cut off there is only sent again later, and the sync after the drain never runs. So the
+/// drain also stops while some of that time is left, `backgroundReserve`, for the sync. On
+/// screen iOS reports no limit, and only the 2 minutes count.
+enum DrainBudget {
+    static let seconds: TimeInterval = 120
+    static let backgroundReserve: TimeInterval = 10
+
+    static func allowsAnotherPost(elapsed: TimeInterval, backgroundTimeRemaining: TimeInterval) -> Bool {
+        elapsed < seconds && backgroundTimeRemaining > backgroundReserve
+    }
+}
+
 /// One pass over the retry queue, oldest first, apart from the stores and the network so the
 /// tests can run it. Every item is posted with the webhook settings of that moment, as Android's
 /// PendingDrainer does: to the URLs configured now, which WebhookManager gives the headers
@@ -552,13 +700,23 @@ struct WriteAhead {
 /// The pass stops at the first item that fails, so the rest wait in order for a receiver that
 /// answers again. An item refused for what it carries (400, 413, 422) does not hold them up: it
 /// is skipped and stays queued, since the refusal can also come from a receiver bug that an
-/// update fixes. An interruption ends the pass without counting an attempt.
+/// update fixes. It is offered again once a day, not on every pass, which would add a failed
+/// row to the log for every sync of the week; Retry Now offers it at once. An interruption
+/// ends the pass without counting an attempt.
 ///
-/// An item older than a week is dropped when a delivery of it fails, refused or not: a phone
-/// that got no chance to sync for a week still tries once. One item goes per failed pass, so
-/// while a receiver stays down the queue holds about a week, however long the outage.
+/// An item older than a week is dropped when a receiver answers a delivery of it with a
+/// failure, refused or not: a phone that got no chance to sync for a week still tries once. A
+/// delivery that reached no receiver, the iPhone offline, a name that does not resolve, a
+/// timeout, or one that iOS cut off, drops nothing however old the item is, as on Android,
+/// whose outbox drops by age only what was refused. `PendingSyncStore.maxItems` bounds the
+/// queue instead.
 struct QueueDrain {
     var now: Date
+    /// Retry Now: refused items go too, however recently they were refused.
+    var retryRefused = false
+    /// Asked before every post; false ends the pass and leaves the rest for the next drain
+    /// (see `DrainBudget`).
+    var hasTime: () async -> Bool = { true }
     /// The URLs configured now; none leaves every item waiting.
     var urls: () -> [String]
     var headers: () -> [String: String]
@@ -572,6 +730,8 @@ struct QueueDrain {
 
     func run(_ items: [PendingSyncItem]) async {
         for item in items {
+            if !retryRefused && item.restsAfterRefusal(at: now) { continue }
+            guard await hasTime() else { return }
             let urls = urls()
             guard !urls.isEmpty else { return }
             let delivery = await post(item, urls, headers())
@@ -590,7 +750,7 @@ struct QueueDrain {
                     attempt(item, delivery)
                 }
             case .failed:
-                if expired {
+                if expired && delivery.receiverAnswered {
                     remove(item)
                     dropped(item, .undelivered)
                 } else {
@@ -600,4 +760,11 @@ struct QueueDrain {
             }
         }
     }
+}
+
+extension WebhookManager.Delivery {
+    /// Every URL that failed got an HTTP answer: the failure is the servers', not the
+    /// network's. With one URL answering 502 and another unreachable it is false, whichever
+    /// came last, and the queue keeps waiting.
+    var receiverAnswered: Bool { statusCode != nil && !unanswered }
 }

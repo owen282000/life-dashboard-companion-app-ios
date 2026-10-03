@@ -69,7 +69,7 @@ final class HealthBackfillTests: XCTestCase {
         stop: BackfillJob.PauseReason? = nil
     ) -> BackfillEngine {
         let fixed = now
-        return BackfillEngine(
+        var engine = BackfillEngine(
             reader: reader,
             sink: sink,
             appVersion: "9.9.9",
@@ -77,7 +77,18 @@ final class HealthBackfillTests: XCTestCase {
             shouldStop: { stop },
             now: { fixed }
         )
+        let counter = sequence
+        engine.sequence = { counter.next() }
+        return engine
     }
+
+    /// A counter of the test's own, so the app's is left alone.
+    private lazy var sequence: PayloadSequence = {
+        let suite = "backfill-tests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        self.addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        return PayloadSequence(defaults: defaults)
+    }()
 
     private func job(days: Int) -> BackfillJob {
         BackfillJob(days: days, range: BackfillPlan.range(days: days, now: now), now: now)
@@ -144,6 +155,7 @@ final class HealthBackfillTests: XCTestCase {
             window: window,
             extras: ["daily_totals": [["date": "2023-11-14"]]],
             appVersion: "9.9.9",
+            sequence: 42,
             now: now
         ))
         let text = try XCTUnwrap(String(data: body, encoding: .utf8))
@@ -155,7 +167,8 @@ final class HealthBackfillTests: XCTestCase {
         XCTAssertEqual(json["source"] as? String, "healthkit_ios")
         XCTAssertNotNil(json["daily_totals"])
         XCTAssertNotNil(json["steps"])
-        for key in ["sequence", "deleted_records", "deletions_unavailable", "writeback", "_diagnostics"] {
+        XCTAssertEqual(json["sequence"] as? Int, 42, "the syncs' counter, as on Android")
+        for key in ["deleted_records", "deletions_unavailable", "writeback", "_diagnostics"] {
             XCTAssertNil(json[key], key)
         }
     }
@@ -178,6 +191,7 @@ final class HealthBackfillTests: XCTestCase {
         let bodies = decoded(await sink.sent)
         XCTAssertEqual(bodies.count, 3)
         XCTAssertTrue(bodies.allSatisfy { ($0["heart_rate"] as? [Any])?.count ?? 0 < 1000 })
+        XCTAssertEqual(bodies.map { $0["sequence"] as? Int }, [1, 2, 3], "one number per payload, in the order they go")
         // Weight is done after the first chunk and is not read again.
         let weights = await sink.uuids("weight")
         XCTAssertEqual(weights, ["w0", "w1", "w2"])
