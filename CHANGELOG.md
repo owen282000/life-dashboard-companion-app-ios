@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-03
+
 ### Added
 
 - Data resolution per type, as in the Android app: under Data Resolution in the Advanced card on the Health tab, heart rate, heart rate variability, oxygen saturation, respiratory rate, steps, distance, active calories and total calories can each be sent as one value per 1, 5 or 15 minutes, or per hour, instead of every record. Measurements are averaged with their `min` and `max`, quantities summed into `total`, every bucket carries `bucket_start`, `bucket_end` and `sample_count`, and `_resolutions` names the window per series, the Android app's shape. A window still filling is held on the iPhone until it closes, saved together with how far the sync has read, so a sync that iOS cuts off sends it neither twice nor without those samples. Sync Now, the automatic syncs and the Sync Health Data action all send a window once, so a receiver that adds buckets up, as the Life Dashboard integration does, counts nothing twice. Backfill sends each window once, whole, with the backfill window it starts in. A type set back to every record sends what it was holding as records. MQTT, deletions and `daily_totals` are unchanged. Everything starts at every record, and the setting travels in the settings backup under Android's `series_resolutions`
@@ -204,7 +206,8 @@ All notable changes to this project are documented in this file. The format is b
 - Offline queue with retries and exponential backoff
 - Webhook logs with CSV/JSON export and payload preview
 
-[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.5.0...HEAD
+[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.6.0...HEAD
+[1.6.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.5.0...1.6.0
 [1.5.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.4.1...1.5.0
 [1.4.1]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.4.0...1.4.1
 [1.4.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.3.0...1.4.0
