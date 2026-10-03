@@ -142,14 +142,22 @@ final class UIParityTests: XCTestCase {
 
     // MARK: - About
 
-    /// Every link goes to the iOS repository. The Android slug is a prefix of the iOS one, so
-    /// the path is compared component by component.
+    /// Every link goes to the iOS repository, except the privacy policy, which has a page of its
+    /// own. The Android slug is a prefix of the iOS one, so the path is compared component by
+    /// component.
     func testAboutLinksPointAtTheIOSRepository() {
-        for url in AboutLinks.all {
+        for url in AboutLinks.all where url != AboutLinks.privacy {
             XCTAssertEqual(url.host, "github.com", url.absoluteString)
             XCTAssertEqual(Array(url.pathComponents.prefix(3)), ["/", "owen282000", "life-dashboard-companion-app-ios"], url.absoluteString)
         }
         XCTAssertEqual(AboutLinks.repository.lastPathComponent, AboutLinks.repositorySlug.components(separatedBy: "/").last)
+    }
+
+    /// The address App Store Connect has as the privacy policy URL, on HTTPS and for iOS.
+    func testThePrivacyPolicyLinkIsTheIOSPolicyPage() {
+        XCTAssertEqual(AboutLinks.privacy.scheme, "https")
+        XCTAssertEqual(AboutLinks.privacy.host, "owen282000.github.io")
+        XCTAssertEqual(AboutLinks.privacy.pathComponents, ["/", "life-dashboard-companion", "ios", "privacy"])
     }
 
     func testTheTipLinkIsNotAmongTheLinksEveryBuildShows() {

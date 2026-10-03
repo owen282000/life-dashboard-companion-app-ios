@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 /// Every link on About, built on the iOS repository so none can point at the Android app's.
+/// The privacy policy has a page of its own, the address App Store Connect has too.
 enum AboutLinks {
     static let repository = URL(string: "https://github.com/owen282000/life-dashboard-companion-app-ios")!
     static let repositorySlug = "owen282000/life-dashboard-companion-app-ios"
@@ -9,7 +10,7 @@ enum AboutLinks {
     static let changelog = repository.appending(path: "blob/main/CHANGELOG.md")
     static let newIssue = repository.appending(path: "issues/new")
     static let licence = repository.appending(path: "blob/main/LICENSE")
-    static let privacy = URL(string: repository.absoluteString + "#privacy")!
+    static let privacy = URL(string: "https://owen282000.github.io/life-dashboard-companion/ios/privacy/")!
     /// Only in builds run from source; see the Buy me a coffee row.
     static let tip = URL(string: "https://ko-fi.com/owen282000")!
 
@@ -454,7 +455,7 @@ struct PrivacyPolicyScreen: View {
 
                 LinkCard(
                     title: "Read the full privacy policy",
-                    subtitle: Text("Privacy in the README on GitHub"),
+                    subtitle: Text(verbatim: "owen282000.github.io"),
                     systemImage: "hand.raised",
                     url: AboutLinks.privacy
                 )

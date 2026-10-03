@@ -117,7 +117,7 @@ The payload is the Android app's: the same keys, fields, units and signing. Ever
 
 ## Privacy
 
-Life Dashboard Companion is a self-hosting tool. It reads health data on your iPhone and sends it only to servers you set up yourself. The developer never receives, stores or sees any of your data. The same policy is in the app, under About.
+Life Dashboard Companion is a self-hosting tool. It reads health data on your iPhone and sends it only to servers you set up yourself. The developer never receives, stores or sees any of your data. The same policy is in the app, under About, and on [a page of its own](https://owen282000.github.io/life-dashboard-companion/ios/privacy/), the address App Store Connect links to.
 
 - **What the app reads** - Apple Health data, only for the types you switch on and only after you allow them in the Health access sheet. With Backfill, also older records for the range you pick. When you delete a record in Apple Health, the next sync reports its id so your server can remove it too. The camera is used only by the pairing scanner, while that screen is open: frames are decoded on the phone and are never stored or sent.
 - **What the app writes** - nothing. The app only asks Apple Health for read access.

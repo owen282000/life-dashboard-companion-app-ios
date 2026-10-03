@@ -5769,22 +5769,6 @@
         }
       }
     },
-    "Privacy in the README on GitHub" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Datenschutz in der README auf GitHub"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Privacy in de README op GitHub"
-          }
-        }
-      }
-    },
     "Privacy policy" : {
       "localizations" : {
         "de" : {
