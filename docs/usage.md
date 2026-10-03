@@ -41,7 +41,7 @@ After the setup:
 1. **Grant Apple Health access.** When a type is on that iOS has not asked about yet, the green Apple Health banner shows **Grant**. iOS never tells an app whether you allowed reading, so a type you declined simply sends nothing; change it in the Health app under your profile, Apps, Life Dashboard.
 2. **Add webhook headers** (optional), such as an auth token or API key, and an **HMAC Signing Secret** if your receiver checks signatures.
 3. **Set the sync schedule**: an interval (at least 15 minutes) or fixed times, with optional weekdays and quiet hours. On iOS a fixed time means "not before"; see [Sync scheduling](features.md#sync-scheduling).
-4. **Tap View** to see the payload, then **Sync Now** to send it.
+4. **Tap View** to see the last 7 days as a payload, then **Sync Now** to send what is new. A type's first sync sends its last 7 days.
 
 **Test ping** checks that your server accepts a POST before you wait for real data. iOS asks once for access to the local network the first time the app talks to an address on it; allow it, or nothing reaches a server at home.
 
@@ -78,7 +78,21 @@ iOS decides in advance which plain `http://` addresses an app may use: an IP add
 
 Two iPhones on one broker: give each a **Phone name** at the bottom of the MQTT card, and each becomes a device of its own, with the name in its device, ids and topics. The Android app and the iPhone already use different devices and topics, so they need no name for each other. Leave it empty on a single iPhone: then nothing changes. After a rename, the next sync removes the old device's sensors from the broker.
 
-Steps, distance and calories are today's totals, the other sensors hold the latest record of their type; [features.md](features.md#home-assistant-and-mqtt) lists them. MQTT has no retry queue and gets no deleted records or backfill. If you add a webhook URL later, it gets what is new from then on; **Sync Now** or **Backfill** sends what came before. Values are published retained, so they survive a Home Assistant restart. The Logs tab shows every publish, with the broker's answer when it fails.
+Steps, distance and calories are today's totals, the other sensors hold the latest record of their type; [features.md](features.md#home-assistant-and-mqtt) lists them. MQTT has no retry queue and gets no deleted records or backfill. If you add a webhook URL later, it gets what is new from then on; **Backfill** sends what came before. Values are published retained, so they survive a Home Assistant restart. The Logs tab shows every publish, with the broker's answer when it fails.
+
+## A server that requires a client certificate
+
+For a Home Assistant or other receiver behind a reverse proxy that asks for a client certificate (mTLS):
+
+1. Export the certificate together with its private key as a `.p12` file (PKCS #12) with a password, and save it to Files, through AirDrop or iCloud Drive for example. With OpenSSL: `openssl pkcs12 -export -inkey client.key -in client.crt -certfile ca.crt -out client.p12`.
+2. On the Health tab, expand **Advanced**, tap **Import** next to **Client certificate (mTLS)**, pick the file and enter its password.
+3. Tap **Test ping**.
+
+The row shows the certificate's name and its expiry date, with a warning from a month before it expires. Every webhook whose server asks for a certificate gets this one, background syncs, the test ping and the pairing check included; MQTT is unaffected. The certificate and its key are kept in this iPhone's Keychain, the password is not kept at all. **Replace** imports another file, **Remove** deletes the certificate from the iPhone. The `.p12` file in Files can go once it is imported.
+
+A certificate installed as a profile in Settings does not work here: iOS keeps those for Safari and Apple's own apps.
+
+Over TLS 1.3 the certificate travels encrypted. Over TLS 1.2 it is sent in the clear during the handshake, so anyone on the network path can read its name; set the reverse proxy to TLS 1.3 where you can.
 
 ## Syncing without opening the app
 
@@ -86,7 +100,7 @@ Steps, distance and calories are today's totals, the other sensors hold the late
 - **Control Center** (iOS 18 and later). Open Control Center, tap **+** > **Add a Control**, search for Life Dashboard and pick **Sync Now**. It is the Android app's Quick Settings tile.
 - **Shortcuts and Siri.** The **Sync Health Data** action, in a shortcut, an automation or by voice.
 
-All three run the same action: it sends what is queued and what is new since the last sync, where **Sync Now** in the app sends the last 7 days again. Health data cannot be read while the iPhone is locked, so unlock it first; a control on the Lock Screen syncs nothing until then. Together they sync at most once a minute, like the Android app's sync broadcast, so a second tap within a minute does nothing.
+All three run the same action: it sends what is queued and what is new since the last sync. **Sync Now** in the app does the same, but catches up on a long backlog in up to 8 rounds at once, and publishes every sensor to MQTT. Health data cannot be read while the iPhone is locked, so unlock it first; a control on the Lock Screen syncs nothing until then. Together they sync at most once a minute, like the Android app's sync broadcast, so a second tap within a minute does nothing.
 
 ## Troubleshooting
 
@@ -110,17 +124,23 @@ A sync or backfill that starts while the iPhone is locked cannot read Apple Heal
 - A plain `http://` address must be an IP address, a `.local` name or a name without a dot; see [Pairing by QR code](#pairing-by-qr-code)
 - **Test ping** and the Logs tab show the error the server or iOS gave
 
+### "Client certificate is unavailable"
+
+The app has a client certificate on record, but this iPhone's Keychain does not hold it. That happens on an iPhone set up from a backup of another one, or with Quick Start: the settings come along, the certificate never leaves the iPhone it was imported on. No webhook is sent until you import the `.p12` file again under **Advanced**, or **Remove** the certificate when the server no longer requires one.
+
+When the certificate is there and the server still refuses the connection, the server does not trust the authority that issued it, or it has expired; the expiry date is under **Advanced**. nginx answers HTTP 400 with "No required SSL certificate was sent" when no certificate arrived at all.
+
 ### MQTT sensors do not update
 
 Every sync with new records publishes today's totals and the types that have them, so a sensor only changes when new data arrives; a type that is still catching up on a long backlog is published once it has caught up, and a record dated before the sensor's value, such as a weight entered for last week, does not replace it. A broker that does not answer within 10 seconds, such as a home address dialled from outside the home network, fails the sync. If a publish fails, the Logs tab shows the broker's error; `NOT_AUTHORIZED` means the username or password is wrong.
 
 ### Queued payloads disappear
 
-A payload that could not be delivered is kept for 7 days, however many attempts that takes. After that, the next delivery that fails drops it. Each dropped payload leaves a row in the Logs tab with the payload and why it never arrived, and a notification says how many syncs were lost. The Health tab shows how many are pending, and **Retry Now** sends them at once, to the webhook URLs and with the headers configured now. A payload the receiver refuses for what it carries (HTTP 400, 413 or 422) stays queued without holding up the others; the receiver's own log says why it refuses it.
+A payload that could not be delivered stays queued, however many attempts that takes. While the iPhone cannot reach the receiver, offline or with a name that does not resolve, it waits for good. Once it is older than 7 days, the next delivery that the receiver answers with an error drops it. The queue holds up to 700 payloads, as in the Android app; past that the oldest one is dropped. Each dropped payload leaves a row in the Logs tab with the payload and why it never arrived, and a notification says how many syncs were lost. The Health tab shows how many are pending, and **Retry Now** sends them at once, to the webhook URLs and with the headers configured now. A payload the receiver refuses for what it carries (HTTP 400, 413 or 422) stays queued without holding up the others and is tried again once a day, or at once with **Retry Now**; the receiver's own log says why it refuses it.
 
 ### Step, distance or calorie totals are far too high
 
-Apple Health often holds the same activity from the iPhone and the Watch, each as records of its own. Summing the raw records counts it twice. Use [`daily_totals`](webhook.md#daily-totals) for day totals, which are deduplicated by HealthKit the way the Health app does it, and deduplicate raw records on `uuid`, since Sync Now sends the last 7 days again and a delivery that iOS cut off is sent once more.
+Apple Health often holds the same activity from the iPhone and the Watch, each as records of its own. Summing the raw records counts it twice. Use [`daily_totals`](webhook.md#daily-totals) for day totals, which are deduplicated by HealthKit the way the Health app does it, and deduplicate raw records on `uuid`, since a backfill sends its range again and a delivery that iOS cut off is sent once more.
 
 ### The app says a pairing code is from a newer version
 

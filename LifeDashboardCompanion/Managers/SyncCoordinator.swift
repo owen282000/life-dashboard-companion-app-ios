@@ -41,9 +41,13 @@ actor SyncCoordinator {
         var schedule: @Sendable () -> SyncSchedule
         var loadState: @Sendable () -> ScheduleState
         var saveState: @Sendable (ScheduleState) -> Void
-        var drain: @Sendable () async -> Void
+        /// Delivers the retry queue; true for Retry Now, which also offers what a receiver
+        /// refused less than a day ago.
+        var drain: @Sendable (_ retryRefused: Bool) async -> Void
         var syncIncremental: @Sendable () async -> HealthSyncResult
-        var syncFull: @Sendable () async -> HealthSyncResult
+        /// Sync Now in the app: the incremental sync in catch-up passes, and every type's
+        /// newest value to MQTT.
+        var syncNow: @Sendable () async -> HealthSyncResult
         /// Re-aims the background task requests; true after a run the lock stopped.
         var replan: @Sendable (_ afterLockedRun: Bool) async -> Void
         /// Asks iOS for time to finish a run that started while the app was in the foreground,
@@ -93,9 +97,12 @@ actor SyncCoordinator {
         let env = self.env
         let outcome = await fly { () -> AutomaticSyncOutcome in
             guard await env.isUnlocked() else { return .locked }
-            await env.drain()
+            await env.drain(false)
             guard !Task.isCancelled else { return .cancelled }
             let result = await env.syncIncremental()
+            // Cut off mid-sync: what it sent is sent and the rest is queued or still ahead of
+            // the anchors, but the scheduled time stays owed.
+            guard !Task.isCancelled else { return .cancelled }
             if case .failure = result, await !env.isUnlocked() {
                 // Locked while reading: nothing was read, so the time stays owed.
                 return .locked
@@ -113,14 +120,15 @@ actor SyncCoordinator {
 
     // MARK: - Manual
 
-    /// Sync Now (a full read) and the Shortcuts action (new records only): never held back by
-    /// the schedule and never recorded, but never beside another run either.
-    func runManual(full: Bool) async -> HealthSyncResult {
+    /// Sync Now (new records, in catch-up passes) and the Shortcuts action (one round of new
+    /// records): never held back by the schedule and never recorded, but never beside another
+    /// run either.
+    func runManual(syncNow: Bool) async -> HealthSyncResult {
         while let flight { await wait(for: flight) }
         let env = self.env
         let result = await fly { () -> HealthSyncResult in
-            await env.drain()
-            return full ? await env.syncFull() : await env.syncIncremental()
+            await env.drain(false)
+            return syncNow ? await env.syncNow() : await env.syncIncremental()
         }
         await env.replan(false)
         return result
@@ -132,13 +140,14 @@ actor SyncCoordinator {
     /// back) waits for quiet hours; Retry Now does not.
     func drain(automatic: Bool) async {
         if automatic, !env.schedule().allowsDelivery(at: env.now(), timeZone: env.timeZone()) { return }
-        if let flight {
+        while let flight {
             // Every run drains first, and the drain itself runs once more for late arrivals.
             await wait(for: flight)
-            return
+            // That drain left alone what was refused today, which Retry Now offers as well.
+            if automatic { return }
         }
         let env = self.env
-        await fly { await env.drain() }
+        await fly { await env.drain(!automatic) }
     }
 
     // MARK: - Flight
@@ -205,11 +214,11 @@ extension SyncCoordinator.Environment {
         schedule: { PreferencesManager.shared.healthSyncSchedule },
         loadState: { PreferencesManager.shared.healthScheduleState },
         saveState: { PreferencesManager.shared.healthScheduleState = $0 },
-        drain: { await HealthSyncManager.shared.drainPendingQueue() },
+        drain: { retryRefused in await HealthSyncManager.shared.drainPendingQueue(retryRefused: retryRefused) },
         syncIncremental: {
             await HealthSyncManager.shared.performIncrementalSync(types: PreferencesManager.shared.healthEnabledDataTypes)
         },
-        syncFull: { await HealthSyncManager.shared.performSync() },
+        syncNow: { await HealthSyncManager.shared.performSyncNow() },
         replan: { afterLockedRun in await BackgroundSyncManager.shared.replan(afterLockedRun: afterLockedRun) },
         holdInForeground: { expired in await MainActor.run { ForegroundHold.begin(expired: expired) } }
     )

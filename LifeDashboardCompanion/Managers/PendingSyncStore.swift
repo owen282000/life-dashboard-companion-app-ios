@@ -20,19 +20,33 @@ struct PendingSyncItem: Codable, Identifiable {
     var lastAttemptAt: Date?
     var lastError: String?
     var lastStatusCode: Int?
+    /// When a receiver last refused it for what it carries (see `WebhookRetryPolicy`); nil
+    /// once an attempt failed otherwise.
+    var lastRefusedAt: Date?
 
-    /// Past `PendingSyncStore.maxAge`: the next delivery that fails is its last.
+    /// Past `PendingSyncStore.maxAge`: the next delivery that a receiver answers with a
+    /// failure is its last.
     func expired(at now: Date) -> Bool {
         now.timeIntervalSince(createdAt) > PendingSyncStore.maxAge
+    }
+
+    /// Refused less than `PendingSyncStore.refusedRetryInterval` ago: the queue leaves it
+    /// alone until then, since the same payload gets the same answer.
+    func restsAfterRefusal(at now: Date) -> Bool {
+        guard let lastRefusedAt else { return false }
+        return now.timeIntervalSince(lastRefusedAt) < PendingSyncStore.refusedRetryInterval
     }
 }
 
 /// Why a payload left the queue without being delivered.
 enum QueueDrop: Equatable {
-    /// Still not delivered after a week; the attempt that found it so failed.
+    /// Still not delivered after a week; a receiver answered the attempt that found it so
+    /// with a failure.
     case undelivered
     /// Refused for what it carries, still after a week, with the refusal's status code.
     case refused(Int?)
+    /// Pushed out by a newer payload while the queue held `PendingSyncStore.maxItems`.
+    case full
 }
 
 /// @unchecked Sendable: all data lives in individual files written atomically, and
@@ -45,12 +59,23 @@ final class PendingSyncStore: @unchecked Sendable {
     private var sending: Set<String> = []
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
-    /// How long a payload waits for a delivery before a failed one drops it. Only its age
-    /// counts, not its attempts: every sync, launch and network change drains the queue, and
-    /// 20 attempts, the limit up to 1.4.1, ran out within an afternoon of a receiver being down.
+    /// How long a payload waits for a delivery before a failure a receiver answered drops it.
+    /// Only its age counts, not its attempts: every sync, launch and network change drains the
+    /// queue, and 20 attempts, the limit up to 1.4.1, ran out within an afternoon of a receiver
+    /// being down. An attempt that reached no receiver, offline or cut off, drops nothing.
     static let maxAge: TimeInterval = 7 * 24 * 60 * 60
 
+    /// The most payloads the queue holds, Android's MAX_HEALTH_ITEMS: a week of syncs every 15
+    /// minutes with room for manual ones. Since an iPhone that is offline drops nothing by age,
+    /// this is what bounds the queue; past it the oldest payload goes.
+    static let maxItems = 700
+
+    /// How often the queue offers a refused payload again on its own: once a day, so a week of
+    /// refusals is about seven rows in the log, not one per sync. Retry Now offers it at once.
+    static let refusedRetryInterval: TimeInterval = 24 * 60 * 60
+
     private let root: URL
+    private let maxItems: Int
 
     private var directory: URL {
         if !fileManager.fileExists(atPath: root.path) {
@@ -67,8 +92,9 @@ final class PendingSyncStore: @unchecked Sendable {
 
     /// The queue holds whole payloads, so it stays out of backups. A directory from 1.4.0 and
     /// earlier is in them until this marks it.
-    init(directory: URL) {
+    init(directory: URL, maxItems: Int = PendingSyncStore.maxItems) {
         root = directory
+        self.maxItems = maxItems
         if fileManager.fileExists(atPath: root.path) {
             BackupExclusion.exclude(root)
         }
@@ -139,6 +165,23 @@ final class PendingSyncStore: @unchecked Sendable {
         return items.sorted { $0.createdAt < $1.createdAt }
     }
 
+    /// Takes the oldest payloads out while the queue holds more than `maxItems`, never the one
+    /// with id `keeping`, which was just written, and returns them oldest first, to be reported:
+    /// their records are lost. Counting the files spares reading every payload while it fits.
+    func enforceCap(keeping id: String) -> [PendingSyncItem] {
+        let files = (try? fileManager.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil,
+            options: .skipsHiddenFiles
+        )) ?? []
+        guard files.filter({ $0.pathExtension == "json" }).count > maxItems else { return [] }
+        let items = dequeueAll()
+        guard items.count > maxItems else { return [] }
+        let pushedOut = Array(items.filter { $0.id != id }.prefix(items.count - maxItems))
+        pushedOut.forEach { remove(id: $0.id) }
+        return pushedOut
+    }
+
     /// The log row for an item dropped undelivered: the addresses it was queued for, its record
     /// count and payload, and why it never arrived.
     static func droppedLog(for item: PendingSyncItem, reason: QueueDrop) -> WebhookLog {
@@ -147,6 +190,8 @@ final class PendingSyncStore: @unchecked Sendable {
         switch reason {
         case .undelivered:
             message = AppDiagnostic.droppedUndelivered.rawValue
+        case .full:
+            message = AppDiagnostic.droppedFull.rawValue
         case .refused(let code):
             statusCode = code
             message = code.map(AppDiagnostic.droppedRefused) ?? AppDiagnostic.droppedUndelivered.rawValue
@@ -178,16 +223,18 @@ final class PendingSyncStore: @unchecked Sendable {
         try? fileManager.removeItem(at: fileURL)
     }
 
-    /// Counts one failed delivery of the item, with its error and status code.
-    func updateAttempt(id: String, error: String?, statusCode: Int? = nil) {
+    /// Counts one failed delivery of the item, with its error and status code, and whether the
+    /// receiver refused the payload itself.
+    func updateAttempt(id: String, error: String?, statusCode: Int? = nil, refused: Bool = false, at now: Date = Date()) {
         let fileURL = directory.appendingPathComponent("\(id).json")
         guard let data = try? Data(contentsOf: fileURL),
               var item = try? decoder.decode(PendingSyncItem.self, from: data) else { return }
 
         item.attemptCount += 1
-        item.lastAttemptAt = Date()
+        item.lastAttemptAt = now
         item.lastError = error
         item.lastStatusCode = statusCode
+        item.lastRefusedAt = refused ? now : nil
         item.headers = [:]
 
         if let updated = try? encoder.encode(item) {
@@ -252,6 +299,7 @@ actor SingleFlight<Item: Hashable & Sendable> {
     private var rerunRequested = false
     private var pending: Set<Item> = []
     private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var waiterWatchers: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
 
     /// True when the caller may run now. False when a run is under way; `items` are then
     /// handed to it through `next()`.
@@ -281,7 +329,12 @@ actor SingleFlight<Item: Hashable & Sendable> {
     @discardableResult
     func run(_ work: @escaping @Sendable () async -> Void) async -> Bool {
         guard enter() else {
-            await withCheckedContinuation { waiters.append($0) }
+            await withCheckedContinuation {
+                waiters.append($0)
+                let arrived = waiterWatchers.filter { $0.count <= waiters.count }
+                waiterWatchers.removeAll { $0.count <= waiters.count }
+                arrived.forEach { $0.continuation.resume() }
+            }
             return false
         }
         repeat {
@@ -295,6 +348,13 @@ actor SingleFlight<Item: Hashable & Sendable> {
         // Cancelled: the rounds asked for are dropped, as the whole drain is.
         if running { finish() }
         return true
+    }
+
+    /// Returns once `count` callers wait for the run in flight, however long the scheduler takes
+    /// to get them there, so a test knows they are queued before it lets the run end.
+    func untilWaiting(_ count: Int) async {
+        if waiters.count >= count { return }
+        await withCheckedContinuation { waiterWatchers.append((count, $0)) }
     }
 
     private func finish() {

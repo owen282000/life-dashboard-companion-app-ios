@@ -148,11 +148,11 @@ final class SyncFailureNotifier: Sendable {
 
     // MARK: - Dropped from the queue
 
-    /// The retry queue dropped `count` payloads that waited a week, and their records with
-    /// them. Lost data is worse than a failing sync, so this does not wait for the threshold
-    /// or the failure notification switch, as on Android: it notifies at once, and counts up
-    /// while the notification is still there. A delivery does not clear it, since the records
-    /// stay lost.
+    /// The retry queue dropped `count` payloads, after a week of failures or because it was
+    /// full, and their records with them. Lost data is worse than a failing sync, so this does
+    /// not wait for the threshold or the failure notification switch, as on Android: it
+    /// notifies at once, and counts up while the notification is still there. A delivery does
+    /// not clear it, since the records stay lost.
     func notifyDropped(count: Int) {
         guard count > 0 else { return }
         let logger = self.logger
@@ -182,6 +182,6 @@ final class SyncFailureNotifier: Sendable {
     }
 
     static func droppedBody(count: Int) -> String {
-        String(localized: "\(count) undelivered syncs were dropped from the queue after a week, so their records are lost. Check the Logs tab for details.")
+        String(localized: "\(count) undelivered syncs were dropped from the queue, so their records are lost. Check the Logs tab for details.")
     }
 }

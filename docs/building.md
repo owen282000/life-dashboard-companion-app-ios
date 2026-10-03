@@ -7,11 +7,11 @@ Installing the app on your own iPhone, with your own team and identifiers, is de
 ```bash
 xcodebuild test -project LifeDashboardCompanion.xcodeproj -scheme LifeDashboardCompanion \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  -testLanguage en -testRegion US CODE_SIGNING_ALLOWED=NO
+  -testLanguage en -testRegion US CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=
 swiftlint --strict
 ```
 
-CI (`.github/workflows/build.yml`) builds with Xcode 26.6, unsigned, checks the translations, runs the unit tests in English and the wire-format tests again in German, and runs SwiftLint in strict mode. HealthKit needs a real iPhone for real data: the simulator has none, and background delivery does not work there.
+The tests are signed ad hoc, which needs no Apple Account: an unsigned app has no Keychain on the simulator, and the client certificate tests store an identity there. CI (`.github/workflows/build.yml`) builds with Xcode 26.6, the app unsigned and the tests ad hoc, checks the translations, runs the unit tests in English and the wire-format tests again in German, and runs SwiftLint in strict mode. HealthKit needs a real iPhone for real data: the simulator has none, and background delivery does not work there.
 
 The app has no third-party dependencies, and should stay that way.
 
@@ -25,7 +25,7 @@ The app has no third-party dependencies, and should stay that way.
 | `LifeDashboardWidget/` | The home screen widget |
 | `LifeDashboardCompanionTests/` | Unit tests |
 | `docs/` | Documentation, screenshots and the brand sources |
-| `scripts/` | The translation check and the screenshot script |
+| `scripts/` | The translation check, the screenshot script and the TestFlight build number |
 | `.github/workflows/` | Build, release, CodeQL, security and Scorecard workflows |
 | `.githooks/` | Optional hook enforcing strict, increasing semver tags |
 
@@ -48,6 +48,10 @@ The release workflow checks that the tag is strict semver, higher than the last 
 ```bash
 git config core.hooksPath .githooks
 ```
+
+For TestFlight, run `scripts/bump-build.sh` before the archive: it gives the app and the widget
+the same build number, the number of commits up to HEAD, which App Store Connect needs to be new
+for every upload. Restore the project file after the upload.
 
 ## Contributing
 

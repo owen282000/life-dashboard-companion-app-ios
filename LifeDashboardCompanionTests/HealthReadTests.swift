@@ -121,6 +121,29 @@ final class HealthReadTests: XCTestCase {
         XCTAssertFalse(HealthKitManager.asksOnce(.shouldRequest, readTypes: [], asked: []))
     }
 
+    func testAReadInWhichNoTypeAnsweredIsTellableFromOneThatFoundNothing() async {
+        let silent = await HealthKitManager.gatherReporting([.steps, .weight]) { _ -> [(String, Any)]? in
+            throw Stuck()
+        } failed: { _, _ in }
+        XCTAssertTrue(silent.fragments.isEmpty)
+        XCTAssertEqual(silent.failed, [.steps, .weight])
+        XCTAssertTrue(HealthKitManager.answeredNone([.steps, .weight], failed: silent.failed))
+
+        let nothingNew = await HealthKitManager.gatherReporting([.steps, .weight]) { _ -> [(String, Any)]? in
+            nil
+        } failed: { _, _ in }
+        XCTAssertTrue(nothingNew.fragments.isEmpty)
+        XCTAssertTrue(nothingNew.failed.isEmpty)
+        XCTAssertFalse(HealthKitManager.answeredNone([.steps, .weight], failed: nothingNew.failed))
+
+        XCTAssertFalse(HealthKitManager.answeredNone([.steps, .weight], failed: [.weight]), "one type answered")
+        XCTAssertFalse(HealthKitManager.answeredNone([], failed: []), "nothing to read is not a failure")
+        XCTAssertEqual(
+            HealthKitManager.NoTypeAnswered().localizedDescription,
+            "Apple Health did not answer for any data type; the next sync tries again"
+        )
+    }
+
     // MARK: - Added samples
 
     private let base = Date(timeIntervalSince1970: 1_800_000_000)

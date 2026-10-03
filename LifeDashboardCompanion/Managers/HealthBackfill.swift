@@ -177,11 +177,14 @@ enum BackfillPayload {
     /// false: HealthKit does not tell an app that a type's read access was denied, it returns
     /// nothing, and it cannot tell whether an iCloud restore of Health is still coming in. A
     /// receiver may drop records it holds in a window marked complete, so iOS never claims it.
+    /// `sequence` comes from the same counter as the syncs' (see `PayloadSequence`), as on
+    /// Android.
     static func body(
         records: [(String, Any)],
         window: DateInterval,
         extras: [String: Any],
         appVersion: String,
+        sequence: Int?,
         now: Date
     ) -> Data? {
         var payload: [String: Any] = extras
@@ -195,7 +198,8 @@ enum BackfillPayload {
         payload["window_start"] = window.start.iso8601String
         payload["window_end"] = window.end.iso8601String
         payload["window_complete"] = false
-        return PayloadJSON.data(payload)
+        if let sequence { payload["sequence"] = sequence }
+        return PayloadBody.encode(payload)
     }
 
     static func recordCount(_ records: [(String, Any)]) -> Int {
@@ -259,6 +263,8 @@ struct BackfillEngine: Sendable {
     /// Called with the job once a window was delivered in full, to be saved.
     var onWindowDone: @Sendable (BackfillJob, _ windowRecords: Int) async -> Void = { _, _ in }
     var now: @Sendable () -> Date = { Date() }
+    /// The next `sequence`, taken for each payload as it is built.
+    var sequence: @Sendable () -> Int = { PayloadSequence.shared.next() }
 
     private static let logger = Logger(subsystem: "com.owen282000.lifedashboard", category: "Backfill")
 
@@ -337,7 +343,8 @@ struct BackfillEngine: Sendable {
             let count = BackfillPayload.recordCount(chunk)
             if count > 0 || sent == 0 {
                 guard let body = BackfillPayload.body(
-                    records: chunk, window: window, extras: extras.fields, appVersion: appVersion, now: now()
+                    records: chunk, window: window, extras: extras.fields, appVersion: appVersion,
+                    sequence: sequence(), now: now()
                 ) else {
                     return .stopped(job.failed(.delivery, at: now()))
                 }

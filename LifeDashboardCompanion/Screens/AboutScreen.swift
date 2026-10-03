@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 /// Every link on About, built on the iOS repository so none can point at the Android app's.
+/// The privacy policy has a page of its own, the address App Store Connect has too.
 enum AboutLinks {
     static let repository = URL(string: "https://github.com/owen282000/life-dashboard-companion-app-ios")!
     static let repositorySlug = "owen282000/life-dashboard-companion-app-ios"
@@ -9,7 +10,7 @@ enum AboutLinks {
     static let changelog = repository.appending(path: "blob/main/CHANGELOG.md")
     static let newIssue = repository.appending(path: "issues/new")
     static let licence = repository.appending(path: "blob/main/LICENSE")
-    static let privacy = URL(string: repository.absoluteString + "#privacy")!
+    static let privacy = URL(string: "https://owen282000.github.io/life-dashboard-companion/ios/privacy/")!
     /// Only in builds run from source; see the Buy me a coffee row.
     static let tip = URL(string: "https://ko-fi.com/owen282000")!
 
@@ -448,13 +449,13 @@ struct PrivacyPolicyScreen: View {
                 PolicySection(title: "What the app reads", systemImage: "eye", text: "Apple Health data, only for the types you switch on and only after you allow them in the Health access sheet. With Backfill, also older records for the range you pick. When you delete a record in Apple Health, the next sync reports its id so your server can remove it too. The camera is used only by the pairing scanner, while that screen is open: frames are decoded on the phone and are never stored or sent.")
                 PolicySection(title: "What the app writes", systemImage: "square.and.pencil", text: "Nothing. The app only asks Apple Health for read access.")
                 PolicySection(title: "Where it goes", systemImage: "paperplane", text: "Only to the destinations you enter or pair: your own webhook URLs, the Life Dashboard integration in your own Home Assistant, and your own MQTT broker. The app contacts no other server. There are no analytics, no crash reporting services and no advertising SDKs. Besides the types you switch on, each payload carries the app version, and each record the name of the app or device that wrote it, which on an iPhone often includes your name. MQTT is unencrypted unless you switch on TLS. States are published retained, so the broker keeps the latest value of each sensor even after you switch MQTT off in the app: clear the topics on the broker if you stop using it.")
-                PolicySection(title: "What stays on this iPhone", systemImage: "internaldrive", text: "Your settings, with secrets in the iOS Keychain. Sync progress, so each record is sent once. A log of the last 100 deliveries, which you can clear, and payloads that could not be delivered yet, kept for up to 7 days. Your settings and the sync progress are part of your iPhone backup, like other app data. The log and the undelivered payloads are not: they stay on this iPhone, and a restored or new iPhone starts without them. Deleting the app removes all of it, but iOS can keep the secrets in the Keychain: clear them in the app first if you want them gone. Exports are files you create yourself and hand to the share sheet or the Files app, where the app you pick keeps its own copy. A settings export without secrets still contains your webhook URLs, which can work as a password, so share it with care.")
+                PolicySection(title: "What stays on this iPhone", systemImage: "internaldrive", text: "Your settings, with secrets in the iOS Keychain. Sync progress, so each record is sent once. A log of the last 100 deliveries, which you can clear, and payloads that could not be delivered yet, at most 700, until they arrive or a server has turned them down for a week. Your settings and the sync progress are part of your iPhone backup, like other app data. The log and the undelivered payloads are not: they stay on this iPhone, and a restored or new iPhone starts without them. Deleting the app removes all of it, but iOS can keep the secrets in the Keychain: clear them in the app first if you want them gone. Exports are files you create yourself and hand to the share sheet or the Files app, where the app you pick keeps its own copy. A settings export without secrets still contains your webhook URLs, which can work as a password, so share it with care.")
                 PolicySection(title: "Your control", systemImage: "slider.horizontal.3", text: "Everything is opt-in and reversible: which types are read, where they go and how often. Turning off access in the Health app stops the matching reads immediately.")
                 PolicySection(title: "Contact", systemImage: "envelope", text: "Questions about privacy: open an issue on GitHub or email the developer at the address on the GitHub profile.")
 
                 LinkCard(
                     title: "Read the full privacy policy",
-                    subtitle: Text("Privacy in the README on GitHub"),
+                    subtitle: Text(verbatim: "owen282000.github.io"),
                     systemImage: "hand.raised",
                     url: AboutLinks.privacy
                 )
