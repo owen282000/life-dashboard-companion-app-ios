@@ -194,15 +194,6 @@ final class SeriesResolutionTests: XCTestCase {
         XCTAssertEqual(resolved.carriedOut[.heartRate], held)
     }
 
-    func testATypeSetBackToRawDropsWhatItHeldAndSendsItsRecords() {
-        let resolved = ResolutionApplier.apply(
-            to: ["heart_rate": [heartRate("2026-09-14T08:08:00Z", 80)]],
-            resolutions: [:], carriedIn: [.heartRate: [sample("2026-09-14T08:06:00Z", 60)]], now: at("2026-09-14T09:00:00Z")
-        )
-        XCTAssertNil(resolved.carriedOut[.heartRate])
-        XCTAssertEqual((resolved.payload["heart_rate"] as? [[String: Any]])?.first?["bpm"] as? Int, 80)
-    }
-
     /// A catch-up read can return a sample the carry already holds; it counts once.
     func testASampleReadAgainCountsOnce() throws {
         let carried: [HealthDataType: [CarriedSample]] = [.heartRate: [sample("2026-09-14T08:06:00Z", 60, uuid: "same")]]
@@ -217,13 +208,88 @@ final class SeriesResolutionTests: XCTestCase {
     /// holding it may still grow, however long ago it closed by the clock.
     func testABoundaryBeforeNowKeepsItsWindowOpen() {
         let payload: [String: Any] = ["heart_rate": [heartRate("2026-09-14T08:01:00Z", 60), heartRate("2026-09-14T08:06:00Z", 80)]]
-        let newest = ResolutionApplier.newestMeasurement(of: .heartRate, in: payload)
+        let newest = ResolutionApplier.newestMeasurement(of: .heartRate, in: payload, notAfter: at("2026-09-14T12:00:00Z"))
         XCTAssertEqual(newest, at("2026-09-14T08:06:00Z"))
         let resolved = ResolutionApplier.apply(
             to: payload, resolutions: [.heartRate: .fiveMinutes], now: at("2026-09-14T12:00:00Z"), boundaries: [.heartRate: newest!]
         )
         XCTAssertEqual(starts(resolved.payload), ["2026-09-14T08:00:00Z"])
         XCTAssertEqual(resolved.carriedOut[.heartRate]?.count, 1)
+    }
+
+    func testAFutureSampleDoesNotMoveTheBoundary() {
+        let carried = [sample("2026-09-15T08:00:00Z", 60)]
+        let payload: [String: Any] = ["heart_rate": [heartRate("2026-09-14T08:06:00Z", 80)]]
+        XCTAssertEqual(
+            ResolutionApplier.newestMeasurement(of: .heartRate, in: payload, carried: carried, notAfter: at("2026-09-14T12:00:00Z")),
+            at("2026-09-14T08:06:00Z")
+        )
+    }
+
+    /// A type the sync did not read this round holds what it has: samples behind its anchor may
+    /// still belong to its windows.
+    func testABoundaryInThePastHoldsEverything() {
+        let carried: [HealthDataType: [CarriedSample]] = [.heartRate: [sample("2026-09-14T08:06:00Z", 60)]]
+        let resolved = ResolutionApplier.apply(
+            to: [:], resolutions: [.heartRate: .fiveMinutes], carriedIn: carried, now: at("2026-09-14T12:00:00Z"),
+            boundaries: [.heartRate: .distantPast]
+        )
+        XCTAssertEqual(starts(resolved.payload), [])
+        XCTAssertEqual(resolved.carriedOut, carried)
+    }
+
+    /// Android drops what a type held when it goes back to raw; here it goes out as the records
+    /// it was read from.
+    func testATypeSetBackToRawSendsWhatItHeldAsRecords() throws {
+        let carried: [HealthDataType: [CarriedSample]] = [
+            .heartRate: [sample("2026-09-14T08:06:00Z", 61, source: "Watch", uuid: "held"), sample("2026-09-14T08:07:00Z", 70, uuid: "again")],
+            .steps: [CarriedSample(time: at("2026-09-14T08:10:00Z"), value: 42, source: "iPhone", uuid: "s", end: at("2026-09-14T08:11:00Z"))]
+        ]
+        let resolved = ResolutionApplier.apply(
+            to: ["heart_rate": [heartRate("2026-09-14T08:07:00Z", 70, uuid: "again")]],
+            resolutions: [:], carriedIn: carried, now: at("2026-09-14T09:00:00Z")
+        )
+        let heart = resolved.payload["heart_rate"] as? [[String: Any]] ?? []
+        XCTAssertEqual(heart.compactMap { $0["uuid"] as? String }.sorted(), ["again", "held"], "A sample read again is not sent twice")
+        let held = try XCTUnwrap(heart.first { $0["uuid"] as? String == "held" })
+        XCTAssertEqual(held["bpm"] as? Int, 61)
+        XCTAssertEqual(held["time"] as? String, "2026-09-14T08:06:00Z")
+        XCTAssertEqual(held["source"] as? String, "Watch")
+        let step = try XCTUnwrap((resolved.payload["steps"] as? [[String: Any]])?.first)
+        XCTAssertEqual(step["count"] as? Int, 42)
+        XCTAssertEqual(step["start_time"] as? String, "2026-09-14T08:10:00Z")
+        XCTAssertEqual(step["end_time"] as? String, "2026-09-14T08:11:00Z")
+        XCTAssertEqual(resolved.carriedOut, [:])
+        XCTAssertEqual(resolved.restoredRecords, 2)
+        XCTAssertNil(resolved.payload["_resolutions"])
+    }
+
+    func testSyncNowLeavesTheBucketedSeriesOut() {
+        let payload: [String: Any] = [
+            "heart_rate": [heartRate("2026-09-14T08:06:00Z", 70)],
+            "steps": [steps("2026-09-14T08:10:00Z", 5)],
+            "timestamp": "x"
+        ]
+        let resolved = ResolutionApplier.withoutBucketedSeries(payload, resolutions: [.heartRate: .oneMinute, .steps: .raw])
+        XCTAssertNil(resolved.payload["heart_rate"])
+        XCTAssertNil(resolved.payload["_resolutions"])
+        XCTAssertEqual((resolved.payload["steps"] as? [Any])?.count, 1)
+        XCTAssertEqual(resolved.absorbedRecords, 1)
+        XCTAssertFalse(resolved.leavesNothingToSend(of: 2))
+        XCTAssertTrue(ResolutionApplier.withoutBucketedSeries(["heart_rate": [heartRate("2026-09-14T08:06:00Z", 70)]], resolutions: [.heartRate: .hourly]).leavesNothingToSend(of: 1))
+    }
+
+    /// Only the resolutions can leave a payload with nothing to send; one that holds records
+    /// the count does not see is posted as before.
+    func testWithoutBucketingThereIsAlwaysSomethingToSend() {
+        let resolved = ResolutionApplier.apply(to: ["menstruation_period": [["start_time": "x"]]], resolutions: [:], now: Date())
+        XCTAssertFalse(resolved.leavesNothingToSend(of: 0))
+    }
+
+    func testANumberBeyondADecimalStaysADouble() throws {
+        XCTAssertEqual(ResolutionPayload.number(1e200).doubleValue, 1e200)
+        XCTAssertEqual(ResolutionPayload.number(5e-324).doubleValue, 5e-324)
+        XCTAssertNoThrow(try JSONSerialization.data(withJSONObject: ["v": ResolutionPayload.number(1e200), "w": ResolutionPayload.number(.nan)]))
     }
 
     func testAlignUpFindsTheNextBucketBound() {
@@ -326,6 +392,28 @@ final class SeriesResolutionTests: XCTestCase {
         XCTAssertEqual(store.load(), [:])
     }
 
+    /// The carry and the anchors move together: a carry that cannot be written keeps the
+    /// cursors and anchors where they were, so its samples are read again, not lost.
+    func testACarryThatCannotBeWrittenKeepsTheCursors() throws {
+        let blocked = FileManager.default.temporaryDirectory.appendingPathComponent("carry-blocked-\(UUID().uuidString)")
+        addTeardownBlock { try? FileManager.default.removeItem(at: blocked) }
+        try Data("not a directory".utf8).write(to: blocked)
+        let store = BucketCarryStore(directory: blocked)
+        let suite = "carry-blocked-\(UUID().uuidString)"
+        addTeardownBlock { UserDefaults().removePersistentDomain(forName: suite) }
+        let prefs = PreferencesManager(defaults: UserDefaults(suiteName: suite)!, secrets: InMemorySecretStore())
+
+        var commit = AnchorCommit()
+        commit.cursors = [(.heartRate, at("2026-09-14T08:00:00Z"))]
+        commit.bucketCarry = [.heartRate: [sample("2026-09-14T08:06:00Z", 60)]]
+        commit.save(to: prefs, carryStore: store)
+        XCTAssertNil(prefs.loadCatchUpCursor(for: .heartRate))
+
+        commit.save(to: prefs, carryStore: BucketCarryStore(directory: blocked.appendingPathExtension("ok")))
+        addTeardownBlock { try? FileManager.default.removeItem(at: blocked.appendingPathExtension("ok")) }
+        XCTAssertEqual(prefs.loadCatchUpCursor(for: .heartRate), at("2026-09-14T08:00:00Z"))
+    }
+
     // MARK: - Backfill
 
     func testABucketedTypeIsReadFromBucketBoundToBucketBound() {
@@ -386,6 +474,23 @@ final class SeriesResolutionTests: XCTestCase {
         XCTAssertEqual(sent.count, Int(last.timeIntervalSince(first) / 300))
         XCTAssertEqual(counted, inside.count)
     }
+
+    /// More samples at one instant than a read holds: the pass after them reads nothing, ends
+    /// the type and closes the bucket they are in, which must still be posted.
+    func testABackfillPassThatOnlyClosesABucketIsSent() async throws {
+        let now = Date(timeIntervalSinceReferenceDate: 800_000_000.75)
+        let range = BackfillPlan.range(days: 3, now: now)
+        let instant = SeriesBucketing.alignUp(range.start, resolution: .fiveMinutes).addingTimeInterval(3600 + 10)
+        let reader = HeartRateReader(times: Array(repeating: instant, count: 1200))
+        let sink = CollectingSink()
+        let engine = BackfillEngine(
+            reader: reader, sink: sink, appVersion: "9.9.9",
+            enabledTypes: { [.heartRate] }, resolutions: { [.heartRate: .fiveMinutes] }, now: { now }
+        )
+        _ = await engine.run(BackfillJob(days: 3, range: range, now: now))
+        let counts = await sink.payloads().flatMap { buckets($0) }.compactMap { $0["sample_count"] as? Int }
+        XCTAssertEqual(counts, [1200])
+    }
 }
 
 private actor HeartRateReader: BackfillReading {
@@ -399,10 +504,10 @@ private actor HeartRateReader: BackfillReading {
 
     func readSlice(_ type: HealthDataType, from cursor: Date, window: DateInterval, rangeEnd: Date) async throws -> BackfillSlice {
         let limit = SyncLimits.maxRecordsPerSync(for: type)
-        let inRange = times.filter { $0 >= cursor && $0 < window.end }
-        let slice = SyncLimits.sliceEnd(probedStartDates: Array(inRange.prefix(limit)), limit: limit, from: cursor, to: window.end)
-        let records: [[String: Any]] = inRange.filter { $0 < slice.end }.map {
-            ["bpm": 70, "time": $0.iso8601String, "uuid": "hr-\($0.timeIntervalSince1970)", "source": "Apple Watch"]
+        let inRange = times.enumerated().filter { $0.element >= cursor && $0.element < window.end }
+        let slice = SyncLimits.sliceEnd(probedStartDates: Array(inRange.prefix(limit).map(\.element)), limit: limit, from: cursor, to: window.end)
+        let records: [[String: Any]] = inRange.filter { $0.element < slice.end }.map {
+            ["bpm": 70, "time": $0.element.iso8601String, "uuid": "hr-\($0.offset)", "source": "Apple Watch"]
         }
         return BackfillSlice(records: records.isEmpty ? [] : [("heart_rate", records)], end: slice.end, exact: slice.exact)
     }

@@ -264,7 +264,8 @@ struct BackfillEngine: Sendable {
     /// The enabled types, asked for at the start of every window.
     var enabledTypes: @Sendable () async -> [HealthDataType]
     var windowExtras: @Sendable (DateInterval) async -> BackfillExtras = { _ in .none }
-    /// The data resolution per type, asked for at the start of every window.
+    /// The data resolution per type, asked for once per run, so a change while it runs cannot
+    /// leave a stretch between two windows out or send it twice.
     var resolutions: @Sendable () async -> [HealthDataType: SeriesResolution] = { [:] }
     /// Asked between passes; a reason ends the run with the job paused for it.
     var shouldStop: @Sendable () async -> BackfillJob.PauseReason? = { nil }
@@ -284,11 +285,12 @@ struct BackfillEngine: Sendable {
         job.failure = nil
         let range = job.range
         let windowCount = job.windowCount
+        let resolutions = await resolutions()
 
         while job.nextWindow < windowCount {
             if let reason = await shouldStop() { return job.paused(reason, at: now()) }
             let window = BackfillPlan.window(job.nextWindow, of: range)
-            let outcome = await drain(window, of: job, rangeEnd: range.end)
+            let outcome = await drain(window, of: job, rangeEnd: range.end, resolutions: resolutions)
             switch outcome {
             case .stopped(let stopped):
                 return stopped
@@ -313,10 +315,14 @@ struct BackfillEngine: Sendable {
     /// Sends one window: each pass reads the next slice of every type still draining and posts
     /// them as one payload. A window with nothing in it still sends one payload, so a receiver
     /// sees that it was covered.
-    private func drain(_ window: DateInterval, of job: BackfillJob, rangeEnd: Date) async -> WindowOutcome {
+    private func drain(
+        _ window: DateInterval,
+        of job: BackfillJob,
+        rangeEnd: Date,
+        resolutions: [HealthDataType: SeriesResolution]
+    ) async -> WindowOutcome {
         let types = await enabledTypes().sorted { $0.rawValue < $1.rawValue }
         let extras = await windowExtras(window)
-        let resolutions = await resolutions()
         let reads = Dictionary(uniqueKeysWithValues: types.map { type in
             (type, BackfillPlan.readWindow(
                 for: window, rangeEnd: rangeEnd, resolution: ResolutionFamily.of(type) == nil ? nil : resolutions[type]
@@ -359,10 +365,12 @@ struct BackfillEngine: Sendable {
             }
 
             let count = BackfillPayload.recordCount(chunk)
+            var buckets = 0
             if !resolutions.isEmpty {
-                chunk = bucketed(chunk, resolutions: resolutions, held: &held, next: next, reads: reads, rangeEnd: rangeEnd)
+                (chunk, buckets) = bucketed(chunk, resolutions: resolutions, held: &held, next: next, reads: reads, rangeEnd: rangeEnd)
             }
-            if count > 0 || sent == 0 {
+            // A pass can read nothing and still close a bucket an earlier one held.
+            if count > 0 || buckets > 0 || sent == 0 {
                 guard let body = BackfillPayload.body(
                     records: chunk, window: window, extras: extras.fields, appVersion: appVersion, now: now()
                 ) else {
@@ -398,7 +406,7 @@ struct BackfillEngine: Sendable {
         next: [HealthDataType: Date],
         reads: [HealthDataType: DateInterval],
         rangeEnd: Date
-    ) -> [(String, Any)] {
+    ) -> (records: [(String, Any)], buckets: Int) {
         var boundaries: [HealthDataType: Date] = [:]
         for (type, read) in reads {
             boundaries[type] = next[type] ?? read.end
@@ -411,6 +419,6 @@ struct BackfillEngine: Sendable {
             boundaries: boundaries
         )
         held = resolved.carriedOut
-        return resolved.payload.map { ($0.key, $0.value) }
+        return (resolved.payload.map { ($0.key, $0.value) }, resolved.bucketCount)
     }
 }

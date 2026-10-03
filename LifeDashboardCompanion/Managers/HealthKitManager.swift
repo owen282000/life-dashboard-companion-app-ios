@@ -1121,9 +1121,10 @@ struct AnchorCommit: @unchecked Sendable {
 
     /// The carry first, then cursors, then anchors. An app ended in between reads a stretch
     /// again: a carried sample read again counts once, by its uuid, and an anchor saved without
-    /// its cursor, or without the carry, would skip what they still had to hold.
+    /// its cursor, or without the carry, would skip what they still had to hold. A carry that
+    /// cannot be written keeps the anchors where they were, for the same reason.
     func save(to prefs: PreferencesManager = .shared, carryStore: BucketCarryStore = .shared) {
-        if let bucketCarry { carryStore.save(bucketCarry) }
+        if let bucketCarry, !carryStore.save(bucketCarry) { return }
         for (dataType, cursor) in cursors {
             prefs.saveCatchUpCursor(cursor, for: dataType)
         }

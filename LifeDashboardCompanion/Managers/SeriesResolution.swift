@@ -95,13 +95,15 @@ extension HealthDataType {
 }
 
 /// One measurement reduced to what bucketing needs, so the samples of a window that is still
-/// filling can wait for the next sync. The uuid is kept, unlike on Android, because a HealthKit
-/// catch-up read can return a sample the carry already holds, and it must count once.
+/// filling can wait for the next sync. Unlike on Android it keeps the uuid, so a sample read
+/// again counts once and a deleted one can leave the carry, and an interval record's end, so a
+/// type set back to raw sends what it held as the records they were.
 struct CarriedSample: Codable, Equatable, Sendable {
     let time: Date
     let value: Double
     var source: String?
     var uuid: String?
+    var end: Date?
 }
 
 /// One window of a series and what its samples came to.
@@ -193,11 +195,14 @@ enum ResolutionPayload {
         used.filter { $0.value != .raw }.mapValues(\.payloadName)
     }
 
-    /// The shortest text that reads back as the same Double, as Android writes it: a Double
-    /// itself goes through JSONSerialization with 17 digits, 72.333333333333329 for 217 / 3.
+    /// The shortest digits that read back as the same Double, the digits Android writes, without
+    /// its ".0" and exponent: a Double itself goes through JSONSerialization with 17 digits,
+    /// 72.333333333333329 for 217 / 3. A value beyond what a decimal holds stays a Double, as
+    /// NaN would stop the serialization with an exception no `try?` catches.
     static func number(_ value: Double) -> NSNumber {
         guard value.isFinite else { return NSNumber(value: 0) }
-        return NSDecimalNumber(string: "\(value)", locale: Locale(identifier: "en_US_POSIX"))
+        let decimal = NSDecimalNumber(string: "\(value)", locale: Locale(identifier: "en_US_POSIX"))
+        return decimal == NSDecimalNumber.notANumber ? NSNumber(value: value) : decimal
     }
 }
 
@@ -212,13 +217,15 @@ struct ResolvedSeries {
     var absorbedRecords = 0
     /// Buckets put into the payload.
     var bucketCount = 0
+    /// Held samples of a type set back to raw, put back into the payload as records.
+    var restoredRecords = 0
     /// The resolution used per payload key, as `_resolutions` names it.
     var used: [String: SeriesResolution] = [:]
 
-    /// True when every one of a payload's `totalRecords` went into a window still filling and
-    /// no window closed: there is nothing to post, as on Android.
+    /// True when the resolutions took every one of a payload's `totalRecords` out and put
+    /// nothing in: there is nothing to post, as on Android. False when nothing was bucketed.
     func leavesNothingToSend(of totalRecords: Int) -> Bool {
-        totalRecords - absorbedRecords + bucketCount <= 0
+        absorbedRecords > 0 && totalRecords - absorbedRecords + bucketCount + restoredRecords <= 0
     }
 }
 
@@ -227,7 +234,7 @@ struct ResolvedSeries {
 /// A window still filling is not sent: its samples are carried and bucketed together with the
 /// next sync's, so the window goes out once, whole. Every type with a resolution is looked at,
 /// also one with no new records, so a carried window goes out once it has closed. A type set
-/// back to raw lets go of what it held: its records are sent as they are.
+/// back to raw sends what it held as records, where Android drops it.
 ///
 /// The one case that sends a window twice is a record arriving late for a window already sent,
 /// a Watch that syncs to the iPhone hours later. Buckets carry what a receiver needs to merge
@@ -251,11 +258,17 @@ enum ResolutionApplier {
         for type in ResolutionFamily.configurableTypes {
             guard let family = ResolutionFamily.of(type), let fields = type.seriesFields else { continue }
             let resolution = resolutions[type] ?? SeriesResolution.defaultResolution
+            let key = type.countedPayloadKey
             guard resolution != .raw else {
-                result.carriedOut.removeValue(forKey: type)
+                if let held = result.carriedOut.removeValue(forKey: type), !held.isEmpty {
+                    let records = result.payload[key] as? [[String: Any]] ?? []
+                    let known = Set(records.compactMap { $0["uuid"] as? String })
+                    let restored = held.filter { $0.uuid.map { !known.contains($0) } ?? true }.map { record(from: $0, type: type, fields: fields) }
+                    result.payload[key] = restored + records
+                    result.restoredRecords += restored.count
+                }
                 continue
             }
-            let key = type.countedPayloadKey
             let records = result.payload.removeValue(forKey: key) as? [[String: Any]] ?? []
             result.absorbedRecords += records.count
             let all = merged(carriedIn[type] ?? [], records.compactMap { sample(from: $0, fields: fields) })
@@ -287,12 +300,25 @@ enum ResolutionApplier {
         return result
     }
 
-    /// The newest measurement among `carried` and the records of `type` in `payload`, the
-    /// boundary of a read that stopped at the cap: the next read continues from there.
-    static func newestMeasurement(of type: HealthDataType, in payload: [String: Any], carried: [CarriedSample] = []) -> Date? {
+    /// The newest measurement up to `now` among `carried` and the records of `type` in
+    /// `payload`, the boundary of a read that stopped at the cap: the next read continues from
+    /// there. A sample dated in the future says nothing about where that is.
+    static func newestMeasurement(of type: HealthDataType, in payload: [String: Any], carried: [CarriedSample] = [], notAfter now: Date) -> Date? {
         guard let fields = type.seriesFields else { return nil }
         let records = payload[type.countedPayloadKey] as? [[String: Any]] ?? []
-        return (carried + records.compactMap { sample(from: $0, fields: fields) }).map(\.time).max()
+        return (carried + records.compactMap { sample(from: $0, fields: fields) }).map(\.time).filter { $0 <= now }.max()
+    }
+
+    /// The payload without the series that have a resolution: what Sync Now sends. It reads
+    /// the last week again, and its windows would reach a receiver a second time, which one
+    /// that adds buckets up, as Android's docs say to, would count twice. Those series go out
+    /// with the incremental syncs, once per window.
+    static func withoutBucketedSeries(_ payload: [String: Any], resolutions: [HealthDataType: SeriesResolution]) -> ResolvedSeries {
+        var result = ResolvedSeries(payload: payload, carriedOut: [:])
+        for type in ResolutionFamily.configurableTypes where (resolutions[type] ?? .raw) != .raw {
+            result.absorbedRecords += (result.payload.removeValue(forKey: type.countedPayloadKey) as? [Any])?.count ?? 0
+        }
+        return result
     }
 
     /// Held samples first, then the new ones; a uuid seen before is counted once.
@@ -307,7 +333,21 @@ enum ResolutionApplier {
     static func sample(from record: [String: Any], fields: (time: String, value: String)) -> CarriedSample? {
         guard let text = record[fields.time] as? String, let time = parseDate(text),
               let value = (record[fields.value] as? NSNumber)?.doubleValue else { return nil }
-        return CarriedSample(time: time, value: value, source: record["source"] as? String, uuid: record["uuid"] as? String)
+        return CarriedSample(
+            time: time, value: value, source: record["source"] as? String, uuid: record["uuid"] as? String,
+            end: (record["end_time"] as? String).flatMap(parseDate)
+        )
+    }
+
+    /// A held sample as the record it was read from, for a type set back to raw.
+    static func record(from sample: CarriedSample, type: HealthDataType, fields: (time: String, value: String)) -> [String: Any] {
+        var record: [String: Any] = [fields.time: sample.time.iso8601String]
+        // Heart rate and steps are whole numbers in the schema.
+        record[fields.value] = type == .heartRate || type == .steps ? Int(sample.value.rounded()) : sample.value
+        if fields.time == "start_time" { record["end_time"] = (sample.end ?? sample.time).iso8601String }
+        if let uuid = sample.uuid { record["uuid"] = uuid }
+        if let source = sample.source { record["source"] = source }
+        return record
     }
 
     nonisolated(unsafe) private static let plainParser = ISO8601DateFormatter()
@@ -361,19 +401,22 @@ final class BucketCarryStore: @unchecked Sendable {
         }
     }
 
-    func save(_ carry: [HealthDataType: [CarriedSample]]) {
+    /// False when the carry could not be written; the caller then keeps its anchors where they
+    /// were, so the next sync reads those samples again instead of losing them.
+    @discardableResult
+    func save(_ carry: [HealthDataType: [CarriedSample]]) -> Bool {
         lock.withLock {
             let stored = Dictionary(uniqueKeysWithValues: carry.filter { !$0.value.isEmpty }.map { ($0.key.rawValue, $0.value) })
             guard !stored.isEmpty else {
                 try? FileManager.default.removeItem(at: fileURL)
-                return
+                return !FileManager.default.fileExists(atPath: fileURL.path)
             }
-            guard let data = try? JSONEncoder().encode(stored) else { return }
+            guard let data = try? JSONEncoder().encode(stored) else { return false }
             if !FileManager.default.fileExists(atPath: directory.path) {
                 try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             }
             BackupExclusion.exclude(directory)
-            try? data.write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            return (try? data.write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])) != nil
         }
     }
 }

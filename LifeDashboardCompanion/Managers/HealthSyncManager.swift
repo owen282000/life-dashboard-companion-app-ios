@@ -18,7 +18,19 @@ final class HealthSyncManager: Sendable {
 
     // MARK: - Full Sync (all enabled types, always last 7 days)
 
+    /// Sync Now. The types with a data resolution are left out of the week it sends again (see
+    /// `ResolutionApplier.withoutBucketedSeries`) and synced the way an automatic sync syncs
+    /// them, so each of their windows still reaches a receiver once.
     func performSync() async -> HealthSyncResult {
+        let full = await performFullSync()
+        let resolutions = prefs.storedSeriesResolutions
+        let bucketed = prefs.healthEnabledDataTypes.filter { ResolutionFamily.of($0) != nil && (resolutions[$0] ?? .raw) != .raw }
+        guard !bucketed.isEmpty, !prefs.healthWebhookUrls.isEmpty else { return full }
+        if case .failure = full { return full }
+        return full.merged(with: await performIncrementalSync(types: bucketed))
+    }
+
+    private func performFullSync() async -> HealthSyncResult {
         let enabledTypes = prefs.healthEnabledDataTypes
         let webhookUrls = prefs.healthWebhookUrls
         let headers = prefs.healthWebhookHeaders
@@ -66,8 +78,8 @@ final class HealthSyncManager: Sendable {
             payload["source"] = "healthkit_ios"
             let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
             let totalsDay = await attachDailyTotals(to: &payload, types: enabledTypes)
-            var noCommit: AnchorCommit?
-            let resolved = resolveSeries(in: &payload, commit: &noCommit, notCurrent: [])
+            let resolved = ResolutionApplier.withoutBucketedSeries(payload, resolutions: prefs.storedSeriesResolutions)
+            payload = resolved.payload
 
             // Publish latest values to MQTT (Home Assistant Discovery) when configured;
             // failures never block the webhook sync and surface in the MQTT section status.
@@ -77,11 +89,12 @@ final class HealthSyncManager: Sendable {
             }
 
             var syncCounts: [HealthDataType: Int] = [:]
-            let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
-            if resolved.leavesNothingToSend(of: totalRecords) {
+            let totalRecords = countRecords(in: payload, syncCounts: &syncCounts)
+            // Every type read has a resolution: performSync syncs those on.
+            if resolved.leavesNothingToSend(of: totalRecords + resolved.absorbedRecords) {
                 return await postDeletionsOnly(
                     readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: nil, records: healthData
-                ).map { $0.counting(syncCounts) } ?? .success(syncCounts: syncCounts)
+                ) ?? .noData
             }
 
             let outcome = await send(
@@ -186,6 +199,9 @@ final class HealthSyncManager: Sendable {
         let readGeneration = await DeletionStep.run(for: prefs.healthEnabledDataTypes.union(types))
 
         do {
+            // Windows close by the time the read began: a sample written while it ran may still
+            // belong to the last of them.
+            let readStart = Date()
             let readResult = try await healthKit.readIncrementalData(for: types)
 
             switch readResult {
@@ -206,9 +222,11 @@ final class HealthSyncManager: Sendable {
                 payload["source"] = "healthkit_ios"
                 let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
                 let totalsDay = await attachDailyTotals(to: &payload, types: prefs.healthEnabledDataTypes)
-                var resolvedCommit: AnchorCommit? = readCommit
-                let resolved = resolveSeries(in: &payload, commit: &resolvedCommit, notCurrent: notCurrent)
-                let commit = resolvedCommit ?? readCommit
+                var commit = readCommit
+                let resolved = resolveSeries(
+                    in: &payload, commit: &commit, notCurrent: notCurrent, readStart: readStart,
+                    deleted: Set(deletions.summary.deleted.map(\.uuid))
+                )
 
                 var syncCounts: [HealthDataType: Int] = [:]
                 let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
@@ -353,9 +371,7 @@ final class HealthSyncManager: Sendable {
         payload["app_version"] = appVersion
         payload["source"] = "healthkit_ios"
         await attachDailyTotals(to: &payload, types: enabledTypes)
-        // What Sync Now would send, so bucketed the same way; it stores nothing.
-        var noCommit: AnchorCommit?
-        resolveSeries(in: &payload, commit: &noCommit, notCurrent: [])
+        payload = previewSeries(payload)
 
         return payload
     }
@@ -479,45 +495,62 @@ final class HealthSyncManager: Sendable {
 
     // MARK: - Data resolution
 
-    /// Buckets the series that have a resolution set (see ResolutionApplier). With a commit, an
-    /// incremental read, the windows still filling are carried into it and saved with its
-    /// anchors. Without one, Sync Now and its preview, which read the last week again and save
-    /// nothing, send the closed windows and leave the filling one to the incremental syncs,
-    /// which read it on their own.
+    /// Buckets the series that have a resolution (see ResolutionApplier) and puts the samples
+    /// of the windows still filling on `commit`, which saves them with its anchors.
     ///
-    /// A window counts as filling up to a type's catch-up cursor, where its next read starts,
-    /// and up to the newest measurement read for a type that is behind (the cap, or a page
-    /// left for the next sync): the next read may still add to the window that holds it.
-    @discardableResult
+    /// A window counts as filling up to where a type's next read starts: its catch-up cursor,
+    /// or the newest measurement read for a type that is behind (the cap, or a page left for
+    /// the next sync). A type this round did not read holds what it has, since samples behind
+    /// its anchor may belong to its windows. A type switched off lets go of what it held, and
+    /// a sample deleted since it was read leaves the carry.
     private func resolveSeries(
         in payload: inout [String: Any],
-        commit: inout AnchorCommit?,
-        notCurrent: Set<HealthDataType>
+        commit: inout AnchorCommit,
+        notCurrent: Set<HealthDataType>,
+        readStart: Date,
+        deleted: Set<String>
     ) -> ResolvedSeries {
         let resolutions = prefs.storedSeriesResolutions
-        let now = Date()
-        let carriedIn = commit == nil ? [:] : BucketCarryStore.shared.load()
+        let enabled = prefs.healthEnabledDataTypes
+        let carriedIn = BucketCarryStore.shared.load()
+            .filter { enabled.contains($0.key) }
+            .mapValues { held in held.filter { $0.uuid.map { !deleted.contains($0) } ?? true } }
+        let cursors = Dictionary(commit.cursors, uniquingKeysWith: { _, last in last })
         var boundaries: [HealthDataType: Date] = [:]
         for type in ResolutionFamily.configurableTypes where (resolutions[type] ?? .raw) != .raw {
-            var boundary = now
-            if let commit {
-                let read = commit.cursors.first { $0.0 == type }
-                if let cursor = read.map({ $0.1 }) ?? prefs.loadCatchUpCursor(for: type) { boundary = min(boundary, cursor) }
+            guard let cursor = cursors[type] else {
+                boundaries[type] = .distantPast
+                continue
             }
-            let behind = commit == nil
-                ? ((payload[type.countedPayloadKey] as? [Any])?.count ?? 0) >= SyncLimits.maxRecordsPerSync(for: type)
-                : notCurrent.contains(type)
-            if behind, let newest = ResolutionApplier.newestMeasurement(of: type, in: payload, carried: carriedIn[type] ?? []) {
+            var boundary = min(readStart, cursor ?? readStart)
+            if notCurrent.contains(type),
+               let newest = ResolutionApplier.newestMeasurement(of: type, in: payload, carried: carriedIn[type] ?? [], notAfter: readStart) {
                 boundary = min(boundary, newest)
             }
-            if boundary < now { boundaries[type] = boundary }
+            boundaries[type] = boundary
         }
         let resolved = ResolutionApplier.apply(
-            to: payload, resolutions: resolutions, carriedIn: carriedIn, now: now, boundaries: boundaries
+            to: payload, resolutions: resolutions, carriedIn: carriedIn, now: readStart, boundaries: boundaries
         )
         payload = resolved.payload
-        commit?.bucketCarry = resolved.carriedOut
+        commit.bucketCarry = resolved.carriedOut
         return resolved
+    }
+
+    /// The preview reads the last week, as Sync Now does, and shows the series with a
+    /// resolution in their buckets, the windows closed now, the way the automatic syncs send
+    /// them. It stores nothing. A type whose week holds more than its cap stops at its newest
+    /// record read, so the window that holds it is left out.
+    private func previewSeries(_ payload: [String: Any]) -> [String: Any] {
+        let now = Date()
+        var boundaries: [HealthDataType: Date] = [:]
+        for type in ResolutionFamily.configurableTypes
+        where ((payload[type.countedPayloadKey] as? [Any])?.count ?? 0) >= SyncLimits.maxRecordsPerSync(for: type) {
+            boundaries[type] = ResolutionApplier.newestMeasurement(of: type, in: payload, notAfter: now)
+        }
+        return ResolutionApplier.apply(
+            to: payload, resolutions: prefs.storedSeriesResolutions, now: now, boundaries: boundaries
+        ).payload
     }
 
     // MARK: - Daily Totals
