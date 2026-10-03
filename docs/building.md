@@ -25,7 +25,7 @@ The app has no third-party dependencies, and should stay that way.
 | `LifeDashboardWidget/` | The home screen widget |
 | `LifeDashboardCompanionTests/` | Unit tests |
 | `docs/` | Documentation, screenshots and the brand sources |
-| `scripts/` | The translation check and the screenshot script |
+| `scripts/` | The translation check, the screenshot script and the TestFlight build number |
 | `.github/workflows/` | Build, release, CodeQL, security and Scorecard workflows |
 | `.githooks/` | Optional hook enforcing strict, increasing semver tags |
 
@@ -48,6 +48,11 @@ The release workflow checks that the tag is strict semver, higher than the last 
 ```bash
 git config core.hooksPath .githooks
 ```
+
+For TestFlight, run `scripts/bump-build.sh` before the archive: it gives the app and the widget
+the same build number, the number of commits up to HEAD, which App Store Connect needs to be new
+for every upload. Restore the project file after the upload. [testflight.md](testflight.md) has
+the whole round and what App Store Connect asks.
 
 ## Contributing
 
