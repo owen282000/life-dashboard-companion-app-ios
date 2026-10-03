@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Client certificates (mTLS) for webhooks, as in the Android app, for a Home Assistant or receiver behind a reverse proxy that requires one. iOS has no certificate picker for apps, so you import the certificate as a `.p12` file with its password under Advanced on the Health tab. The certificate and its private key go into this iPhone's Keychain, readable after the first unlock so background syncs can present it, and never into iCloud Keychain or a backup restored onto another iPhone; the password is not kept. Every webhook whose server asks for a certificate gets it, the test ping and the pairing check included. MQTT is unaffected. The row shows the certificate's name and expiry date, with a warning from a month before it expires. The certificate is not part of the settings export. On an iPhone set up from another one's backup, the webhook log says the certificate is unavailable and nothing is sent until you import it again or remove it
+
 ### Changed
 
 - With more than one webhook URL, a sync counts as delivered once one of them took it, so a URL that failed missed that payload for good, with nothing queued for it and nothing to say so. Delivery stays the same, but now it shows: after Sync Now the result line adds "Delivered to 1 of 2 destinations, see Logs." in red, and when it keeps happening, as many syncs in a row as the failure notification waits for, a notification names the address that misses them, by its host alone, never its path or query. A sync that reaches every URL clears it. Pairing with Home Assistant replaces the signing secret, so the pairing sheet now names the other addresses that get payloads signed with the new secret from then on, so you can give one that checks signatures the new secret too, or remove it

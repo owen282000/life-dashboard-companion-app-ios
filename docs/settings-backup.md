@@ -4,7 +4,7 @@ Export your configuration to a file and import it again, on this iPhone, another
 
 ## When you need it
 
-Moving from one iPhone to another usually needs nothing from this app: the settings and the Keychain items that hold the secrets travel with an encrypted iPhone backup and with Quick Start. The export is for everything else: moving between the Android app and the iPhone app, setting the app up again after deleting it, or handing a setup to someone else without your credentials.
+Moving from one iPhone to another usually needs nothing from this app: the settings and the Keychain items that hold the secrets travel with an encrypted iPhone backup and with Quick Start. The client certificate is the exception; see below. The export is for everything else: moving between the Android app and the iPhone app, setting the app up again after deleting it, or handing a setup to someone else without your credentials.
 
 ## What is included
 
@@ -16,11 +16,13 @@ Moving from one iPhone to another usually needs nothing from this app: the setti
 | HMAC signing secret (with secrets) | The pending queue |
 | Sync schedule: interval or fixed times, days and quiet hours | HealthKit permissions |
 | The data-type toggles, and whether payloads carry daily totals | The last MQTT status line |
-| MQTT broker, port, TLS, switch, base topic and phone name | |
+| MQTT broker, port, TLS, switch, base topic and phone name | The client certificate (mTLS) |
 | MQTT username and password (with secrets) | |
 | Failure notifications and their threshold | |
 
 Sync progress is left out on purpose, as on Android: the anchors describe how far this install has read from HealthKit, and restoring them on another phone would make it skip everything written before them. HealthKit permissions are granted by iOS, so the app asks for them again after an import.
+
+The client certificate is left out as well, as on Android. Its private key stays in this iPhone's Keychain and is never exported, and its name alone means nothing on another phone. Unlike the other secrets it also stays behind with an encrypted iPhone backup and with Quick Start, because the app stores it for this device only. On the new iPhone, import the `.p12` file again under **Advanced** on the Health tab; until then, the webhook log says the certificate is unavailable and no webhook is sent.
 
 ## Exporting
 
