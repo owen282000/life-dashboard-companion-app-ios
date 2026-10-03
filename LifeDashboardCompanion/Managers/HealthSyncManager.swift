@@ -17,12 +17,20 @@ final class HealthSyncManager: Sendable {
 
     private init() {}
 
-    // MARK: - Full Sync (all enabled types, always last 7 days)
+    // MARK: - Sync Now
 
-    func performSync() async -> HealthSyncResult {
+    /// Sync Now in the app: the incremental sync, as every other sync, in passes while a type is
+    /// still catching up, as Android's sync runs up to 8 passes. It used to send the last 7 days
+    /// again, capped oldest first, so with an Apple Watch it sent the oldest 1000 heart rate and
+    /// step samples of the week and today's only came with the next automatic sync. A pass reads
+    /// only the types the one before left behind (see `CatchUpPasses`). Backfill sends history.
+    ///
+    /// MQTT gets the newest value of every enabled type once the passes are done, read from the
+    /// newest end of the week (see `HealthKitManager.newestRecords`), so a new broker sees every
+    /// sensor at once. With a broker and no webhook URL that is all Sync Now does.
+    func performSyncNow() async -> HealthSyncResult {
         let enabledTypes = prefs.healthEnabledDataTypes
         let webhookUrls = prefs.healthWebhookUrls
-        let headers = prefs.healthWebhookHeaders
 
         guard !enabledTypes.isEmpty, !webhookUrls.isEmpty || prefs.mqttConfigured else {
             return .noData
@@ -52,44 +60,30 @@ final class HealthSyncManager: Sendable {
             }
         }
 
-        let readGeneration = await DeletionStep.run(for: enabledTypes)
-
-        do {
-            let healthData = try await healthKit.readHealthData(for: enabledTypes)
-
-            guard !healthData.isEmpty else {
-                return await postDeletionsOnly(readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: nil) ?? .noData
-            }
-
-            var payload: [String: Any] = healthData
-            payload["timestamp"] = Date().iso8601String
-            payload["app_version"] = appVersion
-            payload["source"] = "healthkit_ios"
-            payload["sequence"] = sequence.next()
-            let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
-            let totalsDay = await attachDailyTotals(to: &payload, types: enabledTypes)
-
-            // Publish latest values to MQTT (Home Assistant Discovery) when configured;
-            // failures never block the webhook sync and surface in the MQTT section status.
-            if prefs.mqttConfigured {
-                let newest = await healthKit.newestRecords(for: enabledTypes, in: healthData)
-                await MqttPublisher.shared.publish(healthPayload: withDailyTotals(newest, from: payload))
-            }
-
-            var syncCounts: [HealthDataType: Int] = [:]
-            let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
-
-            let outcome = await send(
-                payload, totalsDay: totalsDay, recordCount: totalRecords,
-                urls: webhookUrls, headers: headers, deletions: deletions, commit: nil
-            )
-            guard let outcome else { return .failure(error: AppDiagnostic.serializeFailed.rawValue) }
-            return outcome.delivered
-                ? .success(syncCounts: syncCounts, reach: outcome.reach)
-                : .failure(error: AppDiagnostic.queuedForRetry.rawValue)
-        } catch {
-            return readFailed(error)
+        let result = await gated(enabledTypes) { types in await self.catchUp(types) }
+        if prefs.mqttConfigured, !Task.isCancelled {
+            await publishNewest(of: enabledTypes)
         }
+        return result
+    }
+
+    /// Incremental passes over `types`, see `CatchUpPasses`.
+    private func catchUp(_ types: Set<HealthDataType>) async -> HealthSyncResult {
+        let startedAt = Date()
+        return await CatchUpPasses(
+            pass: { round in await self.runIncrementalSync(types: round, publishesToMqtt: false) },
+            hasTime: {
+                let remaining = await MainActor.run { UIApplication.shared.backgroundTimeRemaining }
+                return DrainBudget.allowsAnotherPost(elapsed: Date().timeIntervalSince(startedAt), backgroundTimeRemaining: remaining)
+            }
+        ).run(types)
+    }
+
+    /// The newest value of each type on the broker, failures in the MQTT status as always. A
+    /// type that cannot be read is left alone there.
+    private func publishNewest(of types: Set<HealthDataType>) async {
+        guard let healthData = try? await healthKit.readHealthData(for: types) else { return }
+        await MqttPublisher.shared.publish(healthPayload: await healthKit.newestRecords(for: types, in: healthData))
     }
 
     /// Reading failed before anything was sent, so the row names Apple Health and not a
@@ -147,21 +141,36 @@ final class HealthSyncManager: Sendable {
     /// Callers go through SyncCoordinator, whose one flight already keeps syncs apart; this
     /// gate holds the anchors safe for any caller that does not.
     func performIncrementalSync(types: Set<HealthDataType>) async -> HealthSyncResult {
+        await gated(types) { round in await self.runIncrementalSync(types: round).result }
+    }
+
+    /// Runs `body` with `types` inside the incremental gate, and once more for the types any
+    /// caller handed over meanwhile.
+    private func gated(
+        _ types: Set<HealthDataType>,
+        _ body: (Set<HealthDataType>) async -> HealthSyncResult
+    ) async -> HealthSyncResult {
         guard await incrementalGate.enter(types) else { return .noData }
         var round = types
         var result = HealthSyncResult.noData
         while true {
-            result = result.merged(with: await runIncrementalSync(types: round))
+            result = result.merged(with: await body(round))
             guard let pending = await incrementalGate.next() else { return result }
             round = pending
         }
     }
 
-    private func runIncrementalSync(types: Set<HealthDataType>) async -> HealthSyncResult {
+    /// One incremental read and its delivery. `behind` names the types it left records behind
+    /// for, past the cap or still catching up on their first week, which another pass can
+    /// take. `publishesToMqtt` is false for Sync Now, which publishes every type at the end.
+    private func runIncrementalSync(
+        types: Set<HealthDataType>,
+        publishesToMqtt: Bool = true
+    ) async -> (result: HealthSyncResult, behind: Set<HealthDataType>) {
         let webhookUrls = prefs.healthWebhookUrls
         let headers = prefs.healthWebhookHeaders
 
-        guard !types.isEmpty, !webhookUrls.isEmpty || prefs.mqttConfigured else { return .noData }
+        guard !types.isEmpty, !webhookUrls.isEmpty || prefs.mqttConfigured else { return (.noData, []) }
 
         guard !webhookUrls.isEmpty else {
             do {
@@ -170,18 +179,18 @@ final class HealthSyncManager: Sendable {
                 // read is done.
                 switch try await healthKit.readIncrementalData(for: types) {
                 case .protectedDataUnavailable:
-                    return .failure(error: AppDiagnostic.deviceLocked.rawValue)
+                    return (.failure(error: AppDiagnostic.deviceLocked.rawValue), [])
                 case .unanswered:
-                    return readFailed(HealthKitManager.NoTypeAnswered())
+                    return (readFailed(HealthKitManager.NoTypeAnswered()), [])
                 case .empty(let commit):
                     commit.save()
-                    return .noData
+                    return (.noData, commit.behind)
                 case .data(let healthData, let commit, let notCurrent):
                     commit.save()
-                    return await publishOnly(healthData, sensorsFrom: current(healthData, leaving: notCurrent))
+                    return (await publishOnly(healthData, sensorsFrom: current(healthData, leaving: notCurrent)), commit.behind)
                 }
             } catch {
-                return .failure(error: error.localizedDescription)
+                return (.failure(error: error.localizedDescription), [])
             }
         }
 
@@ -194,24 +203,24 @@ final class HealthSyncManager: Sendable {
 
             switch readResult {
             case .protectedDataUnavailable:
-                return .failure(error: AppDiagnostic.deviceLocked.rawValue)
+                return (.failure(error: AppDiagnostic.deviceLocked.rawValue), [])
             case .unanswered:
                 // As on Android: deletions read before still go out, and a sync that sent them
                 // did something. Without them, no type answering is a failure, not "no data".
                 if let result = await postDeletionsOnly(
                     readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: nil
                 ) {
-                    return result
+                    return (result, [])
                 }
-                return readFailed(HealthKitManager.NoTypeAnswered())
+                return (readFailed(HealthKitManager.NoTypeAnswered()), [])
             case .empty(let commit):
                 guard let result = await postDeletionsOnly(
                     readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: commit
                 ) else {
                     commit.save()
-                    return .noData
+                    return (.noData, commit.behind)
                 }
-                return result
+                return (result, commit.behind)
             case .data(let healthData, let commit, let notCurrent):
                 var payload: [String: Any] = healthData
                 payload["timestamp"] = Date().iso8601String
@@ -228,7 +237,7 @@ final class HealthSyncManager: Sendable {
                     payload, totalsDay: totalsDay, recordCount: totalRecords,
                     urls: webhookUrls, headers: headers, deletions: deletions, commit: commit
                 )
-                guard let outcome else { return .failure(error: AppDiagnostic.serializeFailed.rawValue) }
+                guard let outcome else { return (.failure(error: AppDiagnostic.serializeFailed.rawValue), []) }
                 let result: HealthSyncResult = outcome.delivered
                     ? .success(syncCounts: syncCounts, reach: outcome.reach)
                     : .failure(error: AppDiagnostic.queuedForRetry.rawValue)
@@ -236,13 +245,13 @@ final class HealthSyncManager: Sendable {
                 // Last, once the webhook's payload is delivered or queued: a HealthKit wakeup's
                 // time budget is for that first. New records only, so a type without any keeps
                 // its retained value on the broker.
-                if !Task.isCancelled {
+                if publishesToMqtt, !Task.isCancelled {
                     await MqttPublisher.shared.publish(healthPayload: withDailyTotals(current(healthData, leaving: notCurrent), from: payload))
                 }
-                return result
+                return (result, commit.behind)
             }
         } catch {
-            return .failure(error: error.localizedDescription)
+            return (.failure(error: error.localizedDescription), [])
         }
     }
 
@@ -635,6 +644,34 @@ struct WriteAhead {
         case .interrupted: break
         }
         return delivery
+    }
+}
+
+/// Sync Now's passes, as Android's sync loops while a type is capped: each pass reads only the
+/// types the one before left behind, at most 8 passes, within the same time budget as a drain
+/// (see `DrainBudget`), so in the background it stops while the time iOS gives still covers a
+/// post. A pass that failed ends it: what it read waits in the retry queue, and more passes
+/// would only queue more. One that found nothing to send, a page of deletions or an empty
+/// stretch of a first week, goes on while a type is behind. Apart from HealthKit and the
+/// network, so the tests can run it.
+struct CatchUpPasses {
+    static let maxPasses = 8
+
+    var pass: (Set<HealthDataType>) async -> (result: HealthSyncResult, behind: Set<HealthDataType>)
+    /// Asked before every pass after the first; false ends them.
+    var hasTime: () async -> Bool
+
+    func run(_ types: Set<HealthDataType>) async -> HealthSyncResult {
+        var result = HealthSyncResult.noData
+        var round = types
+        for number in 1...CatchUpPasses.maxPasses {
+            let outcome = await pass(round)
+            result = result.merged(with: outcome.result)
+            if case .failure = outcome.result { break }
+            guard number < CatchUpPasses.maxPasses, !outcome.behind.isEmpty, !Task.isCancelled, await hasTime() else { break }
+            round = outcome.behind
+        }
+        return result
     }
 }
 

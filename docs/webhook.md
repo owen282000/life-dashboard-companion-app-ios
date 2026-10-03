@@ -44,7 +44,7 @@ This page lists what an iPhone sends and where it differs, so a receiver can han
 
 Every record carries:
 
-- `uuid`: the HealthKit sample's UUID. It stays the same for the life of the record, so deduplicate on it. A blood pressure reading and a food, which HealthKit keeps as several samples, carry the uuid of one of them (see the notes below); a sleep session and a menstruation period, which HealthKit has no record for, carry one derived from their first sample. An automatic sync sends the records added since the last one, but Sync Now sends the last 7 days again, up to each type's cap per sync (1000 records for heart rate, steps and total calories, 500 for heart rate variability and respiratory rate, 200 for the rest), oldest first, and a delivery that iOS cut off is sent again from the retry queue, so a record can arrive more than once. HealthKit never edits a record in place: an app that edits one deletes it and saves a new one under a new `uuid`, and the old one is named in [`deleted_records`](#deletions).
+- `uuid`: the HealthKit sample's UUID. It stays the same for the life of the record, so deduplicate on it. A blood pressure reading and a food, which HealthKit keeps as several samples, carry the uuid of one of them (see the notes below); a sleep session and a menstruation period, which HealthKit has no record for, carry one derived from their first sample. Every sync, Sync Now included, sends the records added since the last one, up to each type's cap per sync (1000 records for heart rate, steps and total calories, 500 for heart rate variability and respiratory rate, 200 for the rest), but a backfill sends its range again and a delivery that iOS cut off is sent again from the retry queue, so a record can arrive more than once. HealthKit never edits a record in place: an app that edits one deletes it and saves a new one under a new `uuid`, and the old one is named in [`deleted_records`](#deletions).
 - `source`: the name HealthKit gives the app or device that wrote the record (`HKSource.name`), not a package name as on Android. For data the iPhone or Watch records itself, this is the device's name, which often includes the owner's name.
 
 ## What iOS sends
@@ -92,7 +92,7 @@ The four Android keys an iPhone never sends:
 | `skin_temperature` | Apple Health stores the absolute sleeping wrist temperature, not the change against a baseline that `delta_celsius` carries |
 | `basal_metabolic_rate` | Apple Health stores resting energy per interval, not a rate in kcal per day; it goes out as part of `total_calories` |
 
-A type with more new records than one sync may send (1000 for heart rate, steps and total calories, 500 for HRV and respiratory rate, 200 for the rest, as on Android) sends that many, and the next sync continues where this one stopped. New records go in the order HealthKit saved them; the first week of a newly enabled type goes oldest first.
+A type with more new records than one sync may send (1000 for heart rate, steps and total calories, 500 for HRV and respiratory rate, 200 for the rest, as on Android) sends that many, and the next sync continues where this one stopped. Sync Now goes on by itself, as the Android app's sync does: up to 8 payloads in a row while a type is still behind, within 2 minutes. New records go in the order HealthKit saved them; the first week of a newly enabled type goes oldest first.
 
 ## Per-type notes
 

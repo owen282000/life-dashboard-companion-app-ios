@@ -51,6 +51,8 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         let anchors: [(HKSampleType, HKQueryAnchor)]
         let cursor: Date?
         let holdsNewest: Bool
+        /// Records were left for a later read: past the page budget, or past the cursor.
+        let behind: Bool
     }
 
     private init() {
@@ -288,6 +290,7 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         for (dataType, read) in reads {
             commit.anchors += read.anchors.map { AnchorCommit.Anchor(dataType: dataType, sampleType: $0.0, anchor: $0.1) }
             commit.cursors.append((dataType, read.cursor))
+            if read.behind { commit.behind.insert(dataType) }
         }
         let results = HealthKitManager.merge(reads.values.compactMap(\.pairs))
         let notCurrent = Set(reads.filter { !$0.value.holdsNewest }.keys)
@@ -393,14 +396,15 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 newestInStore = .distantFuture
             }
         }
+        let behind = morePending || cursor != nil
         let holdsNewest = IncrementalRead.holdsNewest(
-            behind: morePending || cursor != nil,
+            behind: behind,
             timeReadReachedNow: timeReadReachedNow,
             byUuidStarts: byUuid.map(\.start),
             newestInStore: newestInStore,
             now: now
         )
-        return TypeRead(pairs: result, anchors: newAnchors, cursor: cursor, holdsNewest: holdsNewest)
+        return TypeRead(pairs: result, anchors: newAnchors, cursor: cursor, holdsNewest: holdsNewest, behind: behind)
     }
 
     /// Records for exactly the added samples in `added`, from the same readers as every other
@@ -1145,6 +1149,8 @@ struct AnchorCommit: @unchecked Sendable {
 
     var anchors: [Anchor] = []
     var cursors: [(HealthDataType, Date?)] = []
+    /// The types the read left records behind for, which the next read continues with.
+    var behind: Set<HealthDataType> = []
 
     /// Cursors first: an app ended between the two then only reads a stretch again, where an
     /// anchor saved without its cursor would skip what the cursor still had to read.

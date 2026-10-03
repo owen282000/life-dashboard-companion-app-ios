@@ -14,7 +14,7 @@ final class SyncCoordinatorTests: XCTestCase {
         private(set) var drains = 0
         private(set) var retriedRefused: [Bool] = []
         private(set) var incrementals = 0
-        private(set) var fulls = 0
+        private(set) var syncNows = 0
         private(set) var replans: [Bool] = []
         private var _events: [String] = []
         let syncLatch = Latch()
@@ -61,7 +61,7 @@ final class SyncCoordinatorTests: XCTestCase {
             lock.withLock { drains += 1; retriedRefused.append(retryRefused); _events.append("drain") }
         }
         func addIncremental() { lock.withLock { incrementals += 1; _events.append("incremental") } }
-        func addFull() { lock.withLock { fulls += 1; _events.append("full") } }
+        func addSyncNow() { lock.withLock { syncNows += 1; _events.append("sync now") } }
         func addReplan(_ locked: Bool) { lock.withLock { replans.append(locked) } }
         func note(_ event: String) { lock.withLock { _events.append(event) } }
 
@@ -84,10 +84,10 @@ final class SyncCoordinatorTests: XCTestCase {
                     self.note("incremental done")
                     return self.result
                 },
-                syncFull: {
-                    self.addFull()
+                syncNow: {
+                    self.addSyncNow()
                     await self.syncLatch.wait()
-                    self.note("full done")
+                    self.note("sync now done")
                     return self.result
                 },
                 replan: { self.addReplan($0) },
@@ -199,8 +199,8 @@ final class SyncCoordinatorTests: XCTestCase {
         let automatic = await coordinator.runAutomatic(.observer)
         XCTAssertEqual(automatic, .notDue)
         await world.syncLatch.open()
-        _ = await coordinator.runManual(full: true)
-        XCTAssertEqual(world.fulls, 1)
+        _ = await coordinator.runManual(syncNow: true)
+        XCTAssertEqual(world.syncNows, 1)
         XCTAssertNil(world.state.lastRun)
     }
 
@@ -212,7 +212,7 @@ final class SyncCoordinatorTests: XCTestCase {
         let returned = await finished(within: 30) { () -> Bool in
             let automatic = Task { await coordinator.runAutomatic(.observer) }
             await world.syncLatch.waitForArrivals(1)
-            let manual = Task { await coordinator.runManual(full: false) }
+            let manual = Task { await coordinator.runManual(syncNow: false) }
             while await coordinator.waiting < 1 { await Task.yield() }
             XCTAssertEqual(world.incrementals, 1, "the manual sync must wait")
 
@@ -260,7 +260,7 @@ final class SyncCoordinatorTests: XCTestCase {
 
     /// Sync Now can get the actor after a run has ended but before the run's owner is back, as
     /// when the owner is a HealthKit wakeup of lower priority. It must find the run gone and do
-    /// its one full sync after it, not await the finished run again and again while the owner
+    /// its one Sync Now after it, not await the finished run again and again while the owner
     /// never gets in. The owner is held out of the actor until Sync Now has returned, so that
     /// order is certain instead of left to the scheduler; with the flight cleared by its owner,
     /// as before ecf84a9, this spins every time.
@@ -276,12 +276,12 @@ final class SyncCoordinatorTests: XCTestCase {
             await world.syncLatch.waitForArrivals(1)
             executor.hold()
             step.set("Sync Now queues")
-            let manual = Task(priority: .userInitiated) { await coordinator.runManual(full: true) }
+            let manual = Task(priority: .userInitiated) { await coordinator.runManual(syncNow: true) }
             while await coordinator.waiting < 1 { await Task.yield() }
             step.set("Sync Now returns")
             await world.syncLatch.open()
             _ = await manual.value
-            XCTAssertEqual(world.fulls, 1)
+            XCTAssertEqual(world.syncNows, 1)
             // The owner was out all along: its way back in is the one job held.
             step.set("the owner is back at the actor")
             await executor.held(1)
@@ -295,12 +295,12 @@ final class SyncCoordinatorTests: XCTestCase {
             return
         }
         XCTAssertEqual(owner, .ran(success: true))
-        XCTAssertEqual(world.events, ["drain", "incremental", "incremental done", "drain", "full", "full done"])
+        XCTAssertEqual(world.events, ["drain", "incremental", "incremental done", "drain", "sync now", "sync now done"])
     }
 
     /// Sync Now pressed while a run is in progress is never folded into it: every request that
-    /// waited does its own full sync, one after the other.
-    func testEverySyncNowThatWaitedDoesItsOwnFullSync() async {
+    /// waited does its own, one after the other.
+    func testEverySyncNowThatWaitedRunsItsOwn() async {
         let world = World()
         await world.drainLatch.open()
         let coordinator = SyncCoordinator(environment: world.environment)
@@ -308,7 +308,7 @@ final class SyncCoordinatorTests: XCTestCase {
         let outcome = await finished(within: 30) { () -> AutomaticSyncOutcome in
             let automatic = Task { await coordinator.runAutomatic(.observer) }
             await world.syncLatch.waitForArrivals(1)
-            let manuals = (0..<3).map { _ in Task { await coordinator.runManual(full: true) } }
+            let manuals = (0..<3).map { _ in Task { await coordinator.runManual(syncNow: true) } }
             while await coordinator.waiting < 3 { await Task.yield() }
             await world.syncLatch.open()
             for manual in manuals { _ = await manual.value }
@@ -316,9 +316,9 @@ final class SyncCoordinatorTests: XCTestCase {
         }
 
         XCTAssertEqual(outcome, .ran(success: true))
-        XCTAssertEqual(world.fulls, 3)
-        let oneFull = ["drain", "full", "full done"]
-        XCTAssertEqual(world.events, ["drain", "incremental", "incremental done"] + oneFull + oneFull + oneFull)
+        XCTAssertEqual(world.syncNows, 3)
+        let oneSyncNow = ["drain", "sync now", "sync now done"]
+        XCTAssertEqual(world.events, ["drain", "incremental", "incremental done"] + oneSyncNow + oneSyncNow + oneSyncNow)
     }
 
     func testAutomaticRetriesWaitForQuietHoursAndRetryNowDoesNot() async {
@@ -335,7 +335,7 @@ final class SyncCoordinatorTests: XCTestCase {
         world.schedule = SyncSchedule()
         await coordinator.drain(automatic: true)
         _ = await coordinator.runAutomatic(.observer)
-        _ = await coordinator.runManual(full: false)
+        _ = await coordinator.runManual(syncNow: false)
         XCTAssertEqual(world.retriedRefused, [true, false, false, false])
     }
 
@@ -377,7 +377,7 @@ final class SyncCoordinatorTests: XCTestCase {
         let coordinator = SyncCoordinator(environment: world.environment)
 
         let released = await finished(within: 30) { () -> [Int] in
-            let run = Task { await coordinator.runManual(full: true) }
+            let run = Task { await coordinator.runManual(syncNow: true) }
             await world.syncLatch.waitForArrivals(1)
             _ = await settle { world.holds == 1 }
             let whileRunning = world.releases
@@ -403,8 +403,8 @@ final class SyncCoordinatorTests: XCTestCase {
         world.foreground = true
         let cancelled = Latch()
         var environment = world.environment
-        environment.syncFull = {
-            world.addFull()
+        environment.syncNow = {
+            world.addSyncNow()
             await withTaskCancellationHandler {
                 await world.syncLatch.wait()
             } onCancel: {
@@ -415,7 +415,7 @@ final class SyncCoordinatorTests: XCTestCase {
         let coordinator = SyncCoordinator(environment: environment)
 
         let result = await finished(within: 30) { () -> HealthSyncResult in
-            let run = Task { await coordinator.runManual(full: true) }
+            let run = Task { await coordinator.runManual(syncNow: true) }
             await world.syncLatch.waitForArrivals(1)
             _ = await settle { world.held }
             world.expire()

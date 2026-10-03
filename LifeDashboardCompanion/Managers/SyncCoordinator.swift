@@ -45,7 +45,9 @@ actor SyncCoordinator {
         /// refused less than a day ago.
         var drain: @Sendable (_ retryRefused: Bool) async -> Void
         var syncIncremental: @Sendable () async -> HealthSyncResult
-        var syncFull: @Sendable () async -> HealthSyncResult
+        /// Sync Now in the app: the incremental sync in catch-up passes, and every type's
+        /// newest value to MQTT.
+        var syncNow: @Sendable () async -> HealthSyncResult
         /// Re-aims the background task requests; true after a run the lock stopped.
         var replan: @Sendable (_ afterLockedRun: Bool) async -> Void
         /// Asks iOS for time to finish a run that started while the app was in the foreground,
@@ -118,14 +120,15 @@ actor SyncCoordinator {
 
     // MARK: - Manual
 
-    /// Sync Now (a full read) and the Shortcuts action (new records only): never held back by
-    /// the schedule and never recorded, but never beside another run either.
-    func runManual(full: Bool) async -> HealthSyncResult {
+    /// Sync Now (new records, in catch-up passes) and the Shortcuts action (one round of new
+    /// records): never held back by the schedule and never recorded, but never beside another
+    /// run either.
+    func runManual(syncNow: Bool) async -> HealthSyncResult {
         while let flight { await wait(for: flight) }
         let env = self.env
         let result = await fly { () -> HealthSyncResult in
             await env.drain(false)
-            return full ? await env.syncFull() : await env.syncIncremental()
+            return syncNow ? await env.syncNow() : await env.syncIncremental()
         }
         await env.replan(false)
         return result
@@ -215,7 +218,7 @@ extension SyncCoordinator.Environment {
         syncIncremental: {
             await HealthSyncManager.shared.performIncrementalSync(types: PreferencesManager.shared.healthEnabledDataTypes)
         },
-        syncFull: { await HealthSyncManager.shared.performSync() },
+        syncNow: { await HealthSyncManager.shared.performSyncNow() },
         replan: { afterLockedRun in await BackgroundSyncManager.shared.replan(afterLockedRun: afterLockedRun) },
         holdInForeground: { expired in await MainActor.run { ForegroundHold.begin(expired: expired) } }
     )
