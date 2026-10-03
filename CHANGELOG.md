@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- The setup's webhook step has a Test ping, as the Android app's has. It sends the same request as Test ping on the Health tab to the addresses added there and says under the button whether it was delivered, so a wrong address shows before the first sync instead of in the Logs tab later. Both Test pings now count as delivered only when every webhook URL took them, so a second address that does not work no longer hides behind one that does
+
 ### Changed
 
 - With more than one webhook URL, a sync counts as delivered once one of them took it, so a URL that failed missed that payload for good, with nothing queued for it and nothing to say so. Delivery stays the same, but now it shows: after Sync Now the result line adds "Delivered to 1 of 2 destinations, see Logs." in red, and when it keeps happening, as many syncs in a row as the failure notification waits for, a notification names the address that misses them, by its host alone, never its path or query. A sync that reaches every URL clears it. Pairing with Home Assistant replaces the signing secret, so the pairing sheet now names the other addresses that get payloads signed with the new secret from then on, so you can give one that checks signatures the new secret too, or remove it
@@ -12,6 +16,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- A failed MQTT publish was not repeated. With only a broker the sync had already moved on, so a weight sensor kept its old value until the next weigh-in, and a new broker or a new phone name got each sensor only with the next record of its type. The app now keeps the newest value of every sensor, as the Android app does, and every publish sends all of them. A sync with nothing new sends them again when the broker, port, TLS, base topic or phone name changed, or when the last publish failed or was cut off, then at most every 30 minutes, so a broker at home is not dialled by every background wakeup while you are out. A value older than the one kept, such as a weight entered for last year, never replaces it, except from Sync Now, which reads the newest records and so lets a value deleted in Apple Health leave the sensor. A day total from yesterday is not sent as today's. The values sit in one small file next to the retry queue, out of backups and encrypted like it, and go at the next sync after MQTT is switched off; the privacy policy says so. The cache starts empty, so the first sync after the update with something new, or Sync Now, fills it
 - The error lines of the settings backup (a wrong password, a file that cannot be read) were in the system red, 3.6:1 on white, under the 4.5:1 that small text needs. They now use the darker red the rest of the app uses for error text
 
 ## [1.5.0] - 2026-09-30

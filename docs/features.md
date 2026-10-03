@@ -61,8 +61,9 @@ MQTT is the other way, for a setup that already runs a broker:
 - **Retired sensors** - versions up to 1.4.1 published steps, distance and calories as "(latest record)" sensors; every publish now removes them from the broker, and with them from Home Assistant
 - **Webhook only** - exercise, nutrition, mindfulness and the cycle tracking types are events rather than values, and a retained topic is no place for reproductive data
 - **A destination of its own** - a broker without a webhook URL is enough, as in the Android app. **Sync Now**, the automatic syncs and the **Sync Health Data** action all publish, and the observers and background tasks start as soon as a broker is set, without reopening the app
-- **Every sync with new records publishes** today's totals and the latest value of each type that has new records. A type that is still catching up past the per-sync cap is left out until it has caught up, and so is a type whose new records are all older than its newest one, such as a weight entered for last week, since neither holds the current value. Sync Now reads a type with more records in the week than its cap again from the newest end
-- **No queue, no deletions, no backfill** - MQTT has no retry queue, and deleted records and backfill payloads go to webhooks only. A webhook URL added after a time with only a broker gets what is new from then on; **Sync Now** or **Backfill** sends what came before
+- **Every sync with new records publishes** every sensor in the app's sensor cache, as the Android app does, with today's totals and the new values on top, so a new broker sees the whole device at once. A type that is still catching up past the per-sync cap keeps the value it had until it has caught up, and a value older than the one the sensor holds, such as a weight entered for last week, never replaces it. Sync Now reads each type's newest records, again from the newest end for a type with more records in the week than its cap, and its values replace the cached ones, so a value deleted in Apple Health leaves the sensor
+- **A sensor cache instead of a queue** - the app keeps the newest value of each sensor it publishes, out of backups and encrypted like the retry queue, and removes them at the next sync after MQTT is switched off. A sync with nothing new publishes them again when the broker, port, TLS, base topic or phone name changed since the last publish, or when that publish failed or was cut off, then at most every 30 minutes, so a broker at home is not dialled by every wakeup while the iPhone is out. A day total from an earlier day is not sent as today's. The cache starts empty on the update that brings it and fills with the next records of each type, or at once with **Sync Now**
+- **No deletions, no backfill** - deleted records and backfill payloads go to webhooks only. A webhook URL added after a time with only a broker gets what is new from then on; **Sync Now** or **Backfill** sends what came before
 - States and discovery configs are published retained; TLS and a username and password are optional, and the password is kept in the Keychain
 - Its own device id and base topic (`lifedashboard-ios`), so an iPhone never collides with the Android app's sensors in the same household
 - **Phone name** - for a second iPhone on the same broker, as in the Android app. Without a name the device and topics stay as they are; a name gives this iPhone its own device (`life_dashboard_companion_ios_<name>`) and topics (`lifedashboard-ios/<name>/<sensor>/state`). After a rename the next publish removes the old device's retained topics from the broker
@@ -113,7 +114,7 @@ Each sends only what is new. Health data cannot be read while the iPhone is lock
 
 <img src="screenshots/about.png" alt="The About screen: the heartbeat mark on the dark brand ground with the version, and what the app reads from Apple Health" width="300" align="right">
 
-- **First-run setup** - what the app does, where the data goes (the pairing scanner, a webhook or an MQTT broker), which types, and Apple Health access. Every step can be skipped
+- **First-run setup** - what the app does, where the data goes (the pairing scanner, a webhook with a **Test ping**, or an MQTT broker), which types, and Apple Health access. Every step can be skipped
 - **About** - behind the (i) button on the Health and Logs tabs: what the app reads and where it goes, the privacy policy, settings backup, and links to the documentation, the changelog and issues
 - **Privacy policy in the app** - the same text as [Privacy](../README.md#privacy) in the README
 - **Languages** - English, Dutch and German, following the iPhone's language or the one set for the app under Settings. See [localization.md](localization.md)
@@ -130,7 +131,6 @@ The payload is the Android app's, but an iPhone is not an Android phone. Where i
 - **No writing into Apple Health.** The app asks for read access only, so the Android app's receiving from Home Assistant (a scale or blood pressure monitor written into Health Connect) is not built on iOS.
 - **Record source.** `source` is the name HealthKit gives the writing app or device, not a package name.
 - **No data resolution, no diagnostics.** The Android app's per-type averaging (`_resolutions`) and its `_diagnostics` block are not built on iOS. See [what iOS does not send](webhook.md#what-ios-does-not-send).
-- **MQTT** publishes the types a sync carries, where the Android app publishes every sensor it has published before, so a new broker sees the whole device at once. On the iPhone a new broker gets each sensor with the next record of its type; **Sync Now** sends them all.
 - **No App Store or TestFlight build.** You build the app with Xcode; see [usage.md](usage.md#build-and-install).
 
 ## Tech stack

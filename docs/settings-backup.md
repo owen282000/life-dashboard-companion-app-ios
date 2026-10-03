@@ -13,7 +13,7 @@ Moving from one iPhone to another usually needs nothing from this app: the setti
 | Webhook URLs | HealthKit anchors (how far this install has read), and when the schedule last ran |
 | Custom headers (with secrets) | Webhook logs and raw payloads |
 | The webhook URLs that get no custom headers (the ones QR pairing added) | |
-| HMAC signing secret (with secrets) | The pending queue |
+| HMAC signing secret (with secrets) | The pending queue, and the latest MQTT sensor values |
 | Sync schedule: interval or fixed times, days and quiet hours | HealthKit permissions |
 | The data-type toggles, and whether payloads carry daily totals | The last MQTT status line |
 | MQTT broker, port, TLS, switch, base topic and phone name | |
