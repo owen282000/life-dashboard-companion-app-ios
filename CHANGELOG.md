@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- Total calories went out at most 200 records per sync, where the Android app sends 1000. It combines active and resting energy, which an Apple Watch writes about once a minute each, so a day of it took a dozen syncs to catch up. It now has the cap of heart rate and steps, as on Android
 - The error lines of the settings backup (a wrong password, a file that cannot be read) were in the system red, 3.6:1 on white, under the 4.5:1 that small text needs. They now use the darker red the rest of the app uses for error text
 
 ## [1.5.0] - 2026-09-30

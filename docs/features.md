@@ -22,7 +22,7 @@ Reads Apple Health (HealthKit) and sends it to your webhooks, the Home Assistant
 These are the Apple Health types that have a counterpart in the Android app, under the Android app's payload keys. Menstruation sends both flow and periods, so the 28 toggles cover 29 of the Android app's 33 types. The four that stay out (bone mass, body water mass, skin temperature and basal metabolic rate) have no Apple Health type that means the same; [webhook.md](webhook.md#what-ios-sends) says why for each.
 
 - **Incremental sync** - each sync sends the records added since the last one, per type, from HealthKit's own change tracking, also when they are dated in the past. **Sync Now** sends the last 7 days again, up to the limits below, oldest first, and publishes the newest value of each type to MQTT
-- **Bounded payloads** - at most 1000 records per sync for heart rate and steps, 500 for HRV and respiratory rate, and 200 for the rest. The next sync continues where this one stopped
+- **Bounded payloads** - at most 1000 records per sync for heart rate, steps and total calories, 500 for HRV and respiratory rate, and 200 for the rest. The next sync continues where this one stopped
 - **Fault isolation** - a type that cannot be read is skipped, and the rest of the sync goes ahead
 - **Daily totals** - per-day steps, distance and calories as the Health app counts them, with overlapping iPhone and Watch data counted once, in the Android app's `daily_totals` format. **Daily totals in payload** under Advanced switches it off
 - **Deleted records** - a record deleted in Apple Health is named in `deleted_records`, so a receiver can drop it. See [webhook.md](webhook.md#deletions)

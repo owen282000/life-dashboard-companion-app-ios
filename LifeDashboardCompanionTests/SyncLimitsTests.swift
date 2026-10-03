@@ -35,6 +35,8 @@ final class SyncLimitsTests: XCTestCase {
     func testHighVolumeTypesHaveHigherLimits() {
         XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .heartRate), 1000)
         XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .steps), 1000)
+        XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .totalCalories), 1000, "Android's cap for total calories")
+        XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .activeCalories), 200)
         XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .heartRateVariability), 500)
         XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .respiratoryRate), 500)
         XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .weight), 200)
