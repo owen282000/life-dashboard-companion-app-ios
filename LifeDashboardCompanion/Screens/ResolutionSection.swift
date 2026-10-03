@@ -43,22 +43,32 @@ struct ResolutionRow: View {
     }
 }
 
-/// One type's choice as a row of chips, as on Android; Every record gets its natural width
-/// and the windows share the rest.
+/// One type's choice as a row of chips, with Android's weights: Every record 1.7, each
+/// window 1.
 private struct TypeResolutionPicker: View {
     let type: HealthDataType
     @Binding var selection: SeriesResolution
+    @ScaledMetric(relativeTo: .caption) private var chipHeight: CGFloat = 34
+
+    private static let spacing: CGFloat = 6
+    private static let rawWeight: CGFloat = 1.7
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(type.displayName)
                 .font(.subheadline)
-            HStack(spacing: 6) {
-                ForEach(SeriesResolution.allCases, id: \.self) { resolution in
-                    chip(resolution)
-                        .layoutPriority(resolution == .raw ? 1 : 0)
+            GeometryReader { geometry in
+                let cases = SeriesResolution.allCases
+                let unit = max(0, geometry.size.width - Self.spacing * CGFloat(cases.count - 1))
+                    / (Self.rawWeight + CGFloat(cases.count - 1))
+                HStack(spacing: Self.spacing) {
+                    ForEach(cases, id: \.self) { resolution in
+                        chip(resolution)
+                            .frame(width: unit * (resolution == .raw ? Self.rawWeight : 1))
+                    }
                 }
             }
+            .frame(height: max(34, chipHeight))
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text(type.displayName))
@@ -75,7 +85,7 @@ private struct TypeResolutionPicker: View {
                 .minimumScaleFactor(0.75)
                 .foregroundStyle(isSelected ? Brand.ink : .secondary)
                 .padding(.horizontal, 6)
-                .frame(maxWidth: .infinity, minHeight: 34)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .fill(isSelected ? Brand.green.opacity(0.18) : Color(.tertiarySystemFill))
