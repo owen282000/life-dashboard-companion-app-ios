@@ -584,28 +584,10 @@ struct HealthKitScreen: View {
         isTestingWebhook = true
         outcome = nil
         Task {
-            let payload: [String: Any] = [
-                "test": true,
-                "message": "Test ping from Life Dashboard Companion",
-                "timestamp": Date().iso8601String,
-                "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
-                "source": "healthkit_ios"
-            ]
-            guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
-                isTestingWebhook = false
-                return
-            }
-            let success = await WebhookManager.shared.post(
-                body: body,
-                urls: prefs.healthWebhookUrls,
-                headers: prefs.healthWebhookHeaders,
-                logType: .healthConnect,
-                dataType: "test",
-                recordCount: 0
-            ).delivered
+            let delivered = await TestPing.send(prefs: prefs)
             await MainActor.run {
                 isTestingWebhook = false
-                report(success ? .pingDelivered : .pingFailed)
+                if let delivered { report(delivered ? .pingDelivered : .pingFailed) }
             }
         }
     }
@@ -669,6 +651,37 @@ struct HealthKitScreen: View {
                 }
             }
         }
+    }
+}
+
+/// The Test ping, the same request from the Health tab and the first-run setup: a small JSON
+/// POST with `test` set, to every webhook URL with the custom headers, signed when a secret is
+/// set, logged with data type `test` and never queued. It counts as delivered only when every
+/// URL took it: a test is there to show the address that does not work.
+enum TestPing {
+    static func body() -> Data? {
+        let payload: [String: Any] = [
+            "test": true,
+            "message": "Test ping from Life Dashboard Companion",
+            "timestamp": Date().iso8601String,
+            "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
+            "source": "healthkit_ios"
+        ]
+        return try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+    }
+
+    /// Whether every webhook took it; nil when the request could not be built.
+    static func send(prefs: PreferencesManager) async -> Bool? {
+        guard let body = body() else { return nil }
+        let delivery = await WebhookManager.shared.post(
+            body: body,
+            urls: prefs.healthWebhookUrls,
+            headers: prefs.healthWebhookHeaders,
+            logType: .healthConnect,
+            dataType: "test",
+            recordCount: 0
+        )
+        return delivery.delivered && delivery.missedUrls.isEmpty
     }
 }
 

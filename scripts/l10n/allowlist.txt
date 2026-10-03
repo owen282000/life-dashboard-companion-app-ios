@@ -11,7 +11,6 @@
 
 LifeDashboardCompanion/Managers/MqttSupport.swift | * | wire | Home Assistant discovery: sensor names, units and the device are shown by HA as sent, the same as Android's
 LifeDashboardCompanion/Screens/HealthKitScreen.swift | Test ping from Life Dashboard Companion | wire | message field of the test ping payload
-LifeDashboardCompanion/Screens/PairingSheet.swift | Test ping from Life Dashboard Companion | wire | message field of the test ping payload
 LifeDashboardCompanion/Managers/ExportManager.swift | ID,Timestamp,Type,URL,Status Code,Success,Error Message,Data Type,Record Count\n | wire | CSV header, the same columns as Android's export
 LifeDashboardCompanion/Managers/ExportManager.swift | yyyy-MM-dd HH:mm:ss | wire | date pattern of the CSV timestamp
 LifeDashboardCompanion/Managers/LogStore.swift | ... [truncated] | wire | marks a cut payload in the stored log and its exports

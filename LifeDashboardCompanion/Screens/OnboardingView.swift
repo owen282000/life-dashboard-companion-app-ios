@@ -13,6 +13,8 @@ struct OnboardingView: View {
     @State private var webhookUrl = ""
     @State private var mqttHost = ""
     @State private var typeChoice: TypeChoice?
+    @State private var isPinging = false
+    @State private var pingOutcome: SyncOutcome?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -145,6 +147,24 @@ struct OnboardingView: View {
                     .buttonStyle(.bordered)
                     .disabled(webhookUrl.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+                // The Health tab's Test ping, so a wrong address shows before any data is due.
+                HStack(spacing: 12) {
+                    Button(action: sendTestPing) {
+                        Label("Test ping", systemImage: "dot.radiowaves.left.and.right")
+                            .font(.footnote.weight(.semibold))
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(prefs.healthWebhookUrls.isEmpty || isPinging)
+                    if isPinging {
+                        ProgressView()
+                    }
+                }
+                if let pingOutcome {
+                    ResultLine(text: pingOutcome.text, tone: pingOutcome.tone)
+                }
+            }
+            .onChange(of: prefs.healthWebhookUrls) {
+                pingOutcome = nil
             }
 
             choiceCard(
@@ -310,6 +330,21 @@ struct OnboardingView: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func sendTestPing() {
+        isPinging = true
+        pingOutcome = nil
+        let urls = prefs.healthWebhookUrls
+        Task {
+            let delivered = await TestPing.send(prefs: prefs)
+            isPinging = false
+            // An address added or removed meanwhile makes the answer about another list.
+            guard let delivered, prefs.healthWebhookUrls == urls else { return }
+            let outcome: SyncOutcome = delivered ? .pingDelivered : .pingFailed
+            pingOutcome = outcome
+            AccessibilityNotification.Announcement(outcome.announcement).post()
+        }
     }
 
     private func move(by offset: Int) {
