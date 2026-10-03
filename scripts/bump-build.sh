@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Sets the build number (CURRENT_PROJECT_VERSION) of the app, the widget and the tests to one
-# value, before an archive for TestFlight or the App Store. See docs/testflight.md.
+# value, before an archive for TestFlight or the App Store.
 #
 #   scripts/bump-build.sh          the number of commits up to HEAD, which only grows on main
 #   scripts/bump-build.sh 137.1    a number of your own, for a second upload of the same commit

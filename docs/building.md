@@ -51,8 +51,7 @@ git config core.hooksPath .githooks
 
 For TestFlight, run `scripts/bump-build.sh` before the archive: it gives the app and the widget
 the same build number, the number of commits up to HEAD, which App Store Connect needs to be new
-for every upload. Restore the project file after the upload. [testflight.md](testflight.md) has
-the whole round and what App Store Connect asks.
+for every upload. Restore the project file after the upload.
 
 ## Contributing
 

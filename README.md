@@ -111,7 +111,6 @@ The payload is the Android app's: the same keys, fields, units and signing. Ever
 | [docs/webhook.md](docs/webhook.md) | What an iPhone sends, where it differs from Android, delivery, retries and HMAC signing |
 | [docs/settings-backup.md](docs/settings-backup.md) | Exporting and importing your configuration, between iPhones and Android phones |
 | [docs/building.md](docs/building.md) | Build, tests, project layout, releasing, screenshots and brand images |
-| [docs/testflight.md](docs/testflight.md) | Build numbers, uploading, and what App Store Connect asks for TestFlight |
 | [docs/localization.md](docs/localization.md) | How the English, Dutch and German texts are kept complete |
 | [CHANGELOG.md](CHANGELOG.md) | Release history |
 | [Android docs](https://github.com/owen282000/life-dashboard-companion-app#documentation) | The full payload reference, the JSON Schema, and the source app notes |
