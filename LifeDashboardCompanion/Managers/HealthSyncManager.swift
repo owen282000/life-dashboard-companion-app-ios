@@ -336,7 +336,7 @@ final class HealthSyncManager: Sendable {
         for (item, reason) in dropped {
             prefs.addWebhookLog(PendingSyncStore.droppedLog(for: item, reason: reason))
         }
-        logger.error("Dropped \(dropped.count) undelivered payload(s) older than a week from the queue")
+        logger.error("Dropped \(dropped.count) undelivered payload(s) from the queue")
         SyncFailureNotifier.shared.notifyDropped(count: dropped.count)
     }
 
@@ -445,7 +445,12 @@ final class HealthSyncManager: Sendable {
                     recordCount: recordCount
                 )?.id
                 // On its way, not waiting: the Health tab leaves it out of the pending count.
-                if let queuedId { pendingStore.beginSending(id: queuedId) }
+                if let queuedId {
+                    pendingStore.beginSending(id: queuedId)
+                    // Reported before the post: iOS may end the app during it, and the payloads
+                    // pushed out are gone already.
+                    self.reportDropped(pendingStore.enforceCap(keeping: queuedId).map { ($0, .full) })
+                }
                 return queuedId
             },
             commit: {
@@ -630,9 +635,12 @@ struct WriteAhead {
 /// is skipped and stays queued, since the refusal can also come from a receiver bug that an
 /// update fixes. An interruption ends the pass without counting an attempt.
 ///
-/// An item older than a week is dropped when a delivery of it fails, refused or not: a phone
-/// that got no chance to sync for a week still tries once. One item goes per failed pass, so
-/// while a receiver stays down the queue holds about a week, however long the outage.
+/// An item older than a week is dropped when a receiver answers a delivery of it with a
+/// failure, refused or not: a phone that got no chance to sync for a week still tries once. A
+/// delivery that reached no receiver, the iPhone offline, a name that does not resolve, a
+/// timeout, or one that iOS cut off, drops nothing however old the item is, as on Android,
+/// whose outbox drops by age only what was refused. `PendingSyncStore.maxItems` bounds the
+/// queue instead.
 struct QueueDrain {
     var now: Date
     /// The URLs configured now; none leaves every item waiting.
@@ -666,7 +674,7 @@ struct QueueDrain {
                     attempt(item, delivery)
                 }
             case .failed:
-                if expired {
+                if expired && delivery.receiverAnswered {
                     remove(item)
                     dropped(item, .undelivered)
                 } else {
@@ -676,4 +684,11 @@ struct QueueDrain {
             }
         }
     }
+}
+
+extension WebhookManager.Delivery {
+    /// Every URL that failed got an HTTP answer: the failure is the servers', not the
+    /// network's. With one URL answering 502 and another unreachable it is false, whichever
+    /// came last, and the queue keeps waiting.
+    var receiverAnswered: Bool { statusCode != nil && !unanswered }
 }

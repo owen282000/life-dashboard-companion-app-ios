@@ -21,7 +21,8 @@ struct PendingSyncItem: Codable, Identifiable {
     var lastError: String?
     var lastStatusCode: Int?
 
-    /// Past `PendingSyncStore.maxAge`: the next delivery that fails is its last.
+    /// Past `PendingSyncStore.maxAge`: the next delivery that a receiver answers with a
+    /// failure is its last.
     func expired(at now: Date) -> Bool {
         now.timeIntervalSince(createdAt) > PendingSyncStore.maxAge
     }
@@ -29,10 +30,13 @@ struct PendingSyncItem: Codable, Identifiable {
 
 /// Why a payload left the queue without being delivered.
 enum QueueDrop: Equatable {
-    /// Still not delivered after a week; the attempt that found it so failed.
+    /// Still not delivered after a week; a receiver answered the attempt that found it so
+    /// with a failure.
     case undelivered
     /// Refused for what it carries, still after a week, with the refusal's status code.
     case refused(Int?)
+    /// Pushed out by a newer payload while the queue held `PendingSyncStore.maxItems`.
+    case full
 }
 
 /// @unchecked Sendable: all data lives in individual files written atomically, and
@@ -45,12 +49,19 @@ final class PendingSyncStore: @unchecked Sendable {
     private var sending: Set<String> = []
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
-    /// How long a payload waits for a delivery before a failed one drops it. Only its age
-    /// counts, not its attempts: every sync, launch and network change drains the queue, and
-    /// 20 attempts, the limit up to 1.4.1, ran out within an afternoon of a receiver being down.
+    /// How long a payload waits for a delivery before a failure a receiver answered drops it.
+    /// Only its age counts, not its attempts: every sync, launch and network change drains the
+    /// queue, and 20 attempts, the limit up to 1.4.1, ran out within an afternoon of a receiver
+    /// being down. An attempt that reached no receiver, offline or cut off, drops nothing.
     static let maxAge: TimeInterval = 7 * 24 * 60 * 60
 
+    /// The most payloads the queue holds, Android's MAX_HEALTH_ITEMS: a week of syncs every 15
+    /// minutes with room for manual ones. Since an iPhone that is offline drops nothing by age,
+    /// this is what bounds the queue; past it the oldest payload goes.
+    static let maxItems = 700
+
     private let root: URL
+    private let maxItems: Int
 
     private var directory: URL {
         if !fileManager.fileExists(atPath: root.path) {
@@ -67,8 +78,9 @@ final class PendingSyncStore: @unchecked Sendable {
 
     /// The queue holds whole payloads, so it stays out of backups. A directory from 1.4.0 and
     /// earlier is in them until this marks it.
-    init(directory: URL) {
+    init(directory: URL, maxItems: Int = PendingSyncStore.maxItems) {
         root = directory
+        self.maxItems = maxItems
         if fileManager.fileExists(atPath: root.path) {
             BackupExclusion.exclude(root)
         }
@@ -139,6 +151,23 @@ final class PendingSyncStore: @unchecked Sendable {
         return items.sorted { $0.createdAt < $1.createdAt }
     }
 
+    /// Takes the oldest payloads out while the queue holds more than `maxItems`, never the one
+    /// with id `keeping`, which was just written, and returns them oldest first, to be reported:
+    /// their records are lost. Counting the files spares reading every payload while it fits.
+    func enforceCap(keeping id: String) -> [PendingSyncItem] {
+        let files = (try? fileManager.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil,
+            options: .skipsHiddenFiles
+        )) ?? []
+        guard files.filter({ $0.pathExtension == "json" }).count > maxItems else { return [] }
+        let items = dequeueAll()
+        guard items.count > maxItems else { return [] }
+        let pushedOut = Array(items.filter { $0.id != id }.prefix(items.count - maxItems))
+        pushedOut.forEach { remove(id: $0.id) }
+        return pushedOut
+    }
+
     /// The log row for an item dropped undelivered: the addresses it was queued for, its record
     /// count and payload, and why it never arrived.
     static func droppedLog(for item: PendingSyncItem, reason: QueueDrop) -> WebhookLog {
@@ -147,6 +176,8 @@ final class PendingSyncStore: @unchecked Sendable {
         switch reason {
         case .undelivered:
             message = AppDiagnostic.droppedUndelivered.rawValue
+        case .full:
+            message = AppDiagnostic.droppedFull.rawValue
         case .refused(let code):
             statusCode = code
             message = code.map(AppDiagnostic.droppedRefused) ?? AppDiagnostic.droppedUndelivered.rawValue

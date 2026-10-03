@@ -116,7 +116,7 @@ Every sync with new records publishes today's totals and the types that have the
 
 ### Queued payloads disappear
 
-A payload that could not be delivered is kept for 7 days, however many attempts that takes. After that, the next delivery that fails drops it. Each dropped payload leaves a row in the Logs tab with the payload and why it never arrived, and a notification says how many syncs were lost. The Health tab shows how many are pending, and **Retry Now** sends them at once, to the webhook URLs and with the headers configured now. A payload the receiver refuses for what it carries (HTTP 400, 413 or 422) stays queued without holding up the others; the receiver's own log says why it refuses it.
+A payload that could not be delivered stays queued, however many attempts that takes. While the iPhone cannot reach the receiver, offline or with a name that does not resolve, it waits for good. Once it is older than 7 days, the next delivery that the receiver answers with an error drops it. The queue holds up to 700 payloads, as in the Android app; past that the oldest one is dropped. Each dropped payload leaves a row in the Logs tab with the payload and why it never arrived, and a notification says how many syncs were lost. The Health tab shows how many are pending, and **Retry Now** sends them at once, to the webhook URLs and with the headers configured now. A payload the receiver refuses for what it carries (HTTP 400, 413 or 422) stays queued without holding up the others; the receiver's own log says why it refuses it.
 
 ### Step, distance or calorie totals are far too high
 

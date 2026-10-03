@@ -43,6 +43,9 @@ actor WebhookManager {
         var missedUrls: [String] = []
         /// How many URLs the payload went to.
         var urlCount = 0
+        /// A URL failed without an HTTP answer: offline, a name that does not resolve, a
+        /// timeout. The retry queue does not drop a payload for its age then.
+        var unanswered = false
 
         var delivered: Bool { outcome.delivered }
 
@@ -92,6 +95,7 @@ actor WebhookManager {
         var anyFailed = false
         var anyInterrupted = false
         var allRefused = true
+        var anyUnanswered = false
         var lastError: String?
         var lastStatusCode: Int?
 
@@ -124,6 +128,7 @@ actor WebhookManager {
                 lastError = result.errorMessage
                 lastStatusCode = result.statusCode
                 allRefused = allRefused && (result.statusCode.map(WebhookRetryPolicy.refusesPayload) ?? false)
+                anyUnanswered = anyUnanswered || result.statusCode == nil
             }
 
             let log = WebhookLog(
@@ -145,7 +150,7 @@ actor WebhookManager {
         if anySuccess { return Delivery(outcome: .delivered, missedUrls: notTaken, urlCount: urls.count) }
         if anyInterrupted && !anyFailed { return Delivery(outcome: .interrupted, urlCount: urls.count) }
         let outcome: Outcome = allRefused && !anyInterrupted ? .refused : .failed
-        return Delivery(outcome: outcome, error: lastError, statusCode: lastStatusCode, urlCount: urls.count)
+        return Delivery(outcome: outcome, error: lastError, statusCode: lastStatusCode, urlCount: urls.count, unanswered: anyUnanswered)
     }
 
     static let atsRefusal = AppDiagnostic.plainHTTPBlocked.rawValue
