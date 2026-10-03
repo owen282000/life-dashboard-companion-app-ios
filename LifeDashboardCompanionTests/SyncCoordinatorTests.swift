@@ -345,9 +345,10 @@ final class SyncCoordinatorTests: XCTestCase {
         let coordinator = SyncCoordinator(environment: world.environment)
 
         let run = Task { await coordinator.runManual(syncNow: false) }
-        _ = await settle { world.incrementals == 1 }
+        // The run is in its sync, so its flight is set, and Retry Now queues behind it.
+        await world.syncLatch.waitForArrivals(1)
         let retry = Task { await coordinator.drain(automatic: false) }
-        _ = await settle { await coordinator.waiting == 1 }
+        await coordinator.untilWaiting(1)
         await world.syncLatch.open()
         _ = await run.value
         await retry.value
@@ -361,7 +362,12 @@ final class SyncCoordinatorTests: XCTestCase {
         let coordinator = SyncCoordinator(environment: world.environment)
 
         let run = Task { await coordinator.runAutomatic(.observer) }
-        _ = await settle { world.incrementals == 1 }
+        await world.syncLatch.waitForArrivals(1)
+        // The coordinator's turn that started the work ends where it waits for that work, with
+        // the cancellation handler in place; one more turn on the actor comes after it. Cancelled
+        // any earlier, the run's cancellation reached the work only when that turn got there,
+        // which on a busy machine could be after the sync below had ended.
+        _ = await coordinator.waiting
         run.cancel()
         await world.syncLatch.open()
 
