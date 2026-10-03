@@ -4,8 +4,10 @@ import os
 actor WebhookManager {
     static let shared = WebhookManager()
 
-    // 30s accommodates large payloads over cellular connections
-    private let timeoutSeconds: TimeInterval = 30
+    /// Android's 10 seconds. URLSession's request timeout is the longest wait for the next bytes,
+    /// not for the whole request, so a large payload on a slow connection still gets through,
+    /// while a server that hangs costs about 33 seconds over three attempts instead of 93.
+    static let timeoutSeconds: TimeInterval = 10
 
     /// The shared session's configuration, in a session of its own: every request carries a
     /// `WebhookTaskDelegate`, which decides about redirects.
@@ -178,7 +180,7 @@ actor WebhookManager {
             request.httpBody = body
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue(signature, forHTTPHeaderField: "X-Signature")
-            request.timeoutInterval = 10
+            request.timeoutInterval = Self.timeoutSeconds
             do {
                 let sent = try await send(request)
                 if let http = sent.response as? HTTPURLResponse {
@@ -257,7 +259,7 @@ actor WebhookManager {
                 request.httpMethod = "POST"
                 request.httpBody = data
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.timeoutInterval = timeoutSeconds
+                request.timeoutInterval = Self.timeoutSeconds
 
                 for (key, value) in headers {
                     request.setValue(value, forHTTPHeaderField: key)
