@@ -72,6 +72,60 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         self.authorizationStatus = statuses
     }
 
+    /// Whether HealthKit refused a read because the user was never asked about the sample type,
+    /// or said no. Distance reads more sample types since 1.5.0, and until the user answers for
+    /// them HealthKit fails every query of one with errorAuthorizationNotDetermined; a denied
+    /// read normally finds nothing instead.
+    static func isUnanswered(_ error: Error) -> Bool {
+        switch (error as? HKError)?.code {
+        case .errorAuthorizationNotDetermined?, .errorAuthorizationDenied?: return true
+        default: return false
+        }
+    }
+
+    /// `read` for each sample type of a payload type, leaving out one HealthKit refuses (see
+    /// `isUnanswered`), so a new kind of distance the user was never asked about does not take
+    /// walking and cycling down with it. Only when every one is refused does the type fail, as
+    /// it did before; any other error fails it right away.
+    static func eachAnswered<Item, Value>(_ items: [Item], _ read: (Item) async throws -> Value) async throws -> [Value] {
+        var values: [Value] = []
+        var refusal: Error?
+        for item in items {
+            do {
+                values.append(try await read(item))
+            } catch let error where isUnanswered(error) {
+                refusal = refusal ?? error
+            }
+        }
+        if values.isEmpty, let refusal { throw refusal }
+        return values
+    }
+
+    // MARK: - Asking once after an update
+
+    /// The read types the Health tab has asked for by itself, as HealthKit identifiers.
+    static let askedReadTypesKey = "health_access_asked_types"
+
+    /// Whether the Health tab asks for access by itself: HealthKit has something to ask for the
+    /// enabled types, as after an update that gives one more sample types or a setup whose
+    /// Allow button was skipped, and the tab has not asked for these types before. Asked once,
+    /// the Grant chip is left to do the rest.
+    static func asksOnce(_ request: HKAuthorizationRequestStatus?, readTypes: Set<String>, asked: Set<String>) -> Bool {
+        request == .shouldRequest && !readTypes.isEmpty && !readTypes.isSubset(of: asked)
+    }
+
+    /// Asks for the enabled types' access when `asksOnce` says so, and remembers that it did.
+    func askOnceForEnabledTypes(_ types: Set<HealthDataType>, defaults: UserDefaults = .standard) async {
+        let readTypes = readTypesFor(types)
+        let identifiers = Set(readTypes.map(\.identifier))
+        let asked = Set(defaults.stringArray(forKey: Self.askedReadTypesKey) ?? [])
+        let request = try? await healthStore.statusForAuthorizationRequest(toShare: [], read: readTypes)
+        guard Self.asksOnce(request, readTypes: identifiers, asked: asked) else { return }
+        // Remembered only once iOS took the request, so a sheet that could not show asks again.
+        guard (try? await requestAuthorization(for: types)) != nil else { return }
+        defaults.set(asked.union(identifiers).sorted(), forKey: Self.askedReadTypesKey)
+    }
+
     /// Most recent heart rate sample, used by the About screen's beating-heart easter egg.
     func latestHeartRateBPM() async -> Int? {
         guard isAvailable else { return nil }
@@ -124,10 +178,9 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         let tails = await HealthKitManager.gather(types) { dataType -> NewestRead? in
             let limit = SyncLimits.maxRecordsPerSync(for: dataType)
             let range = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
-            var starts: [Date] = []
-            for sampleType in dataType.hkSampleTypes {
-                starts += try await self.boundedSampleQuery(type: sampleType, predicate: range, limit: limit, newestFirst: true).map(\.startDate)
-            }
+            let starts = try await HealthKitManager.eachAnswered(dataType.hkSampleTypes) { sampleType in
+                try await self.boundedSampleQuery(type: sampleType, predicate: range, limit: limit, newestFirst: true).map(\.startDate)
+            }.flatMap { $0 }
             guard let tailStart = SyncLimits.tailStart(probedStartDates: starts, limit: limit) else { return .whole }
             return .tail(try await self.readDataForType(dataType, start: tailStart, end: end) ?? [])
         } failed: { dataType, error in
@@ -282,38 +335,57 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         probeNewest: Bool
     ) async throws -> TypeRead {
         let sampleTypes = dataType.hkSampleTypes
-        let catchingUp = prefs.loadCatchUpCursor(for: dataType) != nil
-            || sampleTypes.contains { prefs.loadAnchor(for: dataType, sampleType: $0) == nil }
-        // One budget for all sample types of the payload type, which the readers cap together,
-        // spent in an order that turns every minute, so a busy one (walking distance) cannot
-        // keep a quiet one (cycling distance) waiting for good.
-        var budget = IncrementalRead.pageBudget(for: dataType, catchingUp: catchingUp)
         var added: [AddedSample] = []
         var addedIds: [String: Set<UUID>] = [:]
         var morePending = false
         var readsFirstTime = false
         var newAnchors: [(HKSampleType, HKQueryAnchor)] = []
+        var anchored: [(HKSampleType, HKQueryAnchor)] = []
+        var answered = false
+        var refusal: Error?
 
-        for sampleType in IncrementalRead.rotated(sampleTypes, by: Int(Date().timeIntervalSince1970 / 60)) {
+        for sampleType in sampleTypes {
             if let anchor = prefs.loadAnchor(for: dataType, sampleType: sampleType) {
-                // Nothing left: this sample type keeps its anchor for the next sync.
-                guard budget > 0 else {
-                    morePending = true
-                    continue
-                }
+                anchored.append((sampleType, anchor))
+                continue
+            }
+            do {
+                // First sync of this sample type: read the lookback window. The anchor is taken
+                // before that read, so a sample written in between is read now or next time.
+                newAnchors.append((sampleType, try await queryAnchor(for: sampleType)))
+                readsFirstTime = true
+                answered = true
+            } catch let error where HealthKitManager.isUnanswered(error) {
+                // Left without an anchor, and not catching up: once the user allows it, its
+                // first read sends the week.
+                refusal = refusal ?? error
+            }
+        }
+
+        // One budget for all sample types of the payload type, which the readers cap together,
+        // spent in an order that turns every minute, so a busy one (walking distance) cannot
+        // keep a quiet one (cycling distance) waiting for good.
+        let catchingUp = prefs.loadCatchUpCursor(for: dataType) != nil || readsFirstTime
+        var budget = IncrementalRead.pageBudget(for: dataType, catchingUp: catchingUp)
+        for (sampleType, anchor) in IncrementalRead.rotated(anchored, by: Int(Date().timeIntervalSince1970 / 60)) {
+            // Nothing left: this sample type keeps its anchor for the next sync.
+            guard budget > 0 else {
+                morePending = true
+                continue
+            }
+            do {
                 let page = try await anchoredPage(sampleType: sampleType, anchor: anchor, limit: budget)
                 newAnchors.append((sampleType, page.anchor ?? anchor))
                 added += page.added
                 addedIds[sampleType.identifier, default: []].formUnion(page.added.map(\.uuid))
                 morePending = morePending || page.count >= budget
                 budget -= page.count
-            } else {
-                // First sync of this sample type: read the lookback window. The anchor is taken
-                // before that read, so a sample written in between is read now or next time.
-                newAnchors.append((sampleType, try await queryAnchor(for: sampleType)))
-                readsFirstTime = true
+                answered = true
+            } catch let error where HealthKitManager.isUnanswered(error) {
+                refusal = refusal ?? error
             }
         }
+        if !answered, let refusal { throw refusal }
         // The read ends after the anchored queries: a sample saved while they ran is behind
         // the new anchors, so it has to fall inside this read.
         let now = Date()
@@ -460,14 +532,11 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     /// types. A sample dated in the future is no current value, and would hold every later one
     /// back from MQTT.
     private func newestStart(of dataType: HealthDataType, notAfter now: Date) async throws -> Date? {
-        var newest: Date?
         let past = HKQuery.predicateForSamples(withStart: nil, end: now, options: [])
-        for sampleType in dataType.hkSampleTypes {
-            if let start = try await boundedSampleQuery(type: sampleType, predicate: past, limit: 1, newestFirst: true).first?.startDate {
-                newest = max(newest ?? start, start)
-            }
+        let starts = try await HealthKitManager.eachAnswered(dataType.hkSampleTypes) { sampleType in
+            try await boundedSampleQuery(type: sampleType, predicate: past, limit: 1, newestFirst: true).first?.startDate
         }
-        return newest
+        return starts.compactMap { $0 }.max()
     }
 
     /// While set, the record queries in this task return only these samples, by sample type
@@ -479,10 +548,9 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     /// sample type the payload type combines, and `SyncLimits.sliceEnd` picks the boundary.
     func nextSlice(for dataType: HealthDataType, from start: Date, to end: Date) async throws -> (end: Date, exact: Bool) {
         let limit = SyncLimits.maxRecordsPerSync(for: dataType)
-        var startDates: [Date] = []
-        for sampleType in dataType.hkSampleTypes {
-            startDates += try await readSamples(type: sampleType, start: start, end: end, limit: limit).map(\.startDate)
-        }
+        let startDates = try await HealthKitManager.eachAnswered(dataType.hkSampleTypes) { sampleType in
+            try await readSamples(type: sampleType, start: start, end: end, limit: limit).map(\.startDate)
+        }.flatMap { $0 }
         return SyncLimits.sliceEnd(probedStartDates: startDates, limit: limit, from: start, to: end)
     }
 
@@ -572,14 +640,13 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
             return mapped.isEmpty ? nil : [("steps", mapped)]
 
         case .distance:
-            var samples: [HKQuantitySample] = []
-            for identifier in HealthDataType.distanceIdentifiers {
-                samples += try await readQuantitySamples(
+            let samples = try await HealthKitManager.eachAnswered(HealthDataType.distanceIdentifiers) { identifier in
+                try await readQuantitySamples(
                     type: HKQuantityType(identifier),
                     start: start, end: end,
                     limit: limit
                 )
-            }
+            }.flatMap { $0 }
             let records = SyncLimits.capOldestFirst(samples, limit: limit, timeOf: { $0.startDate })
                 .sorted { $0.startDate < $1.startDate }
             let mapped = records.map { sample -> [String: Any] in

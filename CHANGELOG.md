@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- Distance could stop arriving after the update to 1.5.0. Distance reads cycling, swimming and the other new kinds of distance since then, and until you answer the Health sheet for them, HealthKit refuses every read of one, which failed the whole type: no `distance` records, no `distance_meters` in `daily_totals` and no Distance Today on MQTT. A kind of distance HealthKit may not read is now left out on its own and the others are sent, in the records, the daily totals and the deletion step, which no longer counts it as a failed read. The Health tab now also asks for Health access once by itself when there is something to ask for the types you have on, as after this update, instead of only showing Grant
 - The error lines of the settings backup (a wrong password, a file that cannot be read) were in the system red, 3.6:1 on white, under the 4.5:1 that small text needs. They now use the darker red the rest of the app uses for error text
 
 ## [1.5.0] - 2026-09-30

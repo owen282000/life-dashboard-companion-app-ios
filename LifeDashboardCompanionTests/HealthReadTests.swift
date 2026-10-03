@@ -1,4 +1,5 @@
 import XCTest
+import HealthKit
 @testable import LifeDashboardCompanion
 
 final class HealthReadTests: XCTestCase {
@@ -67,6 +68,57 @@ final class HealthReadTests: XCTestCase {
         }
         XCTAssertEqual(Set(fragments.keys), [.weight])
         XCTAssertTrue(failures.items.isEmpty)
+    }
+
+    // MARK: - Sample types HealthKit may not read
+
+    private let notAsked = HKError(.errorAuthorizationNotDetermined)
+
+    func testOnlyARefusalForTheTypeItselfCountsAsUnanswered() {
+        XCTAssertTrue(HealthKitManager.isUnanswered(HKError(.errorAuthorizationNotDetermined)))
+        XCTAssertTrue(HealthKitManager.isUnanswered(HKError(.errorAuthorizationDenied)))
+        XCTAssertFalse(HealthKitManager.isUnanswered(HKError(.errorDatabaseInaccessible)))
+        XCTAssertFalse(HealthKitManager.isUnanswered(BoundedCall.TimedOut()))
+    }
+
+    func testADistanceNeverAskedForIsLeftOutAndTheOthersAreRead() async throws {
+        let read = try await HealthKitManager.eachAnswered(HealthDataType.distanceIdentifiers) { identifier -> [String] in
+            guard identifier == .distanceWalkingRunning || identifier == .distanceCycling else { throw self.notAsked }
+            return [identifier.rawValue]
+        }
+        XCTAssertEqual(read.flatMap { $0 }, [HKQuantityTypeIdentifier.distanceWalkingRunning.rawValue, HKQuantityTypeIdentifier.distanceCycling.rawValue])
+    }
+
+    func testATypeWithNoSampleTypeToReadStillFails() async {
+        do {
+            _ = try await HealthKitManager.eachAnswered([1, 2]) { _ -> Int in throw self.notAsked }
+            XCTFail("nothing was read, so the type fails as before")
+        } catch {
+            XCTAssertEqual((error as? HKError)?.code, .errorAuthorizationNotDetermined)
+        }
+    }
+
+    func testAnyOtherErrorStillFailsTheType() async {
+        do {
+            _ = try await HealthKitManager.eachAnswered([1, 2]) { item -> Int in
+                if item == 2 { throw BoundedCall.TimedOut() }
+                return item
+            }
+            XCTFail("a timeout is not a refusal")
+        } catch {
+            XCTAssertTrue(error is BoundedCall.TimedOut)
+        }
+    }
+
+    func testTheHealthTabAsksOnceForTypesItHasNotAskedFor() {
+        let distance = Set(HealthDataType.distance.hkSampleTypes.map(\.identifier))
+        let walking = [HKQuantityType(.distanceWalkingRunning).identifier]
+        XCTAssertTrue(HealthKitManager.asksOnce(.shouldRequest, readTypes: distance, asked: []))
+        XCTAssertTrue(HealthKitManager.asksOnce(.shouldRequest, readTypes: distance, asked: Set(walking)))
+        XCTAssertFalse(HealthKitManager.asksOnce(.shouldRequest, readTypes: distance, asked: distance), "asked once already")
+        XCTAssertFalse(HealthKitManager.asksOnce(.unnecessary, readTypes: distance, asked: []), "nothing to ask")
+        XCTAssertFalse(HealthKitManager.asksOnce(nil, readTypes: distance, asked: []))
+        XCTAssertFalse(HealthKitManager.asksOnce(.shouldRequest, readTypes: [], asked: []))
     }
 
     // MARK: - Added samples

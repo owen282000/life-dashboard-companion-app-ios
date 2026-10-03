@@ -88,6 +88,7 @@ struct HealthKitScreen: View {
             #endif
         }
         .task(id: prefs.healthEnabledDataTypes) { await refreshAccessRequest() }
+        .task { await askOnceAfterUpdate() }
         .sheet(isPresented: $showPreview) {
             previewSheet
         }
@@ -124,6 +125,19 @@ struct HealthKitScreen: View {
 
     static func showsGrant(_ request: HKAuthorizationRequestStatus?, enabledCount: Int) -> Bool {
         enabledCount > 0 && request == .shouldRequest
+    }
+
+    /// After an update that gives an enabled type more sample types (distance in 1.5.0), the
+    /// Grant chip alone went unnoticed, and the type sent less than it could. The tab asks iOS
+    /// once by itself when there is something to ask, never over the setup.
+    private func askOnceAfterUpdate() async {
+        guard UserDefaults.standard.bool(forKey: "onboarding_completed") else { return }
+        #if DEBUG
+        // For screenshots: -ld.ask NO, or the default, keeps the Health sheet away.
+        if UserDefaults.standard.object(forKey: "ld.ask") as? Bool == false { return }
+        #endif
+        await healthKit.askOnceForEnabledTypes(prefs.healthEnabledDataTypes)
+        await refreshAccessRequest()
     }
 
     private func refreshAccessRequest() async {

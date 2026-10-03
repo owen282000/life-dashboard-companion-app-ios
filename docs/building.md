@@ -82,6 +82,7 @@ It builds the app, installs it on a simulator of its own (`ld-screenshots`, an i
 | `-ld.expand YES` | every row on the Health tab |
 | `-ld.scroll 0.5` | a long page, scrolled to that fraction |
 | `-ld.step 1` | a step of the first-run setup |
+| `-ld.ask NO` | no Health sheet: the Health tab does not ask for access by itself (the script sets it as a default) |
 
 The pairing sheet needs a tap on iOS's "Open in Life Dashboard?" prompt, which the script sends as Return to the Simulator app. The screenshots are dark, in English with 24-hour times, without the status bar, and 1080 pixels wide, like the Android app's. The simulator has no Health data, so the numbers on them are examples. Look at every one at full size before you commit it.
 

@@ -53,6 +53,7 @@ write failure_notifications_enabled -bool YES
 write stats_lifetime_records -int 48210
 write stats_total_deliveries -int 1236
 write onboarding_completed -bool YES
+write ld.ask -bool NO
 NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 for DOMAIN in "$ID" "group.$ID"; do
     xcrun simctl spawn "$UDID" defaults write "$DOMAIN" records_today -int 214
