@@ -71,6 +71,9 @@ jobs:
       - name: Check translations
         run: scripts/l10n.sh check --objroot build --symroot build --github
 
+      # Signed ad hoc, which needs no certificate or team: an unsigned app gets no Keychain on
+      # the simulator (errSecMissingEntitlement), and the client certificate tests store an
+      # identity there.
       - name: Build for testing
         run: |
           DEVICE=$(xcrun simctl list devices available | grep -oE 'iPhone [^(]+' | head -1 | sed 's/ *$//')
@@ -81,7 +84,7 @@ jobs:
             -scheme LifeDashboardCompanion \
             -destination "platform=iOS Simulator,name=$DEVICE" \
             -derivedDataPath build/tests \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
             build-for-testing
 
       # The tests read English text, whatever language the runner is in.

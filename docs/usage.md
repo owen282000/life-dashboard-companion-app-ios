@@ -80,6 +80,20 @@ Two iPhones on one broker: give each a **Phone name** at the bottom of the MQTT 
 
 Steps, distance and calories are today's totals, the other sensors hold the latest record of their type; [features.md](features.md#home-assistant-and-mqtt) lists them. MQTT has no retry queue and gets no deleted records or backfill. If you add a webhook URL later, it gets what is new from then on; **Backfill** sends what came before. Values are published retained, so they survive a Home Assistant restart. The Logs tab shows every publish, with the broker's answer when it fails.
 
+## A server that requires a client certificate
+
+For a Home Assistant or other receiver behind a reverse proxy that asks for a client certificate (mTLS):
+
+1. Export the certificate together with its private key as a `.p12` file (PKCS #12) with a password, and save it to Files, through AirDrop or iCloud Drive for example. With OpenSSL: `openssl pkcs12 -export -inkey client.key -in client.crt -certfile ca.crt -out client.p12`.
+2. On the Health tab, expand **Advanced**, tap **Import** next to **Client certificate (mTLS)**, pick the file and enter its password.
+3. Tap **Test ping**.
+
+The row shows the certificate's name and its expiry date, with a warning from a month before it expires. Every webhook whose server asks for a certificate gets this one, background syncs, the test ping and the pairing check included; MQTT is unaffected. The certificate and its key are kept in this iPhone's Keychain, the password is not kept at all. **Replace** imports another file, **Remove** deletes the certificate from the iPhone. The `.p12` file in Files can go once it is imported.
+
+A certificate installed as a profile in Settings does not work here: iOS keeps those for Safari and Apple's own apps.
+
+Over TLS 1.3 the certificate travels encrypted. Over TLS 1.2 it is sent in the clear during the handshake, so anyone on the network path can read its name; set the reverse proxy to TLS 1.3 where you can.
+
 ## Syncing without opening the app
 
 - **Home screen widget.** Touch and hold the home screen, tap **Edit** > **Add Widget** and pick Life Dashboard. It shows the last sync and the records delivered today, and the round button in its corner syncs now.
@@ -109,6 +123,12 @@ A sync or backfill that starts while the iPhone is locked cannot read Apple Heal
 - Allow **Local Network** for Life Dashboard (Settings > Privacy & Security > Local Network)
 - A plain `http://` address must be an IP address, a `.local` name or a name without a dot; see [Pairing by QR code](#pairing-by-qr-code)
 - **Test ping** and the Logs tab show the error the server or iOS gave
+
+### "Client certificate is unavailable"
+
+The app has a client certificate on record, but this iPhone's Keychain does not hold it. That happens on an iPhone set up from a backup of another one, or with Quick Start: the settings come along, the certificate never leaves the iPhone it was imported on. No webhook is sent until you import the `.p12` file again under **Advanced**, or **Remove** the certificate when the server no longer requires one.
+
+When the certificate is there and the server still refuses the connection, the server does not trust the authority that issued it, or it has expired; the expiry date is under **Advanced**. nginx answers HTTP 400 with "No required SSL certificate was sent" when no certificate arrived at all.
 
 ### MQTT sensors do not update
 

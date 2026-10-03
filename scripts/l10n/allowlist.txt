@@ -20,6 +20,7 @@ LifeDashboardCompanion/Managers/BackgroundSyncManager.swift | health sync | debu
 LifeDashboardCompanion/Managers/DeletionReader.swift | Unknown sample type %arg | debug-name | the error is counted per type, its text is never shown
 LifeDashboardCompanion/Managers/DeletionReader.swift | Stored anchor unreadable | debug-name | the error is counted per type, its text is never shown
 LifeDashboardCompanion/Managers/SettingsBackup.swift | the result of the last publish on this device | debug-name | documents a setting the backup leaves out
+LifeDashboardCompanion/Managers/SettingsBackup.swift | the private key never leaves this iPhone's Keychain, and its name means nothing on another phone | debug-name | documents a setting the backup leaves out
 LifeDashboardCompanion/Models/SyncStats.swift | Apple Health | diagnostic | source of a read failure in the log row; the Sync History card shows it translated
 LifeDashboardCompanion/Models/AppDiagnostic.swift | HTTP %arg | diagnostic | stored form, display() translates it
 LifeDashboardCompanion/Models/AppDiagnostic.swift | Unknown error after %arg attempts | diagnostic | stored form, display() translates it
@@ -32,6 +33,9 @@ LifeDashboardCompanion/Models/AppDiagnostic.swift | HealthKit did not return | d
 LifeDashboardCompanion/Models/AppDiagnostic.swift | OK: %arg sensors published at %arg | diagnostic | stored MQTT status, MqttStatus translates it
 LifeDashboardCompanion/Models/AppDiagnostic.swift | Error: %arg | diagnostic | stored MQTT status, MqttStatus translates it
 LifeDashboardCompanion/Models/AppDiagnostic.swift | Error: | diagnostic | prefix MqttStatus parses
+LifeDashboardCompanion/Models/AppDiagnostic.swift | HTTP %arg: redirect not followed, so nothing was sent there. %arg | diagnostic | stored form, display() translates it
+LifeDashboardCompanion/Models/AppDiagnostic.swift | HTTP %arg: redirect to %arg not followed, so nothing was sent there. %arg | diagnostic | stored form, display() translates it
+LifeDashboardCompanion/Models/AppDiagnostic.swift | HTTP %arg: more than %arg redirects, the last to %arg. Enter the final address as the webhook URL. | diagnostic | stored form, display() translates it
 LifeDashboardCompanion/Screens/AboutScreen.swift | MIT · © 2026 Owen Vogelaar | brand | licence name and author, the same in every language
 
 key:Localizable | %lld set up | no-plural | "3 ingesteld", "3 eingerichtet": the participle does not change with the count
@@ -45,6 +49,7 @@ key:Localizable | Min %lld minutes | no-plural | never below 15
 key:Localizable | Last %lld days | no-plural | 30, 90 or 365
 key:Localizable | Steps, last %lld days | no-plural | always 7
 key:Localizable | Unknown error after %lld attempts | no-plural | always WebhookRetryPolicy.maxAttempts, 3
+key:Localizable | HTTP %lld: more than %lld redirects, the last to %@. Enter the final address as the webhook URL. | no-plural | always WebhookRedirect.maxRedirects, 5
 key:Localizable | Delivery failed after %lld of %lld windows. Resume continues from there. | no-plural | a backfill has at least 10 windows (30 days in 3-day chunks)
 key:Localizable | Stopped after %lld of %lld windows: HealthKit did not return %@. | no-plural | a backfill has at least 10 windows (30 days in 3-day chunks)
 key:Localizable | Delivered to %lld of %lld destinations, see Logs. | no-plural | shown only when some but not all webhooks took a sync, so the total is at least 2

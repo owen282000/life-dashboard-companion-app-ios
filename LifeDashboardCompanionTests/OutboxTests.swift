@@ -575,10 +575,10 @@ final class OutboxTests: XCTestCase {
     }
 
     private func post(_ codes: [Int]) async -> WebhookManager.Delivery {
-        URLProtocol.registerClass(StatusStub.self)
-        defer { URLProtocol.unregisterClass(StatusStub.self) }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StatusStub.self]
         let urls = codes.map { "https://status-\($0)-\(UUID().uuidString.prefix(8)).test/hook" }
-        let delivery = await WebhookManager.shared.post(
+        let delivery = await WebhookManager(configuration: configuration).post(
             body: Data("{}".utf8), urls: urls, headers: [:],
             logType: .healthConnect, dataType: "health_connect", recordCount: 1
         )

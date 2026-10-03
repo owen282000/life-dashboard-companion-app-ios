@@ -24,6 +24,8 @@ enum AppDiagnostic: String, CaseIterable {
     case droppedUndelivered = "Not delivered for a week, dropped from the queue"
     case droppedFull = "Dropped from the queue: it was full (700 undelivered syncs), so its records are lost"
     case healthUnanswered = "Apple Health did not answer for any data type; the next sync tries again"
+    case clientCertificateUnavailable = "Client certificate is unavailable. Import it again under Advanced."
+    case clientCertificateLocked = "Client certificate cannot be read until the iPhone is unlocked"
 
     var localized: String {
         switch self {
@@ -43,6 +45,8 @@ enum AppDiagnostic: String, CaseIterable {
         case .droppedUndelivered: return String(localized: "Not delivered for a week, dropped from the queue")
         case .droppedFull: return String(localized: "Dropped from the queue: it was full (700 undelivered syncs), so its records are lost")
         case .healthUnanswered: return String(localized: "Apple Health did not answer for any data type; the next sync tries again")
+        case .clientCertificateUnavailable: return String(localized: "Client certificate is unavailable. Import it again under Advanced.")
+        case .clientCertificateLocked: return String(localized: "Client certificate cannot be read until the iPhone is unlocked")
         }
     }
 
@@ -55,6 +59,23 @@ enum AppDiagnostic: String, CaseIterable {
     static func droppedRefused(_ status: Int) -> String {
         "Refused for a week (HTTP \(status)), dropped from the queue"
     }
+
+    /// A 3xx the delivery did not follow (see `WebhookRedirect`), worded as Android's
+    /// WebhookSupport.redirectMessage.
+    static func redirectNotFollowed(_ status: Int, host: String?) -> String {
+        guard let host else {
+            return "HTTP \(status): redirect not followed, so nothing was sent there. \(redirectAdvice)"
+        }
+        return "HTTP \(status): redirect to \(host) not followed, so nothing was sent there. \(redirectAdvice)"
+    }
+
+    /// A redirect on the same host after the last one the delivery follows.
+    static func tooManyRedirects(_ status: Int, host: String) -> String {
+        "HTTP \(status): more than \(WebhookRedirect.maxRedirects) redirects, the last to \(host). Enter the final address as the webhook URL."
+    }
+
+    private static let redirectAdvice =
+        "Only a redirect on the same host is followed; enter the final address as the webhook URL."
 
     static func unknownAfterAttempts(_ attempts: Int) -> String {
         "Unknown error after \(attempts) attempts"
@@ -75,6 +96,7 @@ enum AppDiagnostic: String, CaseIterable {
         if let status = number(in: stored, prefix: "Refused for a week (HTTP ", suffix: "), dropped from the queue") {
             return String(localized: "Refused for a week (HTTP \(status)), dropped from the queue")
         }
+        if let redirect = displayRedirect(stored) { return redirect }
         if let attempts = number(in: stored, prefix: "Unknown error after ", suffix: " attempts") {
             return String(localized: "Unknown error after \(attempts) attempts")
         }
@@ -84,6 +106,27 @@ enum AppDiagnostic: String, CaseIterable {
             return String(localized: "HealthKit did not return \(name)")
         }
         return stored
+    }
+
+    /// The redirect lines, recognised by building them again from the status and host they
+    /// carry, so the English wording lives in one place.
+    private static func displayRedirect(_ stored: String) -> String? {
+        guard let head = stored.prefixMatch(of: /HTTP (\d+):/), let status = Int(head.1) else { return nil }
+        if stored == redirectNotFollowed(status, host: nil) {
+            return String(localized: "HTTP \(status): redirect not followed, so nothing was sent there. Only a redirect on the same host is followed; enter the final address as the webhook URL.")
+        }
+        if let match = stored.firstMatch(of: /: redirect to (.+) not followed,/),
+           stored == redirectNotFollowed(status, host: String(match.1)) {
+            let host = String(match.1)
+            return String(localized: "HTTP \(status): redirect to \(host) not followed, so nothing was sent there. Only a redirect on the same host is followed; enter the final address as the webhook URL.")
+        }
+        if let match = stored.firstMatch(of: /redirects, the last to (.+)\. Enter/),
+           stored == tooManyRedirects(status, host: String(match.1)) {
+            let host = String(match.1)
+            let limit = WebhookRedirect.maxRedirects
+            return String(localized: "HTTP \(status): more than \(limit) redirects, the last to \(host). Enter the final address as the webhook URL.")
+        }
+        return nil
     }
 
     private static func number(in text: String, prefix: String, suffix: String) -> Int? {
