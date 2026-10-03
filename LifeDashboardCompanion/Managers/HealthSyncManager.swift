@@ -66,6 +66,8 @@ final class HealthSyncManager: Sendable {
             payload["source"] = "healthkit_ios"
             let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
             let totalsDay = await attachDailyTotals(to: &payload, types: enabledTypes)
+            var noCommit: AnchorCommit?
+            let resolved = resolveSeries(in: &payload, commit: &noCommit, notCurrent: [])
 
             // Publish latest values to MQTT (Home Assistant Discovery) when configured;
             // failures never block the webhook sync and surface in the MQTT section status.
@@ -76,6 +78,11 @@ final class HealthSyncManager: Sendable {
 
             var syncCounts: [HealthDataType: Int] = [:]
             let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
+            if resolved.leavesNothingToSend(of: totalRecords) {
+                return await postDeletionsOnly(
+                    readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: nil, records: healthData
+                ).map { $0.counting(syncCounts) } ?? .success(syncCounts: syncCounts)
+            }
 
             let outcome = await send(
                 payload, totalsDay: totalsDay, recordCount: totalRecords,
@@ -192,16 +199,30 @@ final class HealthSyncManager: Sendable {
                     return .noData
                 }
                 return result
-            case .data(let healthData, let commit, let notCurrent):
+            case .data(let healthData, let readCommit, let notCurrent):
                 var payload: [String: Any] = healthData
                 payload["timestamp"] = Date().iso8601String
                 payload["app_version"] = appVersion
                 payload["source"] = "healthkit_ios"
                 let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
                 let totalsDay = await attachDailyTotals(to: &payload, types: prefs.healthEnabledDataTypes)
+                var resolvedCommit: AnchorCommit? = readCommit
+                let resolved = resolveSeries(in: &payload, commit: &resolvedCommit, notCurrent: notCurrent)
+                let commit = resolvedCommit ?? readCommit
 
                 var syncCounts: [HealthDataType: Int] = [:]
                 let totalRecords = countRecords(in: healthData, syncCounts: &syncCounts)
+                // Every record went into a window still filling: nothing to post, as on Android.
+                // The anchors and the carry are saved together, or go with the deletions.
+                if resolved.leavesNothingToSend(of: totalRecords) {
+                    guard let result = await postDeletionsOnly(
+                        readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: commit, records: healthData
+                    ) else {
+                        commit.save()
+                        return .success(syncCounts: syncCounts)
+                    }
+                    return result.counting(syncCounts)
+                }
 
                 let outcome = await send(
                     payload, totalsDay: totalsDay, recordCount: totalRecords,
@@ -332,6 +353,9 @@ final class HealthSyncManager: Sendable {
         payload["app_version"] = appVersion
         payload["source"] = "healthkit_ios"
         await attachDailyTotals(to: &payload, types: enabledTypes)
+        // What Sync Now would send, so bucketed the same way; it stores nothing.
+        var noCommit: AnchorCommit?
+        resolveSeries(in: &payload, commit: &noCommit, notCurrent: [])
 
         return payload
     }
@@ -360,14 +384,16 @@ final class HealthSyncManager: Sendable {
         readGeneration: Int,
         urls: [String],
         headers: [String: String],
-        commit: AnchorCommit?
+        commit: AnchorCommit?,
+        records: [String: Any] = [:]
     ) async -> HealthSyncResult? {
         var payload: [String: Any] = [
             "timestamp": Date().iso8601String,
             "app_version": appVersion,
             "source": "healthkit_ios"
         ]
-        let deletions = await attachDeletions(to: &payload, records: [:], readGeneration: readGeneration)
+        // Records read but held in open windows still exist, so their deletions stay out.
+        let deletions = await attachDeletions(to: &payload, records: records, readGeneration: readGeneration)
         guard !deletions.summary.isEmpty else { return nil }
 
         let outcome = await send(
@@ -451,6 +477,49 @@ final class HealthSyncManager: Sendable {
         return delivery
     }
 
+    // MARK: - Data resolution
+
+    /// Buckets the series that have a resolution set (see ResolutionApplier). With a commit, an
+    /// incremental read, the windows still filling are carried into it and saved with its
+    /// anchors. Without one, Sync Now and its preview, which read the last week again and save
+    /// nothing, send the closed windows and leave the filling one to the incremental syncs,
+    /// which read it on their own.
+    ///
+    /// A window counts as filling up to a type's catch-up cursor, where its next read starts,
+    /// and up to the newest measurement read for a type that is behind (the cap, or a page
+    /// left for the next sync): the next read may still add to the window that holds it.
+    @discardableResult
+    private func resolveSeries(
+        in payload: inout [String: Any],
+        commit: inout AnchorCommit?,
+        notCurrent: Set<HealthDataType>
+    ) -> ResolvedSeries {
+        let resolutions = prefs.storedSeriesResolutions
+        let now = Date()
+        let carriedIn = commit == nil ? [:] : BucketCarryStore.shared.load()
+        var boundaries: [HealthDataType: Date] = [:]
+        for type in ResolutionFamily.configurableTypes where (resolutions[type] ?? .raw) != .raw {
+            var boundary = now
+            if let commit {
+                let read = commit.cursors.first { $0.0 == type }
+                if let cursor = read.map({ $0.1 }) ?? prefs.loadCatchUpCursor(for: type) { boundary = min(boundary, cursor) }
+            }
+            let behind = commit == nil
+                ? ((payload[type.countedPayloadKey] as? [Any])?.count ?? 0) >= SyncLimits.maxRecordsPerSync(for: type)
+                : notCurrent.contains(type)
+            if behind, let newest = ResolutionApplier.newestMeasurement(of: type, in: payload, carried: carriedIn[type] ?? []) {
+                boundary = min(boundary, newest)
+            }
+            if boundary < now { boundaries[type] = boundary }
+        }
+        let resolved = ResolutionApplier.apply(
+            to: payload, resolutions: resolutions, carriedIn: carriedIn, now: now, boundaries: boundaries
+        )
+        payload = resolved.payload
+        commit?.bucketCarry = resolved.carriedOut
+        return resolved
+    }
+
     // MARK: - Daily Totals
 
     /// Puts the totals of today and the two days before on the payload when the setting is on,
@@ -493,6 +562,13 @@ final class HealthSyncManager: Sendable {
 }
 
 extension HealthSyncResult {
+    /// A deletions-only delivery that stands for a sync whose records all went into windows
+    /// still filling: it reports those records, as the Android app counts them.
+    func counting(_ syncCounts: [HealthDataType: Int]) -> HealthSyncResult {
+        guard case .success(_, let reach) = self else { return self }
+        return .success(syncCounts: syncCounts, reach: reach)
+    }
+
     /// Combines the results of the rounds of one sync: a failure wins, record counts add up,
     /// and a webhook that missed one round missed part of the sync.
     func merged(with other: HealthSyncResult) -> HealthSyncResult {

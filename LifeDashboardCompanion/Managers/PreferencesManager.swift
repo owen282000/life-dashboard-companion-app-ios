@@ -31,6 +31,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         static let healthWebhookHeaders = "health_webhook_headers"
         static let healthSigningSecret = "health_signing_secret"
         static let includeDailyTotals = "include_daily_totals"
+        static let healthSeriesResolutions = "health_series_resolutions"
         static let webhookLogs = "webhook_logs"
         static let failureNotificationsEnabled = "failure_notifications_enabled"
         static let failureNotificationThreshold = "failure_notification_threshold"
@@ -147,6 +148,37 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
     /// Same key and default as the Android app, so a settings backup maps it one to one.
     @Published var includeDailyTotals: Bool {
         didSet { defaults.set(includeDailyTotals, forKey: Keys.includeDailyTotals) }
+    }
+
+    /// Data resolution per type, stored as Android stores it: "HEART_RATE=ONE_MINUTE" pairs,
+    /// only for the types not at raw, so a type that is absent sends every record.
+    @Published var seriesResolutions: [HealthDataType: SeriesResolution] {
+        didSet { defaults.set(PreferencesManager.formatResolutions(seriesResolutions), forKey: Keys.healthSeriesResolutions) }
+    }
+
+    /// The same setting read back from UserDefaults, which is thread-safe, for the sync and the
+    /// backfill, which read it off the main actor while the screen may be writing it.
+    var storedSeriesResolutions: [HealthDataType: SeriesResolution] {
+        PreferencesManager.parseResolutions(defaults.string(forKey: Keys.healthSeriesResolutions))
+    }
+
+    static func formatResolutions(_ resolutions: [HealthDataType: SeriesResolution]) -> String {
+        resolutions.filter { $0.value != SeriesResolution.defaultResolution }
+            .map { "\($0.key.rawValue)=\($0.value.rawValue)" }
+            .sorted()
+            .joined(separator: ",")
+    }
+
+    /// Unknown types and anything unparseable are left out, so they read as raw.
+    static func parseResolutions(_ stored: String?) -> [HealthDataType: SeriesResolution] {
+        var resolutions: [HealthDataType: SeriesResolution] = [:]
+        for pair in (stored ?? "").split(separator: ",") {
+            let parts = pair.split(separator: "=", omittingEmptySubsequences: false)
+            guard parts.count == 2, let type = HealthDataType(rawValue: String(parts[0])) else { continue }
+            let resolution = SeriesResolution.from(String(parts[1]))
+            if resolution != .raw { resolutions[type] = resolution }
+        }
+        return resolutions
     }
 
     @Published var failureNotificationsEnabled: Bool {
@@ -297,6 +329,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
             self.healthSigningSecret = ""
         }
         self.includeDailyTotals = defaults.object(forKey: Keys.includeDailyTotals) as? Bool ?? true
+        self.seriesResolutions = PreferencesManager.parseResolutions(defaults.string(forKey: Keys.healthSeriesResolutions))
 
         self.mqttEnabled = defaults.object(forKey: Keys.mqttEnabled) as? Bool ?? false
         self.mqttHost = defaults.string(forKey: Keys.mqttHost) ?? ""

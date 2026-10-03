@@ -51,6 +51,7 @@
 		4A789195CF646BC598EE3895 /* HealthBackfill.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE10A6EA3D001E3511511497 /* HealthBackfill.swift */; };
 		4B362D4265214953E4922095 /* BackfillController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF33929F5514CE184DEC6C /* BackfillController.swift */; };
 		B100001D /* SyncLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001D /* SyncLimits.swift */; };
+		CB45E75B4132649556FCA5F7 /* SeriesResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02FD4BADFFFFA7A91C635B8D /* SeriesResolution.swift */; };
 		5FD4BA2492A1C35EFA84CDF9 /* DailyTotals.swift in Sources */ = {isa = PBXBuildFile; fileRef = C888638AD21A073D47F7FF06 /* DailyTotals.swift */; };
 		B100001E /* MenstruationPeriodBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001E /* MenstruationPeriodBuilder.swift */; };
 		B100001F /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001F /* KeychainStore.swift */; };
@@ -62,6 +63,7 @@
 		B1000025 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F1000025 /* Localizable.xcstrings */; };
 		C645491B9A672343848E7F72 /* HealthBackfillTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 241D957FDC723CAC6D7963F5 /* HealthBackfillTests.swift */; };
 		B1000026 /* SyncLimitsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000026 /* SyncLimitsTests.swift */; };
+		51A37999913AE3E9ACEF006C /* SeriesResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 283034D9E5F9F5B57B0240BD /* SeriesResolutionTests.swift */; };
 		96485F6059B429FF98E9CF1E /* OutboxTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C81209D7300DA9EADC48A4C /* OutboxTests.swift */; };
 		E3082CABD48139FACFF8B7CC /* HealthReadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D81C9E902EF6B1BF3B0E00D6 /* HealthReadTests.swift */; };
 		7C6E6187A82E4D3D2DE1052E /* HealthRecordMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E54DAE6449747C349A981F33 /* HealthRecordMappingTests.swift */; };
@@ -182,6 +184,7 @@
 		FE10A6EA3D001E3511511497 /* HealthBackfill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthBackfill.swift; sourceTree = "<group>"; };
 		8ADF33929F5514CE184DEC6C /* BackfillController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackfillController.swift; sourceTree = "<group>"; };
 		F100001D /* SyncLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncLimits.swift; sourceTree = "<group>"; };
+		02FD4BADFFFFA7A91C635B8D /* SeriesResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesResolution.swift; sourceTree = "<group>"; };
 		C888638AD21A073D47F7FF06 /* DailyTotals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTotals.swift; sourceTree = "<group>"; };
 		F100001E /* MenstruationPeriodBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenstruationPeriodBuilder.swift; sourceTree = "<group>"; };
 		F100001F /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
@@ -193,6 +196,7 @@
 		F1000025 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		241D957FDC723CAC6D7963F5 /* HealthBackfillTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthBackfillTests.swift; sourceTree = "<group>"; };
 		F1000026 /* SyncLimitsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncLimitsTests.swift; sourceTree = "<group>"; };
+		283034D9E5F9F5B57B0240BD /* SeriesResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesResolutionTests.swift; sourceTree = "<group>"; };
 		0C81209D7300DA9EADC48A4C /* OutboxTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutboxTests.swift; sourceTree = "<group>"; };
 		D81C9E902EF6B1BF3B0E00D6 /* HealthReadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthReadTests.swift; sourceTree = "<group>"; };
 		E54DAE6449747C349A981F33 /* HealthRecordMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthRecordMappingTests.swift; sourceTree = "<group>"; };
@@ -330,6 +334,7 @@
 				F1000018 /* WebhookRetryPolicy.swift */,
 				F1000019 /* SleepSessionBuilder.swift */,
 				F100001D /* SyncLimits.swift */,
+				02FD4BADFFFFA7A91C635B8D /* SeriesResolution.swift */,
 				8ADF33929F5514CE184DEC6C /* BackfillController.swift */,
 				FE10A6EA3D001E3511511497 /* HealthBackfill.swift */,
 				C888638AD21A073D47F7FF06 /* DailyTotals.swift */,
@@ -398,6 +403,7 @@
 				D8B7BE1BD86868C3A951B716 /* WebhookLogCodingTests.swift */,
 				F100001C /* SleepSessionBuilderTests.swift */,
 				F1000026 /* SyncLimitsTests.swift */,
+				283034D9E5F9F5B57B0240BD /* SeriesResolutionTests.swift */,
 				0C81209D7300DA9EADC48A4C /* OutboxTests.swift */,
 				D81C9E902EF6B1BF3B0E00D6 /* HealthReadTests.swift */,
 				D19ED8BFFC097743BD11F082 /* SyncCoordinatorTests.swift */,
@@ -592,6 +598,7 @@
 				B1000018 /* WebhookRetryPolicy.swift in Sources */,
 				B1000019 /* SleepSessionBuilder.swift in Sources */,
 				B100001D /* SyncLimits.swift in Sources */,
+				CB45E75B4132649556FCA5F7 /* SeriesResolution.swift in Sources */,
 				4B362D4265214953E4922095 /* BackfillController.swift in Sources */,
 				4A789195CF646BC598EE3895 /* HealthBackfill.swift in Sources */,
 				5FD4BA2492A1C35EFA84CDF9 /* DailyTotals.swift in Sources */,
@@ -643,6 +650,7 @@
 				B100001B /* WebhookRetryPolicyTests.swift in Sources */,
 				B100001C /* SleepSessionBuilderTests.swift in Sources */,
 				B1000026 /* SyncLimitsTests.swift in Sources */,
+				51A37999913AE3E9ACEF006C /* SeriesResolutionTests.swift in Sources */,
 				96485F6059B429FF98E9CF1E /* OutboxTests.swift in Sources */,
 				E3082CABD48139FACFF8B7CC /* HealthReadTests.swift in Sources */,
 				748D53113F6AB7F126F98E44 /* SyncCoordinatorTests.swift in Sources */,
