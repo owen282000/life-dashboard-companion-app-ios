@@ -402,7 +402,7 @@ final class HealthSyncManager: Sendable {
         deletions: DeletionPlan,
         commit: AnchorCommit?
     ) async -> WebhookManager.Delivery? {
-        guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
+        guard let body = PayloadJSON.data(payload) else {
             commit?.save()
             return nil
         }
@@ -475,7 +475,7 @@ final class HealthSyncManager: Sendable {
     private func queuedBody(_ body: Data, payload: [String: Any], totalsDay: String?) -> Data {
         guard let totalsDay else { return body }
         let queued = DailyTotals.forQueue(payload, builtOn: totalsDay)
-        return (try? JSONSerialization.data(withJSONObject: queued, options: [.sortedKeys])) ?? body
+        return PayloadJSON.data(queued) ?? body
     }
 
     // MARK: - Private Helpers

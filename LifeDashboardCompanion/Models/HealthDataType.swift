@@ -615,3 +615,90 @@ enum HealthRecordMapping {
         return name
     }
 }
+
+// MARK: - Serialization
+
+/// The payload as JSON, with every number at a precision that fits its field. HealthKit's unit
+/// conversions leave float noise, and JSONSerialization writes a double with 17 significant
+/// digits, so even 78.2 itself went out as 78.200000000000003. Each fraction goes out as a
+/// decimal number instead, rounded to its field's decimals.
+enum PayloadJSON {
+
+    /// Decimals per payload field. Android's MQTT precision where it keeps a value as it was
+    /// entered in any unit Health offers; more where it does not (0.1 lb, 0.1 °F, 1 mL, 1 mm).
+    static let decimals: [String: Int] = [
+        "meters": 3,
+        "distance_meters": 2,
+        "kilograms": 2,
+        "calories": 2,
+        "active_calories": 2,
+        "total_calories": 2,
+        "celsius": 2,
+        "liters": 3,
+        "mmol_per_liter": 2,
+        "percentage": 1,
+        "systolic": 1,
+        "diastolic": 1,
+        "rate": 1,
+        "heart_rate_variability_millis": 1,
+        "vo2_ml_per_min_per_kg": 1
+    ]
+
+    /// Nutrient amounts in grams, milligrams and micrograms.
+    static let nutrientDecimals = 2
+    private static let nutrientSuffixes = ["_grams", "_g", "_mg", "_mcg"]
+
+    /// Nil for a field without fixed decimals, which keeps its shortest exact form.
+    static func decimals(for field: String) -> Int? {
+        if let fixed = decimals[field] { return fixed }
+        return nutrientSuffixes.contains { field.hasSuffix($0) } ? nutrientDecimals : nil
+    }
+
+    /// The bytes every payload is sent and queued with.
+    static func data(_ payload: [String: Any], options: JSONSerialization.WritingOptions = [.sortedKeys]) -> Data? {
+        let value = rounded(payload) ?? [:]
+        guard JSONSerialization.isValidJSONObject(value) else { return nil }
+        return try? JSONSerialization.data(withJSONObject: value, options: options)
+    }
+
+    /// `value` with every fraction in it, at any depth, as a decimal number. Integers, booleans
+    /// and text stay as they are. A fraction JSON cannot hold, NaN or infinity, is left out
+    /// with its key, rather than costing the payload every other record.
+    static func rounded(_ value: Any, field: String? = nil) -> Any? {
+        switch value {
+        case let dictionary as [String: Any]:
+            return dictionary.reduce(into: [String: Any]()) { result, entry in
+                result[entry.key] = rounded(entry.value, field: entry.key)
+            }
+        case let array as [Any]:
+            return array.compactMap { rounded($0, field: field) }
+        default:
+            guard let fraction = fraction(value) else { return value }
+            return decimal(fraction, decimals: field.flatMap(decimals(for:))).map(NSDecimalNumber.init(decimal:))
+        }
+    }
+
+    /// The value of a Double, or of an NSNumber that holds one; nil for anything else.
+    private static func fraction(_ value: Any) -> Double? {
+        if let double = value as? Double, type(of: value) == Double.self { return double }
+        guard let number = value as? NSNumber, !(number is NSDecimalNumber),
+              CFGetTypeID(number) != CFBooleanGetTypeID(), CFNumberIsFloatType(number) else { return nil }
+        return number.doubleValue
+    }
+
+    private static let posix = Locale(identifier: "en_US_POSIX")
+
+    /// `value` rounded half up from its shortest form (Swift's description, the shortest text
+    /// that reads back as the same double) to `decimals`, the way Java's String.format and so
+    /// the Android app's MQTT states round. Nil for NaN and infinity.
+    static func decimal(_ value: Double, decimals: Int?) -> Decimal? {
+        guard value.isFinite else { return nil }
+        // Past Decimal's range, below 1e-128, the value is 0 at any precision a field has.
+        guard var exact = Decimal(string: "\(value)", locale: posix) ?? (value.magnitude < 1 ? 0 : nil),
+              !exact.isNaN else { return nil }
+        guard let decimals else { return exact }
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &exact, decimals, .plain)
+        return rounded
+    }
+}
