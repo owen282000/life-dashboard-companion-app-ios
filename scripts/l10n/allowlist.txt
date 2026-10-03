@@ -37,6 +37,7 @@ LifeDashboardCompanion/Screens/AboutScreen.swift | MIT · © 2026 Owen Vogelaar 
 key:Localizable | %lld set up | no-plural | "3 ingesteld", "3 eingerichtet": the participle does not change with the count
 key:Localizable | %lld configured | no-plural | the participle does not change with the count
 key:Localizable | %lld of %lld selected | no-plural | the participle does not change with the count
+key:Localizable | %lld bucketed | no-plural | "3 gebundeld", "3 gebündelt": the participle does not change with the count
 key:Localizable | All %lld types the app can read | no-plural | always all 28 types
 key:Localizable | Step %lld of %lld | no-plural | a position, not an amount
 key:Localizable | Every %lld min | no-plural | abbreviated unit

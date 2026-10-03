@@ -30,6 +30,7 @@
 		B1000016 /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000016 /* NetworkMonitor.swift */; };
 		B100000F /* ExportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000F /* ExportManager.swift */; };
 		A2EAAFD5F263D012811C9334 /* BackfillSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = C62EECEBEC625EDD72812A24 /* BackfillSection.swift */; };
+		6CF436142285258C8E7D10D6 /* ResolutionSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BA148620E5476EBFE56676A /* ResolutionSection.swift */; };
 		E834914DA23B677F361C7D49 /* SettingsBackup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4710520E6EDB1FCE1D78A8E /* SettingsBackup.swift */; };
 		F25E09CA29B68FDB1E69E7E0 /* SettingsBackupCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 896FD0F0B3CB6656D1829159 /* SettingsBackupCrypto.swift */; };
 		B1000010 /* HealthKitScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000010 /* HealthKitScreen.swift */; };
@@ -159,6 +160,7 @@
 		F1000016 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		F100000F /* ExportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportManager.swift; sourceTree = "<group>"; };
 		C62EECEBEC625EDD72812A24 /* BackfillSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackfillSection.swift; sourceTree = "<group>"; };
+		2BA148620E5476EBFE56676A /* ResolutionSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolutionSection.swift; sourceTree = "<group>"; };
 		A4710520E6EDB1FCE1D78A8E /* SettingsBackup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBackup.swift; sourceTree = "<group>"; };
 		896FD0F0B3CB6656D1829159 /* SettingsBackupCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBackupCrypto.swift; sourceTree = "<group>"; };
 		F1000010 /* HealthKitScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitScreen.swift; sourceTree = "<group>"; };
@@ -357,6 +359,7 @@
 			children = (
 				F1000010 /* HealthKitScreen.swift */,
 				C62EECEBEC625EDD72812A24 /* BackfillSection.swift */,
+				2BA148620E5476EBFE56676A /* ResolutionSection.swift */,
 				817D238D6011A0731C53A2BC /* PairingSheet.swift */,
 				E134C26ED525B347764FD494 /* PairingScannerView.swift */,
 				F1000012 /* LogsScreen.swift */,
@@ -588,6 +591,7 @@
 				F25E09CA29B68FDB1E69E7E0 /* SettingsBackupCrypto.swift in Sources */,
 				B1000010 /* HealthKitScreen.swift in Sources */,
 				A2EAAFD5F263D012811C9334 /* BackfillSection.swift in Sources */,
+				6CF436142285258C8E7D10D6 /* ResolutionSection.swift in Sources */,
 				EE2771E197D3086DF413FBED /* PairingSheet.swift in Sources */,
 				10C8120B1617017CE4599C14 /* PairingScannerView.swift in Sources */,
 				B1000012 /* LogsScreen.swift in Sources */,

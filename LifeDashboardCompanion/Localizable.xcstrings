@@ -609,6 +609,22 @@
         }
       }
     },
+    "%lld bucketed" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld gebündelt"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld gebundeld"
+          }
+        }
+      }
+    },
     "%lld configured" : {
       "localizations" : {
         "de" : {
@@ -1435,6 +1451,70 @@
         }
       }
     },
+    "1 hour" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Std."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 uur"
+          }
+        }
+      }
+    },
+    "1 min" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Min."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 min"
+          }
+        }
+      }
+    },
+    "5 min" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 Min."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 min"
+          }
+        }
+      }
+    },
+    "15 min" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 Min."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 min"
+          }
+        }
+      }
+    },
     "60" : {
       "localizations" : {
         "de" : {
@@ -1847,6 +1927,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Automatiseringen negeren het schema in de app, ook de stille uren."
+          }
+        }
+      }
+    },
+    "Averaged per window" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pro Fenster gemittelt"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gemiddeld per venster"
           }
         }
       }
@@ -2526,6 +2622,22 @@
         }
       }
     },
+    "Data Resolution" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenauflösung"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dataresolutie"
+          }
+        }
+      }
+    },
     "Data Types" : {
       "localizations" : {
         "de" : {
@@ -2694,6 +2806,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aflevering mislukt na %1$lld van %2$lld blokken. Hervatten gaat vanaf daar verder."
+          }
+        }
+      }
+    },
+    "Dense series like heart rate can be sent as averages per time window instead of every single record. Smaller payloads, less detail." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dichte Reihen wie die Herzfrequenz lassen sich als Mittelwerte pro Zeitfenster senden statt als einzelne Datensätze. Kleinere Payloads, weniger Details."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dichte reeksen zoals hartslag kun je versturen als gemiddelden per tijdvenster in plaats van elke losse meting. Kleinere payloads, minder detail."
           }
         }
       }
@@ -2918,6 +3046,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Elke aflevering en MQTT-publicatie verschijnt hier."
+          }
+        }
+      }
+    },
+    "Every record" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeder Datensatz"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elke meting"
           }
         }
       }
@@ -6699,6 +6843,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Geslaagde afleveringen"
+          }
+        }
+      }
+    },
+    "Summed per window" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pro Fenster summiert"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opgeteld per venster"
           }
         }
       }

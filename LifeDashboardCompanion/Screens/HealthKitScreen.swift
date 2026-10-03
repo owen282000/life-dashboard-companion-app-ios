@@ -12,6 +12,7 @@ struct HealthKitScreen: View {
     @State private var showWebhook = false
     @State private var showMqtt = false
     @State private var showAdvanced = false
+    @State private var showResolution = false
     @State private var showNotifications = false
     @State private var newWebhookUrl: String = ""
     @State private var newHeaderKey: String = ""
@@ -57,6 +58,8 @@ struct HealthKitScreen: View {
                     CardGroup {
                         advancedRow
                         CardDivider()
+                        ResolutionRow(prefs: prefs, isExpanded: $showResolution)
+                        CardDivider()
                         notificationsRow
                     }
                     actions
@@ -84,6 +87,7 @@ struct HealthKitScreen: View {
             // For screenshots: -ld.expand YES opens every row.
             if UserDefaults.standard.bool(forKey: "ld.expand") {
                 (showDataTypes, showSchedule, showWebhook, showMqtt, showAdvanced, showNotifications) = (true, true, true, true, true, true)
+                showResolution = true
             }
             #endif
         }
