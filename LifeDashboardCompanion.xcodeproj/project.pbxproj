@@ -39,15 +39,19 @@
 		6834543E155CE8FC8B45ED25 /* MqttPacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF73E5D5E207F8C511EF06F5 /* MqttPacket.swift */; };
 		CF775D282F2EDF1259F96E3B /* MqttSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FBDAA116A38516E98827EFA /* MqttSupport.swift */; };
 		A6EF25DF6E9049216FEDF0BC /* MqttPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EAE9DB642137B4DAEE89D40 /* MqttPublisher.swift */; };
+		51E5C10E69505D2FA3BD79E1 /* MqttSensorCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08ECB9F59A0968A49D4EE71 /* MqttSensorCache.swift */; };
 		DC3F56B7B12AAB0A0F646E19 /* MqttPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7844ED7AB1F0D76FD282CC18 /* MqttPacketTests.swift */; };
 		71995D4DCF9914D64779CC97 /* MqttSupportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B7F64070EB24778B41A051B /* MqttSupportTests.swift */; };
+		2D38008FC1CC03B2BC52FE88 /* MqttSensorCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 054BDD3BE4551645EAC31E8C /* MqttSensorCacheTests.swift */; };
 		75AE7368B36783B99C63DFC7 /* AndroidFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC4BF029DE8F7BA1F448D602 /* AndroidFixtures.swift */; };
 		15E26639D4E91D957D451C8C /* SettingsBackupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A0B3417331E8F6C4B4D39C /* SettingsBackupTests.swift */; };
 		5CF46D678145B967DC6B4B70 /* SettingsBackupCryptoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5044D8F8014A310603CBB122 /* SettingsBackupCryptoTests.swift */; };
 		B1000018 /* WebhookRetryPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000018 /* WebhookRetryPolicy.swift */; };
 		B1000019 /* SleepSessionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000019 /* SleepSessionBuilder.swift */; };
 		B100001A /* WebhookSignerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001A /* WebhookSignerTests.swift */; };
+		8D4AE005B3DA6EFB999B6F10 /* ClientCertificateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E6132151964D2990AAA12E2 /* ClientCertificateTests.swift */; };
 		B100001B /* WebhookRetryPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001B /* WebhookRetryPolicyTests.swift */; };
+		2C04B7A4289E2A9A25E9AC88 /* WebhookRedirectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C49B66C48BF9092BA068409 /* WebhookRedirectTests.swift */; };
 		B100001C /* SleepSessionBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001C /* SleepSessionBuilderTests.swift */; };
 		4A789195CF646BC598EE3895 /* HealthBackfill.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE10A6EA3D001E3511511497 /* HealthBackfill.swift */; };
 		4B362D4265214953E4922095 /* BackfillController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF33929F5514CE184DEC6C /* BackfillController.swift */; };
@@ -56,9 +60,11 @@
 		5FD4BA2492A1C35EFA84CDF9 /* DailyTotals.swift in Sources */ = {isa = PBXBuildFile; fileRef = C888638AD21A073D47F7FF06 /* DailyTotals.swift */; };
 		B100001E /* MenstruationPeriodBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001E /* MenstruationPeriodBuilder.swift */; };
 		B100001F /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001F /* KeychainStore.swift */; };
+		425BFE57DA06ECDE64B15227 /* ClientCertificate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D24CBAEE6AE7E654EDF25D9 /* ClientCertificate.swift */; };
 		B1000022 /* LogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000022 /* LogStore.swift */; };
 		B1000023 /* AboutScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000023 /* AboutScreen.swift */; };
 		5421F067D17AD5AB87506A15 /* SettingsBackupSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018102528A19E8A6D938C8D8 /* SettingsBackupSection.swift */; };
+		14182D20158F46BA308D1682 /* ClientCertificateLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45CCA38AF03491D63BED34B /* ClientCertificateLine.swift */; };
 		B1000040 /* DashboardCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000040 /* DashboardCard.swift */; };
 		B1000024 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F1000024 /* PrivacyInfo.xcprivacy */; };
 		B1000025 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F1000025 /* Localizable.xcstrings */; };
@@ -171,15 +177,19 @@
 		EF73E5D5E207F8C511EF06F5 /* MqttPacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttPacket.swift; sourceTree = "<group>"; };
 		7FBDAA116A38516E98827EFA /* MqttSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttSupport.swift; sourceTree = "<group>"; };
 		5EAE9DB642137B4DAEE89D40 /* MqttPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttPublisher.swift; sourceTree = "<group>"; };
+		C08ECB9F59A0968A49D4EE71 /* MqttSensorCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttSensorCache.swift; sourceTree = "<group>"; };
 		7844ED7AB1F0D76FD282CC18 /* MqttPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttPacketTests.swift; sourceTree = "<group>"; };
 		4B7F64070EB24778B41A051B /* MqttSupportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttSupportTests.swift; sourceTree = "<group>"; };
+		054BDD3BE4551645EAC31E8C /* MqttSensorCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttSensorCacheTests.swift; sourceTree = "<group>"; };
 		BC4BF029DE8F7BA1F448D602 /* AndroidFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AndroidFixtures.swift; sourceTree = "<group>"; };
 		38A0B3417331E8F6C4B4D39C /* SettingsBackupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBackupTests.swift; sourceTree = "<group>"; };
 		5044D8F8014A310603CBB122 /* SettingsBackupCryptoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBackupCryptoTests.swift; sourceTree = "<group>"; };
 		F1000018 /* WebhookRetryPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookRetryPolicy.swift; sourceTree = "<group>"; };
 		F1000019 /* SleepSessionBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSessionBuilder.swift; sourceTree = "<group>"; };
 		F100001A /* WebhookSignerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookSignerTests.swift; sourceTree = "<group>"; };
+		5E6132151964D2990AAA12E2 /* ClientCertificateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientCertificateTests.swift; sourceTree = "<group>"; };
 		F100001B /* WebhookRetryPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookRetryPolicyTests.swift; sourceTree = "<group>"; };
+		6C49B66C48BF9092BA068409 /* WebhookRedirectTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookRedirectTests.swift; sourceTree = "<group>"; };
 		F100001C /* SleepSessionBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSessionBuilderTests.swift; sourceTree = "<group>"; };
 		F1000020 /* LifeDashboardCompanion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LifeDashboardCompanion.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F1000021 /* LifeDashboardCompanionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LifeDashboardCompanionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -190,9 +200,11 @@
 		C888638AD21A073D47F7FF06 /* DailyTotals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTotals.swift; sourceTree = "<group>"; };
 		F100001E /* MenstruationPeriodBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenstruationPeriodBuilder.swift; sourceTree = "<group>"; };
 		F100001F /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		8D24CBAEE6AE7E654EDF25D9 /* ClientCertificate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientCertificate.swift; sourceTree = "<group>"; };
 		F1000022 /* LogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStore.swift; sourceTree = "<group>"; };
 		F1000023 /* AboutScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutScreen.swift; sourceTree = "<group>"; };
 		018102528A19E8A6D938C8D8 /* SettingsBackupSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBackupSection.swift; sourceTree = "<group>"; };
+		D45CCA38AF03491D63BED34B /* ClientCertificateLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientCertificateLine.swift; sourceTree = "<group>"; };
 		F1000040 /* DashboardCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardCard.swift; sourceTree = "<group>"; };
 		F1000024 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F1000025 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
@@ -333,6 +345,7 @@
 				EF73E5D5E207F8C511EF06F5 /* MqttPacket.swift */,
 				7FBDAA116A38516E98827EFA /* MqttSupport.swift */,
 				5EAE9DB642137B4DAEE89D40 /* MqttPublisher.swift */,
+				C08ECB9F59A0968A49D4EE71 /* MqttSensorCache.swift */,
 				F1000018 /* WebhookRetryPolicy.swift */,
 				F1000019 /* SleepSessionBuilder.swift */,
 				F100001D /* SyncLimits.swift */,
@@ -344,6 +357,7 @@
 				9471E366C4A2C6F56FEA371E /* SyncSchedule.swift */,
 				F100001E /* MenstruationPeriodBuilder.swift */,
 				F100001F /* KeychainStore.swift */,
+				8D24CBAEE6AE7E654EDF25D9 /* ClientCertificate.swift */,
 				F1000022 /* LogStore.swift */,
 				F100002C /* SharedSyncStatus.swift */,
 				F100002D /* SyncHealthDataIntent.swift */,
@@ -365,6 +379,7 @@
 				F1000012 /* LogsScreen.swift */,
 				F1000023 /* AboutScreen.swift */,
 				018102528A19E8A6D938C8D8 /* SettingsBackupSection.swift */,
+				D45CCA38AF03491D63BED34B /* ClientCertificateLine.swift */,
 				F1000040 /* DashboardCard.swift */,
 				6DF59FC78BB30C4555721CEB /* SyncScheduleSection.swift */,
 				8A0A76F35656FC9BBDF0216A /* SyncStatsCard.swift */,
@@ -391,16 +406,19 @@
 			isa = PBXGroup;
 			children = (
 				F100001A /* WebhookSignerTests.swift */,
+				5E6132151964D2990AAA12E2 /* ClientCertificateTests.swift */,
 				03064B9EB7FE0AA1605460D4 /* UIParityTests.swift */,
 				8CDD3C4A463A122FCDB59F69 /* HealthExportTests.swift */,
 				CC1C740614BFF69060EAE315 /* PairingApplyTests.swift */,
 				B7F82E34A9A6016BACEFD2B5 /* PairingLinkTests.swift */,
 				7844ED7AB1F0D76FD282CC18 /* MqttPacketTests.swift */,
 				4B7F64070EB24778B41A051B /* MqttSupportTests.swift */,
+				054BDD3BE4551645EAC31E8C /* MqttSensorCacheTests.swift */,
 				BC4BF029DE8F7BA1F448D602 /* AndroidFixtures.swift */,
 				38A0B3417331E8F6C4B4D39C /* SettingsBackupTests.swift */,
 				5044D8F8014A310603CBB122 /* SettingsBackupCryptoTests.swift */,
 				F100001B /* WebhookRetryPolicyTests.swift */,
+				6C49B66C48BF9092BA068409 /* WebhookRedirectTests.swift */,
 				CA530B152D776D79491AAF31 /* SyncStatsTests.swift */,
 				A4AB8927050AF0BB9A93B658 /* LocalizationTests.swift */,
 				D8B7BE1BD86868C3A951B716 /* WebhookLogCodingTests.swift */,
@@ -599,6 +617,7 @@
 				6834543E155CE8FC8B45ED25 /* MqttPacket.swift in Sources */,
 				CF775D282F2EDF1259F96E3B /* MqttSupport.swift in Sources */,
 				A6EF25DF6E9049216FEDF0BC /* MqttPublisher.swift in Sources */,
+				51E5C10E69505D2FA3BD79E1 /* MqttSensorCache.swift in Sources */,
 				B1000018 /* WebhookRetryPolicy.swift in Sources */,
 				B1000019 /* SleepSessionBuilder.swift in Sources */,
 				B100001D /* SyncLimits.swift in Sources */,
@@ -610,9 +629,11 @@
 				3926DFCA91F5E32EEA0CF958 /* SyncSchedule.swift in Sources */,
 				B100001E /* MenstruationPeriodBuilder.swift in Sources */,
 				B100001F /* KeychainStore.swift in Sources */,
+				425BFE57DA06ECDE64B15227 /* ClientCertificate.swift in Sources */,
 				B1000022 /* LogStore.swift in Sources */,
 				B1000023 /* AboutScreen.swift in Sources */,
 				5421F067D17AD5AB87506A15 /* SettingsBackupSection.swift in Sources */,
+				14182D20158F46BA308D1682 /* ClientCertificateLine.swift in Sources */,
 				B1000040 /* DashboardCard.swift in Sources */,
 				281FA2D70D2BF104CD99B6F4 /* SyncScheduleSection.swift in Sources */,
 				B100002A /* SharedSyncStatus.swift in Sources */,
@@ -644,14 +665,17 @@
 				9888D092D2F480F0DE06CB71 /* LocalizationTests.swift in Sources */,
 				B245FE77AA68002A4EFCEBEC /* WebhookLogCodingTests.swift in Sources */,
 				B100001A /* WebhookSignerTests.swift in Sources */,
+				8D4AE005B3DA6EFB999B6F10 /* ClientCertificateTests.swift in Sources */,
 				A1034D6271A9AAF51EC89672 /* PairingApplyTests.swift in Sources */,
 				18DD5CECDB84654192BECE02 /* PairingLinkTests.swift in Sources */,
 				DC3F56B7B12AAB0A0F646E19 /* MqttPacketTests.swift in Sources */,
 				71995D4DCF9914D64779CC97 /* MqttSupportTests.swift in Sources */,
+				2D38008FC1CC03B2BC52FE88 /* MqttSensorCacheTests.swift in Sources */,
 				75AE7368B36783B99C63DFC7 /* AndroidFixtures.swift in Sources */,
 				15E26639D4E91D957D451C8C /* SettingsBackupTests.swift in Sources */,
 				5CF46D678145B967DC6B4B70 /* SettingsBackupCryptoTests.swift in Sources */,
 				B100001B /* WebhookRetryPolicyTests.swift in Sources */,
+				2C04B7A4289E2A9A25E9AC88 /* WebhookRedirectTests.swift in Sources */,
 				B100001C /* SleepSessionBuilderTests.swift in Sources */,
 				B1000026 /* SyncLimitsTests.swift in Sources */,
 				51A37999913AE3E9ACEF006C /* SeriesResolutionTests.swift in Sources */,

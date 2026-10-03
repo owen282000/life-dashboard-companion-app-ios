@@ -92,6 +92,7 @@ struct HealthKitScreen: View {
             #endif
         }
         .task(id: prefs.healthEnabledDataTypes) { await refreshAccessRequest() }
+        .task { await askOnceAfterUpdate() }
         .sheet(isPresented: $showPreview) {
             previewSheet
         }
@@ -128,6 +129,19 @@ struct HealthKitScreen: View {
 
     static func showsGrant(_ request: HKAuthorizationRequestStatus?, enabledCount: Int) -> Bool {
         enabledCount > 0 && request == .shouldRequest
+    }
+
+    /// After an update that gives an enabled type more sample types (distance in 1.5.0), the
+    /// Grant chip alone went unnoticed, and the type sent less than it could. The tab asks iOS
+    /// once by itself when there is something to ask, never over the setup.
+    private func askOnceAfterUpdate() async {
+        guard UserDefaults.standard.bool(forKey: "onboarding_completed") else { return }
+        #if DEBUG
+        // For screenshots: -ld.ask NO, or the default, keeps the Health sheet away.
+        if UserDefaults.standard.object(forKey: "ld.ask") as? Bool == false { return }
+        #endif
+        await healthKit.askOnceForEnabledTypes(prefs.healthEnabledDataTypes)
+        await refreshAccessRequest()
     }
 
     private func refreshAccessRequest() async {
@@ -425,7 +439,8 @@ struct HealthKitScreen: View {
         ExpandableRow(
             title: "Advanced",
             systemImage: "slider.horizontal.3",
-            subtitle: prefs.includeDailyTotals ? Text("Daily totals") : Text("No daily totals"),
+            subtitle: advancedSubtitle,
+            subtitleColor: prefs.clientCertificate?.needsAttention() == true ? Brand.warningInk : .secondary,
             isExpanded: $showAdvanced
         ) {
             Toggle("Daily totals in payload", isOn: $prefs.includeDailyTotals)
@@ -434,6 +449,17 @@ struct HealthKitScreen: View {
             Text("Per-day totals (steps, distance, calories) as the Health app counts them, with overlapping iPhone and Watch data counted once")
                 .font(.footnote)
                 .foregroundColor(.secondary)
+            Divider()
+            ClientCertificateLine(prefs: prefs)
+        }
+    }
+
+    private var advancedSubtitle: Text {
+        switch (prefs.includeDailyTotals, prefs.clientCertificate != nil) {
+        case (true, false): return Text("Daily totals")
+        case (false, false): return Text("No daily totals")
+        case (true, true): return Text("Daily totals, client certificate")
+        case (false, true): return Text("No daily totals, client certificate")
         }
     }
 
@@ -565,7 +591,7 @@ struct HealthKitScreen: View {
         isSyncing = true
         outcome = nil
         Task {
-            let result = await SyncCoordinator.shared.runManual(full: true)
+            let result = await SyncCoordinator.shared.runManual(syncNow: true)
             await MainActor.run {
                 isSyncing = false
                 switch result {
@@ -588,28 +614,10 @@ struct HealthKitScreen: View {
         isTestingWebhook = true
         outcome = nil
         Task {
-            let payload: [String: Any] = [
-                "test": true,
-                "message": "Test ping from Life Dashboard Companion",
-                "timestamp": Date().iso8601String,
-                "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
-                "source": "healthkit_ios"
-            ]
-            guard let body = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
-                isTestingWebhook = false
-                return
-            }
-            let success = await WebhookManager.shared.post(
-                body: body,
-                urls: prefs.healthWebhookUrls,
-                headers: prefs.healthWebhookHeaders,
-                logType: .healthConnect,
-                dataType: "test",
-                recordCount: 0
-            ).delivered
+            let delivered = await TestPing.send(prefs: prefs)
             await MainActor.run {
                 isTestingWebhook = false
-                report(success ? .pingDelivered : .pingFailed)
+                if let delivered { report(delivered ? .pingDelivered : .pingFailed) }
             }
         }
     }
@@ -673,6 +681,37 @@ struct HealthKitScreen: View {
                 }
             }
         }
+    }
+}
+
+/// The Test ping, the same request from the Health tab and the first-run setup: a small JSON
+/// POST with `test` set, to every webhook URL with the custom headers, signed when a secret is
+/// set, logged with data type `test` and never queued. It counts as delivered only when every
+/// URL took it: a test is there to show the address that does not work.
+enum TestPing {
+    static func body() -> Data? {
+        let payload: [String: Any] = [
+            "test": true,
+            "message": "Test ping from Life Dashboard Companion",
+            "timestamp": Date().iso8601String,
+            "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
+            "source": "healthkit_ios"
+        ]
+        return try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+    }
+
+    /// Whether every webhook took it; nil when the request could not be built.
+    static func send(prefs: PreferencesManager) async -> Bool? {
+        guard let body = body() else { return nil }
+        let delivery = await WebhookManager.shared.post(
+            body: body,
+            urls: prefs.healthWebhookUrls,
+            headers: prefs.healthWebhookHeaders,
+            logType: .healthConnect,
+            dataType: "test",
+            recordCount: 0
+        )
+        return delivery.delivered && delivery.missedUrls.isEmpty
     }
 }
 

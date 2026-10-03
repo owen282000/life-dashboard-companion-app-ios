@@ -172,7 +172,10 @@ enum SeriesBucketing {
 enum ResolutionPayload {
     static let resolutionsKey = "_resolutions"
 
-    static func bucketJSON(_ bucket: Bucket, family: ResolutionFamily) -> [String: Any] {
+    /// `decimals` are those of the records' value field (PayloadJSON), which the total, min and
+    /// max keep, so a sum of 2-decimal calories is not sent as 129.91000000000003. The average
+    /// keeps its shortest exact form, as Android writes it.
+    static func bucketJSON(_ bucket: Bucket, family: ResolutionFamily, decimals: Int? = nil) -> [String: Any] {
         var json: [String: Any] = [
             "bucket_start": bucket.start.iso8601String,
             "bucket_end": bucket.end.iso8601String,
@@ -180,11 +183,11 @@ enum ResolutionPayload {
         ]
         switch family {
         case .accumulated:
-            json["total"] = number(bucket.total)
+            json["total"] = number(bucket.total, decimals: decimals)
         case .sampled:
             json["avg"] = number(bucket.mean)
-            json["min"] = number(bucket.minimum)
-            json["max"] = number(bucket.maximum)
+            json["min"] = number(bucket.minimum, decimals: decimals)
+            json["max"] = number(bucket.maximum, decimals: decimals)
         }
         if !bucket.sources.isEmpty { json["sources"] = bucket.sources }
         return json
@@ -195,14 +198,15 @@ enum ResolutionPayload {
         used.filter { $0.value != .raw }.mapValues(\.payloadName)
     }
 
-    /// The shortest digits that read back as the same Double, the digits Android writes, without
-    /// its ".0" and exponent: a Double itself goes through JSONSerialization with 17 digits,
-    /// 72.333333333333329 for 217 / 3. A value beyond what a decimal holds stays a Double, as
-    /// NaN would stop the serialization with an exception no `try?` catches.
-    static func number(_ value: Double) -> NSNumber {
+    /// A decimal PayloadJSON passes through as it is: rounded half up to `decimals`, or without
+    /// them the shortest digits that read back as the same Double, the digits Android writes,
+    /// without its ".0" and exponent. A Double itself would go out with 17 digits,
+    /// 72.333333333333329 for 217 / 3. A value no decimal holds stays a Double, which
+    /// PayloadJSON leaves out with its key.
+    static func number(_ value: Double, decimals: Int? = nil) -> NSNumber {
         guard value.isFinite else { return NSNumber(value: 0) }
-        let decimal = NSDecimalNumber(string: "\(value)", locale: Locale(identifier: "en_US_POSIX"))
-        return decimal == NSDecimalNumber.notANumber ? NSNumber(value: value) : decimal
+        guard let decimal = PayloadJSON.decimal(value, decimals: decimals), !decimal.isNaN else { return NSNumber(value: value) }
+        return NSDecimalNumber(decimal: decimal)
     }
 }
 
@@ -290,7 +294,8 @@ enum ResolutionApplier {
             }
             // An empty array still goes in while everything is held: the receiver asked not to
             // get this series as records, so the payload must not fall back to them.
-            result.payload[key] = split.closed.map { ResolutionPayload.bucketJSON($0, family: family) }
+            let decimals = PayloadJSON.decimals(for: fields.value)
+            result.payload[key] = split.closed.map { ResolutionPayload.bucketJSON($0, family: family, decimals: decimals) }
             result.used[key] = resolution
             result.bucketCount += split.closed.count
         }
@@ -307,18 +312,6 @@ enum ResolutionApplier {
         guard let fields = type.seriesFields else { return nil }
         let records = payload[type.countedPayloadKey] as? [[String: Any]] ?? []
         return (carried + records.compactMap { sample(from: $0, fields: fields) }).map(\.time).filter { $0 <= now }.max()
-    }
-
-    /// The payload without the series that have a resolution: what Sync Now sends. It reads
-    /// the last week again, and its windows would reach a receiver a second time, which one
-    /// that adds buckets up, as Android's docs say to, would count twice. Those series go out
-    /// with the incremental syncs, once per window.
-    static func withoutBucketedSeries(_ payload: [String: Any], resolutions: [HealthDataType: SeriesResolution]) -> ResolvedSeries {
-        var result = ResolvedSeries(payload: payload, carriedOut: [:])
-        for type in ResolutionFamily.configurableTypes where (resolutions[type] ?? .raw) != .raw {
-            result.absorbedRecords += (result.payload.removeValue(forKey: type.countedPayloadKey) as? [Any])?.count ?? 0
-        }
-        return result
     }
 
     /// Held samples first, then the new ones; a uuid seen before is counted once.

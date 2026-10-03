@@ -75,8 +75,8 @@ final class ExportManager {
         let data: Data
         switch format {
         case .json:
-            guard JSONSerialization.isValidJSONObject(payload) else { throw HealthExportError.notSerializable }
-            data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+            guard let json = PayloadJSON.data(payload, options: [.prettyPrinted, .sortedKeys]) else { throw HealthExportError.notSerializable }
+            data = json
         case .csv:
             data = Data(healthDataCSV(from: payload).utf8)
         }
@@ -102,6 +102,7 @@ final class ExportManager {
     /// cell. `daily_totals` rows carry `daily_totals` as their type. The payload's own fields
     /// (timestamp, app_version, source) are not records and stay in the JSON export.
     nonisolated static func healthDataCSV(from payload: [String: Any]) -> String {
+        let payload = PayloadJSON.rounded(payload) as? [String: Any] ?? payload
         var rows: [(type: String, record: [String: Any])] = []
         for type in payload.keys.sorted() {
             guard let records = payload[type] as? [[String: Any]] else { continue }
@@ -151,7 +152,7 @@ final class ExportManager {
     }
 
     nonisolated static func formatPayloadForPreview(_ payload: [String: Any]) -> String {
-        guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]),
+        guard let data = PayloadJSON.data(payload, options: [.prettyPrinted, .sortedKeys]),
               let string = String(data: data, encoding: .utf8) else {
             return "{}"
         }

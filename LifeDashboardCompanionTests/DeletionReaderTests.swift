@@ -225,6 +225,33 @@ final class DeletionReaderTests: XCTestCase {
         XCTAssertEqual(unavailable, [:])
     }
 
+    func testASampleTypeNeverAskedForIsNoErrorAndNamesNothing() async {
+        // Distance's new sample types after the update to 1.5.0, before the user answers.
+        let store = makeStore()
+        await registered(water, anchor: 3, store: store)
+        let source = FakeSource([
+            weight.sampleTypeIdentifier: [.error(DeletionReadError.notReadable)],
+            water.sampleTypeIdentifier: [.page(["W"], anchor: 9), .page([], anchor: 9)]
+        ])
+        let outcome = await reader(source, store: store).read(targets: [weight, water], budget: .seconds(20))
+        XCTAssertEqual(outcome, .done(unavailable: []))
+        let state = await store.target(weight.key)
+        XCTAssertNil(state, "no error counted, no anchor kept")
+        let pending = await pendingUuids(store)
+        XCTAssertEqual(pending, ["W"])
+    }
+
+    func testATrackingTypeHealthKitStopsReadingIsNamed() async {
+        let store = makeStore()
+        await registered(weight, anchor: 2, store: store)
+        let source = FakeSource([weight.sampleTypeIdentifier: [.error(DeletionReadError.notReadable)]])
+        let outcome = await reader(source, store: store).read(targets: [weight], budget: .seconds(20))
+        XCTAssertEqual(outcome, .done(unavailable: ["weight"]))
+        let state = await store.target(weight.key)
+        XCTAssertEqual(state?.anchor, Data([2]))
+        XCTAssertEqual(state?.consecutiveErrors, 0)
+    }
+
     func testARefusedAnchorStartsOverAfterThreeErrors() async {
         let store = makeStore()
         await registered(weight, anchor: 2, store: store)

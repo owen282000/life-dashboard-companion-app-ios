@@ -49,7 +49,7 @@ final class MqttSupportTests: XCTestCase {
 
         let temperature = sensors["basal_body_temperature"]
         XCTAssertEqual(temperature?.name, "Basal Body Temperature")
-        XCTAssertEqual(temperature?.state, "36.45")
+        XCTAssertEqual(temperature?.state, "36.5", "one decimal, rounded half up as Android's String.format")
         XCTAssertEqual(temperature?.unit, "°C")
         XCTAssertEqual(temperature?.deviceClass, "temperature")
 
@@ -58,6 +58,49 @@ final class MqttSupportTests: XCTestCase {
         XCTAssertEqual(vo2Max?.state, "42.5")
         XCTAssertEqual(vo2Max?.unit, "mL/min/kg")
         XCTAssertNil(vo2Max?.deviceClass)
+    }
+
+    func testStatesKeepAndroidsDecimalsWhateverTheValue() {
+        let payload: [String: Any] = [
+            "oxygen_saturation": [["percentage": 97, "time": "t"]],
+            "height": [["meters": 1.8, "time": "t"]],
+            "weight": [["kilograms": 78.25, "time": "t"]],
+            "blood_pressure": [["systolic": 121, "diastolic": 79.5, "time": "t"]],
+            "blood_glucose": [["mmol_per_liter": 5.5, "time": "t"]],
+            "hydration": [["liters": 0.25, "end_time": "t"]],
+            "heart_rate_variability": [["heart_rate_variability_millis": 41.97, "time": "t"]],
+            "respiratory_rate": [["rate": 15, "time": "t"]],
+            "body_fat": [["percentage": 21.04, "time": "t"]],
+            "heart_rate": [["bpm": 64, "time": "t"]]
+        ]
+        let states = Dictionary(uniqueKeysWithValues: MqttSupport.sensors(from: payload).map { ($0.key, $0.state) })
+        XCTAssertEqual(states, [
+            "oxygen_saturation": "97.0",
+            "height": "1.80",
+            "weight": "78.3",
+            "blood_pressure_systolic": "121.0",
+            "blood_pressure_diastolic": "79.5",
+            "blood_glucose": "5.50",
+            "hydration": "0.25",
+            "heart_rate_variability": "42.0",
+            "respiratory_rate": "15.0",
+            "body_fat": "21.0",
+            "heart_rate": "64"
+        ])
+    }
+
+    func testSleepIsWholeMinutesCutAsAndroidCutsThem() {
+        let payload: [String: Any] = [
+            "sleep": [["duration_seconds": 27_123, "session_end_time": "2026-01-01T07:00:00Z"]]
+        ]
+        XCTAssertEqual(MqttSupport.sensors(from: payload).first?.state, "452", "452.05 minutes")
+    }
+
+    func testFixedRoundsHalfUpFromTheShortestForm() {
+        XCTAssertEqual(MqttSupport.fixed(0.125, decimals: 2), "0.13")
+        XCTAssertEqual(MqttSupport.fixed(2.675, decimals: 2), "2.68", "2.67499999... as a double, 2.675 as Android reads it")
+        XCTAssertEqual(MqttSupport.fixed(78.19932458800001, decimals: 1), "78.2")
+        XCTAssertEqual(MqttSupport.fixed(5921.4, decimals: 0), "5921")
     }
 
     func testCycleTrackingStaysWebhookOnly() {

@@ -3,10 +3,12 @@ import Foundation
 enum SyncLimits {
     /// Max records delivered per sync for a type, to bound payload size and memory.
     /// Mirrors the Android companion app's limits. Batches are capped oldest-first so
-    /// later syncs catch up without skipping records.
+    /// later syncs catch up without skipping records. Total calories reads active and resting
+    /// energy together, a sample a minute each from an Apple Watch, so it gets the dense
+    /// types' cap, as on Android.
     static func maxRecordsPerSync(for type: HealthDataType) -> Int {
         switch type {
-        case .heartRate, .steps:
+        case .heartRate, .steps, .totalCalories:
             return 1000
         case .heartRateVariability, .respiratoryRate:
             return 500

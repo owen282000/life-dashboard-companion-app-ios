@@ -264,21 +264,6 @@ final class SeriesResolutionTests: XCTestCase {
         XCTAssertNil(resolved.payload["_resolutions"])
     }
 
-    func testSyncNowLeavesTheBucketedSeriesOut() {
-        let payload: [String: Any] = [
-            "heart_rate": [heartRate("2026-09-14T08:06:00Z", 70)],
-            "steps": [steps("2026-09-14T08:10:00Z", 5)],
-            "timestamp": "x"
-        ]
-        let resolved = ResolutionApplier.withoutBucketedSeries(payload, resolutions: [.heartRate: .oneMinute, .steps: .raw])
-        XCTAssertNil(resolved.payload["heart_rate"])
-        XCTAssertNil(resolved.payload["_resolutions"])
-        XCTAssertEqual((resolved.payload["steps"] as? [Any])?.count, 1)
-        XCTAssertEqual(resolved.absorbedRecords, 1)
-        XCTAssertFalse(resolved.leavesNothingToSend(of: 2))
-        XCTAssertTrue(ResolutionApplier.withoutBucketedSeries(["heart_rate": [heartRate("2026-09-14T08:06:00Z", 70)]], resolutions: [.heartRate: .hourly]).leavesNothingToSend(of: 1))
-    }
-
     /// Only the resolutions can leave a payload with nothing to send; one that holds records
     /// the count does not see is posted as before.
     func testWithoutBucketingThereIsAlwaysSomethingToSend() {
@@ -286,9 +271,24 @@ final class SeriesResolutionTests: XCTestCase {
         XCTAssertFalse(resolved.leavesNothingToSend(of: 0))
     }
 
+    /// Total, min and max keep the decimals of the records' field, the average its shortest
+    /// form, and all of it goes through PayloadJSON as it is.
+    func testBucketNumbersKeepTheirFieldsDecimalsThroughPayloadJSON() throws {
+        let resolved = ResolutionApplier.apply(
+            to: ["active_calories": [["calories": 0.1, "start_time": "2026-09-14T08:00:00Z"], ["calories": 0.2, "start_time": "2026-09-14T08:01:00Z"]],
+                 "oxygen_saturation": [["percentage": 97.25, "time": "2026-09-14T08:00:00Z"], ["percentage": 96.0, "time": "2026-09-14T08:01:00Z"]]],
+            resolutions: [.activeCalories: .hourly, .oxygenSaturation: .hourly], now: at("2026-09-14T12:00:00Z")
+        )
+        let text = String(bytes: try XCTUnwrap(PayloadJSON.data(resolved.payload)), encoding: .utf8) ?? ""
+        XCTAssertTrue(text.contains(#""total":0.3"#), text)
+        XCTAssertTrue(text.contains(#""avg":96.625"#), text)
+        XCTAssertTrue(text.contains(#""max":97.3"#), text)
+        XCTAssertTrue(text.contains(#""min":96"#), text)
+    }
+
     func testANumberBeyondADecimalStaysADouble() throws {
         XCTAssertEqual(ResolutionPayload.number(1e200).doubleValue, 1e200)
-        XCTAssertEqual(ResolutionPayload.number(5e-324).doubleValue, 5e-324)
+        XCTAssertEqual(ResolutionPayload.number(5e-324).doubleValue, 0, "Below a decimal's range, as PayloadJSON writes it")
         XCTAssertNoThrow(try JSONSerialization.data(withJSONObject: ["v": ResolutionPayload.number(1e200), "w": ResolutionPayload.number(.nan)]))
     }
 

@@ -1319,7 +1319,7 @@
         }
       }
     },
-    "%lld undelivered syncs were dropped from the queue after a week, so their records are lost. Check the Logs tab for details." : {
+    "%lld undelivered syncs were dropped from the queue, so their records are lost. Check the Logs tab for details." : {
       "localizations" : {
         "de" : {
           "variations" : {
@@ -1327,13 +1327,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld nicht zugestellte Synchronisierung wurde nach einer Woche aus der Warteschlange entfernt, daher sind ihre Datensätze verloren. Details stehen im Tab Logs."
+                  "value" : "%lld nicht zugestellte Synchronisierung wurde aus der Warteschlange entfernt, daher sind ihre Datensätze verloren. Details stehen im Tab Logs."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld nicht zugestellte Synchronisierungen wurden nach einer Woche aus der Warteschlange entfernt, daher sind ihre Datensätze verloren. Details stehen im Tab Logs."
+                  "value" : "%lld nicht zugestellte Synchronisierungen wurden aus der Warteschlange entfernt, daher sind ihre Datensätze verloren. Details stehen im Tab Logs."
                 }
               }
             }
@@ -1345,13 +1345,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld undelivered sync was dropped from the queue after a week, so its records are lost. Check the Logs tab for details."
+                  "value" : "%lld undelivered sync was dropped from the queue, so its records are lost. Check the Logs tab for details."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld undelivered syncs were dropped from the queue after a week, so their records are lost. Check the Logs tab for details."
+                  "value" : "%lld undelivered syncs were dropped from the queue, so their records are lost. Check the Logs tab for details."
                 }
               }
             }
@@ -1363,13 +1363,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Er is %lld niet-afgeleverde synchronisatie na een week uit de wachtrij verwijderd, dus de records ervan zijn verloren. Bekijk het tabblad Logs voor details."
+                  "value" : "Er is %lld niet-afgeleverde synchronisatie uit de wachtrij verwijderd, dus de records ervan zijn verloren. Bekijk het tabblad Logs voor details."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Er zijn %lld niet-afgeleverde synchronisaties na een week uit de wachtrij verwijderd, dus de records ervan zijn verloren. Bekijk het tabblad Logs voor details."
+                  "value" : "Er zijn %lld niet-afgeleverde synchronisaties uit de wachtrij verwijderd, dus de records ervan zijn verloren. Bekijk het tabblad Logs voor details."
                 }
               }
             }
@@ -1847,6 +1847,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Data uit Apple Gezondheid, alleen voor de types die je aanzet en pas nadat je ze toestaat in het venster voor toegang tot Gezondheid. Met Aanvullen ook oudere records voor de periode die je kiest. Als je een record in Apple Gezondheid verwijdert, meldt de volgende synchronisatie het id ervan, zodat je server het ook kan verwijderen. De camera wordt alleen gebruikt door de koppelscanner, zolang dat scherm open is: beelden worden op de telefoon gedecodeerd en nooit opgeslagen of verstuurd."
+          }
+        }
+      }
+    },
+    "Apple Health did not answer for any data type; the next sync tries again" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Health hat für keinen Datentyp geantwortet; die nächste Synchronisierung versucht es erneut"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Gezondheid gaf voor geen enkel datatype antwoord; de volgende synchronisatie probeert het opnieuw"
           }
         }
       }
@@ -2347,6 +2363,22 @@
         }
       }
     },
+    "Certificate password" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwort des Zertifikats"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wachtwoord van het certificaat"
+          }
+        }
+      }
+    },
     "Cervical Mucus" : {
       "localizations" : {
         "de" : {
@@ -2439,6 +2471,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Logs wissen"
+          }
+        }
+      }
+    },
+    "Client certificate (mTLS)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Client-Zertifikat (mTLS)"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clientcertificaat (mTLS)"
+          }
+        }
+      }
+    },
+    "Client certificate cannot be read until the iPhone is unlocked" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Client-Zertifikat ist erst lesbar, wenn das iPhone entsperrt ist"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clientcertificaat is pas leesbaar als de iPhone ontgrendeld is"
+          }
+        }
+      }
+    },
+    "Client certificate is unavailable. Import it again under Advanced." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Client-Zertifikat ist nicht verfügbar. Importiere es erneut unter Erweitert."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clientcertificaat is niet beschikbaar. Importeer het opnieuw onder Geavanceerd."
           }
         }
       }
@@ -2574,6 +2654,38 @@
         }
       }
     },
+    "Could not remove the certificate from the Keychain" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Zertifikat konnte nicht aus dem Schlüsselbund entfernt werden"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kon het certificaat niet uit de sleutelhanger verwijderen"
+          }
+        }
+      }
+    },
+    "Could not save the certificate in the Keychain (error %lld)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Zertifikat konnte nicht im Schlüsselbund gesichert werden (Fehler %lld)"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kon het certificaat niet in de sleutelhanger bewaren (fout %lld)"
+          }
+        }
+      }
+    },
     "Custom Headers" : {
       "localizations" : {
         "de" : {
@@ -2618,6 +2730,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dagtotalen in payload"
+          }
+        }
+      }
+    },
+    "Daily totals, client certificate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tagessummen, Client-Zertifikat"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dagtotalen, clientcertificaat"
           }
         }
       }
@@ -2906,6 +3034,22 @@
         }
       }
     },
+    "Dropped from the queue: it was full (700 undelivered syncs), so its records are lost" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus der Warteschlange entfernt: sie war voll (700 nicht zugestellte Synchronisierungen), daher sind ihre Datensätze verloren"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uit de wachtrij verwijderd: die was vol (700 niet-afgeleverde synchronisaties), dus de records ervan zijn verloren"
+          }
+        }
+      }
+    },
     "Each time syncs once, at the first chance iOS gives after it." : {
       "localizations" : {
         "de" : {
@@ -3158,6 +3302,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Uitgeklapt"
+          }
+        }
+      }
+    },
+    "Expired on %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abgelaufen am %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verlopen op %@"
+          }
+        }
+      }
+    },
+    "Expires on %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Läuft am %@ ab"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verloopt op %@"
           }
         }
       }
@@ -3534,6 +3710,22 @@
         }
       }
     },
+    "For a server that requires a client certificate. Import it as a .p12 file with its password; it is kept in this iPhone's Keychain and never leaves it. Used for every webhook, also in the background. MQTT is unaffected." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für einen Server, der ein Client-Zertifikat verlangt. Importiere es als .p12-Datei mit seinem Passwort; es bleibt im Schlüsselbund dieses iPhones und verlässt ihn nie. Gilt für alle Webhooks, auch im Hintergrund. MQTT ist nicht betroffen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voor een server die een clientcertificaat vereist. Importeer het als .p12-bestand met het wachtwoord; het blijft in de sleutelhanger van deze iPhone en verlaat die nooit. Geldt voor alle webhooks, ook op de achtergrond. MQTT staat hier los van."
+          }
+        }
+      }
+    },
     "Forgets the progress. Data already sent stays on your server." : {
       "localizations" : {
         "de" : {
@@ -3869,6 +4061,66 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "HTTP %lld"
+          }
+        }
+      }
+    },
+    "HTTP %lld: more than %lld redirects, the last to %@. Enter the final address as the webhook URL." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP %lld: mehr als %lld Weiterleitungen, die letzte zu %@. Trag die endgültige Adresse als Webhook-URL ein."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "HTTP %1$lld: more than %2$lld redirects, the last to %3$@. Enter the final address as the webhook URL."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP %lld: meer dan %lld doorverwijzingen, de laatste naar %@. Vul het uiteindelijke adres in als webhook-URL."
+          }
+        }
+      }
+    },
+    "HTTP %lld: redirect not followed, so nothing was sent there. Only a redirect on the same host is followed; enter the final address as the webhook URL." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP %lld: Weiterleitung nicht gefolgt, dorthin wurde also nichts gesendet. Nur einer Weiterleitung auf demselben Host wird gefolgt; trag die endgültige Adresse als Webhook-URL ein."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP %lld: doorverwijzing niet gevolgd, er is daar dus niets heen gestuurd. Alleen een doorverwijzing op dezelfde host wordt gevolgd; vul het uiteindelijke adres in als webhook-URL."
+          }
+        }
+      }
+    },
+    "HTTP %lld: redirect to %@ not followed, so nothing was sent there. Only a redirect on the same host is followed; enter the final address as the webhook URL." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP %lld: Weiterleitung zu %@ nicht gefolgt, dorthin wurde also nichts gesendet. Nur einer Weiterleitung auf demselben Host wird gefolgt; trag die endgültige Adresse als Webhook-URL ein."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "HTTP %1$lld: redirect to %2$@ not followed, so nothing was sent there. Only a redirect on the same host is followed; enter the final address as the webhook URL."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP %lld: doorverwijzing naar %@ niet gevolgd, er is daar dus niets heen gestuurd. Alleen een doorverwijzing op dezelfde host wordt gevolgd; vul het uiteindelijke adres in als webhook-URL."
           }
         }
       }
@@ -4701,6 +4953,22 @@
         }
       }
     },
+    "No daily totals, client certificate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Tagessummen, Client-Zertifikat"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen dagtotalen, clientcertificaat"
+          }
+        }
+      }
+    },
     "No data to sync" : {
       "localizations" : {
         "de" : {
@@ -4889,6 +5157,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "geen TLS"
+          }
+        }
+      }
+    },
+    "None" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keines"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen"
           }
         }
       }
@@ -5661,22 +5945,6 @@
         }
       }
     },
-    "Privacy in the README on GitHub" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Datenschutz in der README auf GitHub"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Privacy in de README op GitHub"
-          }
-        }
-      }
-    },
     "Privacy policy" : {
       "localizations" : {
         "de" : {
@@ -5987,6 +6255,22 @@
         }
       }
     },
+    "Remove" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entfernen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verwijderen"
+          }
+        }
+      }
+    },
     "Remove %@" : {
       "localizations" : {
         "de" : {
@@ -6015,6 +6299,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Header %@ verwijderen"
+          }
+        }
+      }
+    },
+    "Remove the client certificate?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Client-Zertifikat entfernen?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clientcertificaat verwijderen?"
           }
         }
       }
@@ -6063,6 +6363,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Wachtwoord herhalen"
+          }
+        }
+      }
+    },
+    "Replace" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ersetzen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vervangen"
           }
         }
       }
@@ -7459,6 +7775,22 @@
         }
       }
     },
+    "The password the .p12 file was exported with." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Passwort, mit dem die .p12-Datei exportiert wurde."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het wachtwoord waarmee het .p12-bestand is geëxporteerd."
+          }
+        }
+      }
+    },
     "The passwords do not match" : {
       "localizations" : {
         "de" : {
@@ -7603,6 +7935,22 @@
         }
       }
     },
+    "This file has no private key. Export the certificate together with its key." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Datei enthält keinen privaten Schlüssel. Exportiere das Zertifikat zusammen mit seinem Schlüssel."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dit bestand bevat geen privésleutel. Exporteer het certificaat samen met de sleutel."
+          }
+        }
+      }
+    },
     "This file is password-protected." : {
       "localizations" : {
         "de" : {
@@ -7631,6 +7979,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dit bestand vereist een nieuwere versie van de app"
+          }
+        }
+      }
+    },
+    "This is not a certificate file the iPhone can read. Export it as a .p12 file with its private key." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das ist keine Zertifikatsdatei, die das iPhone lesen kann. Exportiere sie als .p12-Datei mit dem privaten Schlüssel."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dit is geen certificaatbestand dat de iPhone kan lezen. Exporteer het als .p12-bestand met de privésleutel."
           }
         }
       }
@@ -8108,6 +8472,22 @@
         }
       }
     },
+    "Webhooks that require it refuse every sync until you import it again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Webhooks, die es verlangen, lehnen jede Synchronisierung ab, bis du es erneut importierst."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Webhooks die het vereisen, weigeren elke synchronisatie tot je het opnieuw importeert."
+          }
+        }
+      }
+    },
     "Weight" : {
       "localizations" : {
         "de" : {
@@ -8284,6 +8664,22 @@
         }
       }
     },
+    "Wrong password for this certificate file" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Falsches Passwort für diese Zertifikatsdatei"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verkeerd wachtwoord voor dit certificaatbestand"
+          }
+        }
+      }
+    },
     "Wrong password, or the file is damaged" : {
       "localizations" : {
         "de" : {
@@ -8444,18 +8840,18 @@
         }
       }
     },
-    "Your settings, with secrets in the iOS Keychain. Sync progress, so each record is sent once. A log of the last 100 deliveries, which you can clear, and payloads that could not be delivered yet, kept for up to 7 days. Your settings and the sync progress are part of your iPhone backup, like other app data. The log and the undelivered payloads are not: they stay on this iPhone, and a restored or new iPhone starts without them. Deleting the app removes all of it, but iOS can keep the secrets in the Keychain: clear them in the app first if you want them gone. Exports are files you create yourself and hand to the share sheet or the Files app, where the app you pick keeps its own copy. A settings export without secrets still contains your webhook URLs, which can work as a password, so share it with care." : {
+    "Your settings, with secrets in the iOS Keychain. Sync progress, so each record is sent once. A log of the last 100 deliveries, which you can clear, payloads that could not be delivered yet, at most 700, until they arrive or a server has turned them down for a week, and with MQTT on, the latest value of each sensor, so every publish can send them all. Your settings and the sync progress are part of your iPhone backup, like other app data. The log, the undelivered payloads and the sensor values are not: they stay on this iPhone, and a restored or new iPhone starts without them. Deleting the app removes all of it, but iOS can keep the secrets in the Keychain: clear them in the app first if you want them gone. Exports are files you create yourself and hand to the share sheet or the Files app, where the app you pick keeps its own copy. A settings export without secrets still contains your webhook URLs, which can work as a password, so share it with care." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deine Einstellungen, mit Geheimnissen im iOS-Schlüsselbund. Der Sync-Fortschritt, damit jeder Datensatz einmal gesendet wird. Ein Protokoll der letzten 100 Zustellungen, das du löschen kannst, und Payloads, die noch nicht zugestellt werden konnten, bis zu 7 Tage lang aufbewahrt. Deine Einstellungen und der Sync-Fortschritt gehören zum Backup deines iPhone, wie andere App-Daten. Das Protokoll und die noch nicht zugestellten Payloads nicht: sie bleiben auf diesem iPhone, und ein wiederhergestelltes oder neues iPhone beginnt ohne sie. Wenn du die App löschst, wird das entfernt, aber iOS kann die Geheimnisse im Schlüsselbund behalten: Lösche sie zuerst in der App, wenn sie weg sein sollen. Exporte sind Dateien, die du selbst erstellst und an das Teilen-Menü oder die Dateien-App übergibst, wo die gewählte App ihre eigene Kopie behält. Ein Einstellungsexport ohne Geheimnisse enthält trotzdem deine Webhook-URLs, die wie ein Passwort wirken können, also teile ihn mit Bedacht."
+            "value" : "Deine Einstellungen, mit Geheimnissen im iOS-Schlüsselbund. Der Sync-Fortschritt, damit jeder Datensatz einmal gesendet wird. Ein Protokoll der letzten 100 Zustellungen, das du löschen kannst, Payloads, die noch nicht zugestellt werden konnten, höchstens 700, bis sie ankommen oder ein Server sie eine Woche lang abgelehnt hat, und mit eingeschaltetem MQTT der letzte Wert jedes Sensors, damit jede Veröffentlichung alle senden kann. Deine Einstellungen und der Sync-Fortschritt gehören zum Backup deines iPhone, wie andere App-Daten. Das Protokoll, die noch nicht zugestellten Payloads und die Sensorwerte nicht: sie bleiben auf diesem iPhone, und ein wiederhergestelltes oder neues iPhone beginnt ohne sie. Wenn du die App löschst, wird das entfernt, aber iOS kann die Geheimnisse im Schlüsselbund behalten: Lösche sie zuerst in der App, wenn sie weg sein sollen. Exporte sind Dateien, die du selbst erstellst und an das Teilen-Menü oder die Dateien-App übergibst, wo die gewählte App ihre eigene Kopie behält. Ein Einstellungsexport ohne Geheimnisse enthält trotzdem deine Webhook-URLs, die wie ein Passwort wirken können, also teile ihn mit Bedacht."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Je instellingen, met geheimen in de iOS-sleutelhanger. De sync-voortgang, zodat elk record één keer wordt verstuurd. Een log van de laatste 100 afleveringen, dat je kunt wissen, en payloads die nog niet konden worden afgeleverd, tot 7 dagen bewaard. Je instellingen en de sync-voortgang horen bij de back-up van je iPhone, net als andere appdata. Het log en de nog niet afgeleverde payloads niet: die blijven op deze iPhone, en een teruggezette of nieuwe iPhone begint zonder. Als je de app verwijdert, verdwijnt dit, maar iOS kan de geheimen in de sleutelhanger bewaren: wis ze eerst in de app als je ze weg wilt hebben. Exports zijn bestanden die je zelf maakt en aan het deelmenu of de Bestanden-app geeft, waar de app die je kiest een eigen kopie houdt. Een instellingenexport zonder geheimen bevat nog steeds je webhook-URL's, die als wachtwoord kunnen werken, dus deel die met zorg."
+            "value" : "Je instellingen, met geheimen in de iOS-sleutelhanger. De sync-voortgang, zodat elk record één keer wordt verstuurd. Een log van de laatste 100 afleveringen, dat je kunt wissen, payloads die nog niet konden worden afgeleverd, hooguit 700, tot ze aankomen of een server ze een week lang heeft geweigerd, en met MQTT aan de laatste waarde van elke sensor, zodat elke publicatie ze allemaal kan versturen. Je instellingen en de sync-voortgang horen bij de back-up van je iPhone, net als andere appdata. Het log, de nog niet afgeleverde payloads en de sensorwaarden niet: die blijven op deze iPhone, en een teruggezette of nieuwe iPhone begint zonder. Als je de app verwijdert, verdwijnt dit, maar iOS kan de geheimen in de sleutelhanger bewaren: wis ze eerst in de app als je ze weg wilt hebben. Exports zijn bestanden die je zelf maakt en aan het deelmenu of de Bestanden-app geeft, waar de app die je kiest een eigen kopie houdt. Een instellingenexport zonder geheimen bevat nog steeds je webhook-URL's, die als wachtwoord kunnen werken, dus deel die met zorg."
           }
         }
       }

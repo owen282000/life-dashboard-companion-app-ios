@@ -23,10 +23,25 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     /// `notCurrent` names the types whose records do not include their newest sample: a read
     /// that stopped at the cap, or an added sample dated before what HealthKit already holds.
     /// MQTT leaves those out, since a sensor shows the latest record it is given.
+    ///
+    /// `unanswered` is a read in which every type failed or ran out of time: nothing was read,
+    /// and nothing says that there was nothing new either.
     enum ReadResult {
         case data([String: Any], AnchorCommit, notCurrent: Set<HealthDataType>)
         case empty(AnchorCommit)
+        case unanswered
         case protectedDataUnavailable
+    }
+
+    /// Every type of a read failed or ran out of time, as Android's "Health Connect did not
+    /// answer for any data type". A sync reports it as a failure instead of "no new data".
+    struct NoTypeAnswered: LocalizedError {
+        var errorDescription: String? { AppDiagnostic.healthUnanswered.localized }
+    }
+
+    /// True when there were types to read and every one of them failed.
+    static func answeredNone(_ types: Set<HealthDataType>, failed: Set<HealthDataType>) -> Bool {
+        !types.isEmpty && failed.isSuperset(of: types)
     }
 
     /// What reading one type incrementally gave: its payload fragments, nil when there was
@@ -36,6 +51,8 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         let anchors: [(HKSampleType, HKQueryAnchor)]
         let cursor: Date?
         let holdsNewest: Bool
+        /// Records were left for a later read: past the page budget, or past the cursor.
+        let behind: Bool
     }
 
     private init() {
@@ -72,6 +89,60 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         self.authorizationStatus = statuses
     }
 
+    /// Whether HealthKit refused a read because the user was never asked about the sample type,
+    /// or said no. Distance reads more sample types since 1.5.0, and until the user answers for
+    /// them HealthKit fails every query of one with errorAuthorizationNotDetermined; a denied
+    /// read normally finds nothing instead.
+    static func isUnanswered(_ error: Error) -> Bool {
+        switch (error as? HKError)?.code {
+        case .errorAuthorizationNotDetermined?, .errorAuthorizationDenied?: return true
+        default: return false
+        }
+    }
+
+    /// `read` for each sample type of a payload type, leaving out one HealthKit refuses (see
+    /// `isUnanswered`), so a new kind of distance the user was never asked about does not take
+    /// walking and cycling down with it. Only when every one is refused does the type fail, as
+    /// it did before; any other error fails it right away.
+    static func eachAnswered<Item, Value>(_ items: [Item], _ read: (Item) async throws -> Value) async throws -> [Value] {
+        var values: [Value] = []
+        var refusal: Error?
+        for item in items {
+            do {
+                values.append(try await read(item))
+            } catch let error where isUnanswered(error) {
+                refusal = refusal ?? error
+            }
+        }
+        if values.isEmpty, let refusal { throw refusal }
+        return values
+    }
+
+    // MARK: - Asking once after an update
+
+    /// The read types the Health tab has asked for by itself, as HealthKit identifiers.
+    static let askedReadTypesKey = "health_access_asked_types"
+
+    /// Whether the Health tab asks for access by itself: HealthKit has something to ask for the
+    /// enabled types, as after an update that gives one more sample types or a setup whose
+    /// Allow button was skipped, and the tab has not asked for these types before. Asked once,
+    /// the Grant chip is left to do the rest.
+    static func asksOnce(_ request: HKAuthorizationRequestStatus?, readTypes: Set<String>, asked: Set<String>) -> Bool {
+        request == .shouldRequest && !readTypes.isEmpty && !readTypes.isSubset(of: asked)
+    }
+
+    /// Asks for the enabled types' access when `asksOnce` says so, and remembers that it did.
+    func askOnceForEnabledTypes(_ types: Set<HealthDataType>, defaults: UserDefaults = .standard) async {
+        let readTypes = readTypesFor(types)
+        let identifiers = Set(readTypes.map(\.identifier))
+        let asked = Set(defaults.stringArray(forKey: Self.askedReadTypesKey) ?? [])
+        let request = try? await healthStore.statusForAuthorizationRequest(toShare: [], read: readTypes)
+        guard Self.asksOnce(request, readTypes: identifiers, asked: asked) else { return }
+        // Remembered only once iOS took the request, so a sheet that could not show asks again.
+        guard (try? await requestAuthorization(for: types)) != nil else { return }
+        defaults.set(asked.union(identifiers).sorted(), forKey: Self.askedReadTypesKey)
+    }
+
     /// Most recent heart rate sample, used by the About screen's beating-heart easter egg.
     func latestHeartRateBPM() async -> Int? {
         guard isAvailable else { return nil }
@@ -103,13 +174,15 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         )!
         let endDate = Date()
 
-        // Every type reads on its own; one that fails or does not answer in time is skipped.
-        let fragments = await HealthKitManager.gather(enabledTypes) { dataType in
+        // Every type reads on its own; one that fails or does not answer in time is skipped,
+        // and a read that every type failed throws.
+        let gathered = await HealthKitManager.gatherReporting(enabledTypes) { dataType in
             try await self.readDataForType(dataType, start: startDate, end: endDate)
         } failed: { dataType, error in
             self.logger.error("Read failed for \(dataType.rawValue): \(error.localizedDescription)")
         }
-        return HealthKitManager.merge(fragments.values)
+        if HealthKitManager.answeredNone(enabledTypes, failed: gathered.failed) { throw NoTypeAnswered() }
+        return HealthKitManager.merge(gathered.fragments.values)
     }
 
     /// What MQTT gets from a full read. The full read is capped oldest first, so for a type
@@ -124,10 +197,9 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         let tails = await HealthKitManager.gather(types) { dataType -> NewestRead? in
             let limit = SyncLimits.maxRecordsPerSync(for: dataType)
             let range = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
-            var starts: [Date] = []
-            for sampleType in dataType.hkSampleTypes {
-                starts += try await self.boundedSampleQuery(type: sampleType, predicate: range, limit: limit, newestFirst: true).map(\.startDate)
-            }
+            let starts = try await HealthKitManager.eachAnswered(dataType.hkSampleTypes) { sampleType in
+                try await self.boundedSampleQuery(type: sampleType, predicate: range, limit: limit, newestFirst: true).map(\.startDate)
+            }.flatMap { $0 }
             guard let tailStart = SyncLimits.tailStart(probedStartDates: starts, limit: limit) else { return .whole }
             return .tail(try await self.readDataForType(dataType, start: tailStart, end: end) ?? [])
         } failed: { dataType, error in
@@ -169,22 +241,34 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         read: @escaping @Sendable (HealthDataType) async throws -> Fragment?,
         failed: @escaping @Sendable (HealthDataType, Error) -> Void
     ) async -> [HealthDataType: Fragment] {
-        await withTaskGroup(of: (HealthDataType, Unchecked<Fragment>?).self) { group in
+        await gatherReporting(types, read: read, failed: failed).fragments
+    }
+
+    /// `gather`, with the types that failed, so a caller can tell a read that found nothing
+    /// from one in which no type answered.
+    static func gatherReporting<Fragment>(
+        _ types: Set<HealthDataType>,
+        read: @escaping @Sendable (HealthDataType) async throws -> Fragment?,
+        failed: @escaping @Sendable (HealthDataType, Error) -> Void
+    ) async -> (fragments: [HealthDataType: Fragment], failed: Set<HealthDataType>) {
+        await withTaskGroup(of: (HealthDataType, Unchecked<Fragment>?, failed: Bool).self) { group in
             for dataType in types {
                 group.addTask {
                     do {
-                        return (dataType, try await read(dataType).map(Unchecked.init))
+                        return (dataType, try await read(dataType).map(Unchecked.init), false)
                     } catch {
                         failed(dataType, error)
-                        return (dataType, nil)
+                        return (dataType, nil, true)
                     }
                 }
             }
             var results: [HealthDataType: Fragment] = [:]
-            for await (dataType, fragment) in group {
+            var failures: Set<HealthDataType> = []
+            for await (dataType, fragment, didFail) in group {
                 if let fragment { results[dataType] = fragment.value }
+                if didFail { failures.insert(dataType) }
             }
-            return results
+            return (results, failures)
         }
     }
 
@@ -248,15 +332,18 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         let probeNewest = prefs.mqttConfigured
 
         // A type that fails keeps its anchors and cursor, so the next sync reads it again.
-        let reads = await HealthKitManager.gather(enabledTypes) { dataType in
+        let gathered = await HealthKitManager.gatherReporting(enabledTypes) { dataType in
             try await self.readIncrementalDataForType(dataType, prefs: prefs, probeNewest: probeNewest)
         } failed: { dataType, error in
             self.logger.error("Incremental read failed for \(dataType.rawValue): \(error.localizedDescription)")
         }
+        if HealthKitManager.answeredNone(enabledTypes, failed: gathered.failed) { return .unanswered }
+        let reads = gathered.fragments
         var commit = AnchorCommit()
         for (dataType, read) in reads {
             commit.anchors += read.anchors.map { AnchorCommit.Anchor(dataType: dataType, sampleType: $0.0, anchor: $0.1) }
             commit.cursors.append((dataType, read.cursor))
+            if read.behind { commit.behind.insert(dataType) }
         }
         let results = HealthKitManager.merge(reads.values.compactMap(\.pairs))
         let notCurrent = Set(reads.filter { !$0.value.holdsNewest }.keys)
@@ -282,38 +369,57 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         probeNewest: Bool
     ) async throws -> TypeRead {
         let sampleTypes = dataType.hkSampleTypes
-        let catchingUp = prefs.loadCatchUpCursor(for: dataType) != nil
-            || sampleTypes.contains { prefs.loadAnchor(for: dataType, sampleType: $0) == nil }
-        // One budget for all sample types of the payload type, which the readers cap together,
-        // spent in an order that turns every minute, so a busy one (walking distance) cannot
-        // keep a quiet one (cycling distance) waiting for good.
-        var budget = IncrementalRead.pageBudget(for: dataType, catchingUp: catchingUp)
         var added: [AddedSample] = []
         var addedIds: [String: Set<UUID>] = [:]
         var morePending = false
         var readsFirstTime = false
         var newAnchors: [(HKSampleType, HKQueryAnchor)] = []
+        var anchored: [(HKSampleType, HKQueryAnchor)] = []
+        var answered = false
+        var refusal: Error?
 
-        for sampleType in IncrementalRead.rotated(sampleTypes, by: Int(Date().timeIntervalSince1970 / 60)) {
+        for sampleType in sampleTypes {
             if let anchor = prefs.loadAnchor(for: dataType, sampleType: sampleType) {
-                // Nothing left: this sample type keeps its anchor for the next sync.
-                guard budget > 0 else {
-                    morePending = true
-                    continue
-                }
+                anchored.append((sampleType, anchor))
+                continue
+            }
+            do {
+                // First sync of this sample type: read the lookback window. The anchor is taken
+                // before that read, so a sample written in between is read now or next time.
+                newAnchors.append((sampleType, try await queryAnchor(for: sampleType)))
+                readsFirstTime = true
+                answered = true
+            } catch let error where HealthKitManager.isUnanswered(error) {
+                // Left without an anchor, and not catching up: once the user allows it, its
+                // first read sends the week.
+                refusal = refusal ?? error
+            }
+        }
+
+        // One budget for all sample types of the payload type, which the readers cap together,
+        // spent in an order that turns every minute, so a busy one (walking distance) cannot
+        // keep a quiet one (cycling distance) waiting for good.
+        let catchingUp = prefs.loadCatchUpCursor(for: dataType) != nil || readsFirstTime
+        var budget = IncrementalRead.pageBudget(for: dataType, catchingUp: catchingUp)
+        for (sampleType, anchor) in IncrementalRead.rotated(anchored, by: Int(Date().timeIntervalSince1970 / 60)) {
+            // Nothing left: this sample type keeps its anchor for the next sync.
+            guard budget > 0 else {
+                morePending = true
+                continue
+            }
+            do {
                 let page = try await anchoredPage(sampleType: sampleType, anchor: anchor, limit: budget)
                 newAnchors.append((sampleType, page.anchor ?? anchor))
                 added += page.added
                 addedIds[sampleType.identifier, default: []].formUnion(page.added.map(\.uuid))
                 morePending = morePending || page.count >= budget
                 budget -= page.count
-            } else {
-                // First sync of this sample type: read the lookback window. The anchor is taken
-                // before that read, so a sample written in between is read now or next time.
-                newAnchors.append((sampleType, try await queryAnchor(for: sampleType)))
-                readsFirstTime = true
+                answered = true
+            } catch let error where HealthKitManager.isUnanswered(error) {
+                refusal = refusal ?? error
             }
         }
+        if !answered, let refusal { throw refusal }
         // The read ends after the anchored queries: a sample saved while they ran is behind
         // the new anchors, so it has to fall inside this read.
         let now = Date()
@@ -362,14 +468,15 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
                 newestInStore = .distantFuture
             }
         }
+        let behind = morePending || cursor != nil
         let holdsNewest = IncrementalRead.holdsNewest(
-            behind: morePending || cursor != nil,
+            behind: behind,
             timeReadReachedNow: timeReadReachedNow,
             byUuidStarts: byUuid.map(\.start),
             newestInStore: newestInStore,
             now: now
         )
-        return TypeRead(pairs: result, anchors: newAnchors, cursor: cursor, holdsNewest: holdsNewest)
+        return TypeRead(pairs: result, anchors: newAnchors, cursor: cursor, holdsNewest: holdsNewest, behind: behind)
     }
 
     /// Records for exactly the added samples in `added`, from the same readers as every other
@@ -460,14 +567,11 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     /// types. A sample dated in the future is no current value, and would hold every later one
     /// back from MQTT.
     private func newestStart(of dataType: HealthDataType, notAfter now: Date) async throws -> Date? {
-        var newest: Date?
         let past = HKQuery.predicateForSamples(withStart: nil, end: now, options: [])
-        for sampleType in dataType.hkSampleTypes {
-            if let start = try await boundedSampleQuery(type: sampleType, predicate: past, limit: 1, newestFirst: true).first?.startDate {
-                newest = max(newest ?? start, start)
-            }
+        let starts = try await HealthKitManager.eachAnswered(dataType.hkSampleTypes) { sampleType in
+            try await boundedSampleQuery(type: sampleType, predicate: past, limit: 1, newestFirst: true).first?.startDate
         }
-        return newest
+        return starts.compactMap { $0 }.max()
     }
 
     /// While set, the record queries in this task return only these samples, by sample type
@@ -479,10 +583,9 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     /// sample type the payload type combines, and `SyncLimits.sliceEnd` picks the boundary.
     func nextSlice(for dataType: HealthDataType, from start: Date, to end: Date) async throws -> (end: Date, exact: Bool) {
         let limit = SyncLimits.maxRecordsPerSync(for: dataType)
-        var startDates: [Date] = []
-        for sampleType in dataType.hkSampleTypes {
-            startDates += try await readSamples(type: sampleType, start: start, end: end, limit: limit).map(\.startDate)
-        }
+        let startDates = try await HealthKitManager.eachAnswered(dataType.hkSampleTypes) { sampleType in
+            try await readSamples(type: sampleType, start: start, end: end, limit: limit).map(\.startDate)
+        }.flatMap { $0 }
         return SyncLimits.sliceEnd(probedStartDates: startDates, limit: limit, from: start, to: end)
     }
 
@@ -572,14 +675,13 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
             return mapped.isEmpty ? nil : [("steps", mapped)]
 
         case .distance:
-            var samples: [HKQuantitySample] = []
-            for identifier in HealthDataType.distanceIdentifiers {
-                samples += try await readQuantitySamples(
+            let samples = try await HealthKitManager.eachAnswered(HealthDataType.distanceIdentifiers) { identifier in
+                try await readQuantitySamples(
                     type: HKQuantityType(identifier),
                     start: start, end: end,
                     limit: limit
                 )
-            }
+            }.flatMap { $0 }
             let records = SyncLimits.capOldestFirst(samples, limit: limit, timeOf: { $0.startDate })
                 .sorted { $0.startDate < $1.startDate }
             let mapped = records.map { sample -> [String: Any] in
@@ -1078,12 +1180,9 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         ).compactMap { $0 as? HKWorkout }
 
         return workouts.map { workout in
-            record([
-                "type": workout.workoutActivityType.name,
-                "start_time": workout.startDate.iso8601String,
-                "end_time": workout.endDate.iso8601String,
-                "duration_seconds": Int(workout.duration)
-            ], from: workout)
+            record(HealthRecordMapping.exerciseFields(
+                type: workout.workoutActivityType.name, start: workout.startDate, end: workout.endDate
+            ), from: workout)
         }
     }
 
@@ -1118,6 +1217,8 @@ struct AnchorCommit: @unchecked Sendable {
     /// saved with the anchors that read them and never earlier. Nil leaves the stored carry
     /// alone.
     var bucketCarry: [HealthDataType: [CarriedSample]]?
+    /// The types the read left records behind for, which the next read continues with.
+    var behind: Set<HealthDataType> = []
 
     /// The carry first, then cursors, then anchors. An app ended in between reads a stretch
     /// again: a carried sample read again counts once, by its uuid, and an anchor saved without
@@ -1156,6 +1257,9 @@ extension Date {
 }
 
 extension HKWorkoutActivityType {
+    /// The payload's `type`: a snake_case name for every activity HealthKit has, so a receiver
+    /// never sees "other" for a workout HealthKit named. Names that went out before stay as
+    /// they were (`hiit` among them). The deprecated cases still name workouts saved under them.
     var name: String {
         switch self {
         case .americanFootball: return "american_football"
@@ -1172,6 +1276,7 @@ extension HKWorkoutActivityType {
         case .curling: return "curling"
         case .cycling: return "cycling"
         case .dance: return "dance"
+        case .danceInspiredTraining: return "dance_inspired_training"
         case .elliptical: return "elliptical"
         case .equestrianSports: return "equestrian_sports"
         case .fencing: return "fencing"
@@ -1186,6 +1291,7 @@ extension HKWorkoutActivityType {
         case .lacrosse: return "lacrosse"
         case .martialArts: return "martial_arts"
         case .mindAndBody: return "mind_and_body"
+        case .mixedMetabolicCardioTraining: return "mixed_metabolic_cardio_training"
         case .paddleSports: return "paddle_sports"
         case .play: return "play"
         case .preparationAndRecovery: return "preparation_and_recovery"
@@ -1213,12 +1319,36 @@ extension HKWorkoutActivityType {
         case .waterSports: return "water_sports"
         case .wrestling: return "wrestling"
         case .yoga: return "yoga"
-        case .pilates: return "pilates"
-        case .highIntensityIntervalTraining: return "hiit"
+        case .barre: return "barre"
         case .coreTraining: return "core_training"
+        case .crossCountrySkiing: return "cross_country_skiing"
+        case .downhillSkiing: return "downhill_skiing"
         case .flexibility: return "flexibility"
+        case .highIntensityIntervalTraining: return "hiit"
+        case .jumpRope: return "jump_rope"
+        case .kickboxing: return "kickboxing"
+        case .pilates: return "pilates"
+        case .snowboarding: return "snowboarding"
+        case .stairs: return "stairs"
+        case .stepTraining: return "step_training"
+        case .wheelchairWalkPace: return "wheelchair_walk_pace"
+        case .wheelchairRunPace: return "wheelchair_run_pace"
+        case .taiChi: return "tai_chi"
+        case .mixedCardio: return "mixed_cardio"
+        case .handCycling: return "hand_cycling"
+        case .discSports: return "disc_sports"
+        case .fitnessGaming: return "fitness_gaming"
+        case .cardioDance: return "cardio_dance"
+        case .socialDance: return "social_dance"
+        case .pickleball: return "pickleball"
         case .cooldown: return "cooldown"
-        default: return "other"
+        case .swimBikeRun: return "swim_bike_run"
+        case .transition: return "transition"
+        case .underwaterDiving: return "underwater_diving"
+        case .other: return "other"
+        // A type from a later iOS than the SDK this was built with; the compiler names any
+        // case of the SDK missing above.
+        @unknown default: return "other"
         }
     }
 }

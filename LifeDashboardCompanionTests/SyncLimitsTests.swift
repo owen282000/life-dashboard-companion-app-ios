@@ -35,6 +35,8 @@ final class SyncLimitsTests: XCTestCase {
     func testHighVolumeTypesHaveHigherLimits() {
         XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .heartRate), 1000)
         XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .steps), 1000)
+        XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .totalCalories), 1000, "Android's cap for total calories")
+        XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .activeCalories), 200)
         XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .heartRateVariability), 500)
         XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .respiratoryRate), 500)
         XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: .weight), 200)
@@ -47,6 +49,68 @@ final class SyncLimitsTests: XCTestCase {
         for type in added {
             XCTAssertEqual(SyncLimits.maxRecordsPerSync(for: type), 200, "\(type)")
         }
+    }
+
+    // MARK: - Sync Now passes
+
+    /// Sync Now's passes against a fake read: `behind` says what each pass leaves behind.
+    private final class Passes: @unchecked Sendable {
+        var behind: [Set<HealthDataType>]
+        var results: [HealthSyncResult] = []
+        var timeLeft = Int.max
+        private(set) var reads: [Set<HealthDataType>] = []
+
+        init(behind: [Set<HealthDataType>]) { self.behind = behind }
+
+        var passes: CatchUpPasses {
+            CatchUpPasses(
+                pass: { types in
+                    let index = self.reads.count
+                    self.reads.append(types)
+                    let result = index < self.results.count ? self.results[index] : .success(syncCounts: [.heartRate: 900])
+                    return (result, index < self.behind.count ? self.behind[index] : [])
+                },
+                hasTime: {
+                    self.timeLeft -= 1
+                    return self.timeLeft >= 0
+                }
+            )
+        }
+    }
+
+    func testSyncNowReadsOnlyWhatThePassBeforeLeftBehindUntilItCaughtUp() async {
+        let passes = Passes(behind: [[.heartRate, .steps], [.heartRate], []])
+        let result = await passes.passes.run([.heartRate, .steps, .weight])
+        XCTAssertEqual(passes.reads, [[.heartRate, .steps, .weight], [.heartRate, .steps], [.heartRate]])
+        guard case .success(let counts, _) = result else { return XCTFail("expected success") }
+        XCTAssertEqual(counts[.heartRate], 2700, "the passes add up")
+    }
+
+    func testSyncNowStopsAfterAndroidsEightPasses() async {
+        let passes = Passes(behind: Array(repeating: [.heartRate], count: 20))
+        _ = await passes.passes.run([.heartRate])
+        XCTAssertEqual(passes.reads.count, 8)
+        XCTAssertEqual(CatchUpPasses.maxPasses, 8)
+    }
+
+    func testAPassThatWasQueuedEndsSyncNowAndOneWithNothingToSendDoesNot() async {
+        let queued = Passes(behind: [[.heartRate], [.heartRate]])
+        queued.results = [.failure(error: AppDiagnostic.queuedForRetry.rawValue)]
+        let result = await queued.passes.run([.heartRate])
+        XCTAssertEqual(queued.reads.count, 1, "more passes would only queue more")
+        guard case .failure = result else { return XCTFail("expected failure") }
+
+        let empty = Passes(behind: [[.heartRate], []])
+        empty.results = [.noData]
+        _ = await empty.passes.run([.heartRate])
+        XCTAssertEqual(empty.reads.count, 2, "a page of deletions, and the type is still behind")
+    }
+
+    func testSyncNowStopsWhenItsTimeIsUp() async {
+        let passes = Passes(behind: Array(repeating: [.heartRate], count: 8))
+        passes.timeLeft = 2
+        _ = await passes.passes.run([.heartRate])
+        XCTAssertEqual(passes.reads.count, 3, "the first pass, and two more while there was time")
     }
 
     // MARK: - Slices
