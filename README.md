@@ -62,34 +62,16 @@ Two things from the Android app aren't here. There's no screen time, because iOS
 
 ## Part of Life Dashboard
 
-Life Dashboard is four projects, and you only install the parts you need. Put the app on each phone, then choose where the data goes. Both apps send the same payload, so an Android phone and an iPhone can share one Home Assistant or one stack.
+Life Dashboard is four projects, and you only install the parts you need. Put the app on each phone, then pick where the data goes. Both apps send the same payload, so an Android phone and an iPhone can share one Home Assistant or one stack.
 
-<table>
-<thead>
-<tr>
-<th align="left" width="50%">On your phone</th>
-<th align="left" width="50%">Where the data goes</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td valign="top">
-<a href="https://github.com/owen282000/life-dashboard-companion-app">Android app</a><br>
-<sub>Health Connect and screen time</sub><br><br>
-<b>iPhone app</b><br>
-<sub>Apple Health</sub>
-</td>
-<td valign="top">
-<a href="https://github.com/owen282000/life-dashboard-ha">Home Assistant integration</a><br>
-<sub>Sensors and a year of history</sub><br><br>
-<a href="https://github.com/owen282000/life-dashboard-stack">Grafana stack</a><br>
-<sub>Postgres and Grafana dashboards</sub><br><br>
-An MQTT broker or a webhook of your own<br>
-<sub>Built into both apps, for n8n, Node-RED or a script</sub>
-</td>
-</tr>
-</tbody>
-</table>
+<p align="center">
+  <a href="https://github.com/owen282000/life-dashboard-companion-app"><img src="docs/family/android.png" alt="Android app: Health Connect and screen time" width="400"></a>
+  <picture><img src="docs/family/ios-here.png" alt="iPhone app: Apple Health (this repository)" width="400"></picture>
+  <a href="https://github.com/owen282000/life-dashboard-ha"><img src="docs/family/ha.png" alt="Home Assistant integration: sensors and a year of history" width="400"></a>
+  <a href="https://github.com/owen282000/life-dashboard-stack"><img src="docs/family/stack.png" alt="Grafana stack: Postgres and Grafana dashboards" width="400"></a>
+</p>
+
+The data can also go to an MQTT broker or a webhook of your own instead. Both apps have that built in, for n8n, Node-RED or a script.
 
 <a id="quick-start"></a>
 
