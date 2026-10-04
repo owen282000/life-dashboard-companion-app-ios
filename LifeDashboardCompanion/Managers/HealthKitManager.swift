@@ -651,6 +651,33 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         HealthRecordMapping.record(fields, from: sample)
     }
 
+    /// Slices at most for one `readWhole`: enough for a few hours of one-second heart rate or
+    /// days of steps. A sync that would need more, catching up after a long pause, sends those
+    /// windows unmarked instead, which a receiver combines.
+    static let maxWholeSlices = 24
+
+    /// Every sample of a bucketed accumulated type in `[start, end)`, read in slices the way the backfill
+    /// reads (`nextSlice`, `readDataForType`) and mapped the way a synced record is, so a sync
+    /// can send the windows in that range whole (P2-16). Nil when the range cannot be read in
+    /// full: a slice was not exact, or it needs more than `maxWholeSlices`.
+    func readWhole(_ dataType: HealthDataType, start: Date, end: Date) async throws -> WholeContent? {
+        guard let fields = dataType.seriesFields else { return nil }
+        var samples: [CarriedSample] = []
+        var cursor = start
+        var slices = 0
+        while cursor < end {
+            slices += 1
+            guard slices <= HealthKitManager.maxWholeSlices else { return nil }
+            let slice = try await nextSlice(for: dataType, from: cursor, to: end)
+            guard slice.exact else { return nil }
+            let pairs = try await readDataForType(dataType, start: cursor, end: slice.end) ?? []
+            let records = pairs.first { $0.0 == dataType.countedPayloadKey }?.1 as? [[String: Any]] ?? []
+            samples += records.compactMap { ResolutionApplier.sample(from: $0, fields: fields) }
+            cursor = slice.end
+        }
+        return WholeContent(samples: samples, from: start, to: end)
+    }
+
     /// Reads data for a single HealthDataType. Returns (payloadKey, data) pairs or nil if empty.
     /// Most types produce one pair; menstruation produces both flow records and derived periods.
     /// Reads are capped oldest-first per type (see SyncLimits) to bound payload size.
