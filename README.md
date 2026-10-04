@@ -60,6 +60,15 @@ Apple Health is where your iPhone, Apple Watch and apps like Garmin Connect, Our
 
 Two things from the Android app aren't here. There's no screen time, because iOS shows Screen Time data only inside a sandbox that can't send anything out. And the app doesn't write readings back into Apple Health. [What iOS does differently](docs/features.md#what-ios-does-differently) lists every difference and why.
 
+## Part of Life Dashboard
+
+Life Dashboard is four projects that work together. The two apps send the same payload, so an Android phone and an iPhone can feed one Home Assistant or one stack.
+
+| Android app | iPhone app | Home Assistant | Grafana stack |
+|:--:|:--:|:--:|:--:|
+| Health Connect and screen time | Apple Health | Sensors and a year of history | Postgres and Grafana dashboards |
+| [Open repository](https://github.com/owen282000/life-dashboard-companion-app) | **You're here** | [Open repository](https://github.com/owen282000/life-dashboard-ha) | [Open repository](https://github.com/owen282000/life-dashboard-stack) |
+
 <a id="quick-start"></a>
 
 ## Build and install
