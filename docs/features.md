@@ -119,7 +119,7 @@ Each sends only what is new. Health data cannot be read while the iPhone is lock
 
 - **First-run setup** - what the app does, where the data goes (the pairing scanner, a webhook with a **Test ping**, or an MQTT broker), which types, and Apple Health access. Every step can be skipped
 - **About** - behind the (i) button on the Health and Logs tabs: what the app reads and where it goes, the privacy policy, settings backup, and links to the documentation, the changelog and issues
-- **Privacy policy in the app** - the same text as [Privacy](../README.md#privacy) in the README
+- **Privacy policy in the app** - a summary of [PRIVACY.md](../PRIVACY.md)
 - **Languages** - English, Dutch and German, following the iPhone's language or the one set for the app under Settings. See [localization.md](localization.md)
 - **SwiftUI** - the Android app's look, with Dynamic Type and dark mode
 - **No third-party dependencies** - only Apple's frameworks
