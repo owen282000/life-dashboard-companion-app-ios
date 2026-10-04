@@ -234,7 +234,7 @@ final class HealthSyncManager: Sendable {
                 let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
                 let totalsDay = await attachDailyTotals(to: &payload, types: prefs.healthEnabledDataTypes)
                 var commit = readCommit
-                let resolved = resolveSeries(
+                let resolved = await resolveSeries(
                     in: &payload, commit: &commit, readStart: readStart,
                     deleted: Set(deletions.summary.deleted.map(\.uuid))
                 )
@@ -539,12 +539,17 @@ final class HealthSyncManager: Sendable {
     /// past the cap or a page left for the next pass). A type this round did not read holds what it has, since samples behind
     /// its anchor may belong to its windows. A type switched off lets go of what it held, and
     /// a sample deleted since it was read leaves the carry.
+    ///
+    /// The windows about to close are then read whole from HealthKit and sent from that, marked
+    /// complete, so a window that goes out again replaces the stored one on the receiver
+    /// instead of adding to it (P2-16). A type whose range cannot be read whole goes out as
+    /// before, unmarked.
     private func resolveSeries(
         in payload: inout [String: Any],
         commit: inout AnchorCommit,
         readStart: Date,
         deleted: Set<String>
-    ) -> ResolvedSeries {
+    ) async -> ResolvedSeries {
         let resolutions = prefs.storedSeriesResolutions
         let enabled = prefs.healthEnabledDataTypes
         let carriedIn = BucketCarryStore.shared.load()
@@ -564,8 +569,15 @@ final class HealthSyncManager: Sendable {
             }
             boundaries[type] = boundary
         }
-        let resolved = ResolutionApplier.apply(
+        let planned = ResolutionApplier.apply(
             to: payload, resolutions: resolutions, carriedIn: carriedIn, now: readStart, boundaries: boundaries
+        )
+        var whole: [HealthDataType: WholeContent] = [:]
+        for (type, span) in ResolutionApplier.windowSpans(in: planned.payload) {
+            whole[type] = try? await healthKit.readWhole(type, start: span.start, end: span.end)
+        }
+        let resolved = whole.isEmpty ? planned : ResolutionApplier.apply(
+            to: payload, resolutions: resolutions, carriedIn: carriedIn, now: readStart, boundaries: boundaries, whole: whole
         )
         payload = resolved.payload
         commit.bucketCarry = resolved.carriedOut

@@ -343,6 +343,8 @@ struct BackfillEngine: Sendable {
         var records = 0
         var sent = 0
         var truncated = false
+        // Types a slice of this window could not read in full: their buckets are not complete.
+        var inexact: Set<HealthDataType> = []
 
         for pass in 1...BackfillPlan.maxPassesPerWindow {
             if pass > 1, let reason = await shouldStop() { return .stopped(job.paused(reason, at: now())) }
@@ -365,6 +367,7 @@ struct BackfillEngine: Sendable {
                 chunk += slice.records
                 if !slice.exact {
                     truncated = true
+                    inexact.insert(type)
                     Self.logger.error("Backfill window from \(window.start.iso8601String): more \(type.rawValue) samples at one instant than one read holds")
                 }
                 next[type] = slice.end >= read.end ? nil : slice.end
@@ -373,7 +376,10 @@ struct BackfillEngine: Sendable {
             let count = BackfillPayload.recordCount(chunk)
             var buckets = 0
             if !resolutions.isEmpty {
-                (chunk, buckets) = bucketed(chunk, resolutions: resolutions, held: &held, next: next, reads: reads, rangeEnd: rangeEnd)
+                (chunk, buckets) = bucketed(
+                    chunk, resolutions: resolutions, held: &held, next: next, reads: reads, rangeEnd: rangeEnd,
+                    complete: Set(reads.keys.filter { ResolutionFamily.of($0) == .accumulated }).subtracting(inexact)
+                )
             }
             // A pass can read nothing and still close a bucket an earlier one held.
             if count > 0 || buckets > 0 || sent == 0 {
@@ -405,14 +411,17 @@ struct BackfillEngine: Sendable {
     /// is read in time order, so its buckets are complete up to where its next slice starts;
     /// the one that slice may still add to is held for the next chunk. A type that is done has
     /// read its whole stretch (see `BackfillPlan.readWindow`), which ends on a bucket bound but
-    /// at the end of the range, where the bucket still filling is left to the syncs.
+    /// at the end of the range, where the bucket still filling is left to the syncs. So every
+    /// bucket that goes out holds all its window's samples, and is marked complete, for the
+    /// types in `complete`: those whose slices were all read in full (P2-16).
     private func bucketed(
         _ chunk: [(String, Any)],
         resolutions: [HealthDataType: SeriesResolution],
         held: inout [HealthDataType: [CarriedSample]],
         next: [HealthDataType: Date],
         reads: [HealthDataType: DateInterval],
-        rangeEnd: Date
+        rangeEnd: Date,
+        complete: Set<HealthDataType>
     ) -> (records: [(String, Any)], buckets: Int) {
         var boundaries: [HealthDataType: Date] = [:]
         for (type, read) in reads {
@@ -423,7 +432,8 @@ struct BackfillEngine: Sendable {
             resolutions: resolutions,
             carriedIn: held,
             now: rangeEnd,
-            boundaries: boundaries
+            boundaries: boundaries,
+            completeTypes: complete
         )
         held = resolved.carriedOut
         return (resolved.payload.map { ($0.key, $0.value) }, resolved.bucketCount)

@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- A window of steps, distance or calories that went out a second time held only the samples that had arrived since, for a receiver to add to the window it held. An app that deletes its samples and saves them again then had them counted twice, since the deletion of the old ones never reached the window. Before a sync sends such a window it now reads the window whole from HealthKit and sends that, with `"complete": true`, so a receiver replaces the window instead of adding to it. A window the sync cannot read whole goes out as before, without the field, for a receiver to combine, and so do measured series such as heart rate, where a sample that comes again leaves the average, minimum and maximum alone. A backfill marks its windows of steps, distance and calories complete too: it reads them from window bound to window bound. The same change as in the Android app; see Data resolution in docs/webhook.md.
+
 ## [1.6.0] - 2026-10-03
 
 ### Added

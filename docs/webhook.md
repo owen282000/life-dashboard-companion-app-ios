@@ -159,7 +159,11 @@ The shape is the Android app's, described with the merge rules on its page under
   { "bucket_start": "2026-02-05T08:00:00Z", "bucket_end": "2026-02-05T08:01:00Z",
     "sample_count": 12, "avg": 72.4, "min": 66, "max": 81, "sources": ["Owen's Apple Watch"] }
 ],
-"_resolutions": { "heart_rate": "1m" }
+"steps": [
+  { "bucket_start": "2026-02-05T08:00:00Z", "bucket_end": "2026-02-05T09:00:00Z",
+    "sample_count": 40, "total": 1840, "sources": ["Owen's iPhone"], "complete": true }
+],
+"_resolutions": { "heart_rate": "1m", "steps": "1h" }
 ```
 
 `sources` holds the records' `source` names, so HealthKit's names here too. An interval record (steps, distance, calories) counts whole in the window it starts in. The records' `uuid`s do not travel with a bucket, and deletions of records in a bucketed series still name those `uuid`s in `deleted_records`.
@@ -171,7 +175,12 @@ When the windows go out:
 - **Backfill** sends each window once, whole, with the backfill window it starts in, so a bucket can end a few minutes after that payload's `window_end`. The window cut by the start of the backfill range and the one still filling at its end are left out. Like the Android app's backfill, it sends windows a receiver may already have; the payload says `"backfill": true`.
 - **A type set back to every record** sends the samples it was holding as records, with their `uuid`s, where the Android app drops them.
 
-As on Android, a record that reaches the iPhone late, from a Watch that syncs hours afterwards, makes its window go out a second time with only the late samples, and a payload from the retry queue can arrive twice. Use the Android page's rule and add buckets with the same `bucket_start` up, which is what the Life Dashboard integration does. MQTT and `daily_totals` are not affected: they never carried records.
+A window can still go out a second time: a record reaches the iPhone late, from a Watch that syncs hours afterwards, or an app deletes samples and saves them again, and a payload from the retry queue can arrive twice. As on Android, what a receiver does with a bucket for a window it holds depends on `complete`:
+
+- **`"complete": true`: replace the stored window.** Steps, distance, active calories and total calories go out this way: before a sync sends their closed windows it reads them whole from HealthKit, so the bucket holds every sample the window has, not only the ones that arrived. Adding it to the stored one would count a sample that was saved again twice. A backfill reads them from window bound to window bound and marks its windows the same way.
+- **No `complete`: combine** by the Android page's rule, adding buckets with the same `bucket_start` up. Measured series (heart rate, heart rate variability, oxygen saturation, respiratory rate) always go out this way: a sample that comes again leaves the window's `avg`, `min` and `max` as they were and only raises `sample_count`. Steps, distance and calories go out this way when the sync could not read the window whole, for example after a long pause, when it would take more than 24 reads, or when more samples share one instant than one read holds. 1.6.0 and older never mark a bucket.
+
+The Life Dashboard integration reads the measured series only, and combines them; its day figures for steps, distance and calories come from `daily_totals`. MQTT and `daily_totals` are not affected: they never carried records.
 
 ## Backfill
 

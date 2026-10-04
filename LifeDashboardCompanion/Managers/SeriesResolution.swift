@@ -117,6 +117,21 @@ struct Bucket: Equatable, Sendable {
     let sampleCount: Int
     /// Sources that contributed, so a window mixing iPhone and Watch is still traceable.
     let sources: [String]
+    /// True when the bucket holds every sample HealthKit had in the window when it was built,
+    /// not only the ones a sync read as new: a receiver replaces a stored window with it
+    /// instead of adding to it (P2-16).
+    var complete = false
+}
+
+/// Every sample of one type HealthKit holds in `[from, to)`, read to build the windows a sync
+/// is about to send whole (P2-16).
+struct WholeContent: Sendable {
+    let samples: [CarriedSample]
+    let from: Date
+    let to: Date
+
+    /// Whether the window `[start, end)` lies wholly inside what was read.
+    func covers(_ start: Date, _ end: Date) -> Bool { start >= from && end <= to }
 }
 
 enum SeriesBucketing {
@@ -190,6 +205,9 @@ enum ResolutionPayload {
             json["max"] = number(bucket.maximum, decimals: decimals)
         }
         if !bucket.sources.isEmpty { json["sources"] = bucket.sources }
+        // Only when true: a bucket without it is one a receiver combines with what it holds,
+        // which is how every bucket before P2-16 was meant to be read.
+        if bucket.complete { json["complete"] = true }
         return json
     }
 
@@ -240,9 +258,14 @@ struct ResolvedSeries {
 /// also one with no new records, so a carried window goes out once it has closed. A type set
 /// back to raw sends what it held as records, where Android drops it.
 ///
-/// The one case that sends a window twice is a record arriving late for a window already sent,
-/// a Watch that syncs to the iPhone hours later. Buckets carry what a receiver needs to merge
-/// that exactly, and docs/webhook.md says how.
+/// A window can go out twice: a Watch syncs to the iPhone hours later, or a source deletes
+/// samples and saves them again. Built from only the samples that arrived, the second bucket of
+/// steps, distance or calories would make a receiver that adds it to the stored window count a
+/// re-saved sample twice, so a closed window of an accumulated series goes out built from
+/// `whole` where that holds it, marked complete, for the receiver to replace (P2-16). A window
+/// `whole` does not hold goes out as before, unmarked, for the receiver to combine, and so does
+/// every window of a measured series, where combining a sample that came again leaves the
+/// average, minimum and maximum alone; docs/webhook.md says how.
 enum ResolutionApplier {
     /// - Parameters:
     ///   - boundaries: per type, the moment up to which windows count as complete when that is
@@ -250,13 +273,20 @@ enum ResolutionApplier {
     ///     from there, and may still add to the window that contains it.
     ///   - emit: false for a pass that only collects; the raw records still leave the payload
     ///     and every sample is carried.
+    ///   - whole: per type, everything HealthKit holds over a range, to build closed windows
+    ///     inside it whole from (see `HealthKitManager.readWhole`).
+    ///   - completeTypes: accumulated types whose closed windows are complete as built, because
+    ///     the caller read every sample of them: a backfill reads a bucketed type from bucket
+    ///     bound to bucket bound, in time order.
     static func apply(
         to payload: [String: Any],
         resolutions: [HealthDataType: SeriesResolution],
         carriedIn: [HealthDataType: [CarriedSample]] = [:],
         now: Date,
         boundaries: [HealthDataType: Date] = [:],
-        emit: Bool = true
+        emit: Bool = true,
+        whole: [HealthDataType: WholeContent] = [:],
+        completeTypes: Set<HealthDataType> = []
     ) -> ResolvedSeries {
         var result = ResolvedSeries(payload: payload, carriedOut: carriedIn)
         for type in ResolutionFamily.configurableTypes {
@@ -295,14 +325,49 @@ enum ResolutionApplier {
             // An empty array still goes in while everything is held: the receiver asked not to
             // get this series as records, so the payload must not fall back to them.
             let decimals = PayloadJSON.decimals(for: fields.value)
-            result.payload[key] = split.closed.map { ResolutionPayload.bucketJSON($0, family: family, decimals: decimals) }
+            let closed = split.closed.compactMap { bucket -> Bucket? in
+                guard family == .accumulated else { return bucket }
+                if completeTypes.contains(type) {
+                    var marked = bucket
+                    marked.complete = true
+                    return marked
+                }
+                return wholeOrAsIs(bucket, content: whole[type], resolution: resolution)
+            }
+            result.payload[key] = closed.map { ResolutionPayload.bucketJSON($0, family: family, decimals: decimals) }
             result.used[key] = resolution
-            result.bucketCount += split.closed.count
+            result.bucketCount += closed.count
         }
         if !result.used.isEmpty {
             result.payload[ResolutionPayload.resolutionsKey] = ResolutionPayload.resolutionsJSON(result.used)
         }
         return result
+    }
+
+    /// `bucket` rebuilt from everything `content` holds in its window, marked complete; `bucket`
+    /// itself, unmarked, when `content` does not hold the window whole. Nil when the window
+    /// turns out to hold nothing any more: the samples held for it were deleted, and a window
+    /// never sent before has nothing to replace.
+    private static func wholeOrAsIs(_ bucket: Bucket, content: WholeContent?, resolution: SeriesResolution) -> Bucket? {
+        guard let content, content.covers(bucket.start, bucket.end) else { return bucket }
+        let inWindow = content.samples.filter { $0.time >= bucket.start && $0.time < bucket.end }
+        guard var rebuilt = SeriesBucketing.bucket(inWindow, resolution: resolution).first else { return nil }
+        rebuilt.complete = true
+        return rebuilt
+    }
+
+    /// Per bucketed accumulated type, from the start of the first window in `payload` to the
+    /// end of the last: what a sync has to read whole before it sends them (see `apply`'s
+    /// `whole`). Measured series are not sent whole.
+    static func windowSpans(in payload: [String: Any]) -> [HealthDataType: DateInterval] {
+        var spans: [HealthDataType: DateInterval] = [:]
+        for type in ResolutionFamily.configurableTypes where ResolutionFamily.of(type) == .accumulated {
+            let buckets = (payload[type.countedPayloadKey] as? [[String: Any]] ?? []).filter { $0["bucket_start"] != nil }
+            let starts = buckets.compactMap { ($0["bucket_start"] as? String).flatMap(parseDate) }
+            let ends = buckets.compactMap { ($0["bucket_end"] as? String).flatMap(parseDate) }
+            if let start = starts.min(), let end = ends.max(), start < end { spans[type] = DateInterval(start: start, end: end) }
+        }
+        return spans
     }
 
     /// The newest measurement up to `now` among `carried` and the records of `type` in

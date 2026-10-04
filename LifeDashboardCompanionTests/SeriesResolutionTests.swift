@@ -493,6 +493,169 @@ final class SeriesResolutionTests: XCTestCase {
     }
 }
 
+// MARK: - Whole windows (P2-16)
+
+/// A window that goes out again is built from everything HealthKit holds in it and marked
+/// complete, so a receiver replaces what it holds instead of adding to it: a source that
+/// deletes samples and saves them again would otherwise be counted twice.
+extension SeriesResolutionTests {
+
+    private func hourOfSteps(_ count: Int = 60, each value: Double = 10) -> [CarriedSample] {
+        (0..<count).map { sample(String(format: "2026-09-14T08:%02d:00Z", $0), value, source: "Watch", uuid: "s\($0)") }
+    }
+
+    private func sendSteps(_ records: [[String: Any]], whole: WholeContent?, carried: [CarriedSample] = []) -> [[String: Any]] {
+        let resolved = ResolutionApplier.apply(
+            to: ["steps": records],
+            resolutions: [.steps: .hourly],
+            carriedIn: carried.isEmpty ? [:] : [.steps: carried],
+            now: at("2026-09-14T12:00:00Z"),
+            whole: whole.map { [.steps: $0] } ?? [:]
+        )
+        return buckets(resolved.payload, "steps")
+    }
+
+    func testAWindowGoingOutAgainIsBuiltWholeAndMarkedComplete() throws {
+        let late = (0..<10).map { steps(String(format: "2026-09-14T08:%02d:00Z", $0), 10) }
+        let whole = WholeContent(samples: hourOfSteps(), from: at("2026-09-14T08:00:00Z"), to: at("2026-09-14T12:00:00Z"))
+        let bucket = try XCTUnwrap(sendSteps(late, whole: whole).first)
+        XCTAssertEqual((bucket["total"] as? NSNumber)?.doubleValue, 600)
+        XCTAssertEqual(bucket["sample_count"] as? Int, 60)
+        XCTAssertEqual(bucket["complete"] as? Bool, true)
+    }
+
+    func testAWindowTheWholeReadDoesNotHoldGoesOutUnmarked() throws {
+        let late = (0..<10).map { steps(String(format: "2026-09-14T08:%02d:00Z", $0), 10) }
+        let partial = WholeContent(samples: Array(hourOfSteps().dropFirst(30)), from: at("2026-09-14T08:30:00Z"), to: at("2026-09-14T12:00:00Z"))
+        let bucket = try XCTUnwrap(sendSteps(late, whole: partial).first)
+        XCTAssertEqual((bucket["total"] as? NSNumber)?.doubleValue, 100)
+        XCTAssertNil(bucket["complete"])
+    }
+
+    func testWithoutAWholeReadEveryBucketIsUnmarked() throws {
+        let bucket = try XCTUnwrap(sendSteps([steps("2026-09-14T08:05:00Z", 10)], whole: nil).first)
+        XCTAssertNil(bucket["complete"])
+    }
+
+    func testAHeldWindowWhoseSamplesWereAllDeletedIsNotSent() {
+        let whole = WholeContent(samples: [], from: at("2026-09-14T08:00:00Z"), to: at("2026-09-14T12:00:00Z"))
+        XCTAssertTrue(sendSteps([], whole: whole, carried: Array(hourOfSteps().prefix(30))).isEmpty)
+    }
+
+    func testWindowSpansReachFromTheFirstWindowToTheLastOnly() {
+        let payload: [String: Any] = [
+            "steps": [
+                ["bucket_start": "2026-09-14T09:00:00Z", "bucket_end": "2026-09-14T10:00:00Z", "sample_count": 1, "total": 5],
+                ["bucket_start": "2026-09-14T08:00:00Z", "bucket_end": "2026-09-14T09:00:00Z", "sample_count": 1, "total": 5]
+            ],
+            "heart_rate": [heartRate("2026-09-14T08:00:00Z", 60)]
+        ]
+        let spans = ResolutionApplier.windowSpans(in: payload)
+        XCTAssertEqual(spans.keys.map(\.rawValue), [HealthDataType.steps.rawValue])
+        XCTAssertEqual(spans[.steps], DateInterval(start: at("2026-09-14T08:00:00Z"), end: at("2026-09-14T10:00:00Z")))
+    }
+
+    func testOnlyACompleteBucketSaysSoInThePayload() {
+        var bucket = Bucket(start: at("2026-09-14T08:00:00Z"), end: at("2026-09-14T09:00:00Z"), mean: 10, minimum: 10, maximum: 10, total: 600, sampleCount: 60, sources: [])
+        XCTAssertNil(ResolutionPayload.bucketJSON(bucket, family: .accumulated)["complete"])
+        bucket.complete = true
+        XCTAssertEqual(ResolutionPayload.bucketJSON(bucket, family: .accumulated)["complete"] as? Bool, true)
+    }
+
+    /// A backfill reads a bucketed type from bucket bound to bucket bound in time order, so
+    /// every bucket of steps it sends holds all its samples and is marked complete.
+    func testEveryStepsBucketABackfillSendsIsComplete() async throws {
+        let now = Date(timeIntervalSinceReferenceDate: 800_000_000.75)
+        let range = BackfillPlan.range(days: 3, now: now)
+        let first = SeriesBucketing.alignUp(range.start, resolution: .hourly)
+        let times = (0..<3000).map { first.addingTimeInterval(Double($0) * 60) }
+        let sink = WholeSink()
+        let engine = BackfillEngine(
+            reader: WholeReader(times: times, key: "steps"), sink: sink, appVersion: "9.9.9",
+            enabledTypes: { [.steps] }, resolutions: { [.steps: .hourly] }, now: { now }
+        )
+        _ = await engine.run(BackfillJob(days: 3, range: range, now: now))
+        let sent = await sink.payloads().flatMap { buckets($0, "steps") }
+        XCTAssertFalse(sent.isEmpty)
+        XCTAssertTrue(sent.allSatisfy { $0["complete"] as? Bool == true }, "\(sent.filter { $0["complete"] == nil })")
+        XCTAssertEqual(sent.compactMap { ($0["total"] as? NSNumber)?.intValue }.reduce(0, +), sent.compactMap { $0["sample_count"] as? Int }.reduce(0, +) * 10)
+    }
+
+    /// A measured series goes out as before: combining a sample that came again leaves its
+    /// average, minimum and maximum alone, so no bucket of it is marked.
+    func testABackfillNeverMarksAMeasuredSeries() async throws {
+        let now = Date(timeIntervalSinceReferenceDate: 800_000_000.75)
+        let range = BackfillPlan.range(days: 3, now: now)
+        let first = SeriesBucketing.alignUp(range.start, resolution: .fiveMinutes)
+        let times = (0..<3000).map { first.addingTimeInterval(Double($0) * 20) }
+        let sink = WholeSink()
+        let engine = BackfillEngine(
+            reader: WholeReader(times: times, key: "heart_rate"), sink: sink, appVersion: "9.9.9",
+            enabledTypes: { [.heartRate] }, resolutions: { [.heartRate: .fiveMinutes] }, now: { now }
+        )
+        _ = await engine.run(BackfillJob(days: 3, range: range, now: now))
+        let sent = await sink.payloads().flatMap { buckets($0) }
+        XCTAssertFalse(sent.isEmpty)
+        XCTAssertTrue(sent.allSatisfy { $0["complete"] == nil })
+    }
+
+    /// More steps at one instant than one read holds: the window cannot be read in full, so its
+    /// bucket goes out unmarked.
+    func testABackfillBucketThatCouldNotBeReadInFullIsNotMarked() async throws {
+        let now = Date(timeIntervalSinceReferenceDate: 800_000_000.75)
+        let range = BackfillPlan.range(days: 3, now: now)
+        let instant = SeriesBucketing.alignUp(range.start, resolution: .hourly).addingTimeInterval(3600 + 10)
+        let sink = WholeSink()
+        let engine = BackfillEngine(
+            reader: WholeReader(times: Array(repeating: instant, count: 1200), key: "steps"), sink: sink, appVersion: "9.9.9",
+            enabledTypes: { [.steps] }, resolutions: { [.steps: .hourly] }, now: { now }
+        )
+        _ = await engine.run(BackfillJob(days: 3, range: range, now: now))
+        let sent = await sink.payloads().flatMap { buckets($0, "steps") }
+        XCTAssertEqual(sent.count, 1)
+        XCTAssertNil(sent.first?["complete"])
+    }
+}
+
+/// The test file's readers and sinks are private to it; these are the same, for the extension.
+private actor WholeReader: BackfillReading {
+    let times: [Date]
+    /// "heart_rate" or "steps": the records the reader returns.
+    let key: String
+
+    init(times: [Date], key: String) {
+        self.times = times
+        self.key = key
+    }
+
+    func canRead() async -> Bool { true }
+
+    func readSlice(_ type: HealthDataType, from cursor: Date, window: DateInterval, rangeEnd: Date) async throws -> BackfillSlice {
+        let limit = SyncLimits.maxRecordsPerSync(for: type)
+        let inRange = times.enumerated().filter { $0.element >= cursor && $0.element < window.end }
+        let slice = SyncLimits.sliceEnd(probedStartDates: Array(inRange.prefix(limit).map(\.element)), limit: limit, from: cursor, to: window.end)
+        let records: [[String: Any]] = inRange.filter { $0.element < slice.end }.map {
+            key == "steps"
+                ? ["count": 10, "start_time": $0.element.iso8601String, "end_time": $0.element.iso8601String, "uuid": "st-\($0.offset)", "source": "iPhone"]
+                : ["bpm": 70, "time": $0.element.iso8601String, "uuid": "hr-\($0.offset)", "source": "Apple Watch"]
+        }
+        return BackfillSlice(records: records.isEmpty ? [] : [(key, records)], end: slice.end, exact: slice.exact)
+    }
+}
+
+private actor WholeSink: BackfillDelivering {
+    private var sent: [Data] = []
+
+    func deliver(_ body: Data, recordCount: Int) async -> Bool {
+        sent.append(body)
+        return true
+    }
+
+    func payloads() -> [[String: Any]] {
+        sent.map { (try? JSONSerialization.jsonObject(with: $0) as? [String: Any]) ?? [:] }
+    }
+}
+
 private actor HeartRateReader: BackfillReading {
     let times: [Date]
 
