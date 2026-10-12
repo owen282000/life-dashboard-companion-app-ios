@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-12
+
 ### Fixed
 
 - A window of steps, distance or calories that went out a second time held only the samples that had arrived since, for a receiver to add to the window it held. An app that deletes its samples and saves them again then had them counted twice, since the deletion of the old ones never reached the window. Before a sync sends such a window it now reads the window whole from HealthKit and sends that, with `"complete": true`, so a receiver replaces the window instead of adding to it. A window the sync cannot read whole goes out as before, without the field, for a receiver to combine, and so do measured series such as heart rate, where a sample that comes again leaves the average, minimum and maximum alone. A backfill marks its windows of steps, distance and calories complete too: it reads them from window bound to window bound. The same change as in the Android app; see Data resolution in docs/webhook.md.
@@ -210,7 +212,8 @@ All notable changes to this project are documented in this file. The format is b
 - Offline queue with retries and exponential backoff
 - Webhook logs with CSV/JSON export and payload preview
 
-[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.6.0...HEAD
+[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.7.0...HEAD
+[1.7.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.6.0...1.7.0
 [1.6.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.5.0...1.6.0
 [1.5.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.4.1...1.5.0
 [1.4.1]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.4.0...1.4.1
