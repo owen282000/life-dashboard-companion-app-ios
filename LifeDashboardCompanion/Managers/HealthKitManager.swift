@@ -134,6 +134,10 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
     /// Asks for the enabled types' access when `asksOnce` says so, and remembers that it did.
     func askOnceForEnabledTypes(_ types: Set<HealthDataType>, defaults: UserDefaults = .standard) async {
         let readTypes = readTypesFor(types)
+        // With no type switched on there is nothing to ask for, and HealthKit throws an
+        // Objective-C exception for an empty request that `try?` cannot catch: the app crashed
+        // on launch after a setup that left the types for later.
+        guard !readTypes.isEmpty else { return }
         let identifiers = Set(readTypes.map(\.identifier))
         let asked = Set(defaults.stringArray(forKey: Self.askedReadTypesKey) ?? [])
         let request = try? await healthStore.statusForAuthorizationRequest(toShare: [], read: readTypes)
