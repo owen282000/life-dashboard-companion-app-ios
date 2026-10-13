@@ -114,6 +114,13 @@ final class UIParityTests: XCTestCase {
         XCTAssertEqual(rgb(of: tone.uiColor.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))), tone.light)
     }
 
+    /// The window override behind the appearance choice: System must leave it to iOS.
+    func testAppThemeOverridesTheWindowOnlyWhenChosen() {
+        XCTAssertEqual(AppTheme.system.userInterfaceStyle, .unspecified)
+        XCTAssertEqual(AppTheme.light.userInterfaceStyle, .light)
+        XCTAssertEqual(AppTheme.dark.userInterfaceStyle, .dark)
+    }
+
     private func rgb(of color: UIColor) -> UInt32 {
         var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
         color.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
@@ -211,6 +218,7 @@ final class UIParityTests: XCTestCase {
         "figure.mind.and.body", "signature", "antenna.radiowaves.left.and.right", "lock", "key",
         "internaldrive", "doc.text", "sparkles", "ladybug", "chevron.left.forwardslash.chevron.right",
         "cup.and.saucer", "hand.raised", "scroll", "arrow.up.right", "chevron.right",
-        "square.and.pencil", "envelope", "star", "square.grid.2x2", "circle"
+        "square.and.pencil", "envelope", "star", "square.grid.2x2", "circle",
+        "circle.lefthalf.filled"
     ]
 }

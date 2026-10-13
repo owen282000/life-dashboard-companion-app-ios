@@ -40,7 +40,8 @@ final class SettingsBackupTests: XCTestCase {
         mqttUsername: "fixture-user",
         mqttPassword: "fixture-pass",
         mqttBaseTopic: "home/iphone",
-        phoneName: "Zoë's iPhone"
+        phoneName: "Zoë's iPhone",
+        appTheme: .dark
     )
 
     private func file(_ json: String) throws -> ConfigBackup {
@@ -147,6 +148,7 @@ final class SettingsBackupTests: XCTestCase {
         XCTAssertEqual(options["failure_notifications_enabled"] as? Bool, false)
         XCTAssertEqual(options["phone_name"] as? String, "Zoë's iPhone")
         XCTAssertEqual(options["series_resolutions"] as? [String: String], ["HEART_RATE": "ONE_MINUTE", "STEPS": "HOURLY"])
+        XCTAssertEqual(options["theme"] as? String, "dark")
     }
 
     /// Android always writes the map, empty when every type sends every record, and an empty
@@ -285,6 +287,45 @@ final class SettingsBackupTests: XCTestCase {
 
         let absent = try SettingsImport.plan(file(#"{"version":1,"platform":"ios","options":{}}"#), current: current)
         XCTAssertEqual(absent.result.phoneName, "Kitchen iPad", "a file from before names leaves it alone")
+    }
+
+    /// The appearance is the user's, so a file from either app brings it. A file from before
+    /// the choice, or with a value this build does not know, leaves it alone.
+    func testAppThemeComesFromEitherAppAndUnknownValuesLeaveItAlone() throws {
+        var current = makePrefs().backupSnapshot()
+        current.appTheme = .dark
+
+        let android = try SettingsImport.plan(file(#"{"version":1,"options":{"theme":"light"}}"#), current: current)
+        XCTAssertEqual(android.result.appTheme, .light)
+        let iPhone = try SettingsImport.plan(file(#"{"version":1,"platform":"ios","options":{"theme":"system"}}"#), current: current)
+        XCTAssertEqual(iPhone.result.appTheme, .system)
+        let shouted = try SettingsImport.plan(file(#"{"version":1,"options":{"theme":"LIGHT"}}"#), current: current)
+        XCTAssertEqual(shouted.result.appTheme, .light)
+
+        for options in [#"{}"#, #"{"theme":"amoled"}"#, #"{"theme":""}"#] {
+            let plan = try SettingsImport.plan(file(#"{"version":1,"options":\#(options)}"#), current: current)
+            XCTAssertEqual(plan.result.appTheme, .dark, options)
+            XCTAssertEqual(plan.notes, [], options)
+        }
+        XCTAssertThrowsError(try file(#"{"version":1,"options":{"theme":2}}"#))
+    }
+
+    func testAppThemeIsStoredUnderAndroidsValues() {
+        let name = "settings-backup-tests-\(UUID().uuidString)"
+        addTeardownBlock { UserDefaults().removePersistentDomain(forName: name) }
+        let defaults = UserDefaults(suiteName: name)!
+        let prefs = PreferencesManager(defaults: defaults, secrets: InMemorySecretStore())
+        XCTAssertEqual(prefs.appTheme, .system, "a fresh install follows the system")
+
+        prefs.appTheme = .light
+        XCTAssertEqual(defaults.string(forKey: "app_theme"), "light")
+        XCTAssertEqual(PreferencesManager(defaults: defaults, secrets: InMemorySecretStore()).appTheme, .light)
+
+        XCTAssertEqual(AppTheme.allCases.map(\.rawValue), ["system", "light", "dark"])
+        XCTAssertEqual(AppTheme.from("dark"), .dark)
+        XCTAssertEqual(AppTheme.from("Dark"), .dark)
+        XCTAssertEqual(AppTheme.from(nil), .system)
+        XCTAssertEqual(AppTheme.from("sepia"), .system, "a value from a newer version follows the system")
     }
 
     func testMenstruationNamesMapBothWays() {

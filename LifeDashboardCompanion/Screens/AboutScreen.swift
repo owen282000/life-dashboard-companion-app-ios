@@ -76,6 +76,10 @@ struct AboutScreen: View {
                         FeatureItem(text: "Full control over sync settings", systemImage: "slider.horizontal.3")
                     }
 
+                    FeatureCard(title: "Appearance", systemImage: "circle.lefthalf.filled") {
+                        AppearancePicker()
+                    }
+
                     FeatureCard(title: "Backup & restore", systemImage: "arrow.up.arrow.down.circle") {
                         SettingsBackupSection()
                     }
@@ -386,6 +390,20 @@ private struct FeatureItem: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
+    }
+}
+
+/// System, Light or Dark for the whole app. Saved and applied at once, see WindowAppearance.
+private struct AppearancePicker: View {
+    @ObservedObject private var prefs = PreferencesManager.shared
+
+    var body: some View {
+        Picker("Appearance", selection: $prefs.appTheme) {
+            Text("System").tag(AppTheme.system)
+            Text("Light").tag(AppTheme.light)
+            Text("Dark").tag(AppTheme.dark)
+        }
+        .pickerStyle(.segmented)
     }
 }
 

@@ -123,6 +123,9 @@ struct OptionsConfig: Codable, Equatable {
     /// Empty means every type sends every record; absent, in a file from before Android 1.14.0,
     /// it leaves the setting alone.
     var seriesResolutions: [String: String]?
+    /// "system", "light" or "dark". Absent in a file from before the choice, and then left
+    /// alone on import, as is a value this build does not know.
+    var theme: String?
 
     enum CodingKeys: String, CodingKey {
         case enabledDataTypes = "enabled_data_types"
@@ -132,6 +135,7 @@ struct OptionsConfig: Codable, Equatable {
         case failureNotificationsEnabled = "failure_notifications_enabled"
         case phoneName = "phone_name"
         case seriesResolutions = "series_resolutions"
+        case theme
     }
 }
 
@@ -170,6 +174,7 @@ struct SettingsSnapshot: Equatable, Sendable {
     var mqttPassword: String
     var mqttBaseTopic: String
     var phoneName: String
+    var appTheme: AppTheme
 }
 
 // MARK: - Export and file handling
@@ -251,7 +256,8 @@ enum SettingsBackup {
                 phoneName: settings.phoneName.trimmingCharacters(in: .whitespacesAndNewlines),
                 seriesResolutions: Dictionary(uniqueKeysWithValues: settings.seriesResolutions
                     .filter { $0.value != .raw }
-                    .map { ($0.key.rawValue, $0.value.rawValue) })
+                    .map { ($0.key.rawValue, $0.value.rawValue) }),
+                theme: settings.appTheme.rawValue
             )
         )
     }
@@ -656,6 +662,10 @@ enum SettingsImport {
         if fromIPhone, let name = options.phoneName {
             result.phoneName = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(maxPhoneNameLength))
         }
+        // The appearance is the user's, not the phone's, so it comes from either app.
+        if let theme = options.theme.flatMap({ AppTheme(rawValue: $0.lowercased()) }) {
+            result.appTheme = theme
+        }
     }
 
     /// Header names are HTTP tokens and values carry no line breaks or control characters, by
@@ -707,7 +717,8 @@ extension PreferencesManager {
             mqttUsername: mqttUsername,
             mqttPassword: mqttPassword,
             mqttBaseTopic: mqttBaseTopic,
-            phoneName: phoneName
+            phoneName: phoneName,
+            appTheme: appTheme
         )
     }
 
@@ -743,6 +754,7 @@ extension PreferencesManager {
         if new.mqttUseTls != old.mqttUseTls { mqttUseTls = new.mqttUseTls }
         if new.mqttBaseTopic != old.mqttBaseTopic { mqttBaseTopic = new.mqttBaseTopic }
         if new.phoneName != old.phoneName { phoneName = new.phoneName }
+        if new.appTheme != old.appTheme { appTheme = new.appTheme }
 
         if new.healthWebhookHeaders != healthWebhookHeaders { healthWebhookHeaders = new.healthWebhookHeaders }
         if new.healthSigningSecret != healthSigningSecret { healthSigningSecret = new.healthSigningSecret }
