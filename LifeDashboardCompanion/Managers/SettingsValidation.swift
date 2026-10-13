@@ -33,7 +33,7 @@ enum SettingsValidation {
             case .emptyValue:
                 return String(localized: "Enter a header value")
             case .invalidValue:
-                return String(localized: "A header value cannot contain line breaks or control characters")
+                return String(localized: "A header value can only hold plain ASCII characters, without line breaks or letters such as é")
             case .valueTooLong:
                 return String(localized: "This header value is too long")
             case .tooMany:
@@ -52,12 +52,12 @@ enum SettingsValidation {
             name.unicodeScalars.allSatisfy { tokenCharacters.contains($0) }
     }
 
-    /// No control character but a tab, and no line or paragraph separator: nothing that could
-    /// end the header line, or that iOS would drop it for.
+    /// Printable ASCII and tabs, the Android app's rule and what its HTTP client accepts: no
+    /// line break that could end the header line, no control character, and no letter such as
+    /// é, so a header one app takes the other takes too.
     static func isValidHeaderValue(_ value: String) -> Bool {
-        value.count <= maxHeaderValueLength && !value.unicodeScalars.contains { scalar in
-            scalar != "\t" && (scalar.properties.generalCategory == .control ||
-                scalar == "\u{2028}" || scalar == "\u{2029}")
+        value.unicodeScalars.count <= maxHeaderValueLength && value.unicodeScalars.allSatisfy { scalar in
+            scalar == "\t" || (0x20...0x7E).contains(scalar.value)
         }
     }
 
@@ -68,7 +68,7 @@ enum SettingsValidation {
         if name.isEmpty { return .emptyName }
         if !isValidHeaderName(name) { return .invalidName }
         if value.isEmpty { return .emptyValue }
-        if value.count > maxHeaderValueLength { return .valueTooLong }
+        if value.unicodeScalars.count > maxHeaderValueLength { return .valueTooLong }
         if !isValidHeaderValue(value) { return .invalidValue }
         if existing[name] == nil && existing.count >= maxHeaders { return .tooMany }
         return nil

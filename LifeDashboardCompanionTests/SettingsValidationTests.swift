@@ -15,11 +15,16 @@ final class SettingsValidationTests: XCTestCase {
         }
     }
 
-    func testHeaderValuesCarryNoLineBreaksOrControlCharacters() {
-        for value in ["Bearer abc.def", "a\tb", "é ü 日本", "", "x=1; y=\"2\""] {
+    /// Android's rule, what OkHttp sends: printable ASCII and tabs, so a header one app takes
+    /// the other takes too.
+    func testHeaderValuesArePrintableAsciiAndTabs() {
+        let printable = String((0x20...0x7E).map { Character(UnicodeScalar(UInt8($0))) })
+        for value in ["Bearer abc.def", "a\tb", "", "x=1; y=\"2\"", printable,
+                      String(repeating: "a", count: SettingsValidation.maxHeaderValueLength)] {
             XCTAssertTrue(SettingsValidation.isValidHeaderValue(value), value.debugDescription)
         }
         for value in ["a\r\nX-Other: b", "a\nb", "a\rb", "a\u{0}b", "a\u{1}b", "a\u{7F}b", "a\u{85}b", "a\u{2028}b", "a\u{2029}b",
+                      "é", "Zoë", "日本", "a\u{A0}b", "\u{1F600}",
                       String(repeating: "a", count: SettingsValidation.maxHeaderValueLength + 1)] {
             XCTAssertFalse(SettingsValidation.isValidHeaderValue(value), value.debugDescription)
         }
@@ -31,6 +36,7 @@ final class SettingsValidationTests: XCTestCase {
         XCTAssertEqual(SettingsValidation.headerProblem(name: "Bad Header", value: "secret"), .invalidName)
         XCTAssertEqual(SettingsValidation.headerProblem(name: "X-Api-Key", value: ""), .emptyValue)
         XCTAssertEqual(SettingsValidation.headerProblem(name: "X-Api-Key", value: "a\u{1}b"), .invalidValue)
+        XCTAssertEqual(SettingsValidation.headerProblem(name: "X-Api-Key", value: "Zoë"), .invalidValue)
         XCTAssertEqual(
             SettingsValidation.headerProblem(name: "X-Api-Key", value: String(repeating: "a", count: SettingsValidation.maxHeaderValueLength + 1)),
             .valueTooLong

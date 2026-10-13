@@ -1531,18 +1531,18 @@
         }
       }
     },
-    "A header value cannot contain line breaks or control characters" : {
+    "A header value can only hold plain ASCII characters, without line breaks or letters such as é" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ein Header-Wert darf keine Zeilenumbrüche oder Steuerzeichen enthalten"
+            "value" : "Ein Header-Wert darf nur einfache ASCII-Zeichen enthalten, keine Zeilenumbrüche oder Buchstaben wie é"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Een headerwaarde mag geen regeleinden of stuurtekens bevatten"
+            "value" : "Een headerwaarde mag alleen gewone ASCII-tekens bevatten, zonder regeleinden of letters zoals é"
           }
         }
       }

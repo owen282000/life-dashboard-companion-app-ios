@@ -25,9 +25,10 @@ All notable changes to this project are documented in this file. The format is b
 
 - The app crashed on every launch after a setup that left the data types for later: it asked HealthKit
   about an empty set of types, which HealthKit answers with an exception the app could not catch.
-- A custom header whose name has a space or another character HTTP does not allow, or whose value has a
-  line break or control character, is refused when you add it, with a line that says why; iOS left such a
-  header out of the request without a word. One saved earlier sends nothing to that address and the log
+- A custom header whose name has a space or another character HTTP does not allow, or whose value has
+  anything but plain ASCII and tabs (a line break, a control character or a letter such as é), is refused
+  when you add it, with a line that says why; iOS left such a header out of the request without a word.
+  These are the Android app's rules, so a header one app takes the other takes too. One saved earlier sends nothing to that address and the log
   names the header, instead of showing the server's answer to a request without it. The settings import
   checks headers by the same rules.
 - The MQTT broker host must be a host name or an IPv4 or IPv6 address, and the port 1 to 65535, on the
