@@ -114,13 +114,16 @@ The same JSON as the Android app, with `"platform": "ios"` added so the importer
     "phone_name" : "",
     "series_resolutions" : {
       "HEART_RATE" : "ONE_MINUTE"
-    }
+    },
+    "theme" : "system"
   },
   "platform" : "ios",
   "version" : 1
 }
 ```
 
+- `theme` is the app's appearance, `system`, `light` or `dark`, the same key as the Android app, so the choice moves between the two apps in either direction. A file without it, from before 1.8.0, or with a value this version does not know, leaves the choice as it is.
+- Custom headers and the broker host are checked by the same rules as the Health tab: a header name made of the characters HTTP allows, a value without line breaks or control characters, a broker host that is a host name or an IP address. A file that breaks them is refused with the reason.
 - The iPhone's one MQTT broker is Android's shared broker. From an Android file whose health section uses its own broker, that broker is taken instead, host and credentials together.
 - Cycle tracking is one toggle on iPhone and two record types on Android, so it is written as `MENSTRUATION_FLOW` and `MENSTRUATION_PERIOD` and read back from either.
 - `allow_http_webhooks` is for Android: it is true when one of the URLs uses plain HTTP, so Android does not block the same local webhook. The iPhone ignores it and lets iOS decide.

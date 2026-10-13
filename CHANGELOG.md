@@ -4,6 +4,42 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **Copy** next to **Share** in the Health Data Preview and in an opened log row, for the whole payload
+  instead of the first 12,000 characters on screen, as in the Android app. Copy keeps it on this iPhone
+  only, never through Universal Clipboard, and the clipboard clears it after 2 minutes, which the line under
+  the buttons says. Above 1 MB it copies nothing and points to Share.
+- An appearance choice under About: System, Light or Dark, for the whole app, the first-run setup and every
+  sheet included; the widget follows the system. The settings backup carries it as `options.theme`, the same
+  key as the Android app, so the choice moves between the two apps. A file without it leaves the choice alone.
+- The MQTT password can be shown while you type it, with a button VoiceOver reads as Show password or Hide
+  password.
+
+### Changed
+
+- **Share** in the Health Data Preview and in a log row hands the share sheet a .json file instead of the
+  payload as text. Only the newest file of each kind stays in the temporary folder.
+
+### Fixed
+
+- The app crashed on every launch after a setup that left the data types for later: it asked HealthKit
+  about an empty set of types, which HealthKit answers with an exception the app could not catch.
+- A custom header whose name has a space or another character HTTP does not allow, or whose value has a
+  line break or control character, is refused when you add it, with a line that says why; iOS left such a
+  header out of the request without a word. One saved earlier sends nothing to that address and the log
+  names the header, instead of showing the server's answer to a request without it. The settings import
+  checks headers by the same rules.
+- The MQTT broker host must be a host name or an IPv4 or IPv6 address, and the port 1 to 65535, on the
+  Health tab, in the first-run setup and in a settings import, with a line under the field that says what
+  is wrong.
+- A failed MQTT publish showed iOS's raw error, such as "The operation couldn't be completed.
+  (Network.NWError error -65554 - NoSuchRecord)". It now says what went wrong in plain words, in English,
+  Dutch or German: host not found, connection refused, not reachable from this network, no answer, a TLS or
+  certificate problem, username or password rejected, no MQTT broker on the port, or connection lost. iOS's
+  error is kept under Details in the log row and in the log exports.
+- A broker that never answered could show "Connection cancelled" instead of the 10-second timeout.
+
 ## [1.7.0] - 2026-10-12
 
 ### Fixed
