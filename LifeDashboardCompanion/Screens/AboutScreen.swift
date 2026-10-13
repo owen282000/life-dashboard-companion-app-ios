@@ -11,11 +11,13 @@ enum AboutLinks {
     static let newIssue = repository.appending(path: "issues/new")
     static let licence = repository.appending(path: "blob/main/LICENSE")
     static let privacy = URL(string: "https://owen282000.github.io/life-dashboard-companion/ios/privacy/")!
+    /// The project's website: the setup guides and the other Life Dashboard parts.
+    static let website = URL(string: "https://owen282000.com/life-dashboard/ios/")!
     /// Only in builds run from source; see the Buy me a coffee row.
     static let tip = URL(string: "https://ko-fi.com/owen282000")!
 
     /// The links every build shows.
-    static let all = [repository, documentation, changelog, newIssue, licence, privacy]
+    static let all = [website, repository, documentation, changelog, newIssue, licence, privacy]
 }
 
 struct AboutScreen: View {
@@ -185,6 +187,7 @@ struct AboutScreen: View {
 
     private var links: some View {
         VStack(spacing: 12) {
+            LinkCard(title: "Website", subtitle: Text("Setup guides and the other Life Dashboard parts"), systemImage: "globe", url: AboutLinks.website)
             LinkCard(title: "Documentation", subtitle: Text("Setup, webhook payload, MQTT"), systemImage: "doc.text", url: AboutLinks.documentation)
             LinkCard(title: "What's new", subtitle: Text("Changelog for \(version)"), systemImage: "sparkles", url: AboutLinks.changelog)
             LinkCard(title: "Report a problem", subtitle: Text("GitHub issues"), systemImage: "ladybug", url: AboutLinks.newIssue)

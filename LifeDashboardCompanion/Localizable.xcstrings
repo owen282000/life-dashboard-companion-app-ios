@@ -4589,6 +4589,38 @@
         }
       }
     },
+    "Setup guides and the other Life Dashboard parts" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einrichtungsanleitungen und die anderen Teile von Life Dashboard"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installatiegidsen en de andere onderdelen van Life Dashboard"
+          }
+        }
+      }
+    },
+    "Website" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Website"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Website"
+          }
+        }
+      }
+    },
     "iOS blocks plain HTTP to this host. Use its IP address or https." : {
       "localizations" : {
         "de" : {

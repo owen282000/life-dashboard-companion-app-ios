@@ -15,6 +15,8 @@ All notable changes to this project are documented in this file. The format is b
   key as the Android app, so the choice moves between the two apps. A file without it leaves the choice alone.
 - The MQTT password can be shown while you type it, with a button VoiceOver reads as Show password or Hide
   password.
+- About links to the project's website, owen282000.com, with the setup guides and the other Life Dashboard
+  parts.
 
 ### Changed
 
