@@ -17,12 +17,16 @@ struct HealthKitScreen: View {
     @State private var newWebhookUrl: String = ""
     @State private var newHeaderKey: String = ""
     @State private var newHeaderValue: String = ""
+    @State private var headerProblem: SettingsValidation.HeaderProblem?
+    @State private var mqttHostText = PreferencesManager.shared.mqttHost
     @State private var mqttPortText = String(PreferencesManager.shared.mqttPort)
     @State private var phoneNameText = PreferencesManager.shared.phoneName
     @FocusState private var phoneNameFocused: Bool
     @State private var showPreview = false
     @State private var previewPayload: PayloadPreview?
     @State private var previewFullPayload: String = ""
+    @State private var previewFileURL: URL?
+    @State private var previewCopyOutcome: PayloadCopy.Outcome?
     @State private var isLoadingPreview = false
     @State private var isSyncing = false
     @State private var isTestingWebhook = false
@@ -80,6 +84,7 @@ struct HealthKitScreen: View {
             }
         }
         .onAppear {
+            mqttHostText = prefs.mqttHost
             mqttPortText = String(prefs.mqttPort)
             // Expanded on first run so new users see the data types; collapsed once configured
             showDataTypes = prefs.healthEnabledDataTypes.isEmpty
@@ -96,11 +101,7 @@ struct HealthKitScreen: View {
         .sheet(isPresented: $showPreview) {
             previewSheet
         }
-        .sheet(isPresented: Binding(get: { exportFileURL != nil }, set: { if !$0 { exportFileURL = nil } })) {
-            if let exportFileURL {
-                ShareSheet(activityItems: [exportFileURL])
-            }
-        }
+        .shareSheet(for: $exportFileURL)
         // A pairing link needs the root sheet, which cannot show over this one.
         .onChange(of: pairing.incoming) { _, _ in showPreview = false }
     }
@@ -264,6 +265,11 @@ struct HealthKitScreen: View {
                     Text(verbatim: "\(key): \(prefs.healthWebhookHeaders[key] ?? "")")
                         .font(.footnote)
                         .lineLimit(1)
+                    if SettingsValidation.firstInvalidHeader([key: prefs.healthWebhookHeaders[key] ?? ""]) != nil {
+                        Text("Not a valid header, so nothing is sent. Remove it and add it again.")
+                            .font(.caption)
+                            .foregroundStyle(Brand.errorInk)
+                    }
                 }
             }
             HStack(spacing: 8) {
@@ -277,15 +283,12 @@ struct HealthKitScreen: View {
                     .textFieldStyle(.filled)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                iconButton("plus", label: "Add header") {
-                    let key = newHeaderKey.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let value = newHeaderValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !key.isEmpty, !value.isEmpty {
-                        prefs.healthWebhookHeaders[key] = value
-                        newHeaderKey = ""
-                        newHeaderValue = ""
-                    }
-                }
+                iconButton("plus", label: "Add header", action: addHeader)
+            }
+            .onChange(of: newHeaderKey) { headerProblem = nil }
+            .onChange(of: newHeaderValue) { headerProblem = nil }
+            if let headerProblem {
+                FieldError(message: headerProblem.message)
             }
 
             Divider()
@@ -300,6 +303,21 @@ struct HealthKitScreen: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
+    }
+
+    /// A header goes in only when iOS would send it as typed; otherwise the line under the
+    /// fields says why, and what was typed stays to be corrected.
+    private func addHeader() {
+        let key = newHeaderKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = newHeaderValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let problem = SettingsValidation.headerProblem(name: key, value: value, existing: prefs.healthWebhookHeaders) {
+            headerProblem = problem
+            AccessibilityNotification.Announcement(problem.message).post()
+            return
+        }
+        prefs.healthWebhookHeaders[key] = value
+        newHeaderKey = ""
+        newHeaderValue = ""
     }
 
     /// Android's square add button: the green fill with the dark ink glyph.
@@ -334,13 +352,22 @@ struct HealthKitScreen: View {
             .font(.subheadline)
             .tint(Brand.green)
 
-            TextField("Broker host, e.g. 192.168.1.10", text: Binding(
-                get: { prefs.mqttHost },
-                set: { prefs.mqttHost = $0 }
-            ))
-            .textFieldStyle(.filled)
-            .autocorrectionDisabled()
-            .textInputAutocapitalization(.never)
+            // Saved only while it is a host the broker can be reached at; the line under the
+            // field says what is wrong, and the last good host stays in use meanwhile.
+            TextField("Broker host, e.g. 192.168.1.10", text: $mqttHostText)
+                .textFieldStyle(.filled)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .keyboardType(.URL)
+                .onChange(of: mqttHostText) { _, text in saveMqttHost(text) }
+                // A host emptied while MQTT was on is cleared once it is off.
+                .onChange(of: prefs.mqttEnabled) { saveMqttHost(mqttHostText) }
+                .onChange(of: prefs.mqttHost) { _, host in
+                    if SettingsValidation.normalizedBrokerHost(mqttHostText) != host { mqttHostText = host }
+                }
+            if let problem = mqttHostProblem {
+                FieldError(message: problem.message)
+            }
 
             HStack(spacing: 12) {
                 TextField("Port", text: $mqttPortText)
@@ -348,7 +375,8 @@ struct HealthKitScreen: View {
                     .keyboardType(.numberPad)
                     .frame(maxWidth: 120)
                     .onChange(of: mqttPortText) { _, newValue in
-                        if let port = Int(newValue.filter(\.isNumber)), port > 0, port <= 65535 {
+                        if SettingsValidation.brokerPortProblem(newValue) == nil,
+                           let port = Int(newValue.trimmingCharacters(in: .whitespaces)) {
                             prefs.mqttPort = port
                         }
                     }
@@ -359,6 +387,9 @@ struct HealthKitScreen: View {
                 .font(.subheadline)
                 .tint(Brand.green)
             }
+            if let problem = SettingsValidation.brokerPortProblem(mqttPortText) {
+                FieldError(message: problem.message)
+            }
 
             TextField("Username (optional)", text: Binding(
                 get: { prefs.mqttUsername },
@@ -368,11 +399,10 @@ struct HealthKitScreen: View {
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
 
-            SecureField("Password (optional)", text: Binding(
+            RevealableSecureField("Password (optional)", text: Binding(
                 get: { prefs.mqttPassword },
                 set: { prefs.mqttPassword = $0 }
             ))
-            .textFieldStyle(.filled)
 
             TextField("Base topic", text: Binding(
                 get: { prefs.mqttBaseTopic },
@@ -427,6 +457,19 @@ struct HealthKitScreen: View {
         let name = String(phoneNameText.trimmingCharacters(in: .whitespacesAndNewlines).prefix(SettingsImport.maxPhoneNameLength))
         if name != prefs.phoneName { prefs.phoneName = name }
         if name != phoneNameText { phoneNameText = name }
+    }
+
+    /// An empty host is no broker, which is fine while MQTT is off.
+    private var mqttHostProblem: SettingsValidation.BrokerProblem? {
+        if mqttHostText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !prefs.mqttEnabled { return nil }
+        return SettingsValidation.brokerHostProblem(mqttHostText)
+    }
+
+    private func saveMqttHost(_ text: String) {
+        let host = SettingsValidation.normalizedBrokerHost(text)
+        let clears = host.isEmpty && !prefs.mqttEnabled
+        guard clears || SettingsValidation.brokerHostProblem(host) == nil, host != prefs.mqttHost else { return }
+        prefs.mqttHost = host
     }
 
     private var mqttSubtitle: Text {
@@ -631,7 +674,7 @@ struct HealthKitScreen: View {
         isLoadingPreview = true
         Task {
             // Build, format and cap off the main thread: laying out more than PayloadPreview's
-            // 12,000 characters in one Text stalls the screen (P2-11). Share has all of it.
+            // 12,000 characters in one Text stalls the screen (P2-11). Copy and Share have all of it.
             let result: (display: PayloadPreview?, full: String) = await Task.detached(priority: .userInitiated) {
                 do {
                     let payload = try await HealthSyncManager.shared.buildPreviewPayload()
@@ -643,6 +686,7 @@ struct HealthKitScreen: View {
             }.value
             previewPayload = result.display
             previewFullPayload = result.full
+            previewCopyOutcome = nil
             isLoadingPreview = false
             showPreview = true
         }
@@ -656,7 +700,7 @@ struct HealthKitScreen: View {
                         PayloadPreviewText(
                             preview: preview,
                             font: .system(.caption, design: .monospaced),
-                            whereTheRestIs: Text("Use the share button for the full payload.")
+                            whereTheRestIs: Text("Use the copy or share button for the full payload.")
                         )
                     } else {
                         // The error a failed build left in previewFullPayload, read as it is.
@@ -667,19 +711,52 @@ struct HealthKitScreen: View {
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .safeAreaInset(edge: .bottom) {
+                if let previewCopyOutcome {
+                    PayloadCopyLine(outcome: previewCopyOutcome)
+                        .padding(12)
+                        .background(.bar)
+                }
+            }
             .navigationTitle("Health Data Preview")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { showPreview = false }
                 }
-                ToolbarItem(placement: .topBarLeading) {
-                    ShareLink(item: previewFullPayload) {
-                        Image(systemName: "square.and.arrow.up")
+                // Not for a preview that failed to build: the text is then the error.
+                if previewPayload != nil {
+                    ToolbarItemGroup(placement: .topBarLeading) {
+                        Button(action: copyPreview) {
+                            Image(systemName: "doc.on.doc")
+                        }
+                        .accessibilityLabel("Copy full payload")
+                        Button(action: sharePreview) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                        .accessibilityLabel("Share full payload")
                     }
-                    .accessibilityLabel("Share full payload")
                 }
             }
+            .shareSheet(for: $previewFileURL)
+        }
+    }
+
+    private func copyPreview() {
+        let outcome = PayloadCopy.copy(previewFullPayload)
+        previewCopyOutcome = outcome
+        AccessibilityNotification.Announcement(outcome.message).post()
+    }
+
+    /// The same file as Export JSON, written off the main thread: a week of heart rate is a few
+    /// megabytes.
+    private func sharePreview() {
+        let payload = previewFullPayload
+        Task {
+            let url = await Task.detached(priority: .userInitiated) {
+                try? ExportManager.writePayloadFile(payload, prefix: ExportManager.healthExportPrefix)
+            }.value
+            previewFileURL = url
         }
     }
 }

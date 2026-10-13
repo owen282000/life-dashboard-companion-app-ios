@@ -1,3 +1,4 @@
+import Network
 import XCTest
 @testable import LifeDashboardCompanion
 
@@ -129,6 +130,16 @@ final class LocalizationTests: XCTestCase {
         XCTAssertNil(MqttStatus(stored: ""))
     }
 
+    func testAFailedPublishReadsInPlainWordsInEachLanguage() throws {
+        // Stored in English, whatever the language: CI runs this class in German too, where the
+        // status reads "Fehler: ...", so the screen text is checked per language below instead.
+        let stored = MqttStatus.failed(MqttFailure(NWError.dns(-65554)).message)
+        XCTAssertEqual(stored, "Error: Broker host not found. Check the host name.")
+        XCTAssertEqual(try XCTUnwrap(MqttStatus(stored: stored)).detail, "Broker host not found. Check the host name.")
+        XCTAssertEqual(resolve("Broker host not found. Check the host name.", "nl"), "Brokerhost niet gevonden. Controleer de hostnaam.")
+        XCTAssertEqual(resolve("Broker host not found. Check the host name.", "de"), "Broker-Host nicht gefunden. Prüfe den Hostnamen.")
+    }
+
     func testMqttStatusFromAnOlderVersionStillReads() throws {
         let old = try XCTUnwrap(MqttStatus(stored: "OK: 12 sensors published at 2026-09-01T10:00:00Z"))
         XCTAssertTrue(old.success)
@@ -152,7 +163,9 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(resolve("Showing the first \("12.000") of \("40.000") characters.", "de"),
                        "Die ersten 12.000 von 40.000 Zeichen werden angezeigt.")
         XCTAssertEqual(resolve("Payload, \("40.000") characters", "nl"), "Payload, 40.000 tekens")
-        XCTAssertEqual(resolve("Use Share payload for the full payload.", "de"),
-                       "Nutze Payload teilen für den vollständigen Payload.")
+        XCTAssertEqual(resolve("Use Copy payload or Share payload for the full payload.", "de"),
+                       "Nutze Payload kopieren oder Payload teilen für den vollständigen Payload.")
+        XCTAssertEqual(resolve("Copied, for this iPhone only. The clipboard clears it in \("2 minuten").", "nl"),
+                       "Gekopieerd, alleen voor deze iPhone. Het klembord wist het over 2 minuten.")
     }
 }

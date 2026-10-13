@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 @testable import LifeDashboardCompanion
 
@@ -147,5 +148,71 @@ final class HealthExportTests: XCTestCase {
         XCTAssertTrue(preview.cutInStorage)
         XCTAssertFalse(preview.text.contains("[truncated]"))
         XCTAssertEqual(preview.totalCount, LogStore.maxRawPayloadCharacters)
+    }
+
+    // MARK: - Copy and Share of the whole payload
+
+    func testSharingAPayloadWritesAllOfItAsAJSONFileAndKeepsOnlyTheNewest() throws {
+        let long = "{\"steps\":[" + String(repeating: "{\"count\":1},", count: 5_000) + "{\"count\":1}]}"
+        XCTAssertGreaterThan(long.count, PayloadPreview.maxCharacters)
+        let first = try ExportManager.writePayloadFile(long, prefix: ExportManager.logPayloadPrefix, date: Date(timeIntervalSince1970: 1_790_000_000))
+        addTeardownBlock { try? FileManager.default.removeItem(at: first) }
+        XCTAssertEqual(first.deletingLastPathComponent().standardizedFileURL, FileManager.default.temporaryDirectory.standardizedFileURL)
+        XCTAssertTrue(first.lastPathComponent.hasPrefix("log_payload_"))
+        XCTAssertEqual(first.pathExtension, "json")
+        XCTAssertEqual(try String(contentsOf: first, encoding: .utf8), long, "the whole payload, not the part on screen")
+
+        let second = try ExportManager.writePayloadFile("{}", prefix: ExportManager.logPayloadPrefix, date: Date(timeIntervalSince1970: 1_790_000_060))
+        addTeardownBlock { try? FileManager.default.removeItem(at: second) }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: first.path), "a payload holds health data: only the newest stays")
+    }
+
+    func testThePreviewsShareFileTakesThePlaceOfTheLastExport() throws {
+        let export = try ExportManager.writeHealthExport(payload, format: .json, now: Date(timeIntervalSince1970: 1_790_000_000))
+        addTeardownBlock { try? FileManager.default.removeItem(at: export) }
+        let shared = try ExportManager.writePayloadFile(ExportManager.formatPayloadForPreview(payload), prefix: ExportManager.healthExportPrefix, date: Date(timeIntervalSince1970: 1_790_000_060))
+        addTeardownBlock { try? FileManager.default.removeItem(at: shared) }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: export.path))
+        let decoded = try JSONSerialization.jsonObject(with: Data(contentsOf: shared)) as? [String: Any]
+        XCTAssertEqual((decoded?["steps"] as? [[String: Any]])?.count, 2)
+    }
+
+    func testCopyStaysOnThisPhoneAndExpires() {
+        let now = Date(timeIntervalSince1970: 1_790_000_000)
+        let options = PayloadCopy.options(now: now)
+        XCTAssertEqual(options[.localOnly] as? Bool, true, "no Universal Clipboard for health data")
+        XCTAssertEqual(options[.expirationDate] as? Date, now.addingTimeInterval(PayloadCopy.lifetime))
+        XCTAssertLessThanOrEqual(PayloadCopy.lifetime, 5 * 60, "a short while")
+    }
+
+    func testCopyHasTheLimitInBytes() {
+        XCTAssertTrue(PayloadCopy.fits(String(repeating: "a", count: PayloadCopy.maxBytes)))
+        XCTAssertFalse(PayloadCopy.fits(String(repeating: "a", count: PayloadCopy.maxBytes + 1)))
+        XCTAssertFalse(PayloadCopy.fits(String(repeating: "é", count: PayloadCopy.maxBytes / 2 + 1)), "two bytes each")
+        let stored = String(repeating: "\u{1F44D}", count: LogStore.maxRawPayloadCharacters) + LogStore.truncationMarker
+        XCTAssertTrue(PayloadCopy.fits(stored), "a delivery in the log always fits")
+    }
+
+    @MainActor
+    func testCopyPutsTheWholePayloadOnThePasteboard() throws {
+        let pasteboard = try XCTUnwrap(UIPasteboard.withUniqueName())
+        addTeardownBlock { UIPasteboard.remove(withName: pasteboard.name) }
+        let long = String(repeating: "{\"count\":1},\n", count: 2_000)
+        XCTAssertEqual(PayloadCopy.copy(long, to: pasteboard), .copied)
+        XCTAssertEqual(pasteboard.string, long, "the whole payload, not the part on screen")
+    }
+
+    @MainActor
+    func testCopyLeavesTheClipboardAloneWhenThePayloadIsTooLarge() throws {
+        let pasteboard = try XCTUnwrap(UIPasteboard.withUniqueName())
+        addTeardownBlock { UIPasteboard.remove(withName: pasteboard.name) }
+        pasteboard.string = "before"
+        XCTAssertEqual(PayloadCopy.copy(String(repeating: "a", count: PayloadCopy.maxBytes + 1), to: pasteboard), .tooLarge)
+        XCTAssertEqual(pasteboard.string, "before")
+    }
+
+    func testTheCopyConfirmationSaysForHowLong() {
+        XCTAssertTrue(PayloadCopy.Outcome.copied.message.contains("2 minutes"), PayloadCopy.Outcome.copied.message)
+        XCTAssertTrue(PayloadCopy.Outcome.tooLarge.message.contains("Share"))
     }
 }

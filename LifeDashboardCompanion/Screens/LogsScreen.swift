@@ -5,7 +5,6 @@ struct LogsScreen: View {
 
     @State private var logs: [WebhookLog] = []
     @State private var expandedLogId: String?
-    @State private var showExportSheet = false
     @State private var exportFileURL: URL?
     @State private var showClearConfirm = false
 
@@ -46,11 +45,7 @@ struct LogsScreen: View {
         .screenshotScrollAnchor()
         .refreshable { refreshLogs() }
         .onAppear { refreshLogs() }
-        .sheet(isPresented: $showExportSheet) {
-            if let url = exportFileURL {
-                ShareSheet(activityItems: [url])
-            }
-        }
+        .shareSheet(for: $exportFileURL)
         .confirmationDialog("Clear logs", isPresented: $showClearConfirm) {
             Button("Clear All Logs", role: .destructive) {
                 prefs.clearWebhookLogs(filterType: nil)
@@ -106,9 +101,7 @@ struct LogsScreen: View {
     }
 
     private func export(_ url: URL?) {
-        guard let url else { return }
         exportFileURL = url
-        showExportSheet = true
     }
 }
 
@@ -144,6 +137,9 @@ struct LogRow: View {
     let isExpanded: Bool
     let onTap: () -> Void
     let onDelete: () -> Void
+
+    @State private var shareFileURL: URL?
+    @State private var copyOutcome: PayloadCopy.Outcome?
 
     private var urlHost: String {
         URL(string: log.url)?.host ?? log.url
@@ -230,8 +226,8 @@ struct LogRow: View {
             .accessibilityHint(isExpanded ? Text("Hides the details") : Text("Shows the details"))
             .accessibilityAction(named: Text("Delete"), onDelete)
             .contextMenu {
-                if let payload = log.rawPayload {
-                    ShareLink(item: payload) {
+                if log.rawPayload != nil {
+                    Button(action: sharePayload) {
                         Label("Share payload", systemImage: "square.and.arrow.up")
                     }
                 }
@@ -246,6 +242,22 @@ struct LogRow: View {
                     .padding(.bottom, 14)
             }
         }
+        .shareSheet(for: $shareFileURL)
+        .onChange(of: isExpanded) { _, _ in copyOutcome = nil }
+    }
+
+    private func copyPayload() {
+        guard let payload = log.rawPayload else { return }
+        let outcome = PayloadCopy.copy(payload)
+        copyOutcome = outcome
+        AccessibilityNotification.Announcement(outcome.message).post()
+    }
+
+    /// The payload as a JSON file named after the delivery's time, not as text: a share target
+    /// handles a file of any size.
+    private func sharePayload() {
+        guard let payload = log.rawPayload else { return }
+        shareFileURL = try? ExportManager.writePayloadFile(payload, prefix: ExportManager.logPayloadPrefix, date: log.timestamp)
     }
 
     private var details: some View {
@@ -256,6 +268,9 @@ struct LogRow: View {
             }
             if let error = log.errorMessage {
                 DetailRow(label: "Error", value: AppDiagnostic.display(error))
+            }
+            if let detail = log.errorDetail {
+                DetailRow(label: "Details", value: detail)
             }
             if let recordCount = log.recordCount {
                 DetailRow(label: log.isMqtt ? "Sensors" : "Records", value: "\(recordCount)")
@@ -271,7 +286,7 @@ struct LogRow: View {
                 PayloadPreviewText(
                     preview: PayloadPreview.of(payload),
                     font: .system(.caption2, design: .monospaced),
-                    whereTheRestIs: Text("Use Share payload for the full payload.")
+                    whereTheRestIs: Text("Use Copy payload or Share payload for the full payload.")
                 )
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -279,22 +294,58 @@ struct LogRow: View {
                 .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
 
-            HStack {
-                if let payload = log.rawPayload {
-                    ShareLink(item: payload) {
-                        Label("Share payload", systemImage: "square.and.arrow.up")
-                            .font(.footnote)
-                    }
+            // Dutch and German labels are longer: when the three do not fit on one line, Delete
+            // goes under the payload's two.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 16) {
+                    payloadButtons
+                    Spacer()
+                    deleteButton
                 }
-                Spacer()
-                Button(role: .destructive, action: onDelete) {
-                    Label("Delete", systemImage: "trash")
-                        .font(.footnote)
+                .frame(minHeight: 44)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 16) { payloadButtons }
+                        .frame(minHeight: 44)
+                    deleteButton
+                        .frame(minHeight: 44)
                 }
-                .tint(Brand.errorInk)
             }
-            .frame(minHeight: 44)
+
+            if let copyOutcome {
+                PayloadCopyLine(outcome: copyOutcome)
+            }
         }
+    }
+
+    @ViewBuilder
+    private var payloadButtons: some View {
+        if log.rawPayload != nil {
+            Button(action: copyPayload) {
+                Label("Copy payload", systemImage: "doc.on.doc")
+                    .font(.footnote)
+            }
+            Button(action: sharePayload) {
+                Label("Share payload", systemImage: "square.and.arrow.up")
+                    .font(.footnote)
+            }
+        }
+    }
+
+    private var deleteButton: some View {
+        Button(role: .destructive, action: onDelete) {
+            Label("Delete", systemImage: "trash")
+                .font(.footnote)
+        }
+        .tint(Brand.errorInk)
+    }
+}
+
+/// What Copy did, under the buttons: copied for a short while, or too large for the clipboard.
+struct PayloadCopyLine: View {
+    let outcome: PayloadCopy.Outcome
+
+    var body: some View {
+        ResultLine(text: Text(verbatim: outcome.message), tone: outcome == .copied ? .success : .warning)
     }
 }
 
@@ -354,6 +405,17 @@ struct DetailRow: View {
 }
 
 // MARK: - ShareSheet (UIKit bridge)
+
+extension View {
+    /// The share sheet for a file, open while `url` holds one.
+    func shareSheet(for url: Binding<URL?>) -> some View {
+        sheet(isPresented: Binding(get: { url.wrappedValue != nil }, set: { if !$0 { url.wrappedValue = nil } })) {
+            if let file = url.wrappedValue {
+                ShareSheet(activityItems: [file])
+            }
+        }
+    }
+}
 
 struct ShareSheet: UIViewControllerRepresentable {
     let activityItems: [Any]

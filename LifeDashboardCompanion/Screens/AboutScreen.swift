@@ -11,11 +11,13 @@ enum AboutLinks {
     static let newIssue = repository.appending(path: "issues/new")
     static let licence = repository.appending(path: "blob/main/LICENSE")
     static let privacy = URL(string: "https://owen282000.github.io/life-dashboard-companion/ios/privacy/")!
+    /// The project's website: the setup guides and the other Life Dashboard parts.
+    static let website = URL(string: "https://owen282000.com/life-dashboard/ios/")!
     /// Only in builds run from source; see the Buy me a coffee row.
     static let tip = URL(string: "https://ko-fi.com/owen282000")!
 
     /// The links every build shows.
-    static let all = [repository, documentation, changelog, newIssue, licence, privacy]
+    static let all = [website, repository, documentation, changelog, newIssue, licence, privacy]
 }
 
 struct AboutScreen: View {
@@ -74,6 +76,10 @@ struct AboutScreen: View {
                         FeatureItem(text: "Secrets stored in the Keychain", systemImage: "key")
                         FeatureItem(text: "Settings stay on your device unless you export them", systemImage: "internaldrive")
                         FeatureItem(text: "Full control over sync settings", systemImage: "slider.horizontal.3")
+                    }
+
+                    FeatureCard(title: "Appearance", systemImage: "circle.lefthalf.filled") {
+                        AppearancePicker()
                     }
 
                     FeatureCard(title: "Backup & restore", systemImage: "arrow.up.arrow.down.circle") {
@@ -181,6 +187,7 @@ struct AboutScreen: View {
 
     private var links: some View {
         VStack(spacing: 12) {
+            LinkCard(title: "Website", subtitle: Text("Setup guides and the other Life Dashboard parts"), systemImage: "globe", url: AboutLinks.website)
             LinkCard(title: "Documentation", subtitle: Text("Setup, webhook payload, MQTT"), systemImage: "doc.text", url: AboutLinks.documentation)
             LinkCard(title: "What's new", subtitle: Text("Changelog for \(version)"), systemImage: "sparkles", url: AboutLinks.changelog)
             LinkCard(title: "Report a problem", subtitle: Text("GitHub issues"), systemImage: "ladybug", url: AboutLinks.newIssue)
@@ -386,6 +393,20 @@ private struct FeatureItem: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
+    }
+}
+
+/// System, Light or Dark for the whole app. Saved and applied at once, see WindowAppearance.
+private struct AppearancePicker: View {
+    @ObservedObject private var prefs = PreferencesManager.shared
+
+    var body: some View {
+        Picker("Appearance", selection: $prefs.appTheme) {
+            Text("System").tag(AppTheme.system)
+            Text("Light").tag(AppTheme.light)
+            Text("Dark").tag(AppTheme.dark)
+        }
+        .pickerStyle(.segmented)
     }
 }
 

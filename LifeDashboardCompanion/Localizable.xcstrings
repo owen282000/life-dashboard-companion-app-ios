@@ -1531,6 +1531,38 @@
         }
       }
     },
+    "A header value can only hold plain ASCII characters, without line breaks or letters such as é" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Header-Wert darf nur einfache ASCII-Zeichen enthalten, keine Zeilenumbrüche oder Buchstaben wie é"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een headerwaarde mag alleen gewone ASCII-tekens bevatten, zonder regeleinden of letters zoals é"
+          }
+        }
+      }
+    },
+    "A host name cannot contain spaces" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Hostname darf keine Leerzeichen enthalten"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een hostnaam mag geen spaties bevatten"
+          }
+        }
+      }
+    },
     "A receiver wants your data at:" : {
       "localizations" : {
         "de" : {
@@ -1815,6 +1847,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Al gekoppeld. Er verandert niets."
+          }
+        }
+      }
+    },
+    "Appearance" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erscheinungsbild"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weergave"
           }
         }
       }
@@ -2251,6 +2299,22 @@
         }
       }
     },
+    "Broker cannot be reached from this network" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Broker ist von diesem Netzwerk aus nicht erreichbar"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Broker is vanaf dit netwerk niet bereikbaar"
+          }
+        }
+      }
+    },
     "Broker did not respond within 10 seconds" : {
       "localizations" : {
         "de" : {
@@ -2263,6 +2327,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Broker reageerde niet binnen 10 seconden"
+          }
+        }
+      }
+    },
+    "Broker host not found. Check the host name." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Broker-Host nicht gefunden. Prüfe den Hostnamen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brokerhost niet gevonden. Controleer de hostnaam."
           }
         }
       }
@@ -2590,6 +2670,38 @@
         }
       }
     },
+    "Connection refused. Check the port and that the broker is running." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbindung abgelehnt. Prüfe den Port und ob der Broker läuft."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinding geweigerd. Controleer de poort en of de broker draait."
+          }
+        }
+      }
+    },
+    "Connection to the broker was lost" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Verbindung zum Broker wurde unterbrochen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De verbinding met de broker is verbroken"
+          }
+        }
+      }
+    },
     "Contact" : {
       "localizations" : {
         "de" : {
@@ -2618,6 +2730,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Doorgaan"
+          }
+        }
+      }
+    },
+    "Copied, for this iPhone only. The clipboard clears it in %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopiert, nur für dieses iPhone. Die Zwischenablage löscht es in %@."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gekopieerd, alleen voor deze iPhone. Het klembord wist het over %@."
+          }
+        }
+      }
+    },
+    "Copy full payload" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vollständigen Payload kopieren"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volledige payload kopiëren"
+          }
+        }
+      }
+    },
+    "Copy payload" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payload kopieren"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payload kopiëren"
           }
         }
       }
@@ -2686,6 +2846,38 @@
         }
       }
     },
+    "Custom header \"%@\" is not valid, so nothing was sent. Remove it under Webhook and add it again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigener Header \"%@\" ist ungültig, daher wurde nichts gesendet. Entferne ihn unter Webhook und füge ihn neu hinzu."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigen header \"%@\" is ongeldig, dus er is niets verstuurd. Verwijder hem onder Webhook en voeg hem opnieuw toe."
+          }
+        }
+      }
+    },
+    "Custom header \"%@\" under Health > Webhook cannot be sent, so it is left out. Add it again there with a valid name and value." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigener Header \"%@\" unter Gesundheit > Webhook kann nicht gesendet werden und wird ausgelassen. Füge ihn dort mit einem gültigen Namen und Wert neu hinzu."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigen header \"%@\" onder Gezondheid > Webhook kan niet verstuurd worden en wordt overgeslagen. Voeg hem daar opnieuw toe met een geldige naam en waarde."
+          }
+        }
+      }
+    },
     "Custom Headers" : {
       "localizations" : {
         "de" : {
@@ -2746,6 +2938,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dagtotalen, clientcertificaat"
+          }
+        }
+      }
+    },
+    "Dark" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dunkel"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Donker"
           }
         }
       }
@@ -2970,6 +3178,22 @@
         }
       }
     },
+    "Details" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Details"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Details"
+          }
+        }
+      }
+    },
     "Discard" : {
       "localizations" : {
         "de" : {
@@ -3110,6 +3334,86 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Versleutelde export"
+          }
+        }
+      }
+    },
+    "Enter a header name" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib einen Header-Namen ein"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vul een headernaam in"
+          }
+        }
+      }
+    },
+    "Enter a header value" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib einen Header-Wert ein"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vul een headerwaarde in"
+          }
+        }
+      }
+    },
+    "Enter only the host, without mqtt:// or another prefix" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib nur den Host ein, ohne mqtt:// oder ein anderes Präfix"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vul alleen de host in, zonder mqtt:// of een ander voorvoegsel"
+          }
+        }
+      }
+    },
+    "Enter the broker's host name or IP address" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib den Hostnamen oder die IP-Adresse des Brokers ein"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vul de hostnaam of het IP-adres van de broker in"
+          }
+        }
+      }
+    },
+    "Enter the port in the Port field, not after the host" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib den Port im Feld Port ein, nicht hinter dem Host"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vul de poort in bij Poort, niet achter de host"
           }
         }
       }
@@ -3982,6 +4286,22 @@
         }
       }
     },
+    "Hide password" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwort ausblenden"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wachtwoord verbergen"
+          }
+        }
+      }
+    },
     "Hides the details" : {
       "localizations" : {
         "de" : {
@@ -4265,6 +4585,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ongeldige URL"
+          }
+        }
+      }
+    },
+    "Setup guides and the other Life Dashboard parts" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einrichtungsanleitungen und die anderen Teile von Life Dashboard"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installatiegidsen en de andere onderdelen van Life Dashboard"
+          }
+        }
+      }
+    },
+    "Website" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Website"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Website"
           }
         }
       }
@@ -4588,6 +4940,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Totaal"
+          }
+        }
+      }
+    },
+    "Light" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hell"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Licht"
           }
         }
       }
@@ -5049,6 +5417,22 @@
         }
       }
     },
+    "No MQTT broker answered on this port. Check the port and the TLS setting." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf diesem Port hat kein MQTT-Broker geantwortet. Prüfe den Port und die TLS-Einstellung."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Op deze poort antwoordde geen MQTT-broker. Controleer de poort en de TLS-instelling."
+          }
+        }
+      }
+    },
     "No new health data to sync." : {
       "localizations" : {
         "de" : {
@@ -5077,6 +5461,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Geen antwoord"
+          }
+        }
+      }
+    },
+    "No room for another custom header. Remove one first." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein Platz für einen weiteren eigenen Header. Entferne zuerst einen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Er past geen eigen header meer bij. Verwijder er eerst een."
           }
         }
       }
@@ -5189,6 +5589,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nog geen"
+          }
+        }
+      }
+    },
+    "Not a valid header name: use letters, digits and hyphens, without spaces or colons" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein gültiger Header-Name: verwende Buchstaben, Ziffern und Bindestriche, ohne Leerzeichen oder Doppelpunkte"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen geldige headernaam: gebruik letters, cijfers en koppeltekens, zonder spaties of dubbele punten"
+          }
+        }
+      }
+    },
+    "Not a valid header, so nothing is sent. Remove it and add it again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein gültiger Header, daher wird nichts gesendet. Entferne ihn und füge ihn neu hinzu."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen geldige header, dus er wordt niets verstuurd. Verwijder hem en voeg hem opnieuw toe."
+          }
+        }
+      }
+    },
+    "Not a valid host name or IP address" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weder ein gültiger Hostname noch eine gültige IP-Adresse"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen geldige hostnaam of IP-adres"
           }
         }
       }
@@ -6009,6 +6457,22 @@
         }
       }
     },
+    "Publishing to the broker failed. Check the Logs tab for details." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veröffentlichen auf dem Broker fehlgeschlagen. Details stehen im Tab Logs."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Publiceren naar de broker is mislukt. Bekijk het tabblad Logs voor details."
+          }
+        }
+      }
+    },
     "Questions about privacy: open an issue on GitHub or email the developer at the address on the GitHub profile." : {
       "localizations" : {
         "de" : {
@@ -6623,6 +7087,22 @@
         }
       }
     },
+    "Secure connection to the broker failed. Check the TLS setting, the port and the broker's certificate." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sichere Verbindung zum Broker fehlgeschlagen. Prüfe die TLS-Einstellung, den Port und das Zertifikat des Brokers."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beveiligde verbinding met de broker mislukt. Controleer de TLS-instelling, de poort en het certificaat van de broker."
+          }
+        }
+      }
+    },
     "Sends historical data for all enabled types to your webhooks in 3-day chunks, oldest first. Regular syncing is unaffected; overlapping records deduplicate on their uuid. Keep your iPhone unlocked: Health data can't be read while it's locked. This can take a while and use mobile data." : {
       "localizations" : {
         "de" : {
@@ -6859,6 +7339,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nerd-stats tonen"
+          }
+        }
+      }
+    },
+    "Show password" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwort einblenden"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wachtwoord tonen"
           }
         }
       }
@@ -7487,6 +7983,22 @@
         }
       }
     },
+    "System" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Systeem"
+          }
+        }
+      }
+    },
     "Tap + and choose Time of Day." : {
       "localizations" : {
         "de" : {
@@ -7695,6 +8207,38 @@
         }
       }
     },
+    "The broker did not accept the connection" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Broker hat die Verbindung nicht angenommen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De broker accepteerde de verbinding niet"
+          }
+        }
+      }
+    },
+    "The broker rejected the username or password" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Broker hat Benutzername oder Passwort abgelehnt"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De broker weigerde de gebruikersnaam of het wachtwoord"
+          }
+        }
+      }
+    },
     "The camera could not be started." : {
       "localizations" : {
         "de" : {
@@ -7739,6 +8283,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Het bestand bevat je webhook-URL's, MQTT-host en opties, maar geen inloggegevens. Een webhook-URL kan als wachtwoord werken, dus deel het bestand met zorg."
+          }
+        }
+      }
+    },
+    "The MQTT broker host \"%@\" in this file is not a host name or IP address, so it is left out and the broker settings on this iPhone stay as they are." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der MQTT-Broker-Host \"%@\" in dieser Datei ist weder ein Hostname noch eine IP-Adresse, daher wird er ausgelassen und die Broker-Einstellungen auf diesem iPhone bleiben unverändert."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De MQTT-brokerhost \"%@\" in dit bestand is geen hostnaam of IP-adres, dus die wordt overgeslagen en de brokerinstellingen op deze iPhone blijven zoals ze zijn."
+          }
+        }
+      }
+    },
+    "The MQTT broker port %@ in this file is not a number from 1 to 65535, so it is left out and the broker settings on this iPhone stay as they are." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der MQTT-Broker-Port %@ in dieser Datei ist keine Zahl von 1 bis 65535, daher wird er ausgelassen und die Broker-Einstellungen auf diesem iPhone bleiben unverändert."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De MQTT-brokerpoort %@ in dit bestand is geen getal van 1 tot en met 65535, dus die wordt overgeslagen en de brokerinstellingen op deze iPhone blijven zoals ze zijn."
           }
         }
       }
@@ -7803,6 +8379,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "De wachtwoorden komen niet overeen"
+          }
+        }
+      }
+    },
+    "The port is a number from 1 to 65535" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Port ist eine Zahl von 1 bis 65535"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De poort is een getal van 1 tot en met 65535"
           }
         }
       }
@@ -7983,6 +8575,22 @@
         }
       }
     },
+    "This header value is too long" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Header-Wert ist zu lang"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze headerwaarde is te lang"
+          }
+        }
+      }
+    },
     "This is not a certificate file the iPhone can read. Export it as a .p12 file with its private key." : {
       "localizations" : {
         "de" : {
@@ -8011,6 +8619,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Deze naam bevat geen letters van a tot z of cijfers, dus de iPhone blijft naamloos."
+          }
+        }
+      }
+    },
+    "This payload is too large to copy. Share saves it as a file." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Payload ist zu groß zum Kopieren. Teilen speichert ihn als Datei."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze payload is te groot om te kopiëren. Delen bewaart hem als bestand."
           }
         }
       }
@@ -8226,34 +8850,34 @@
         }
       }
     },
-    "Use Share payload for the full payload." : {
+    "Use Copy payload or Share payload for the full payload." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nutze Payload teilen für den vollständigen Payload."
+            "value" : "Nutze Payload kopieren oder Payload teilen für den vollständigen Payload."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gebruik Payload delen voor de volledige payload."
+            "value" : "Gebruik Payload kopiëren of Payload delen voor de volledige payload."
           }
         }
       }
     },
-    "Use the share button for the full payload." : {
+    "Use the copy or share button for the full payload." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nutze den Teilen-Knopf für den vollständigen Payload."
+            "value" : "Nutze den Kopieren- oder Teilen-Knopf für den vollständigen Payload."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gebruik de deelknop voor de volledige payload."
+            "value" : "Gebruik de kopieer- of deelknop voor de volledige payload."
           }
         }
       }

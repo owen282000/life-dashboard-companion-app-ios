@@ -39,7 +39,7 @@ These are the Apple Health types that have a counterpart in the Android app, und
 
 - **Pairing by QR code** - the [Home Assistant integration](https://github.com/owen282000/life-dashboard-ha) (0.7.1 or newer) shows a code, and **Scan a pairing code** under the webhook fills in the address and the signing secret after one confirmation. See [Pairing by QR code](usage.md#pairing-by-qr-code)
 - **Multiple webhook URLs** - send to several endpoints at once; a sync counts as delivered when one of them accepted it
-- **Custom headers** - auth tokens, API keys or any other HTTP header, sent to the URLs you typed in and never to one that pairing added
+- **Custom headers** - auth tokens, API keys or any other HTTP header, sent to the URLs you typed in and never to one that pairing added. A header HTTP cannot carry (a space in the name, a line break in the value) is refused when you add it
 - **HMAC payload signing** - an optional `X-Signature` header, the Android app's scheme, so your server can verify the sender
 - **Test ping** - send a small test payload to check your server without waiting for real data
 - **Retries with backoff** - transient failures are retried; permanent errors fail at once
@@ -106,9 +106,9 @@ Each sends only what is new. Health data cannot be read while the iPhone is lock
 
 ## Data tools
 
-- **View** - the exact JSON payload before it is sent, with a share button for the full text
+- **View** - the exact JSON payload before it is sent. **Copy** puts all of it on the clipboard, for this iPhone only and for 2 minutes, up to 1 MB; **Share** hands it over as a .json file
 - **Export** - what View shows, as a JSON file or as CSV with a row per record and a column per field, through the share sheet. The file is written to the app's temporary folder, which is not backed up, and only the newest export is kept there
-- **Logs** - every webhook delivery and MQTT publish with its status, error and payload, the last 100 entries
+- **Logs** - every webhook delivery and MQTT publish with its status, error and payload, the last 100 entries. An MQTT failure says in plain words what went wrong (host not found, connection refused, no answer, TLS, login refused); iOS's own error text is under Details. **Copy** and **Share** give a delivery's whole payload, as in the Health Data Preview
 - **Sync history** - on the Logs tab: success rate, deliveries and records, the last success, and the three latest failures grouped by receiver and error. A delivery that iOS cut off, as when it ends a background task, shows as Interrupted and counts as neither a success nor a failure; its payload is queued for retry like a failed one
 - **Export logs** - the log as CSV or JSON, through the share sheet
 - **Settings backup and restore** - under About, the webhooks, headers, signing secret, schedule, MQTT settings and toggles as a JSON file, in the Android app's format, so a file moves between an iPhone and an Android phone. See [settings-backup.md](settings-backup.md)
@@ -121,7 +121,7 @@ Each sends only what is new. Health data cannot be read while the iPhone is lock
 - **About** - behind the (i) button on the Health and Logs tabs: what the app reads and where it goes, the privacy policy, settings backup, and links to the documentation, the changelog and issues
 - **Privacy policy in the app** - a summary of [PRIVACY.md](../PRIVACY.md)
 - **Languages** - English, Dutch and German, following the iPhone's language or the one set for the app under Settings. See [localization.md](localization.md)
-- **SwiftUI** - the Android app's look, with Dynamic Type and dark mode
+- **SwiftUI** - the Android app's look, with Dynamic Type and dark mode; **About > Appearance** follows the system or keeps the app light or dark
 - **No third-party dependencies** - only Apple's frameworks
 
 ## What iOS does differently

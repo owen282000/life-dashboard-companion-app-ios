@@ -60,6 +60,24 @@ final class WebhookLogCodingTests: XCTestCase {
         XCTAssertEqual(decoded.recordCount, 12)
     }
 
+    func testMqttErrorDetailRoundTripsAndOlderRowsHaveNone() throws {
+        let log = WebhookLog(
+            url: "mqtt://broker.local:1883/lifedashboard",
+            success: false,
+            errorMessage: AppDiagnostic.brokerHostNotFound.rawValue,
+            errorDetail: "NWError: -65554: NoSuchRecord",
+            dataType: "mqtt",
+            recordCount: 12,
+            logType: .healthConnect,
+            destination: .mqtt
+        )
+        let json = try XCTUnwrap(String(bytes: JSONEncoder().encode([log]), encoding: .utf8))
+        let decoded = try XCTUnwrap(decode(json).first)
+        XCTAssertEqual(decoded.errorMessage, AppDiagnostic.brokerHostNotFound.rawValue)
+        XCTAssertEqual(decoded.errorDetail, "NWError: -65554: NoSuchRecord")
+        XCTAssertNil(decode("[\(row130)]").first?.errorDetail)
+    }
+
     func testNewWebhookRowsNameTheirDestination() {
         let log = WebhookLog(url: "https://example.com", success: true, recordCount: 1, logType: .healthConnect)
         XCTAssertEqual(log.destination, "WEBHOOK")

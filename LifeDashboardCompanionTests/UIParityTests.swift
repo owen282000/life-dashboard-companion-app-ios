@@ -114,6 +114,13 @@ final class UIParityTests: XCTestCase {
         XCTAssertEqual(rgb(of: tone.uiColor.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))), tone.light)
     }
 
+    /// The window override behind the appearance choice: System must leave it to iOS.
+    func testAppThemeOverridesTheWindowOnlyWhenChosen() {
+        XCTAssertEqual(AppTheme.system.userInterfaceStyle, .unspecified)
+        XCTAssertEqual(AppTheme.light.userInterfaceStyle, .light)
+        XCTAssertEqual(AppTheme.dark.userInterfaceStyle, .dark)
+    }
+
     private func rgb(of color: UIColor) -> UInt32 {
         var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
         color.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
@@ -142,15 +149,22 @@ final class UIParityTests: XCTestCase {
 
     // MARK: - About
 
-    /// Every link goes to the iOS repository, except the privacy policy, which has a page of its
-    /// own. The Android slug is a prefix of the iOS one, so the path is compared component by
+    /// Every link goes to the iOS repository, except the privacy policy and the website, which
+    /// have pages of their own. The Android slug is a prefix of the iOS one, so the path is compared component by
     /// component.
     func testAboutLinksPointAtTheIOSRepository() {
-        for url in AboutLinks.all where url != AboutLinks.privacy {
+        for url in AboutLinks.all where url != AboutLinks.privacy && url != AboutLinks.website {
             XCTAssertEqual(url.host, "github.com", url.absoluteString)
             XCTAssertEqual(Array(url.pathComponents.prefix(3)), ["/", "owen282000", "life-dashboard-companion-app-ios"], url.absoluteString)
         }
         XCTAssertEqual(AboutLinks.repository.lastPathComponent, AboutLinks.repositorySlug.components(separatedBy: "/").last)
+    }
+
+    /// The website link opens the iPhone app's page on the project's site, on HTTPS.
+    func testTheWebsiteLinkIsTheIPhonePage() {
+        XCTAssertEqual(AboutLinks.website.scheme, "https")
+        XCTAssertEqual(AboutLinks.website.host, "owen282000.com")
+        XCTAssertEqual(AboutLinks.website.pathComponents, ["/", "life-dashboard", "ios"])
     }
 
     /// The address App Store Connect has as the privacy policy URL, on HTTPS and for iOS.
@@ -211,6 +225,7 @@ final class UIParityTests: XCTestCase {
         "figure.mind.and.body", "signature", "antenna.radiowaves.left.and.right", "lock", "key",
         "internaldrive", "doc.text", "sparkles", "ladybug", "chevron.left.forwardslash.chevron.right",
         "cup.and.saucer", "hand.raised", "scroll", "arrow.up.right", "chevron.right",
-        "square.and.pencil", "envelope", "star", "square.grid.2x2", "circle"
+        "square.and.pencil", "envelope", "star", "square.grid.2x2", "circle",
+        "circle.lefthalf.filled"
     ]
 }

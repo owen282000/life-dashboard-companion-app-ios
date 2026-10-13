@@ -46,6 +46,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         static let phoneName = "phone_name"
         static let mqttPublishedSlug = "mqtt_published_slug"
         static let clientCertificate = "client_certificate"
+        static let appTheme = "app_theme"
     }
 
     // MARK: - Constants
@@ -297,6 +298,13 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         defaults.data(forKey: Keys.clientCertificate) != nil
     }
 
+    // MARK: - Appearance
+
+    /// System, Light or Dark for the whole app, chosen on About. The widget follows the system.
+    @Published var appTheme: AppTheme {
+        didSet { defaults.set(appTheme.rawValue, forKey: Keys.appTheme) }
+    }
+
     // MARK: - Init
 
     /// The app uses `shared`; tests pass an isolated defaults suite and an in-memory secret store.
@@ -364,6 +372,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         self.phoneName = defaults.string(forKey: Keys.phoneName) ?? ""
         self.clientCertificate = defaults.data(forKey: Keys.clientCertificate)
             .flatMap { try? JSONDecoder().decode(ClientCertificateInfo.self, from: $0) }
+        self.appTheme = AppTheme.from(defaults.string(forKey: Keys.appTheme))
     }
 
     // MARK: - Sync schedule
@@ -450,6 +459,19 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
     func deleteWebhookLog(id: String) {
         LogStore.shared.delete(id: id)
         DispatchQueue.main.async { self.objectWillChange.send() }
+    }
+}
+
+/// The app's appearance, under the values Android uses, so a settings backup carries the same
+/// "theme" on both platforms: "system", "light" or "dark".
+enum AppTheme: String, CaseIterable, Sendable {
+    case system
+    case light
+    case dark
+
+    /// A value this build does not know, as a newer version could write, follows the system.
+    static func from(_ stored: String?) -> AppTheme {
+        stored.flatMap { AppTheme(rawValue: $0.lowercased()) } ?? .system
     }
 }
 

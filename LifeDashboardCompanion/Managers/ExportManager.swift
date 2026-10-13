@@ -1,5 +1,7 @@
 import Foundation
 import OSLog
+import UIKit
+import UniformTypeIdentifiers
 
 /// MainActor: exports are user-initiated from the UI, and DateFormatter is not thread-safe.
 @MainActor
@@ -31,7 +33,8 @@ final class ExportManager {
         for log in logs {
             let timestamp = csvDateFormatter.string(from: log.timestamp)
             let statusCode = log.statusCode.map(String.init) ?? ""
-            let errorMessage = csvEscape(log.errorMessage ?? "")
+            // Android's columns, so the technical detail goes in the error's cell, after it.
+            let errorMessage = csvEscape([log.errorMessage, log.errorDetail].compactMap { $0 }.joined(separator: " | "))
             let dataType = log.dataType ?? ""
 
             csv += "\(log.id),\(csvEscape(timestamp)),\(log.logType.rawValue),\(csvEscape(log.url)),\(statusCode),\(log.success),\(errorMessage),\(dataType),\(log.recordCount ?? 0)\n"
@@ -80,18 +83,33 @@ final class ExportManager {
         case .csv:
             data = Data(healthDataCSV(from: payload).utf8)
         }
-        let directory = FileManager.default.temporaryDirectory
-        let previous = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
-        for name in previous where name.hasPrefix(healthExportPrefix) {
-            try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
-        }
-        let timestamp = fixedFormatter("yyyy-MM-dd_HH-mm-ss").string(from: now)
-        let url = directory.appendingPathComponent("\(healthExportPrefix)\(timestamp).\(format.rawValue)")
-        try data.write(to: url, options: .atomic)
-        return url
+        return try writeTemporaryFile(data, prefix: healthExportPrefix, extension: format.rawValue, date: now)
     }
 
     nonisolated static let healthExportPrefix = "health_data_"
+
+    /// A payload on screen as a JSON file for the share sheet: the whole of it, where the screen
+    /// shows at most `PayloadPreview.maxCharacters`. The Health Data Preview's is the Export JSON
+    /// file under the same name; a delivery's in the Logs is named after its time.
+    nonisolated static func writePayloadFile(_ payload: String, prefix: String, date: Date = Date()) throws -> URL {
+        try writeTemporaryFile(Data(payload.utf8), prefix: prefix, extension: "json", date: date)
+    }
+
+    nonisolated static let logPayloadPrefix = "log_payload_"
+
+    /// Writes to the temporary directory, which is not backed up, and removes the files written
+    /// before under the same prefix: each one holds health data, so only the newest is kept.
+    private nonisolated static func writeTemporaryFile(_ data: Data, prefix: String, extension ext: String, date: Date) throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
+        let previous = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+        for name in previous where name.hasPrefix(prefix) {
+            try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
+        }
+        let timestamp = fixedFormatter("yyyy-MM-dd_HH-mm-ss").string(from: date)
+        let url = directory.appendingPathComponent("\(prefix)\(timestamp).\(ext)")
+        try data.write(to: url, options: .atomic)
+        return url
+    }
 
     /// Leading columns, when the payload has them; the rest follow in alphabetical order.
     private nonisolated static let leadingColumns = ["uuid", "date", "time", "start_time", "end_time", "session_end_time", "source"]
@@ -189,10 +207,10 @@ final class ExportManager {
 ///
 /// A payload can be 100,000 characters in the log and more in the preview. SwiftUI lays a Text
 /// out in one go, compact JSON without spaces being the slowest case, and VoiceOver would get all
-/// of it. So the screen shows the first 12,000 characters; Share has the whole payload.
+/// of it. So the screen shows the first 12,000 characters; Copy and Share have the whole payload.
 ///
 /// `cutForDisplay` says the screen shows less than there is; `cutInStorage` says the log kept only
-/// the first `LogStore.maxRawPayloadCharacters`, so sharing gives that part too. `totalCount`
+/// the first `LogStore.maxRawPayloadCharacters`, so copying and sharing give that part too. `totalCount`
 /// counts what there is to show, without the log's marker.
 struct PayloadPreview: Equatable, Sendable {
     /// Characters shown at most, the same on Android.
@@ -221,5 +239,49 @@ struct PayloadPreview: Equatable, Sendable {
             end = lineEnd
         }
         return PayloadPreview(text: String(body[..<end]), totalCount: body.count, cutForDisplay: true, cutInStorage: cutInStorage)
+    }
+}
+
+/// Copy for a payload on screen: the whole payload, not the part the screen shows. It is health
+/// data, so it stays on this iPhone (no Universal Clipboard to a Mac or iPad nearby) and leaves
+/// the clipboard after `lifetime`.
+enum PayloadCopy {
+    /// The most the clipboard gets, in UTF-8 bytes. A week of heart rate in the preview is a few
+    /// megabytes, which stalls the app it is pasted into; Share hands that over as a file. A
+    /// delivery in the log, at most `LogStore.maxRawPayloadCharacters`, always fits.
+    static let maxBytes = 1_000_000
+
+    /// How long the clipboard keeps it: enough to switch apps and paste.
+    static let lifetime: TimeInterval = 120
+
+    enum Outcome: Equatable {
+        case copied, tooLarge
+
+        /// The confirmation on screen, and what VoiceOver says.
+        var message: String {
+            switch self {
+            case .copied:
+                let minutes = Duration.seconds(PayloadCopy.lifetime).formatted(.units(allowed: [.minutes], width: .wide))
+                return String(localized: "Copied, for this iPhone only. The clipboard clears it in \(minutes).")
+            case .tooLarge:
+                return String(localized: "This payload is too large to copy. Share saves it as a file.")
+            }
+        }
+    }
+
+    static func fits(_ payload: String) -> Bool {
+        payload.utf8.count <= maxBytes
+    }
+
+    static func options(now: Date = Date()) -> [UIPasteboard.OptionsKey: Any] {
+        [.localOnly: true, .expirationDate: now.addingTimeInterval(lifetime)]
+    }
+
+    /// Puts `payload` on `pasteboard` as plain text, unless it is over `maxBytes`.
+    @MainActor
+    static func copy(_ payload: String, to pasteboard: UIPasteboard = .general, now: Date = Date()) -> Outcome {
+        guard fits(payload) else { return .tooLarge }
+        pasteboard.setItems([[UTType.utf8PlainText.identifier: payload]], options: options(now: now))
+        return .copied
     }
 }

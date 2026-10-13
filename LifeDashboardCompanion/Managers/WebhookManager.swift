@@ -143,11 +143,18 @@ actor WebhookManager {
             if let signature {
                 urlHeaders["X-Signature"] = signature
             }
-            let result = await postWithRetry(
-                data: jsonData,
-                urlString: url,
-                headers: urlHeaders
-            )
+            // iOS leaves a bad header out without a word, so the server would answer for a
+            // request without it. Nothing goes out, and the row names the header instead.
+            let result: WebhookResult
+            if let invalid = SettingsValidation.firstInvalidHeader(urlHeaders) {
+                result = WebhookResult(url: url, statusCode: nil, success: false, errorMessage: AppDiagnostic.invalidHeader(invalid))
+            } else {
+                result = await postWithRetry(
+                    data: jsonData,
+                    urlString: url,
+                    headers: urlHeaders
+                )
+            }
 
             if result.success {
                 anySuccess = true

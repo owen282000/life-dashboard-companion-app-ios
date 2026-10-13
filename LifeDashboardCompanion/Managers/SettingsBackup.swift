@@ -123,6 +123,9 @@ struct OptionsConfig: Codable, Equatable {
     /// Empty means every type sends every record; absent, in a file from before Android 1.14.0,
     /// it leaves the setting alone.
     var seriesResolutions: [String: String]?
+    /// "system", "light" or "dark". Absent in a file from before the choice, and then left
+    /// alone on import, as is a value this build does not know.
+    var theme: String?
 
     enum CodingKeys: String, CodingKey {
         case enabledDataTypes = "enabled_data_types"
@@ -132,6 +135,7 @@ struct OptionsConfig: Codable, Equatable {
         case failureNotificationsEnabled = "failure_notifications_enabled"
         case phoneName = "phone_name"
         case seriesResolutions = "series_resolutions"
+        case theme
     }
 }
 
@@ -170,6 +174,7 @@ struct SettingsSnapshot: Equatable, Sendable {
     var mqttPassword: String
     var mqttBaseTopic: String
     var phoneName: String
+    var appTheme: AppTheme
 }
 
 // MARK: - Export and file handling
@@ -251,7 +256,8 @@ enum SettingsBackup {
                 phoneName: settings.phoneName.trimmingCharacters(in: .whitespacesAndNewlines),
                 seriesResolutions: Dictionary(uniqueKeysWithValues: settings.seriesResolutions
                     .filter { $0.value != .raw }
-                    .map { ($0.key.rawValue, $0.value.rawValue) })
+                    .map { ($0.key.rawValue, $0.value.rawValue) }),
+                theme: settings.appTheme.rawValue
             )
         )
     }
@@ -395,6 +401,13 @@ enum ImportNote: Equatable, Sendable {
     case thresholdAdjusted(from: Int, to: Int)
     case screenTimeSkipped
     case plainMqttToPublicHost
+    /// A custom header in the file's health section that cannot be sent, by its name (never
+    /// its value, which is usually a key), left out as the Android app leaves it out.
+    case headerSkipped(String)
+    /// The file's MQTT broker cannot be reached as written, so the iPhone's broker stays:
+    /// host, port, TLS and credentials, which always come from the same broker.
+    case brokerHostUnusable(String)
+    case brokerPortUnusable(Int)
 
     var text: String {
         switch self {
@@ -422,6 +435,14 @@ enum ImportNote: Equatable, Sendable {
             return String(localized: "Screen Time settings are skipped.")
         case .plainMqttToPublicHost:
             return String(localized: "Without TLS your data and broker password cross the internet unencrypted.")
+        case .brokerHostUnusable(let host):
+            return String(localized: "The MQTT broker host \"\(host)\" in this file is not a host name or IP address, so it is left out and the broker settings on this iPhone stay as they are.")
+        case .brokerPortUnusable(let number):
+            // As written, without grouping: a port is a name, not an amount.
+            let port = String(number)
+            return String(localized: "The MQTT broker port \(port) in this file is not a number from 1 to 65535, so it is left out and the broker settings on this iPhone stay as they are.")
+        case .headerSkipped(let name):
+            return String(localized: "Custom header \"\(name)\" under Health > Webhook cannot be sent, so it is left out. Add it again there with a valid name and value.")
         }
     }
 }
@@ -440,8 +461,8 @@ struct ImportPlan: Equatable, Sendable {
 enum SettingsImport {
     static let maxWebhookUrls = 20
     static let maxUrlLength = 2048
-    static let maxHeaders = 32
-    static let maxHeaderValueLength = 8192
+    static let maxHeaders = SettingsValidation.maxHeaders
+    static let maxHeaderValueLength = SettingsValidation.maxHeaderValueLength
     static let maxSecretLength = 1024
     static let intervalRange = 15...1440
     static let thresholdChoices = [3, 5, 10]
@@ -501,8 +522,14 @@ enum SettingsImport {
             result.healthWebhookUrls = accepted
         }
 
-        let headers = health.headers ?? [:]
-        try validateHeaders(headers)
+        // Android's rule: a header that cannot be sent is left out and named, and the rest of
+        // the file still applies. Taken over, it would fail every delivery to its URLs.
+        let fileHeaders = health.headers ?? [:]
+        guard fileHeaders.count <= maxHeaders else { throw invalid("health.headers") }
+        let headers = fileHeaders.filter { SettingsValidation.firstInvalidHeader([$0.key: $0.value]) == nil }
+        for name in fileHeaders.keys.sorted() where headers[name] == nil {
+            notes.append(.headerSkipped(SettingsValidation.printable(name)))
+        }
         let keepsDeviceHeaders = headers.isEmpty && !current.healthWebhookHeaders.isEmpty
         if !headers.isEmpty {
             result.healthWebhookHeaders = headers
@@ -578,16 +605,18 @@ enum SettingsImport {
         if let enabled = mqtt.healthEnabled { result.mqttEnabled = enabled }
 
         // Host, port, TLS and credentials always come from the same broker.
-        let brokerKey = (mqtt.healthUseShared ?? true) ? "shared" : "health_own_broker"
-        if let broker = (mqtt.healthUseShared ?? true) ? mqtt.shared : mqtt.healthOwnBroker {
+        let broker = (mqtt.healthUseShared ?? true) ? mqtt.shared : mqtt.healthOwnBroker
+        if let broker, let problem = unusableBroker(broker) {
+            // Android does not check the broker, so its file can hold a host or port saved before
+            // its checks existed. The iPhone's broker then stays as it is, all of it, and the
+            // rest of the file applies; without a broker here, MQTT is not switched on either.
+            notes.append(problem)
+            if result.mqttHost.isEmpty { result.mqttEnabled = current.mqttEnabled }
+        } else if let broker {
             if let host = broker.host?.trimmingCharacters(in: .whitespaces) {
-                guard isValidBrokerHost(host) else { throw invalid("mqtt.\(brokerKey).host") }
-                result.mqttHost = host
+                result.mqttHost = SettingsValidation.normalizedBrokerHost(host)
             }
-            if let port = broker.port {
-                guard (1...65_535).contains(port) else { throw invalid("mqtt.\(brokerKey).port") }
-                result.mqttPort = port
-            }
+            if let port = broker.port { result.mqttPort = port }
             if let useTls = broker.useTls { result.mqttUseTls = useTls }
 
             // Android's rule: credentials stay only for the same broker, and never go out in
@@ -656,26 +685,23 @@ enum SettingsImport {
         if fromIPhone, let name = options.phoneName {
             result.phoneName = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(maxPhoneNameLength))
         }
-    }
-
-    /// Header names are HTTP tokens and values carry no line breaks: a header from a file must
-    /// not be able to smuggle a second header into a request.
-    private static func validateHeaders(_ headers: [String: String]) throws {
-        guard headers.count <= maxHeaders else { throw invalid("health.headers") }
-        let tokenCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "!#$%&'*+-.^_`|~"))
-        for (name, value) in headers {
-            let nameIsToken = !name.isEmpty && name.count <= 256 && name.unicodeScalars.allSatisfy {
-                $0.isASCII && tokenCharacters.contains($0)
-            }
-            let valueIsClean = value.count <= maxHeaderValueLength && !value.unicodeScalars.contains {
-                $0 == "\r" || $0 == "\n" || $0 == "\0"
-            }
-            guard nameIsToken, valueIsClean else { throw invalid("health.headers") }
+        // The appearance is the user's, not the phone's, so it comes from either app.
+        if let theme = options.theme.flatMap({ AppTheme(rawValue: $0.lowercased()) }) {
+            result.appTheme = theme
         }
     }
 
-    private static func isValidBrokerHost(_ host: String) -> Bool {
-        host.count <= 253 && !host.contains("/") && !host.contains(where: \.isWhitespace)
+    /// Why the file's broker cannot be used, or nil. An empty host is a file without a broker;
+    /// any other host must be one the Health tab would take, and the port 1 to 65535.
+    private static func unusableBroker(_ broker: BrokerConfig) -> ImportNote? {
+        if let host = broker.host?.trimmingCharacters(in: .whitespaces), !host.isEmpty,
+           SettingsValidation.brokerHostProblem(host) != nil {
+            return .brokerHostUnusable(SettingsValidation.printable(host))
+        }
+        if let port = broker.port, !SettingsValidation.portRange.contains(port) {
+            return .brokerPortUnusable(port)
+        }
+        return nil
     }
 
     private static func invalid(_ path: String) -> SettingsBackupError {
@@ -713,7 +739,8 @@ extension PreferencesManager {
             mqttUsername: mqttUsername,
             mqttPassword: mqttPassword,
             mqttBaseTopic: mqttBaseTopic,
-            phoneName: phoneName
+            phoneName: phoneName,
+            appTheme: appTheme
         )
     }
 
@@ -749,6 +776,7 @@ extension PreferencesManager {
         if new.mqttUseTls != old.mqttUseTls { mqttUseTls = new.mqttUseTls }
         if new.mqttBaseTopic != old.mqttBaseTopic { mqttBaseTopic = new.mqttBaseTopic }
         if new.phoneName != old.phoneName { phoneName = new.phoneName }
+        if new.appTheme != old.appTheme { appTheme = new.appTheme }
 
         if new.healthWebhookHeaders != healthWebhookHeaders { healthWebhookHeaders = new.healthWebhookHeaders }
         if new.healthSigningSecret != healthSigningSecret { healthSigningSecret = new.healthSigningSecret }

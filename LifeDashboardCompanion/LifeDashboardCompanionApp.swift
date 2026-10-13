@@ -9,6 +9,9 @@ struct LifeDashboardCompanionApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                // The appearance chosen on About, set on the window, so the first-run setup,
+                // every sheet and the system's own sheets follow it too.
+                .background(WindowAppearance())
         }
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active else { return }
@@ -21,6 +24,52 @@ struct LifeDashboardCompanionApp: App {
                 BackgroundSyncManager.shared.replan()
             }
         }
+    }
+}
+
+// MARK: - Appearance
+
+extension AppTheme {
+    /// What the window is overridden with; unspecified follows the system.
+    var userInterfaceStyle: UIUserInterfaceStyle {
+        switch self {
+        case .system: return .unspecified
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
+
+/// Sets the chosen appearance on the window itself rather than through preferredColorScheme,
+/// which does not reliably go back to the system's appearance once it has set one. It is set
+/// as the view joins the window, before the first frame, so a dark choice never flashes light.
+private struct WindowAppearance: UIViewRepresentable {
+    @ObservedObject private var prefs = PreferencesManager.shared
+
+    func makeUIView(context: Context) -> WindowStyleView {
+        let view = WindowStyleView()
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ view: WindowStyleView, context: Context) {
+        view.style = prefs.appTheme.userInterfaceStyle
+    }
+}
+
+private final class WindowStyleView: UIView {
+    var style = UIUserInterfaceStyle.unspecified {
+        didSet { apply() }
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        apply()
+    }
+
+    private func apply() {
+        guard let window, window.overrideUserInterfaceStyle != style else { return }
+        window.overrideUserInterfaceStyle = style
     }
 }
 

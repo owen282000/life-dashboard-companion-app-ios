@@ -40,7 +40,8 @@ final class SettingsBackupTests: XCTestCase {
         mqttUsername: "fixture-user",
         mqttPassword: "fixture-pass",
         mqttBaseTopic: "home/iphone",
-        phoneName: "Zoë's iPhone"
+        phoneName: "Zoë's iPhone",
+        appTheme: .dark
     )
 
     private func file(_ json: String) throws -> ConfigBackup {
@@ -147,6 +148,7 @@ final class SettingsBackupTests: XCTestCase {
         XCTAssertEqual(options["failure_notifications_enabled"] as? Bool, false)
         XCTAssertEqual(options["phone_name"] as? String, "Zoë's iPhone")
         XCTAssertEqual(options["series_resolutions"] as? [String: String], ["HEART_RATE": "ONE_MINUTE", "STEPS": "HOURLY"])
+        XCTAssertEqual(options["theme"] as? String, "dark")
     }
 
     /// Android always writes the map, empty when every type sends every record, and an empty
@@ -287,6 +289,45 @@ final class SettingsBackupTests: XCTestCase {
         XCTAssertEqual(absent.result.phoneName, "Kitchen iPad", "a file from before names leaves it alone")
     }
 
+    /// The appearance is the user's, so a file from either app brings it. A file from before
+    /// the choice, or with a value this build does not know, leaves it alone.
+    func testAppThemeComesFromEitherAppAndUnknownValuesLeaveItAlone() throws {
+        var current = makePrefs().backupSnapshot()
+        current.appTheme = .dark
+
+        let android = try SettingsImport.plan(file(#"{"version":1,"options":{"theme":"light"}}"#), current: current)
+        XCTAssertEqual(android.result.appTheme, .light)
+        let iPhone = try SettingsImport.plan(file(#"{"version":1,"platform":"ios","options":{"theme":"system"}}"#), current: current)
+        XCTAssertEqual(iPhone.result.appTheme, .system)
+        let shouted = try SettingsImport.plan(file(#"{"version":1,"options":{"theme":"LIGHT"}}"#), current: current)
+        XCTAssertEqual(shouted.result.appTheme, .light)
+
+        for options in [#"{}"#, #"{"theme":"amoled"}"#, #"{"theme":""}"#] {
+            let plan = try SettingsImport.plan(file(#"{"version":1,"options":\#(options)}"#), current: current)
+            XCTAssertEqual(plan.result.appTheme, .dark, options)
+            XCTAssertEqual(plan.notes, [], options)
+        }
+        XCTAssertThrowsError(try file(#"{"version":1,"options":{"theme":2}}"#))
+    }
+
+    func testAppThemeIsStoredUnderAndroidsValues() {
+        let name = "settings-backup-tests-\(UUID().uuidString)"
+        addTeardownBlock { UserDefaults().removePersistentDomain(forName: name) }
+        let defaults = UserDefaults(suiteName: name)!
+        let prefs = PreferencesManager(defaults: defaults, secrets: InMemorySecretStore())
+        XCTAssertEqual(prefs.appTheme, .system, "a fresh install follows the system")
+
+        prefs.appTheme = .light
+        XCTAssertEqual(defaults.string(forKey: "app_theme"), "light")
+        XCTAssertEqual(PreferencesManager(defaults: defaults, secrets: InMemorySecretStore()).appTheme, .light)
+
+        XCTAssertEqual(AppTheme.allCases.map(\.rawValue), ["system", "light", "dark"])
+        XCTAssertEqual(AppTheme.from("dark"), .dark)
+        XCTAssertEqual(AppTheme.from("Dark"), .dark)
+        XCTAssertEqual(AppTheme.from(nil), .system)
+        XCTAssertEqual(AppTheme.from("sepia"), .system, "a value from a newer version follows the system")
+    }
+
     func testMenstruationNamesMapBothWays() {
         XCTAssertEqual(SettingsBackup.dataTypeNames([.menstruation]), ["MENSTRUATION_FLOW", "MENSTRUATION_PERIOD"])
         for name in ["MENSTRUATION_FLOW", "MENSTRUATION_PERIOD", "MENSTRUATION"] {
@@ -347,6 +388,42 @@ final class SettingsBackupTests: XCTestCase {
         let plan = try SettingsImport.plan(
             file(#"{"version":1,"health":{"webhook_urls":["https://new.example/hook"]}}"#), current: current)
         XCTAssertEqual(plan.result.healthUrlsWithoutHeaders, ["https://new.example/hook"])
+    }
+
+    /// Android's rule: a header that cannot be sent is left out and named, never with its
+    /// value, and the rest of the file still applies.
+    func testHeadersThatCannotBeSentAreLeftOutAndNamed() throws {
+        var current = makePrefs().backupSnapshot()
+        current.healthWebhookHeaders = ["Authorization": "Bearer mine"]
+        let plan = try SettingsImport.plan(file(#"""
+        {"version":1,"health":{"webhook_urls":["https://example.com/health"],"sync_interval_minutes":30,
+          "headers":{"X-Token":"ok","X-Split":"a\r\nX-Other: b","Bad Name":"a","X-Accent":"Zoë","X\"Q":"v"}}}
+        """#), current: current)
+        XCTAssertEqual(plan.result.healthWebhookHeaders, ["X-Token": "ok"])
+        XCTAssertEqual(plan.result.healthWebhookUrls, ["https://example.com/health"])
+        XCTAssertEqual(plan.result.healthSyncSchedule.intervalMinutes, 30)
+        XCTAssertEqual(plan.notes, [
+            .headerSkipped("Bad Name"), .headerSkipped("X?Q"), .headerSkipped("X-Accent"), .headerSkipped("X-Split")
+        ])
+        // The note's wording follows the language (CI runs this class in German too); what must
+        // hold in every language is that it names the header and never shows the value.
+        for note in plan.notes {
+            XCTAssertFalse(note.text.contains("X-Other") || note.text.contains("Zoë"), "never the value: \(note.text)")
+            if case .headerSkipped(let name) = note {
+                XCTAssertTrue(note.text.contains(name), note.text)
+            }
+        }
+    }
+
+    /// With none of the file's headers sendable, the file is one without headers, as on
+    /// Android: the iPhone's stay, for the URLs they were already sent to.
+    func testAFileWhoseHeadersAllFailKeepsTheDevicesOwn() throws {
+        var current = makePrefs().backupSnapshot()
+        current.healthWebhookUrls = ["https://example.com/health"]
+        current.healthWebhookHeaders = ["Authorization": "Bearer mine"]
+        let plan = try SettingsImport.plan(file(#"{"version":1,"health":{"headers":{"Bad Name":"a"}}}"#), current: current)
+        XCTAssertEqual(plan.result.healthWebhookHeaders, ["Authorization": "Bearer mine"])
+        XCTAssertEqual(plan.notes, [.headerSkipped("Bad Name"), .headersKept])
     }
 
     func testFileHeadersReplaceTheDevicesAndSigningSecretIsKeptWhenAbsent() throws {
@@ -446,17 +523,59 @@ final class SettingsBackupTests: XCTestCase {
     func testUnsafeValuesRejectTheFile() {
         let tooManyUrls = (0...SettingsImport.maxWebhookUrls).map { "\"https://example.com/\($0)\"" }.joined(separator: ",")
         let cases = [
-            #"{"version":1,"health":{"headers":{"X-Token":"a\r\nX-Other: b"}}}"#,
-            #"{"version":1,"health":{"headers":{"Bad Name":"a"}}}"#,
-            #"{"version":1,"mqtt":{"shared":{"host":"mqtt://broker.local"}}}"#,
-            #"{"version":1,"mqtt":{"shared":{"port":0}}}"#,
-            #"{"version":1,"mqtt":{"shared":{"port":70000}}}"#,
             #"{"version":1,"mqtt":{"health_base_topic":"home/#"}}"#,
             #"{"version":1,"health":{"webhook_urls":[\#(tooManyUrls)]}}"#
         ]
         for json in cases {
             XCTAssertThrowsError(try SettingsImport.plan(file(json), current: fixture), json)
         }
+    }
+
+    /// Android does not check the broker, so its file can hold a host or port the iPhone cannot
+    /// use. The iPhone's broker then stays, all of it, the note says why, and the rest applies.
+    func testAnUnusableBrokerKeepsTheIPhonesAndTheRestApplies() throws {
+        var current = makePrefs().backupSnapshot()
+        current.mqttHost = "mqtt.home"
+        current.mqttPort = 1883
+        current.mqttUseTls = false
+        current.mqttUsername = "mine"
+        current.mqttPassword = "mine-pass"
+        let cases: [(String, ImportNote)] = [
+            (#""host":"broker.local:1883","port":8883"#, .brokerHostUnusable("broker.local:1883")),
+            (#""host":"mqtt://broker.local""#, .brokerHostUnusable("mqtt://broker.local")),
+            (#""host":"broker.local","port":0"#, .brokerPortUnusable(0)),
+            (#""host":"broker.local","port":70000"#, .brokerPortUnusable(70000))
+        ]
+        for (broker, note) in cases {
+            let json = #"{"version":1,"health":{"webhook_urls":["https://example.com/h"]},"mqtt":{"health_enabled":true,"#
+                + #""health_base_topic":"home/phone","shared":{"# + broker
+                + #","use_tls":true,"username":"theirs","password":"theirs-pass"}}}"#
+            let plan = try SettingsImport.plan(file(json), current: current)
+            XCTAssertEqual(plan.result.mqttHost, "mqtt.home", json)
+            XCTAssertEqual(plan.result.mqttPort, 1883, json)
+            XCTAssertFalse(plan.result.mqttUseTls, json)
+            XCTAssertEqual(plan.result.mqttUsername, "mine", json)
+            XCTAssertEqual(plan.result.mqttPassword, "mine-pass", json)
+            XCTAssertTrue(plan.result.mqttEnabled, json)
+            XCTAssertEqual(plan.result.mqttBaseTopic, "home/phone", json)
+            XCTAssertEqual(plan.result.healthWebhookUrls, ["https://example.com/h"], json)
+            XCTAssertEqual(plan.notes, [note], json)
+        }
+        XCTAssertTrue(ImportNote.brokerHostUnusable("broker.local:1883").text.contains("broker.local:1883"))
+        XCTAssertTrue(ImportNote.brokerPortUnusable(70000).text.contains("70000"))
+    }
+
+    /// Without a broker on the iPhone, a file whose broker cannot be used does not switch MQTT
+    /// on with no host to publish to.
+    func testAnUnusableBrokerDoesNotSwitchMqttOnWithoutAHost() throws {
+        var current = makePrefs().backupSnapshot()
+        current.mqttHost = ""
+        current.mqttEnabled = false
+        let plan = try SettingsImport.plan(
+            file(#"{"version":1,"mqtt":{"health_enabled":true,"shared":{"host":"my broker"}}}"#), current: current)
+        XCTAssertFalse(plan.result.mqttEnabled)
+        XCTAssertEqual(plan.result.mqttHost, "")
+        XCTAssertEqual(plan.notes, [.brokerHostUnusable("my broker")])
     }
 
     func testIntervalAndThresholdAreBroughtIntoRange() throws {
