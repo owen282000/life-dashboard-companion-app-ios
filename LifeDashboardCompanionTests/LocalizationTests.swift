@@ -160,7 +160,9 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(resolve("Showing the first \("12.000") of \("40.000") characters.", "de"),
                        "Die ersten 12.000 von 40.000 Zeichen werden angezeigt.")
         XCTAssertEqual(resolve("Payload, \("40.000") characters", "nl"), "Payload, 40.000 tekens")
-        XCTAssertEqual(resolve("Use Share payload for the full payload.", "de"),
-                       "Nutze Payload teilen für den vollständigen Payload.")
+        XCTAssertEqual(resolve("Use Copy payload or Share payload for the full payload.", "de"),
+                       "Nutze Payload kopieren oder Payload teilen für den vollständigen Payload.")
+        XCTAssertEqual(resolve("Copied, for this iPhone only. The clipboard clears it in \("2 minuten").", "nl"),
+                       "Gekopieerd, alleen voor deze iPhone. Het klembord wist het over 2 minuten.")
     }
 }

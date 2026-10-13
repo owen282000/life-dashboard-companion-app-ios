@@ -2734,6 +2734,54 @@
         }
       }
     },
+    "Copied, for this iPhone only. The clipboard clears it in %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopiert, nur für dieses iPhone. Die Zwischenablage löscht es in %@."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gekopieerd, alleen voor deze iPhone. Het klembord wist het over %@."
+          }
+        }
+      }
+    },
+    "Copy full payload" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vollständigen Payload kopieren"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volledige payload kopiëren"
+          }
+        }
+      }
+    },
+    "Copy payload" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payload kopieren"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payload kopiëren"
+          }
+        }
+      }
+    },
     "Could not build the test ping" : {
       "localizations" : {
         "de" : {
@@ -8495,6 +8543,22 @@
         }
       }
     },
+    "This payload is too large to copy. Share saves it as a file." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Payload ist zu groß zum Kopieren. Teilen speichert ihn als Datei."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze payload is te groot om te kopiëren. Delen bewaart hem als bestand."
+          }
+        }
+      }
+    },
     "This receiver does not accept anything this app can send." : {
       "localizations" : {
         "de" : {
@@ -8706,34 +8770,34 @@
         }
       }
     },
-    "Use Share payload for the full payload." : {
+    "Use Copy payload or Share payload for the full payload." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nutze Payload teilen für den vollständigen Payload."
+            "value" : "Nutze Payload kopieren oder Payload teilen für den vollständigen Payload."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gebruik Payload delen voor de volledige payload."
+            "value" : "Gebruik Payload kopiëren of Payload delen voor de volledige payload."
           }
         }
       }
     },
-    "Use the share button for the full payload." : {
+    "Use the copy or share button for the full payload." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nutze den Teilen-Knopf für den vollständigen Payload."
+            "value" : "Nutze den Kopieren- oder Teilen-Knopf für den vollständigen Payload."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gebruik de deelknop voor de volledige payload."
+            "value" : "Gebruik de kopieer- of deelknop voor de volledige payload."
           }
         }
       }

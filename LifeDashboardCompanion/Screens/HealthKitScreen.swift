@@ -25,6 +25,8 @@ struct HealthKitScreen: View {
     @State private var showPreview = false
     @State private var previewPayload: PayloadPreview?
     @State private var previewFullPayload: String = ""
+    @State private var previewFileURL: URL?
+    @State private var previewCopyOutcome: PayloadCopy.Outcome?
     @State private var isLoadingPreview = false
     @State private var isSyncing = false
     @State private var isTestingWebhook = false
@@ -99,11 +101,7 @@ struct HealthKitScreen: View {
         .sheet(isPresented: $showPreview) {
             previewSheet
         }
-        .sheet(isPresented: Binding(get: { exportFileURL != nil }, set: { if !$0 { exportFileURL = nil } })) {
-            if let exportFileURL {
-                ShareSheet(activityItems: [exportFileURL])
-            }
-        }
+        .shareSheet(for: $exportFileURL)
         // A pairing link needs the root sheet, which cannot show over this one.
         .onChange(of: pairing.incoming) { _, _ in showPreview = false }
     }
@@ -675,7 +673,7 @@ struct HealthKitScreen: View {
         isLoadingPreview = true
         Task {
             // Build, format and cap off the main thread: laying out more than PayloadPreview's
-            // 12,000 characters in one Text stalls the screen (P2-11). Share has all of it.
+            // 12,000 characters in one Text stalls the screen (P2-11). Copy and Share have all of it.
             let result: (display: PayloadPreview?, full: String) = await Task.detached(priority: .userInitiated) {
                 do {
                     let payload = try await HealthSyncManager.shared.buildPreviewPayload()
@@ -687,6 +685,7 @@ struct HealthKitScreen: View {
             }.value
             previewPayload = result.display
             previewFullPayload = result.full
+            previewCopyOutcome = nil
             isLoadingPreview = false
             showPreview = true
         }
@@ -700,7 +699,7 @@ struct HealthKitScreen: View {
                         PayloadPreviewText(
                             preview: preview,
                             font: .system(.caption, design: .monospaced),
-                            whereTheRestIs: Text("Use the share button for the full payload.")
+                            whereTheRestIs: Text("Use the copy or share button for the full payload.")
                         )
                     } else {
                         // The error a failed build left in previewFullPayload, read as it is.
@@ -711,19 +710,52 @@ struct HealthKitScreen: View {
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .safeAreaInset(edge: .bottom) {
+                if let previewCopyOutcome {
+                    PayloadCopyLine(outcome: previewCopyOutcome)
+                        .padding(12)
+                        .background(.bar)
+                }
+            }
             .navigationTitle("Health Data Preview")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { showPreview = false }
                 }
-                ToolbarItem(placement: .topBarLeading) {
-                    ShareLink(item: previewFullPayload) {
-                        Image(systemName: "square.and.arrow.up")
+                // Not for a preview that failed to build: the text is then the error.
+                if previewPayload != nil {
+                    ToolbarItemGroup(placement: .topBarLeading) {
+                        Button(action: copyPreview) {
+                            Image(systemName: "doc.on.doc")
+                        }
+                        .accessibilityLabel("Copy full payload")
+                        Button(action: sharePreview) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                        .accessibilityLabel("Share full payload")
                     }
-                    .accessibilityLabel("Share full payload")
                 }
             }
+            .shareSheet(for: $previewFileURL)
+        }
+    }
+
+    private func copyPreview() {
+        let outcome = PayloadCopy.copy(previewFullPayload)
+        previewCopyOutcome = outcome
+        AccessibilityNotification.Announcement(outcome.message).post()
+    }
+
+    /// The same file as Export JSON, written off the main thread: a week of heart rate is a few
+    /// megabytes.
+    private func sharePreview() {
+        let payload = previewFullPayload
+        Task {
+            let url = await Task.detached(priority: .userInitiated) {
+                try? ExportManager.writePayloadFile(payload, prefix: ExportManager.healthExportPrefix)
+            }.value
+            previewFileURL = url
         }
     }
 }
