@@ -8255,6 +8255,38 @@
         }
       }
     },
+    "The MQTT broker host \"%@\" in this file is not a host name or IP address, so it is left out and the broker settings on this iPhone stay as they are." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der MQTT-Broker-Host \"%@\" in dieser Datei ist weder ein Hostname noch eine IP-Adresse, daher wird er ausgelassen und die Broker-Einstellungen auf diesem iPhone bleiben unverändert."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De MQTT-brokerhost \"%@\" in dit bestand is geen hostnaam of IP-adres, dus die wordt overgeslagen en de brokerinstellingen op deze iPhone blijven zoals ze zijn."
+          }
+        }
+      }
+    },
+    "The MQTT broker port %@ in this file is not a number from 1 to 65535, so it is left out and the broker settings on this iPhone stay as they are." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der MQTT-Broker-Port %@ in dieser Datei ist keine Zahl von 1 bis 65535, daher wird er ausgelassen und die Broker-Einstellungen auf diesem iPhone bleiben unverändert."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De MQTT-brokerpoort %@ in dit bestand is geen getal van 1 tot en met 65535, dus die wordt overgeslagen en de brokerinstellingen op deze iPhone blijven zoals ze zijn."
+          }
+        }
+      }
+    },
     "The MQTT username and password are cleared, because the broker is different." : {
       "localizations" : {
         "de" : {

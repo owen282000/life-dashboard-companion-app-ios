@@ -33,8 +33,10 @@ All notable changes to this project are documented in this file. The format is b
   leaves such a header out and names it in the preview, never with its value, and imports the rest, as
   the Android app does.
 - The MQTT broker host must be a host name or an IPv4 or IPv6 address, and the port 1 to 65535, on the
-  Health tab, in the first-run setup and in a settings import, with a line under the field that says what
-  is wrong.
+  Health tab and in the first-run setup, with a line under the field that says what is wrong. A settings
+  import whose broker host or port breaks these rules keeps the iPhone's whole broker (host, port, TLS and
+  credentials), says in the preview whether the host or the port was the problem, and imports the rest,
+  as the Android app does.
 - A failed MQTT publish showed iOS's raw error, such as "The operation couldn't be completed.
   (Network.NWError error -65554 - NoSuchRecord)". It now says what went wrong in plain words, in English,
   Dutch or German: host not found, connection refused, not reachable from this network, no answer, a TLS or

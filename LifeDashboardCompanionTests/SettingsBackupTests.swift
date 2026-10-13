@@ -519,15 +519,59 @@ final class SettingsBackupTests: XCTestCase {
     func testUnsafeValuesRejectTheFile() {
         let tooManyUrls = (0...SettingsImport.maxWebhookUrls).map { "\"https://example.com/\($0)\"" }.joined(separator: ",")
         let cases = [
-            #"{"version":1,"mqtt":{"shared":{"host":"mqtt://broker.local"}}}"#,
-            #"{"version":1,"mqtt":{"shared":{"port":0}}}"#,
-            #"{"version":1,"mqtt":{"shared":{"port":70000}}}"#,
             #"{"version":1,"mqtt":{"health_base_topic":"home/#"}}"#,
             #"{"version":1,"health":{"webhook_urls":[\#(tooManyUrls)]}}"#
         ]
         for json in cases {
             XCTAssertThrowsError(try SettingsImport.plan(file(json), current: fixture), json)
         }
+    }
+
+    /// Android does not check the broker, so its file can hold a host or port the iPhone cannot
+    /// use. The iPhone's broker then stays, all of it, the note says why, and the rest applies.
+    func testAnUnusableBrokerKeepsTheIPhonesAndTheRestApplies() throws {
+        var current = makePrefs().backupSnapshot()
+        current.mqttHost = "mqtt.home"
+        current.mqttPort = 1883
+        current.mqttUseTls = false
+        current.mqttUsername = "mine"
+        current.mqttPassword = "mine-pass"
+        let cases: [(String, ImportNote)] = [
+            (#""host":"broker.local:1883","port":8883"#, .brokerHostUnusable("broker.local:1883")),
+            (#""host":"mqtt://broker.local""#, .brokerHostUnusable("mqtt://broker.local")),
+            (#""host":"broker.local","port":0"#, .brokerPortUnusable(0)),
+            (#""host":"broker.local","port":70000"#, .brokerPortUnusable(70000))
+        ]
+        for (broker, note) in cases {
+            let json = #"{"version":1,"health":{"webhook_urls":["https://example.com/h"]},"mqtt":{"health_enabled":true,"#
+                + #""health_base_topic":"home/phone","shared":{"# + broker
+                + #","use_tls":true,"username":"theirs","password":"theirs-pass"}}}"#
+            let plan = try SettingsImport.plan(file(json), current: current)
+            XCTAssertEqual(plan.result.mqttHost, "mqtt.home", json)
+            XCTAssertEqual(plan.result.mqttPort, 1883, json)
+            XCTAssertFalse(plan.result.mqttUseTls, json)
+            XCTAssertEqual(plan.result.mqttUsername, "mine", json)
+            XCTAssertEqual(plan.result.mqttPassword, "mine-pass", json)
+            XCTAssertTrue(plan.result.mqttEnabled, json)
+            XCTAssertEqual(plan.result.mqttBaseTopic, "home/phone", json)
+            XCTAssertEqual(plan.result.healthWebhookUrls, ["https://example.com/h"], json)
+            XCTAssertEqual(plan.notes, [note], json)
+        }
+        XCTAssertTrue(ImportNote.brokerHostUnusable("broker.local:1883").text.contains("broker.local:1883"))
+        XCTAssertTrue(ImportNote.brokerPortUnusable(70000).text.contains("70000"))
+    }
+
+    /// Without a broker on the iPhone, a file whose broker cannot be used does not switch MQTT
+    /// on with no host to publish to.
+    func testAnUnusableBrokerDoesNotSwitchMqttOnWithoutAHost() throws {
+        var current = makePrefs().backupSnapshot()
+        current.mqttHost = ""
+        current.mqttEnabled = false
+        let plan = try SettingsImport.plan(
+            file(#"{"version":1,"mqtt":{"health_enabled":true,"shared":{"host":"my broker"}}}"#), current: current)
+        XCTAssertFalse(plan.result.mqttEnabled)
+        XCTAssertEqual(plan.result.mqttHost, "")
+        XCTAssertEqual(plan.notes, [.brokerHostUnusable("my broker")])
     }
 
     func testIntervalAndThresholdAreBroughtIntoRange() throws {

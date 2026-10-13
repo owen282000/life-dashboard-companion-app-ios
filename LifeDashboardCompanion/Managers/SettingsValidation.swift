@@ -80,9 +80,9 @@ enum SettingsValidation {
         headers.keys.sorted().first { !isValidHeaderName($0) || !isValidHeaderValue(headers[$0] ?? "") }
     }
 
-    /// A header's name as a log row or a note can hold it: one line, short, and without the
-    /// quotes it is shown between.
-    static func printableHeaderName(_ name: String) -> String {
+    /// A header name or a broker host from a file, as a log row or a note can hold it: one
+    /// line, short, and without the quotes it is shown between.
+    static func printable(_ name: String) -> String {
         let scalars = name.unicodeScalars.prefix(64).map { scalar in
             [.control, .lineSeparator, .paragraphSeparator].contains(scalar.properties.generalCategory) || scalar == "\""
                 ? "?" : Character(scalar)

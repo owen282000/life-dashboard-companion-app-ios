@@ -140,19 +140,12 @@ final class SettingsValidationTests: XCTestCase {
         }
     }
 
-    func testTheImportRefusesBrokerHostsTheHealthTabRefuses() {
-        let refused = [
-            #"{"version":1,"mqtt":{"shared":{"host":"my broker"}}}"#,
-            #"{"version":1,"mqtt":{"shared":{"host":"192.168.1"}}}"#,
-            #"{"version":1,"mqtt":{"shared":{"host":"broker.local:1883"}}}"#
-        ]
-        for json in refused {
-            XCTAssertThrowsError(try plan(json), json) { error in
-                guard case SettingsBackupError.notASettingsFile(let path?) = error else {
-                    return XCTFail("names the field: \(json)")
-                }
-                XCTAssertTrue(path.hasPrefix("mqtt.shared.host"), path)
-            }
+    /// A broker host the Health tab refuses is left out with a note, and the iPhone's stays.
+    func testTheImportLeavesOutBrokerHostsTheHealthTabRefuses() throws {
+        for host in ["my broker", "192.168.1", "broker.local:1883"] {
+            let planned = try plan(#"{"version":1,"mqtt":{"shared":{"host":""# + host + #""}}}"#)
+            XCTAssertEqual(planned.result.mqttHost, "", host)
+            XCTAssertEqual(planned.notes, [.brokerHostUnusable(host)], host)
         }
     }
 
