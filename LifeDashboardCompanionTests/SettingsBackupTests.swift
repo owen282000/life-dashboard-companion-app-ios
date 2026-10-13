@@ -405,9 +405,13 @@ final class SettingsBackupTests: XCTestCase {
         XCTAssertEqual(plan.notes, [
             .headerSkipped("Bad Name"), .headerSkipped("X?Q"), .headerSkipped("X-Accent"), .headerSkipped("X-Split")
         ])
+        // The note's wording follows the language (CI runs this class in German too); what must
+        // hold in every language is that it names the header and never shows the value.
         for note in plan.notes {
             XCTAssertFalse(note.text.contains("X-Other") || note.text.contains("Zoë"), "never the value: \(note.text)")
-            XCTAssertTrue(note.text.contains("Health > Webhook"), note.text)
+            if case .headerSkipped(let name) = note {
+                XCTAssertTrue(note.text.contains(name), note.text)
+            }
         }
     }
 

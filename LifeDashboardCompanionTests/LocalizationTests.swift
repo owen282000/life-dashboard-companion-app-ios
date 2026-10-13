@@ -131,8 +131,11 @@ final class LocalizationTests: XCTestCase {
     }
 
     func testAFailedPublishReadsInPlainWordsInEachLanguage() throws {
+        // Stored in English, whatever the language: CI runs this class in German too, where the
+        // status reads "Fehler: ...", so the screen text is checked per language below instead.
         let stored = MqttStatus.failed(MqttFailure(NWError.dns(-65554)).message)
-        XCTAssertEqual(try XCTUnwrap(MqttStatus(stored: stored)).text, "Error: Broker host not found. Check the host name.")
+        XCTAssertEqual(stored, "Error: Broker host not found. Check the host name.")
+        XCTAssertEqual(try XCTUnwrap(MqttStatus(stored: stored)).detail, "Broker host not found. Check the host name.")
         XCTAssertEqual(resolve("Broker host not found. Check the host name.", "nl"), "Brokerhost niet gevonden. Controleer de hostnaam.")
         XCTAssertEqual(resolve("Broker host not found. Check the host name.", "de"), "Broker-Host nicht gefunden. Prüfe den Hostnamen.")
     }
