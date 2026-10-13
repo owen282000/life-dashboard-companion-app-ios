@@ -520,3 +520,60 @@ struct ResultLine: View {
         .multilineTextAlignment(.center)
     }
 }
+
+/// A password field with an eye button that shows what was typed, for a password that is
+/// long or typed on a small keyboard. It starts hidden, and hides again when the screen goes.
+struct RevealableSecureField: View {
+    let title: LocalizedStringKey
+    @Binding var text: String
+    @State private var isRevealed = false
+
+    init(_ title: LocalizedStringKey, text: Binding<String>) {
+        self.title = title
+        _text = text
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Group {
+                if isRevealed {
+                    TextField(title, text: $text)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                } else {
+                    SecureField(title, text: $text)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            Button {
+                isRevealed.toggle()
+            } label: {
+                Image(systemName: isRevealed ? "eye.slash" : "eye")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isRevealed ? Text("Hide password") : Text("Show password"))
+        }
+        .padding(.leading, 12)
+        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .onDisappear { isRevealed = false }
+    }
+}
+
+/// A line under a field that says what is wrong with what was typed.
+struct FieldError: View {
+    let message: String
+
+    var body: some View {
+        Label {
+            Text(verbatim: message)
+        } icon: {
+            Image(systemName: "exclamationmark.circle")
+        }
+        .font(.caption)
+        .foregroundStyle(Brand.errorInk)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}

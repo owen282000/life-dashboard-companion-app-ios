@@ -1531,6 +1531,38 @@
         }
       }
     },
+    "A header value cannot contain line breaks or control characters" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Header-Wert darf keine Zeilenumbrüche oder Steuerzeichen enthalten"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een headerwaarde mag geen regeleinden of stuurtekens bevatten"
+          }
+        }
+      }
+    },
+    "A host name cannot contain spaces" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Hostname darf keine Leerzeichen enthalten"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een hostnaam mag geen spaties bevatten"
+          }
+        }
+      }
+    },
     "A receiver wants your data at:" : {
       "localizations" : {
         "de" : {
@@ -2686,6 +2718,22 @@
         }
       }
     },
+    "Custom header \"%@\" is not valid, so nothing was sent. Remove it under Webhook and add it again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigener Header \"%@\" ist ungültig, daher wurde nichts gesendet. Entferne ihn unter Webhook und füge ihn neu hinzu."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigen header \"%@\" is ongeldig, dus er is niets verstuurd. Verwijder hem onder Webhook en voeg hem opnieuw toe."
+          }
+        }
+      }
+    },
     "Custom Headers" : {
       "localizations" : {
         "de" : {
@@ -3110,6 +3158,86 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Versleutelde export"
+          }
+        }
+      }
+    },
+    "Enter a header name" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib einen Header-Namen ein"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vul een headernaam in"
+          }
+        }
+      }
+    },
+    "Enter a header value" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib einen Header-Wert ein"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vul een headerwaarde in"
+          }
+        }
+      }
+    },
+    "Enter only the host, without mqtt:// or another prefix" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib nur den Host ein, ohne mqtt:// oder ein anderes Präfix"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vul alleen de host in, zonder mqtt:// of een ander voorvoegsel"
+          }
+        }
+      }
+    },
+    "Enter the broker's host name or IP address" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib den Hostnamen oder die IP-Adresse des Brokers ein"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vul de hostnaam of het IP-adres van de broker in"
+          }
+        }
+      }
+    },
+    "Enter the port in the Port field, not after the host" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib den Port im Feld Port ein, nicht hinter dem Host"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vul de poort in bij Poort, niet achter de host"
           }
         }
       }
@@ -3978,6 +4106,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lengte"
+          }
+        }
+      }
+    },
+    "Hide password" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwort ausblenden"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wachtwoord verbergen"
           }
         }
       }
@@ -5081,6 +5225,22 @@
         }
       }
     },
+    "No room for another custom header. Remove one first." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein Platz für einen weiteren eigenen Header. Entferne zuerst einen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Er past geen eigen header meer bij. Verwijder er eerst een."
+          }
+        }
+      }
+    },
     "No sync times yet" : {
       "localizations" : {
         "de" : {
@@ -5189,6 +5349,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nog geen"
+          }
+        }
+      }
+    },
+    "Not a valid header name: use letters, digits and hyphens, without spaces or colons" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein gültiger Header-Name: verwende Buchstaben, Ziffern und Bindestriche, ohne Leerzeichen oder Doppelpunkte"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen geldige headernaam: gebruik letters, cijfers en koppeltekens, zonder spaties of dubbele punten"
+          }
+        }
+      }
+    },
+    "Not a valid header, so nothing is sent. Remove it and add it again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein gültiger Header, daher wird nichts gesendet. Entferne ihn und füge ihn neu hinzu."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen geldige header, dus er wordt niets verstuurd. Verwijder hem en voeg hem opnieuw toe."
+          }
+        }
+      }
+    },
+    "Not a valid host name or IP address" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weder ein gültiger Hostname noch eine gültige IP-Adresse"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen geldige hostnaam of IP-adres"
           }
         }
       }
@@ -6863,6 +7071,22 @@
         }
       }
     },
+    "Show password" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwort einblenden"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wachtwoord tonen"
+          }
+        }
+      }
+    },
     "Showing the first %@ of %@ characters." : {
       "localizations" : {
         "de" : {
@@ -7807,6 +8031,22 @@
         }
       }
     },
+    "The port is a number from 1 to 65535" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Port ist eine Zahl von 1 bis 65535"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De poort is een getal van 1 tot en met 65535"
+          }
+        }
+      }
+    },
     "The signing secret on this iPhone is kept." : {
       "localizations" : {
         "de" : {
@@ -7979,6 +8219,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dit bestand vereist een nieuwere versie van de app"
+          }
+        }
+      }
+    },
+    "This header value is too long" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Header-Wert ist zu lang"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze headerwaarde is te lang"
           }
         }
       }

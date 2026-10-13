@@ -36,6 +36,7 @@
 		B1000010 /* HealthKitScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000010 /* HealthKitScreen.swift */; };
 		B1000012 /* LogsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000012 /* LogsScreen.swift */; };
 		B1000017 /* WebhookSigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000017 /* WebhookSigner.swift */; };
+		D77699C9F2D5BE0BD4E79491 /* SettingsValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C7E0F777BEB005077B84212 /* SettingsValidation.swift */; };
 		6834543E155CE8FC8B45ED25 /* MqttPacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF73E5D5E207F8C511EF06F5 /* MqttPacket.swift */; };
 		CF775D282F2EDF1259F96E3B /* MqttSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FBDAA116A38516E98827EFA /* MqttSupport.swift */; };
 		A6EF25DF6E9049216FEDF0BC /* MqttPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EAE9DB642137B4DAEE89D40 /* MqttPublisher.swift */; };
@@ -49,6 +50,7 @@
 		B1000018 /* WebhookRetryPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000018 /* WebhookRetryPolicy.swift */; };
 		B1000019 /* SleepSessionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000019 /* SleepSessionBuilder.swift */; };
 		B100001A /* WebhookSignerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001A /* WebhookSignerTests.swift */; };
+		BB0834273DE366A18E1A3FC6 /* SettingsValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E928D3DF181B1256DB0D0A00 /* SettingsValidationTests.swift */; };
 		8D4AE005B3DA6EFB999B6F10 /* ClientCertificateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E6132151964D2990AAA12E2 /* ClientCertificateTests.swift */; };
 		B100001B /* WebhookRetryPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001B /* WebhookRetryPolicyTests.swift */; };
 		2C04B7A4289E2A9A25E9AC88 /* WebhookRedirectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C49B66C48BF9092BA068409 /* WebhookRedirectTests.swift */; };
@@ -174,6 +176,7 @@
 		F1000013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F1000014 /* LifeDashboardCompanion.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LifeDashboardCompanion.entitlements; sourceTree = "<group>"; };
 		F1000017 /* WebhookSigner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookSigner.swift; sourceTree = "<group>"; };
+		4C7E0F777BEB005077B84212 /* SettingsValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsValidation.swift; sourceTree = "<group>"; };
 		EF73E5D5E207F8C511EF06F5 /* MqttPacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttPacket.swift; sourceTree = "<group>"; };
 		7FBDAA116A38516E98827EFA /* MqttSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttSupport.swift; sourceTree = "<group>"; };
 		5EAE9DB642137B4DAEE89D40 /* MqttPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttPublisher.swift; sourceTree = "<group>"; };
@@ -187,6 +190,7 @@
 		F1000018 /* WebhookRetryPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookRetryPolicy.swift; sourceTree = "<group>"; };
 		F1000019 /* SleepSessionBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSessionBuilder.swift; sourceTree = "<group>"; };
 		F100001A /* WebhookSignerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookSignerTests.swift; sourceTree = "<group>"; };
+		E928D3DF181B1256DB0D0A00 /* SettingsValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsValidationTests.swift; sourceTree = "<group>"; };
 		5E6132151964D2990AAA12E2 /* ClientCertificateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientCertificateTests.swift; sourceTree = "<group>"; };
 		F100001B /* WebhookRetryPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookRetryPolicyTests.swift; sourceTree = "<group>"; };
 		6C49B66C48BF9092BA068409 /* WebhookRedirectTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookRedirectTests.swift; sourceTree = "<group>"; };
@@ -342,6 +346,7 @@
 				F1000015 /* PendingSyncStore.swift */,
 				F1000016 /* NetworkMonitor.swift */,
 				F1000017 /* WebhookSigner.swift */,
+				4C7E0F777BEB005077B84212 /* SettingsValidation.swift */,
 				EF73E5D5E207F8C511EF06F5 /* MqttPacket.swift */,
 				7FBDAA116A38516E98827EFA /* MqttSupport.swift */,
 				5EAE9DB642137B4DAEE89D40 /* MqttPublisher.swift */,
@@ -406,6 +411,7 @@
 			isa = PBXGroup;
 			children = (
 				F100001A /* WebhookSignerTests.swift */,
+				E928D3DF181B1256DB0D0A00 /* SettingsValidationTests.swift */,
 				5E6132151964D2990AAA12E2 /* ClientCertificateTests.swift */,
 				03064B9EB7FE0AA1605460D4 /* UIParityTests.swift */,
 				8CDD3C4A463A122FCDB59F69 /* HealthExportTests.swift */,
@@ -614,6 +620,7 @@
 				10C8120B1617017CE4599C14 /* PairingScannerView.swift in Sources */,
 				B1000012 /* LogsScreen.swift in Sources */,
 				B1000017 /* WebhookSigner.swift in Sources */,
+				D77699C9F2D5BE0BD4E79491 /* SettingsValidation.swift in Sources */,
 				6834543E155CE8FC8B45ED25 /* MqttPacket.swift in Sources */,
 				CF775D282F2EDF1259F96E3B /* MqttSupport.swift in Sources */,
 				A6EF25DF6E9049216FEDF0BC /* MqttPublisher.swift in Sources */,
@@ -665,6 +672,7 @@
 				9888D092D2F480F0DE06CB71 /* LocalizationTests.swift in Sources */,
 				B245FE77AA68002A4EFCEBEC /* WebhookLogCodingTests.swift in Sources */,
 				B100001A /* WebhookSignerTests.swift in Sources */,
+				BB0834273DE366A18E1A3FC6 /* SettingsValidationTests.swift in Sources */,
 				8D4AE005B3DA6EFB999B6F10 /* ClientCertificateTests.swift in Sources */,
 				A1034D6271A9AAF51EC89672 /* PairingApplyTests.swift in Sources */,
 				18DD5CECDB84654192BECE02 /* PairingLinkTests.swift in Sources */,

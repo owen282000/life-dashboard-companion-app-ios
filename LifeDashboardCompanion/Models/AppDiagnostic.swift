@@ -77,6 +77,21 @@ enum AppDiagnostic: String, CaseIterable {
     private static let redirectAdvice =
         "Only a redirect on the same host is followed; enter the final address as the webhook URL."
 
+    /// A custom header iOS would drop or split (see `SettingsValidation`): the request is not
+    /// sent, so the server is never blamed for it. A header saved by an earlier version can be one.
+    static func invalidHeader(_ name: String) -> String {
+        "Custom header \"\(printableHeaderName(name))\" is not valid, so nothing was sent. Remove it under Webhook and add it again."
+    }
+
+    /// The name as a log row can hold it: one line, and short.
+    private static func printableHeaderName(_ name: String) -> String {
+        let scalars = name.unicodeScalars.prefix(64).map { scalar in
+            [.control, .lineSeparator, .paragraphSeparator].contains(scalar.properties.generalCategory) || scalar == "\""
+                ? "?" : Character(scalar)
+        }
+        return String(scalars)
+    }
+
     static func unknownAfterAttempts(_ attempts: Int) -> String {
         "Unknown error after \(attempts) attempts"
     }
@@ -97,6 +112,10 @@ enum AppDiagnostic: String, CaseIterable {
             return String(localized: "Refused for a week (HTTP \(status)), dropped from the queue")
         }
         if let redirect = displayRedirect(stored) { return redirect }
+        if let match = stored.wholeMatch(of: /Custom header "([^"]*)" is not valid, so nothing was sent\. Remove it under Webhook and add it again\./) {
+            let name = String(match.1)
+            return String(localized: "Custom header \"\(name)\" is not valid, so nothing was sent. Remove it under Webhook and add it again.")
+        }
         if let attempts = number(in: stored, prefix: "Unknown error after ", suffix: " attempts") {
             return String(localized: "Unknown error after \(attempts) attempts")
         }

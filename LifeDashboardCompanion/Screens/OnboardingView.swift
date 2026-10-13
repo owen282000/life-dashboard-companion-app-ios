@@ -12,6 +12,7 @@ struct OnboardingView: View {
     @State private var step = Step.welcome
     @State private var webhookUrl = ""
     @State private var mqttHost = ""
+    @State private var mqttHostProblem: SettingsValidation.BrokerProblem?
     @State private var typeChoice: TypeChoice?
     @State private var isPinging = false
     @State private var pingOutcome: SyncOutcome?
@@ -179,12 +180,15 @@ struct OnboardingView: View {
                         .textFieldStyle(.filled)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                    Button("Use") {
-                        prefs.mqttHost = mqttHost.trimmingCharacters(in: .whitespaces)
-                        prefs.mqttEnabled = true
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(mqttHost.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .keyboardType(.URL)
+                        .onSubmit(useMqttHost)
+                    Button("Use", action: useMqttHost)
+                        .buttonStyle(.bordered)
+                        .disabled(mqttHost.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                .onChange(of: mqttHost) { mqttHostProblem = nil }
+                if let mqttHostProblem {
+                    FieldError(message: mqttHostProblem.message)
                 }
             }
         }
@@ -330,6 +334,17 @@ struct OnboardingView: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    /// The Health tab's rule: a host that is not one stays in the field, with what is wrong.
+    private func useMqttHost() {
+        if let problem = SettingsValidation.brokerHostProblem(mqttHost) {
+            mqttHostProblem = problem
+            AccessibilityNotification.Announcement(problem.message).post()
+            return
+        }
+        prefs.mqttHost = SettingsValidation.normalizedBrokerHost(mqttHost)
+        prefs.mqttEnabled = true
     }
 
     private func sendTestPing() {

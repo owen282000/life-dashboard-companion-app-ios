@@ -440,8 +440,8 @@ struct ImportPlan: Equatable, Sendable {
 enum SettingsImport {
     static let maxWebhookUrls = 20
     static let maxUrlLength = 2048
-    static let maxHeaders = 32
-    static let maxHeaderValueLength = 8192
+    static let maxHeaders = SettingsValidation.maxHeaders
+    static let maxHeaderValueLength = SettingsValidation.maxHeaderValueLength
     static let maxSecretLength = 1024
     static let intervalRange = 15...1440
     static let thresholdChoices = [3, 5, 10]
@@ -582,7 +582,7 @@ enum SettingsImport {
         if let broker = (mqtt.healthUseShared ?? true) ? mqtt.shared : mqtt.healthOwnBroker {
             if let host = broker.host?.trimmingCharacters(in: .whitespaces) {
                 guard isValidBrokerHost(host) else { throw invalid("mqtt.\(brokerKey).host") }
-                result.mqttHost = host
+                result.mqttHost = SettingsValidation.normalizedBrokerHost(host)
             }
             if let port = broker.port {
                 guard (1...65_535).contains(port) else { throw invalid("mqtt.\(brokerKey).port") }
@@ -658,24 +658,18 @@ enum SettingsImport {
         }
     }
 
-    /// Header names are HTTP tokens and values carry no line breaks: a header from a file must
-    /// not be able to smuggle a second header into a request.
+    /// Header names are HTTP tokens and values carry no line breaks or control characters, by
+    /// the Health tab's rules: a header from a file must not be able to smuggle a second header
+    /// into a request, or be left out of every request by iOS.
     private static func validateHeaders(_ headers: [String: String]) throws {
-        guard headers.count <= maxHeaders else { throw invalid("health.headers") }
-        let tokenCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "!#$%&'*+-.^_`|~"))
-        for (name, value) in headers {
-            let nameIsToken = !name.isEmpty && name.count <= 256 && name.unicodeScalars.allSatisfy {
-                $0.isASCII && tokenCharacters.contains($0)
-            }
-            let valueIsClean = value.count <= maxHeaderValueLength && !value.unicodeScalars.contains {
-                $0 == "\r" || $0 == "\n" || $0 == "\0"
-            }
-            guard nameIsToken, valueIsClean else { throw invalid("health.headers") }
+        guard headers.count <= maxHeaders, SettingsValidation.firstInvalidHeader(headers) == nil else {
+            throw invalid("health.headers")
         }
     }
 
+    /// Empty is a file without a broker; anything else is a host the Health tab would take.
     private static func isValidBrokerHost(_ host: String) -> Bool {
-        host.count <= 253 && !host.contains("/") && !host.contains(where: \.isWhitespace)
+        host.isEmpty || SettingsValidation.brokerHostProblem(host) == nil
     }
 
     private static func invalid(_ path: String) -> SettingsBackupError {
