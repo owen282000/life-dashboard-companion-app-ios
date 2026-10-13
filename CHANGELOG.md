@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-14
+
 ### Added
 
 - **Copy** next to **Share** in the Health Data Preview and in an opened log row, for the whole payload
@@ -254,7 +256,8 @@ All notable changes to this project are documented in this file. The format is b
 - Offline queue with retries and exponential backoff
 - Webhook logs with CSV/JSON export and payload preview
 
-[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.7.0...HEAD
+[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.8.0...HEAD
+[1.8.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.7.0...1.8.0
 [1.7.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.6.0...1.7.0
 [1.6.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.5.0...1.6.0
 [1.5.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.4.1...1.5.0
