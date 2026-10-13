@@ -401,6 +401,9 @@ enum ImportNote: Equatable, Sendable {
     case thresholdAdjusted(from: Int, to: Int)
     case screenTimeSkipped
     case plainMqttToPublicHost
+    /// A custom header in the file's health section that cannot be sent, by its name (never
+    /// its value, which is usually a key), left out as the Android app leaves it out.
+    case headerSkipped(String)
 
     var text: String {
         switch self {
@@ -428,6 +431,8 @@ enum ImportNote: Equatable, Sendable {
             return String(localized: "Screen Time settings are skipped.")
         case .plainMqttToPublicHost:
             return String(localized: "Without TLS your data and broker password cross the internet unencrypted.")
+        case .headerSkipped(let name):
+            return String(localized: "Custom header \"\(name)\" under Health > Webhook cannot be sent, so it is left out. Add it again there with a valid name and value.")
         }
     }
 }
@@ -507,8 +512,14 @@ enum SettingsImport {
             result.healthWebhookUrls = accepted
         }
 
-        let headers = health.headers ?? [:]
-        try validateHeaders(headers)
+        // Android's rule: a header that cannot be sent is left out and named, and the rest of
+        // the file still applies. Taken over, it would fail every delivery to its URLs.
+        let fileHeaders = health.headers ?? [:]
+        guard fileHeaders.count <= maxHeaders else { throw invalid("health.headers") }
+        let headers = fileHeaders.filter { SettingsValidation.firstInvalidHeader([$0.key: $0.value]) == nil }
+        for name in fileHeaders.keys.sorted() where headers[name] == nil {
+            notes.append(.headerSkipped(SettingsValidation.printableHeaderName(name)))
+        }
         let keepsDeviceHeaders = headers.isEmpty && !current.healthWebhookHeaders.isEmpty
         if !headers.isEmpty {
             result.healthWebhookHeaders = headers
@@ -665,15 +676,6 @@ enum SettingsImport {
         // The appearance is the user's, not the phone's, so it comes from either app.
         if let theme = options.theme.flatMap({ AppTheme(rawValue: $0.lowercased()) }) {
             result.appTheme = theme
-        }
-    }
-
-    /// Header names are HTTP tokens and values carry no line breaks or control characters, by
-    /// the Health tab's rules: a header from a file must not be able to smuggle a second header
-    /// into a request, or be left out of every request by iOS.
-    private static func validateHeaders(_ headers: [String: String]) throws {
-        guard headers.count <= maxHeaders, SettingsValidation.firstInvalidHeader(headers) == nil else {
-            throw invalid("health.headers")
         }
     }
 

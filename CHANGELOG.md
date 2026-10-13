@@ -29,8 +29,9 @@ All notable changes to this project are documented in this file. The format is b
   anything but plain ASCII and tabs (a line break, a control character or a letter such as é), is refused
   when you add it, with a line that says why; iOS left such a header out of the request without a word.
   These are the Android app's rules, so a header one app takes the other takes too. One saved earlier sends nothing to that address and the log
-  names the header, instead of showing the server's answer to a request without it. The settings import
-  checks headers by the same rules.
+  names the header, instead of showing the server's answer to a request without it. A settings import
+  leaves such a header out and names it in the preview, never with its value, and imports the rest, as
+  the Android app does.
 - The MQTT broker host must be a host name or an IPv4 or IPv6 address, and the port 1 to 65535, on the
   Health tab, in the first-run setup and in a settings import, with a line under the field that says what
   is wrong.

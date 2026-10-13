@@ -2862,6 +2862,22 @@
         }
       }
     },
+    "Custom header \"%@\" under Health > Webhook cannot be sent, so it is left out. Add it again there with a valid name and value." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigener Header \"%@\" unter Gesundheit > Webhook kann nicht gesendet werden und wird ausgelassen. Füge ihn dort mit einem gültigen Namen und Wert neu hinzu."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigen header \"%@\" onder Gezondheid > Webhook kan niet verstuurd worden en wordt overgeslagen. Voeg hem daar opnieuw toe met een geldige naam en waarde."
+          }
+        }
+      }
+    },
     "Custom Headers" : {
       "localizations" : {
         "de" : {

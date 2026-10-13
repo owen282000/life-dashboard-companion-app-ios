@@ -390,6 +390,38 @@ final class SettingsBackupTests: XCTestCase {
         XCTAssertEqual(plan.result.healthUrlsWithoutHeaders, ["https://new.example/hook"])
     }
 
+    /// Android's rule: a header that cannot be sent is left out and named, never with its
+    /// value, and the rest of the file still applies.
+    func testHeadersThatCannotBeSentAreLeftOutAndNamed() throws {
+        var current = makePrefs().backupSnapshot()
+        current.healthWebhookHeaders = ["Authorization": "Bearer mine"]
+        let plan = try SettingsImport.plan(file(#"""
+        {"version":1,"health":{"webhook_urls":["https://example.com/health"],"sync_interval_minutes":30,
+          "headers":{"X-Token":"ok","X-Split":"a\r\nX-Other: b","Bad Name":"a","X-Accent":"Zoë","X\"Q":"v"}}}
+        """#), current: current)
+        XCTAssertEqual(plan.result.healthWebhookHeaders, ["X-Token": "ok"])
+        XCTAssertEqual(plan.result.healthWebhookUrls, ["https://example.com/health"])
+        XCTAssertEqual(plan.result.healthSyncSchedule.intervalMinutes, 30)
+        XCTAssertEqual(plan.notes, [
+            .headerSkipped("Bad Name"), .headerSkipped("X?Q"), .headerSkipped("X-Accent"), .headerSkipped("X-Split")
+        ])
+        for note in plan.notes {
+            XCTAssertFalse(note.text.contains("X-Other") || note.text.contains("Zoë"), "never the value: \(note.text)")
+            XCTAssertTrue(note.text.contains("Health > Webhook"), note.text)
+        }
+    }
+
+    /// With none of the file's headers sendable, the file is one without headers, as on
+    /// Android: the iPhone's stay, for the URLs they were already sent to.
+    func testAFileWhoseHeadersAllFailKeepsTheDevicesOwn() throws {
+        var current = makePrefs().backupSnapshot()
+        current.healthWebhookUrls = ["https://example.com/health"]
+        current.healthWebhookHeaders = ["Authorization": "Bearer mine"]
+        let plan = try SettingsImport.plan(file(#"{"version":1,"health":{"headers":{"Bad Name":"a"}}}"#), current: current)
+        XCTAssertEqual(plan.result.healthWebhookHeaders, ["Authorization": "Bearer mine"])
+        XCTAssertEqual(plan.notes, [.headerSkipped("Bad Name"), .headersKept])
+    }
+
     func testFileHeadersReplaceTheDevicesAndSigningSecretIsKeptWhenAbsent() throws {
         var current = makePrefs().backupSnapshot()
         current.healthWebhookHeaders = ["Authorization": "Bearer mine"]
@@ -487,8 +519,6 @@ final class SettingsBackupTests: XCTestCase {
     func testUnsafeValuesRejectTheFile() {
         let tooManyUrls = (0...SettingsImport.maxWebhookUrls).map { "\"https://example.com/\($0)\"" }.joined(separator: ",")
         let cases = [
-            #"{"version":1,"health":{"headers":{"X-Token":"a\r\nX-Other: b"}}}"#,
-            #"{"version":1,"health":{"headers":{"Bad Name":"a"}}}"#,
             #"{"version":1,"mqtt":{"shared":{"host":"mqtt://broker.local"}}}"#,
             #"{"version":1,"mqtt":{"shared":{"port":0}}}"#,
             #"{"version":1,"mqtt":{"shared":{"port":70000}}}"#,

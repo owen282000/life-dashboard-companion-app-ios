@@ -127,13 +127,21 @@ final class SettingsValidationTests: XCTestCase {
         return try SettingsImport.plan(file, current: prefs.backupSnapshot())
     }
 
-    /// A file carries the Health tab's rules too: a header iOS would drop, or a broker host
-    /// the tab refuses, makes the whole file invalid instead of breaking delivery later.
-    func testTheImportRefusesWhatTheHealthTabRefuses() {
+    /// A file carries the Health tab's rules too: a header iOS would drop is left out with a
+    /// note, as on Android, and the rest of the file applies.
+    func testTheImportLeavesOutHeadersTheHealthTabRefuses() throws {
+        let headers = [#""Bad Header":"a""#, #""X-Token":"a\u0001b""#, #""X-Token":"a\u2028b""#, #""X-Token":"\u00e9""#]
+        for header in headers {
+            let json = #"{"version":1,"health":{"headers":{"# + header + "}}}"
+            let planned = try plan(json)
+            XCTAssertEqual(planned.result.healthWebhookHeaders, [:], json)
+            XCTAssertEqual(planned.notes.count, 1, json)
+            guard case .headerSkipped = planned.notes.first else { return XCTFail(json) }
+        }
+    }
+
+    func testTheImportRefusesBrokerHostsTheHealthTabRefuses() {
         let refused = [
-            #"{"version":1,"health":{"headers":{"Bad Header":"a"}}}"#,
-            #"{"version":1,"health":{"headers":{"X-Token":"a\u0001b"}}}"#,
-            #"{"version":1,"health":{"headers":{"X-Token":"a b"}}}"#,
             #"{"version":1,"mqtt":{"shared":{"host":"my broker"}}}"#,
             #"{"version":1,"mqtt":{"shared":{"host":"192.168.1"}}}"#,
             #"{"version":1,"mqtt":{"shared":{"host":"broker.local:1883"}}}"#
@@ -143,7 +151,7 @@ final class SettingsValidationTests: XCTestCase {
                 guard case SettingsBackupError.notASettingsFile(let path?) = error else {
                     return XCTFail("names the field: \(json)")
                 }
-                XCTAssertTrue(path.hasPrefix("health.headers") || path.hasPrefix("mqtt.shared.host"), path)
+                XCTAssertTrue(path.hasPrefix("mqtt.shared.host"), path)
             }
         }
     }

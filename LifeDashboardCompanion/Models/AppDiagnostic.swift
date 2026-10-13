@@ -99,16 +99,7 @@ enum AppDiagnostic: String, CaseIterable {
     /// A custom header iOS would drop or split (see `SettingsValidation`): the request is not
     /// sent, so the server is never blamed for it. A header saved by an earlier version can be one.
     static func invalidHeader(_ name: String) -> String {
-        "Custom header \"\(printableHeaderName(name))\" is not valid, so nothing was sent. Remove it under Webhook and add it again."
-    }
-
-    /// The name as a log row can hold it: one line, and short.
-    private static func printableHeaderName(_ name: String) -> String {
-        let scalars = name.unicodeScalars.prefix(64).map { scalar in
-            [.control, .lineSeparator, .paragraphSeparator].contains(scalar.properties.generalCategory) || scalar == "\""
-                ? "?" : Character(scalar)
-        }
-        return String(scalars)
+        "Custom header \"\(SettingsValidation.printableHeaderName(name))\" is not valid, so nothing was sent. Remove it under Webhook and add it again."
     }
 
     static func unknownAfterAttempts(_ attempts: Int) -> String {

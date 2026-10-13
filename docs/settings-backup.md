@@ -46,7 +46,7 @@ The file goes straight to the place you pick; the app keeps no copy of it. To se
 4. Check the preview: the webhook servers, the MQTT broker, the number of data types, whether the file carries secrets, and what is kept, cleared or skipped
 5. Tap **Import**
 
-Nothing changes before you tap Import. A file with a value of the wrong type, a header with a line break in it, or an MQTT port outside 1 to 65535 is refused as a whole, so a damaged file never half-applies. Keys the app does not know are ignored, so a file from a newer version still imports what this one understands; the preview says when a file comes from a newer version.
+Nothing changes before you tap Import. A file with a value of the wrong type, or an MQTT port outside 1 to 65535, is refused as a whole, so a damaged file never half-applies. A custom header that cannot be sent is the exception, see [File format](#file-format). Keys the app does not know are ignored, so a file from a newer version still imports what this one understands; the preview says when a file comes from a newer version.
 
 What an import keeps from the iPhone:
 
@@ -123,7 +123,9 @@ The same JSON as the Android app, with `"platform": "ios"` added so the importer
 ```
 
 - `theme` is the app's appearance, `system`, `light` or `dark`, the same key as the Android app, so the choice moves between the two apps in either direction. A file without it, from before 1.8.0, or with a value this version does not know, leaves the choice as it is.
-- Custom headers and the broker host are checked by the same rules as the Health tab: a header name made of the characters HTTP allows, a value of plain ASCII characters and tabs (no line break, control character or letter such as é, as on Android), a broker host that is a host name or an IP address. A file that breaks them is refused as a whole, and the message names the setting, such as `health.headers` or `mqtt.shared.host`. The Android app instead leaves out a header it cannot send and imports the rest, so a file it reads can be refused here: remove or correct the header or host there and export again.
+- Custom headers and the broker host are checked by the same rules as the Health tab: a header name made of the characters HTTP allows, a value of plain ASCII characters and tabs (no line break, control character or letter such as é, as on Android), a broker host that is a host name or an IP address.
+- A header that breaks them is left out and the rest of the file is imported, as the Android app does. The preview names each header left out, never its value; add it again under **Health > Webhook**. When none of the file's headers can be sent, the file counts as one without headers, so the iPhone keeps its own.
+- A broker host that breaks them makes the file invalid, and the message names the setting, such as `mqtt.shared.host`. The Android app does not check the host, so a file it reads can be refused here: correct the host there and export again.
 - The iPhone's one MQTT broker is Android's shared broker. From an Android file whose health section uses its own broker, that broker is taken instead, host and credentials together.
 - Cycle tracking is one toggle on iPhone and two record types on Android, so it is written as `MENSTRUATION_FLOW` and `MENSTRUATION_PERIOD` and read back from either.
 - `allow_http_webhooks` is for Android: it is true when one of the URLs uses plain HTTP, so Android does not block the same local webhook. The iPhone ignores it and lets iOS decide.
