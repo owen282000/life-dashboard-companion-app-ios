@@ -1,4 +1,5 @@
 import Foundation
+import Network
 
 struct MqttSensor: Equatable, Codable {
     let key: String
@@ -323,5 +324,113 @@ enum MqttSupport {
         if let source = record["source"] as? String { attrs["source"] = source }
         if let uuid = record["uuid"] as? String { attrs["uuid"] = uuid }
         return attrs
+    }
+}
+
+/// Why a connection to the broker or a publish did not go through, as `MqttPublisher` throws
+/// it. Here and not in the publisher, so `MqttFailure` is tested without a broker.
+enum MqttConnectionError: Error, Equatable {
+    case invalidPort
+    /// No answer within the publisher's 10 seconds.
+    case timeout
+    /// The connection was cancelled before it was ready.
+    case cancelled
+    /// The broker answered the CONNECT with this return code (MQTT 3.1.1, 3.2.2.3).
+    case notAccepted(returnCode: UInt8)
+    /// What came back was no CONNACK, or the connection closed without an answer: a TLS port
+    /// dialled without TLS, or something other than a broker on the port.
+    case noMqttAnswer([UInt8])
+    /// What Network.framework reported.
+    case network(NWError)
+}
+
+/// What a failed publish says to the user, and what it keeps for a bug report.
+///
+/// iOS's own text for a Network.framework error is "The operation couldn't be completed.
+/// (Network.NWError error -65554 - NoSuchRecord)", and it reached the MQTT status, the sync
+/// result and the log row as it was. `message` is one of the `AppDiagnostic` lines instead,
+/// stored in English and translated when shown; `detail` is the error as iOS reported it, kept
+/// in the log row only.
+struct MqttFailure: Equatable {
+    let message: String
+    let detail: String
+
+    init(_ error: Error) {
+        message = Self.diagnostic(for: error).rawValue
+        detail = Self.detail(of: error)
+    }
+
+    static func diagnostic(for error: Error) -> AppDiagnostic {
+        switch error {
+        case let error as MqttConnectionError: return diagnostic(for: error)
+        case let error as NWError: return diagnostic(for: error)
+        default: return diagnostic(for: error as NSError)
+        }
+    }
+
+    private static func diagnostic(for error: MqttConnectionError) -> AppDiagnostic {
+        switch error {
+        case .invalidPort: return .brokerInvalidPort
+        case .timeout: return .brokerTimeout
+        case .cancelled: return .brokerCancelled
+        // 4 is a bad username or password, 5 not authorized.
+        case .notAccepted(let code): return code == 4 || code == 5 ? .brokerAuthRejected : .brokerNotAccepted
+        case .noMqttAnswer: return .brokerNotMqtt
+        case .network(let error): return diagnostic(for: error)
+        }
+    }
+
+    private static func diagnostic(for error: NWError) -> AppDiagnostic {
+        switch error {
+        case .posix(let code): return diagnostic(for: code)
+        // The name did not resolve, whichever way DNS said so.
+        case .dns: return .brokerHostNotFound
+        case .tls: return .brokerTLSFailed
+        default: return .brokerFailed
+        }
+    }
+
+    /// The bridged forms of the same errors: POSIX, the C API's Network.framework domains, and a
+    /// Secure Transport status.
+    private static func diagnostic(for error: NSError) -> AppDiagnostic {
+        switch error.domain {
+        case NSPOSIXErrorDomain, "kNWErrorDomainPOSIX":
+            return POSIXErrorCode(rawValue: Int32(clamping: error.code)).map(diagnostic(for:)) ?? .brokerFailed
+        case "kNWErrorDomainDNS": return .brokerHostNotFound
+        case "kNWErrorDomainTLS": return .brokerTLSFailed
+        case NSOSStatusErrorDomain where secureTransportStatuses.contains(error.code): return .brokerTLSFailed
+        default: return .brokerFailed
+        }
+    }
+
+    /// errSSLProtocol to errSSLLast in SecureTransport.h.
+    private static let secureTransportStatuses = -9899 ... -9800
+
+    private static func diagnostic(for code: POSIXErrorCode) -> AppDiagnostic {
+        switch code {
+        case .ECONNREFUSED: return .brokerConnectionRefused
+        case .ETIMEDOUT: return .brokerTimeout
+        // No route: offline, or a LAN address dialled from outside the LAN.
+        case .ENETUNREACH, .EHOSTUNREACH, .ENETDOWN, .EHOSTDOWN, .EADDRNOTAVAIL: return .brokerUnreachable
+        case .ECONNRESET, .ECONNABORTED, .EPIPE, .ENOTCONN, .ESHUTDOWN, .ENODATA: return .brokerConnectionLost
+        case .ECANCELED: return .brokerCancelled
+        default: return .brokerFailed
+        }
+    }
+
+    /// The error as a developer reads it: the type and its own description for the app's and
+    /// Network.framework's errors ("NWError: -65554: NoSuchRecord"), the domain and code for
+    /// any other.
+    static func detail(of error: Error) -> String {
+        switch error {
+        case let error as MqttConnectionError:
+            if case .network(let underlying) = error { return detail(of: underlying) }
+            return "\(type(of: error)): \(error)"
+        case let error as NWError:
+            return "\(type(of: error)): \(error.debugDescription)"
+        default:
+            let error = error as NSError
+            return "\(error.domain) \(error.code): \(error.localizedDescription)"
+        }
     }
 }

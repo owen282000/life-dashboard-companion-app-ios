@@ -35,9 +35,11 @@ final class MqttPacketTests: XCTestCase {
     }
 
     func testConnackParsing() {
-        XCTAssertEqual(MqttPacket.parseConnack(Data([0x20, 0x02, 0x00, 0x00])), true)
-        XCTAssertEqual(MqttPacket.parseConnack(Data([0x20, 0x02, 0x00, 0x05])), false)
-        XCTAssertNil(MqttPacket.parseConnack(Data([0x20, 0x02])))
+        XCTAssertEqual(MqttPacket.connackReturnCode(Data([0x20, 0x02, 0x00, 0x00])), 0)
+        XCTAssertEqual(MqttPacket.connackReturnCode(Data([0x20, 0x02, 0x00, 0x05])), 5)
+        XCTAssertNil(MqttPacket.connackReturnCode(Data([0x20, 0x02])))
+        // A TLS alert, as a TLS port answers an MQTT CONNECT sent without TLS.
+        XCTAssertNil(MqttPacket.connackReturnCode(Data([0x15, 0x03, 0x01, 0x00, 0x02])))
     }
 
     func testDisconnectPacket() {

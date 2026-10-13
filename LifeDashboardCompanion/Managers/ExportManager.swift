@@ -31,7 +31,8 @@ final class ExportManager {
         for log in logs {
             let timestamp = csvDateFormatter.string(from: log.timestamp)
             let statusCode = log.statusCode.map(String.init) ?? ""
-            let errorMessage = csvEscape(log.errorMessage ?? "")
+            // Android's columns, so the technical detail goes in the error's cell, after it.
+            let errorMessage = csvEscape([log.errorMessage, log.errorDetail].compactMap { $0 }.joined(separator: " | "))
             let dataType = log.dataType ?? ""
 
             csv += "\(log.id),\(csvEscape(timestamp)),\(log.logType.rawValue),\(csvEscape(log.url)),\(statusCode),\(log.success),\(errorMessage),\(dataType),\(log.recordCount ?? 0)\n"

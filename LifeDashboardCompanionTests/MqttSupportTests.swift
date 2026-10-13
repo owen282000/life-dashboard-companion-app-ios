@@ -1,3 +1,5 @@
+import Network
+import Security
 import XCTest
 @testable import LifeDashboardCompanion
 
@@ -342,5 +344,90 @@ final class MqttSupportTests: XCTestCase {
         XCTAssertEqual(MqttSupport.displayPrecision("78.2"), 1)
         XCTAssertEqual(MqttSupport.displayPrecision("5.55"), 2)
         XCTAssertNil(MqttSupport.displayPrecision("Life Dashboard"))
+    }
+
+    // MARK: - Failures in plain words
+
+    private func message(_ error: Error) -> AppDiagnostic? {
+        AppDiagnostic(rawValue: MqttFailure(error).message)
+    }
+
+    func testAHostThatDoesNotResolveSaysSo() {
+        let failure = MqttFailure(MqttConnectionError.network(.dns(-65554)))
+        XCTAssertEqual(failure.message, AppDiagnostic.brokerHostNotFound.rawValue)
+        XCTAssertEqual(failure.detail, "NWError: -65554: NoSuchRecord", "the Logs row keeps what iOS said")
+        XCTAssertEqual(message(NWError.dns(-65540)), .brokerHostNotFound)
+    }
+
+    func testAPortWithNothingListeningIsARefusedConnection() {
+        let failure = MqttFailure(MqttConnectionError.network(.posix(.ECONNREFUSED)))
+        XCTAssertEqual(failure.message, AppDiagnostic.brokerConnectionRefused.rawValue)
+        XCTAssertTrue(failure.detail.contains("Connection refused"), failure.detail)
+    }
+
+    func testNoAnswerIsATimeout() {
+        XCTAssertEqual(message(MqttConnectionError.timeout), .brokerTimeout)
+        XCTAssertEqual(message(NWError.posix(.ETIMEDOUT)), .brokerTimeout)
+    }
+
+    func testNoRouteMeansTheNetworkCannotReachTheBroker() {
+        XCTAssertEqual(message(NWError.posix(.EHOSTUNREACH)), .brokerUnreachable)
+        XCTAssertEqual(message(NWError.posix(.ENETDOWN)), .brokerUnreachable)
+    }
+
+    func testTLSAndCertificateProblemsAreOneMessage() {
+        XCTAssertEqual(message(MqttConnectionError.network(.tls(errSSLBadCert))), .brokerTLSFailed)
+        XCTAssertEqual(message(NWError.tls(errSSLClosedAbort)), .brokerTLSFailed)
+        XCTAssertEqual(message(NSError(domain: NSOSStatusErrorDomain, code: Int(errSSLXCertChainInvalid))), .brokerTLSFailed)
+        XCTAssertEqual(message(NSError(domain: NSOSStatusErrorDomain, code: Int(errSecParam))), .brokerFailed)
+    }
+
+    func testTheBrokersReturnCodeTellsCredentialsFromOtherRefusals() {
+        XCTAssertEqual(message(MqttConnectionError.notAccepted(returnCode: 4)), .brokerAuthRejected)
+        XCTAssertEqual(message(MqttConnectionError.notAccepted(returnCode: 5)), .brokerAuthRejected)
+        XCTAssertEqual(message(MqttConnectionError.notAccepted(returnCode: 2)), .brokerNotAccepted)
+        XCTAssertEqual(message(MqttConnectionError.notAccepted(returnCode: 3)), .brokerNotAccepted)
+        let failure = MqttFailure(MqttConnectionError.notAccepted(returnCode: 5))
+        XCTAssertEqual(failure.detail, "MqttConnectionError: notAccepted(returnCode: 5)")
+    }
+
+    func testAnAnswerThatIsNoMqttPointsAtThePortAndTLS() {
+        XCTAssertEqual(message(MqttConnectionError.noMqttAnswer([0x15, 0x03, 0x01, 0x00])), .brokerNotMqtt)
+        XCTAssertEqual(message(MqttConnectionError.noMqttAnswer([])), .brokerNotMqtt)
+    }
+
+    func testADroppedConnectionIsLost() {
+        XCTAssertEqual(message(NWError.posix(.ECONNRESET)), .brokerConnectionLost)
+        XCTAssertEqual(message(NWError.posix(.EPIPE)), .brokerConnectionLost)
+        XCTAssertEqual(message(POSIXError(.ECONNABORTED)), .brokerConnectionLost)
+        XCTAssertEqual(message(NSError(domain: "kNWErrorDomainPOSIX", code: Int(ENOTCONN))), .brokerConnectionLost)
+    }
+
+    func testTheAppsOwnErrorsKeepTheirMessages() {
+        XCTAssertEqual(message(MqttConnectionError.invalidPort), .brokerInvalidPort)
+        XCTAssertEqual(message(MqttConnectionError.cancelled), .brokerCancelled)
+    }
+
+    func testAnythingElseIsOnePlainSentenceWithTheDetailInTheLog() {
+        let failure = MqttFailure(NSError(domain: "SomeDomain", code: 42, userInfo: [NSLocalizedDescriptionKey: "Something odd"]))
+        XCTAssertEqual(failure.message, AppDiagnostic.brokerFailed.rawValue)
+        XCTAssertEqual(failure.detail, "SomeDomain 42: Something odd")
+        XCTAssertEqual(message(NWError.posix(.EPERM)), .brokerFailed)
+    }
+
+    /// What reached the status line before: iOS's text with the error's type, domain and code.
+    func testNoMessageCarriesTheRawError() {
+        let errors: [Error] = [
+            NWError.dns(-65554), NWError.posix(.ECONNREFUSED), NWError.tls(errSSLBadCert),
+            MqttConnectionError.notAccepted(returnCode: 1), POSIXError(.ECONNRESET),
+            NSError(domain: "SomeDomain", code: 42)
+        ]
+        for error in errors {
+            let failure = MqttFailure(error)
+            XCTAssertNotNil(AppDiagnostic(rawValue: failure.message), failure.message)
+            for raw in ["NWError", "Domain", "error ", "POSIX", "couldn"] {
+                XCTAssertFalse(failure.message.contains(raw), failure.message)
+            }
+        }
     }
 }

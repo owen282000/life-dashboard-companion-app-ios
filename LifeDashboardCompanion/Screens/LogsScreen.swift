@@ -257,6 +257,9 @@ struct LogRow: View {
             if let error = log.errorMessage {
                 DetailRow(label: "Error", value: AppDiagnostic.display(error))
             }
+            if let detail = log.errorDetail {
+                DetailRow(label: "Details", value: detail)
+            }
             if let recordCount = log.recordCount {
                 DetailRow(label: log.isMqtt ? "Sensors" : "Records", value: "\(recordCount)")
             }

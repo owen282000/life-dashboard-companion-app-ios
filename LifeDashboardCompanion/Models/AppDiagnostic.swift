@@ -18,8 +18,18 @@ enum AppDiagnostic: String, CaseIterable {
     case deliveryFailed = "Delivery failed"
     case brokerInvalidPort = "Invalid broker port"
     case brokerTimeout = "Broker did not respond within 10 seconds"
+    /// Stored by 1.7.0 and earlier for every refused CONNECT; still translated when shown.
     case brokerRefused = "Broker refused the connection (check credentials)"
     case brokerCancelled = "Connection cancelled"
+    case brokerHostNotFound = "Broker host not found. Check the host name."
+    case brokerConnectionRefused = "Connection refused. Check the port and that the broker is running."
+    case brokerUnreachable = "Broker cannot be reached from this network"
+    case brokerTLSFailed = "Secure connection to the broker failed. Check the TLS setting, the port and the broker's certificate."
+    case brokerAuthRejected = "The broker rejected the username or password"
+    case brokerNotAccepted = "The broker did not accept the connection"
+    case brokerNotMqtt = "No MQTT broker answered on this port. Check the port and the TLS setting."
+    case brokerConnectionLost = "Connection to the broker was lost"
+    case brokerFailed = "Publishing to the broker failed. Check the Logs tab for details."
     case interrupted = "Interrupted"
     case droppedUndelivered = "Not delivered for a week, dropped from the queue"
     case droppedFull = "Dropped from the queue: it was full (700 undelivered syncs), so its records are lost"
@@ -41,6 +51,15 @@ enum AppDiagnostic: String, CaseIterable {
         case .brokerTimeout: return String(localized: "Broker did not respond within 10 seconds")
         case .brokerRefused: return String(localized: "Broker refused the connection (check credentials)")
         case .brokerCancelled: return String(localized: "Connection cancelled")
+        case .brokerHostNotFound: return String(localized: "Broker host not found. Check the host name.")
+        case .brokerConnectionRefused: return String(localized: "Connection refused. Check the port and that the broker is running.")
+        case .brokerUnreachable: return String(localized: "Broker cannot be reached from this network")
+        case .brokerTLSFailed: return String(localized: "Secure connection to the broker failed. Check the TLS setting, the port and the broker's certificate.")
+        case .brokerAuthRejected: return String(localized: "The broker rejected the username or password")
+        case .brokerNotAccepted: return String(localized: "The broker did not accept the connection")
+        case .brokerNotMqtt: return String(localized: "No MQTT broker answered on this port. Check the port and the TLS setting.")
+        case .brokerConnectionLost: return String(localized: "Connection to the broker was lost")
+        case .brokerFailed: return String(localized: "Publishing to the broker failed. Check the Logs tab for details.")
         case .interrupted: return String(localized: "Interrupted")
         case .droppedUndelivered: return String(localized: "Not delivered for a week, dropped from the queue")
         case .droppedFull: return String(localized: "Dropped from the queue: it was full (700 undelivered syncs), so its records are lost")

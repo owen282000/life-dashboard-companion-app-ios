@@ -7,6 +7,10 @@ struct WebhookLog: Codable, Identifiable {
     let statusCode: Int?
     let success: Bool
     let errorMessage: String?
+    /// The error as iOS reported it, for a bug report: shown in the row's details and written
+    /// to the exports, while `errorMessage` says it in plain words. Only an MQTT row has one;
+    /// rows from 1.7.0 and earlier decode without it.
+    let errorDetail: String?
     let dataType: String?
     let recordCount: Int?
     var rawPayload: String?
@@ -21,6 +25,7 @@ struct WebhookLog: Codable, Identifiable {
         statusCode: Int? = nil,
         success: Bool,
         errorMessage: String? = nil,
+        errorDetail: String? = nil,
         dataType: String? = nil,
         recordCount: Int? = nil,
         rawPayload: String? = nil,
@@ -35,6 +40,7 @@ struct WebhookLog: Codable, Identifiable {
         self.statusCode = statusCode
         self.success = success
         self.errorMessage = errorMessage
+        self.errorDetail = errorDetail
         self.dataType = dataType
         self.recordCount = recordCount
         self.rawPayload = rawPayload

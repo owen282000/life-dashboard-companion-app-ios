@@ -74,10 +74,12 @@ enum MqttPacket {
         Data([0xE0, 0x00])
     }
 
-    /// Returns nil while more bytes are needed; otherwise whether the broker accepted us.
-    static func parseConnack(_ data: Data) -> Bool? {
+    /// The CONNACK's return code, 0 when the broker accepted us; nil for fewer than four bytes
+    /// or bytes that are no CONNACK (a TLS alert from a TLS port dialled without TLS).
+    static func connackReturnCode(_ data: Data) -> UInt8? {
         guard data.count >= 4 else { return nil }
         let bytes = [UInt8](data.prefix(4))
-        return bytes[0] == 0x20 && bytes[1] == 0x02 && bytes[3] == 0x00
+        guard bytes[0] == 0x20, bytes[1] == 0x02 else { return nil }
+        return bytes[3]
     }
 }

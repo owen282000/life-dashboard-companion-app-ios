@@ -2283,6 +2283,22 @@
         }
       }
     },
+    "Broker cannot be reached from this network" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Broker ist von diesem Netzwerk aus nicht erreichbar"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Broker is vanaf dit netwerk niet bereikbaar"
+          }
+        }
+      }
+    },
     "Broker did not respond within 10 seconds" : {
       "localizations" : {
         "de" : {
@@ -2295,6 +2311,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Broker reageerde niet binnen 10 seconden"
+          }
+        }
+      }
+    },
+    "Broker host not found. Check the host name." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Broker-Host nicht gefunden. Prüfe den Hostnamen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brokerhost niet gevonden. Controleer de hostnaam."
           }
         }
       }
@@ -2618,6 +2650,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Verbinding geannuleerd"
+          }
+        }
+      }
+    },
+    "Connection refused. Check the port and that the broker is running." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbindung abgelehnt. Prüfe den Port und ob der Broker läuft."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinding geweigerd. Controleer de poort en of de broker draait."
+          }
+        }
+      }
+    },
+    "Connection to the broker was lost" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Verbindung zum Broker wurde unterbrochen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De verbinding met de broker is verbroken"
           }
         }
       }
@@ -3014,6 +3078,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bestemmingen"
+          }
+        }
+      }
+    },
+    "Details" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Details"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Details"
           }
         }
       }
@@ -5193,6 +5273,22 @@
         }
       }
     },
+    "No MQTT broker answered on this port. Check the port and the TLS setting." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf diesem Port hat kein MQTT-Broker geantwortet. Prüfe den Port und die TLS-Einstellung."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Op deze poort antwoordde geen MQTT-broker. Controleer de poort en de TLS-instelling."
+          }
+        }
+      }
+    },
     "No new health data to sync." : {
       "localizations" : {
         "de" : {
@@ -6217,6 +6313,22 @@
         }
       }
     },
+    "Publishing to the broker failed. Check the Logs tab for details." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veröffentlichen auf dem Broker fehlgeschlagen. Details stehen im Tab Logs."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Publiceren naar de broker is mislukt. Bekijk het tabblad Logs voor details."
+          }
+        }
+      }
+    },
     "Questions about privacy: open an issue on GitHub or email the developer at the address on the GitHub profile." : {
       "localizations" : {
         "de" : {
@@ -6827,6 +6939,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Geheimen bewaard in de sleutelhanger"
+          }
+        }
+      }
+    },
+    "Secure connection to the broker failed. Check the TLS setting, the port and the broker's certificate." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sichere Verbindung zum Broker fehlgeschlagen. Prüfe die TLS-Einstellung, den Port und das Zertifikat des Brokers."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beveiligde verbinding met de broker mislukt. Controleer de TLS-instelling, de poort en het certificaat van de broker."
           }
         }
       }
@@ -7915,6 +8043,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "De app werd gesloten voordat het aanvullen klaar was."
+          }
+        }
+      }
+    },
+    "The broker did not accept the connection" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Broker hat die Verbindung nicht angenommen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De broker accepteerde de verbinding niet"
+          }
+        }
+      }
+    },
+    "The broker rejected the username or password" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Broker hat Benutzername oder Passwort abgelehnt"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De broker weigerde de gebruikersnaam of het wachtwoord"
           }
         }
       }

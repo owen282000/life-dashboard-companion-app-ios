@@ -1,3 +1,4 @@
+import Network
 import XCTest
 @testable import LifeDashboardCompanion
 
@@ -127,6 +128,13 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(failed.detail, AppDiagnostic.brokerRefused.rawValue)
 
         XCTAssertNil(MqttStatus(stored: ""))
+    }
+
+    func testAFailedPublishReadsInPlainWordsInEachLanguage() throws {
+        let stored = MqttStatus.failed(MqttFailure(NWError.dns(-65554)).message)
+        XCTAssertEqual(try XCTUnwrap(MqttStatus(stored: stored)).text, "Error: Broker host not found. Check the host name.")
+        XCTAssertEqual(resolve("Broker host not found. Check the host name.", "nl"), "Brokerhost niet gevonden. Controleer de hostnaam.")
+        XCTAssertEqual(resolve("Broker host not found. Check the host name.", "de"), "Broker-Host nicht gefunden. Prüfe den Hostnamen.")
     }
 
     func testMqttStatusFromAnOlderVersionStillReads() throws {

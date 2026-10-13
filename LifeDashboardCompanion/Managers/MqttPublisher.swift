@@ -102,9 +102,7 @@ final class MqttPublisher: @unchecked Sendable {
                     username: prefs.mqttUsername.isEmpty ? nil : prefs.mqttUsername,
                     password: prefs.mqttPassword.isEmpty ? nil : prefs.mqttPassword
                 ), over: connection)
-                guard try await self.awaitConnack(over: connection) else {
-                    throw MqttError.connectionRefused
-                }
+                try await self.awaitConnack(over: connection)
                 // An empty retained payload removes a retained topic, and on a discovery topic
                 // the entity with it.
                 for topic in clearFirst {
@@ -129,7 +127,7 @@ final class MqttPublisher: @unchecked Sendable {
             prefs.mqttLastStatus = MqttStatus.published(sensors: sensors.count, at: Date())
             prefs.mqttPublishedSlug = slug
             store.update { $0.recordPublish(to: target, success: true, at: Date()) }
-            logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: nil)
+            logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: nil, detail: nil)
             return nil
         } catch where Task.isCancelled || WebhookManager.isInterruption(error, taskCancelled: false) {
             // Cancelled with the sync, as when iOS ends a background task: the broker did
@@ -137,15 +135,17 @@ final class MqttPublisher: @unchecked Sendable {
             let message = AppDiagnostic.interrupted.rawValue
             logger.info("MQTT publish interrupted")
             store.update { $0.recordPublish(to: target, success: false, at: Date()) }
-            logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: message)
+            logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: message, detail: nil)
             return message
         } catch {
-            let message = error.localizedDescription
-            logger.error("MQTT publish failed: \(message)")
-            prefs.mqttLastStatus = MqttStatus.failed(message)
+            // The status, the sync result and the log row say it in plain words; the error as
+            // iOS reported it goes in the log row for a bug report.
+            let failure = MqttFailure(error)
+            logger.error("MQTT publish failed: \(failure.detail)")
+            prefs.mqttLastStatus = MqttStatus.failed(failure.message)
             store.update { $0.recordPublish(to: target, success: false, at: Date()) }
-            logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: message)
-            return message
+            logPublish(prefs: prefs, baseTopic: baseTopic, sensors: sensors.count, error: failure.message, detail: failure.detail)
+            return failure.message
         }
     }
 
@@ -172,11 +172,12 @@ final class MqttPublisher: @unchecked Sendable {
 
     /// One Logs tab row per publish, shaped like Android's: the broker and topic as the URL,
     /// the sensor count as the record count, no payload.
-    private func logPublish(prefs: PreferencesManager, baseTopic: String, sensors: Int, error: String?) {
+    private func logPublish(prefs: PreferencesManager, baseTopic: String, sensors: Int, error: String?, detail: String?) {
         prefs.addWebhookLog(WebhookLog(
             url: "mqtt://\(prefs.mqttHost):\(prefs.mqttPort)/\(baseTopic)",
             success: error == nil,
             errorMessage: error,
+            errorDetail: detail,
             dataType: "mqtt",
             recordCount: sensors,
             logType: .healthConnect,
@@ -186,22 +187,6 @@ final class MqttPublisher: @unchecked Sendable {
 
     // MARK: - Connection plumbing
 
-    private enum MqttError: LocalizedError {
-        case invalidPort
-        case timeout
-        case connectionRefused
-        case connectionFailed(String)
-
-        var errorDescription: String? {
-            switch self {
-            case .invalidPort: return AppDiagnostic.brokerInvalidPort.rawValue
-            case .timeout: return AppDiagnostic.brokerTimeout.rawValue
-            case .connectionRefused: return AppDiagnostic.brokerRefused.rawValue
-            case .connectionFailed(let detail): return detail
-            }
-        }
-    }
-
     private func withConnection(
         host: String,
         port: Int,
@@ -209,7 +194,7 @@ final class MqttPublisher: @unchecked Sendable {
         body: @escaping @Sendable (NWConnection) async throws -> Void
     ) async throws {
         guard let nwPort = NWEndpoint.Port(rawValue: UInt16(clamping: port)), port > 0 else {
-            throw MqttError.invalidPort
+            throw MqttConnectionError.invalidPort
         }
         let parameters: NWParameters = useTls ? .tls : .tcp
         let connection = NWConnection(host: NWEndpoint.Host(host), port: nwPort, using: parameters)
@@ -229,7 +214,8 @@ final class MqttPublisher: @unchecked Sendable {
     }
 
     /// Ensures the ready-continuation resumes exactly once even though NWConnection may fire
-    /// multiple state updates; safe to touch from concurrent contexts (Swift 6 clean).
+    /// multiple state updates, and records that the timeout fired; safe to touch from
+    /// concurrent contexts (Swift 6 clean).
     private final class ResumeGuard: @unchecked Sendable {
         private let lock = NSLock()
         private var resumed = false
@@ -238,6 +224,10 @@ final class MqttPublisher: @unchecked Sendable {
             if resumed { return false }
             resumed = true
             return true
+        }
+        var hasResumed: Bool {
+            lock.lock(); defer { lock.unlock() }
+            return resumed
         }
     }
 
@@ -252,11 +242,11 @@ final class MqttPublisher: @unchecked Sendable {
                     // Waiting is how a refused connection or an unknown host shows: the
                     // connection would retry only once the network changes.
                     if guardFlag.tryResume() {
-                        continuation.resume(throwing: MqttError.connectionFailed(error.localizedDescription))
+                        continuation.resume(throwing: MqttConnectionError.network(error))
                     }
                 case .cancelled:
                     if guardFlag.tryResume() {
-                        continuation.resume(throwing: MqttError.connectionFailed(AppDiagnostic.brokerCancelled.rawValue))
+                        continuation.resume(throwing: MqttConnectionError.cancelled)
                     }
                 default:
                     break
@@ -270,7 +260,7 @@ final class MqttPublisher: @unchecked Sendable {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             connection.send(content: data, completion: .contentProcessed { error in
                 if let error {
-                    continuation.resume(throwing: MqttError.connectionFailed(error.localizedDescription))
+                    continuation.resume(throwing: MqttConnectionError.network(error))
                 } else {
                     continuation.resume()
                 }
@@ -278,34 +268,47 @@ final class MqttPublisher: @unchecked Sendable {
         }
     }
 
-    private func awaitConnack(over connection: NWConnection) async throws -> Bool {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
+    /// Returns once the broker accepted the CONNECT.
+    private func awaitConnack(over connection: NWConnection) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             connection.receive(minimumIncompleteLength: 4, maximumLength: 4) { data, _, _, error in
                 if let error {
-                    continuation.resume(throwing: MqttError.connectionFailed(error.localizedDescription))
-                } else if let data, let accepted = MqttPacket.parseConnack(data) {
-                    continuation.resume(returning: accepted)
+                    continuation.resume(throwing: MqttConnectionError.network(error))
+                } else if let data, let code = MqttPacket.connackReturnCode(data) {
+                    if code == 0 {
+                        continuation.resume()
+                    } else {
+                        continuation.resume(throwing: MqttConnectionError.notAccepted(returnCode: code))
+                    }
                 } else {
-                    continuation.resume(returning: false)
+                    continuation.resume(throwing: MqttConnectionError.noMqttAnswer([UInt8](data ?? Data())))
                 }
             }
         }
     }
 
     /// `onTimeout` has to make the operation return: the group waits for it before it throws.
+    /// The operation then fails for the connection `onTimeout` cancelled, often before the
+    /// timer's own error arrives; either way it is the timeout that is thrown.
     private func withTimeout(
         seconds: TimeInterval,
         onTimeout: @escaping @Sendable () -> Void,
         operation: @escaping @Sendable () async throws -> Void
     ) async throws {
+        let timedOut = ResumeGuard()
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask { try await operation() }
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                _ = timedOut.tryResume()
                 onTimeout()
-                throw MqttError.timeout
+                throw MqttConnectionError.timeout
             }
-            try await group.next()
+            do {
+                try await group.next()
+            } catch where timedOut.hasResumed {
+                throw MqttConnectionError.timeout
+            }
             group.cancelAll()
         }
     }
