@@ -375,7 +375,8 @@ struct HealthKitScreen: View {
                     .keyboardType(.numberPad)
                     .frame(maxWidth: 120)
                     .onChange(of: mqttPortText) { _, newValue in
-                        if SettingsValidation.brokerPortProblem(newValue) == nil, let port = Int(newValue) {
+                        if SettingsValidation.brokerPortProblem(newValue) == nil,
+                           let port = Int(newValue.trimmingCharacters(in: .whitespaces)) {
                             prefs.mqttPort = port
                         }
                     }
