@@ -1,16 +1,11 @@
 name: CodeQL
 
-# Pull requests and a weekly run on main. A push to main is the pull request that was just
-# analysed, so it is not analysed a second time.
+# Every pull request and a weekly run on main. A push to main is the pull request that was just
+# analysed, so it is not analysed a second time. Pull requests that change only documentation are
+# analysed too: OpenSSF Scorecard counts a merged commit without a CodeQL run as unchecked.
 on:
   pull_request:
     branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/pull_request_template.md'
-      - 'LICENSE'
   schedule:
     - cron: '0 3 * * 0'
   workflow_dispatch:
