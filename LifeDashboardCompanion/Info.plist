@@ -23,7 +23,7 @@
 		</dict>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Used only to scan the pairing code from the Life Dashboard integration in Home Assistant. Frames are decoded on the phone and are never stored or sent.</string>
+	<string>Used only to scan the pairing code your receiver shows, such as Home Assistant or the Life Dashboard Stack. Frames are decoded on the iPhone and are never stored or sent.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Used to deliver your health data to webhook servers and MQTT brokers on your own local network.</string>
 	<!-- BGTaskScheduler refuses app refresh requests without fetch and processing requests

@@ -1899,18 +1899,18 @@
         }
       }
     },
-    "Apple Health data, only for the types you switch on and only after you allow them in the Health access sheet. With Backfill, also older records for the range you pick. When you delete a record in Apple Health, the next sync reports its id so your server can remove it too. The camera is used only by the pairing scanner, while that screen is open: frames are decoded on the phone and are never stored or sent." : {
+    "Apple Health data, only for the types you switch on and only after you allow them in the Health access sheet. With Backfill, also older records for the range you pick. When you delete a record in Apple Health, the next sync reports its id so your server can remove it too." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Daten aus Apple Health, nur für die Typen, die du einschaltest, und erst nachdem du sie im Fenster für den Health-Zugriff erlaubst. Mit Nachtragen auch ältere Datensätze für den Zeitraum, den du wählst. Wenn du einen Datensatz in Apple Health löschst, meldet die nächste Synchronisierung seine ID, damit dein Server ihn auch entfernen kann. Die Kamera nutzt nur der Kopplungsscanner, solange dieser Bildschirm offen ist: Bilder werden auf dem Telefon ausgewertet und nie gespeichert oder gesendet."
+            "value" : "Daten aus Apple Health, nur für die Typen, die du einschaltest, und erst nachdem du sie im Fenster für den Health-Zugriff erlaubst. Mit Nachtragen auch ältere Datensätze für den Zeitraum, den du wählst. Wenn du einen Datensatz in Apple Health löschst, meldet die nächste Synchronisierung seine ID, damit dein Server ihn auch entfernen kann."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Data uit Apple Gezondheid, alleen voor de types die je aanzet en pas nadat je ze toestaat in het venster voor toegang tot Gezondheid. Met Aanvullen ook oudere records voor de periode die je kiest. Als je een record in Apple Gezondheid verwijdert, meldt de volgende synchronisatie het id ervan, zodat je server het ook kan verwijderen. De camera wordt alleen gebruikt door de koppelscanner, zolang dat scherm open is: beelden worden op de telefoon gedecodeerd en nooit opgeslagen of verstuurd."
+            "value" : "Data uit Apple Gezondheid, alleen voor de types die je aanzet en pas nadat je ze toestaat in het venster voor toegang tot Gezondheid. Met Aanvullen ook oudere records voor de periode die je kiest. Als je een record in Apple Gezondheid verwijdert, meldt de volgende synchronisatie het id ervan, zodat je server het ook kan verwijderen."
           }
         }
       }
@@ -1943,6 +1943,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Apple Gezondheid is niet beschikbaar"
+          }
+        }
+      }
+    },
+    "Apple Health, read only, for the types you switch on. Camera, only while the pairing scanner is open: frames are decoded on the iPhone and are never stored or sent. Local Network, to reach a webhook server or MQTT broker on your home network. Notifications, for failed syncs and lost payloads: they are shown on this iPhone and sent nowhere." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Health, nur lesend, für die Typen, die du einschaltest. Kamera, nur solange der Kopplungsscanner offen ist: Bilder werden auf dem iPhone ausgewertet und nie gespeichert oder gesendet. Lokales Netzwerk, um einen Webhook-Server oder MQTT-Broker in deinem Heimnetz zu erreichen. Mitteilungen, für fehlgeschlagene Synchronisierungen und verlorene Payloads: Sie erscheinen auf diesem iPhone und gehen nirgendwohin."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Gezondheid, alleen lezen, voor de types die je aanzet. Camera, alleen zolang de koppelscanner open is: beelden worden op de iPhone gedecodeerd en nooit opgeslagen of verstuurd. Lokaal netwerk, om een webhookserver of MQTT-broker op je thuisnetwerk te bereiken. Meldingen, voor mislukte synchronisaties en verloren payloads: die verschijnen op deze iPhone en gaan nergens heen."
           }
         }
       }
@@ -2718,22 +2734,6 @@
         }
       }
     },
-    "Contact" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kontakt"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Contact"
-          }
-        }
-      }
-    },
     "Continue" : {
       "localizations" : {
         "de" : {
@@ -2746,6 +2746,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Doorgaan"
+          }
+        }
+      }
+    },
+    "Controller and contact" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verantwortlicher und Kontakt"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verantwoordelijke en contact"
           }
         }
       }
@@ -3578,18 +3594,18 @@
         }
       }
     },
-    "Everything is opt-in and reversible: which types are read, where they go and how often. Turning off access in the Health app stops the matching reads immediately." : {
+    "Everything is opt-in and reversible: which types are read, where they go and how often. Turning off access in the Health app stops the matching reads immediately. The developer holds no copy of your health data or settings, so there is nothing of that to request or delete on the developer's side." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alles ist freiwillig und umkehrbar: welche Typen gelesen werden, wohin sie gehen und wie oft. Schaltest du den Zugriff in der Health-App aus, stoppen die zugehörigen Lesevorgänge sofort."
+            "value" : "Alles ist freiwillig und umkehrbar: welche Typen gelesen werden, wohin sie gehen und wie oft. Schaltest du den Zugriff in der Health-App aus, stoppen die zugehörigen Lesevorgänge sofort. Der Entwickler hat keine Kopie deiner Gesundheitsdaten oder Einstellungen, daher gibt es davon bei ihm nichts anzufordern oder zu löschen."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alles is opt-in en terug te draaien: welke types worden gelezen, waar ze heen gaan en hoe vaak. Zet je de toegang in de Gezondheid-app uit, dan stoppen de bijbehorende leesacties meteen."
+            "value" : "Alles is opt-in en terug te draaien: welke types worden gelezen, waar ze heen gaan en hoe vaak. Zet je de toegang in de Gezondheid-app uit, dan stoppen de bijbehorende leesacties meteen. De ontwikkelaar heeft geen kopie van je gezondheidsdata of instellingen, dus daarvan valt bij de ontwikkelaar niets op te vragen of te verwijderen."
           }
         }
       }
@@ -4909,18 +4925,18 @@
     "Life Dashboard" : {
       "shouldTranslate" : false
     },
-    "Life Dashboard Companion is a self-hosting tool. It reads health data on this iPhone and sends it only to servers you set up yourself. The developer never receives, stores or sees any of your data." : {
+    "Life Dashboard Companion is a self-hosting tool. It reads health data on this iPhone and sends it only to servers you set up yourself. The app sends nothing to the developer, who never receives, stores or sees your health data." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion ist ein Werkzeug zum Selbsthosten. Die App liest Gesundheitsdaten auf diesem iPhone und sendet sie nur an Server, die du selbst einrichtest. Der Entwickler erhält, speichert oder sieht keine deiner Daten."
+            "value" : "Life Dashboard Companion ist ein Werkzeug zum Selbsthosten. Die App liest Gesundheitsdaten auf diesem iPhone und sendet sie nur an Server, die du selbst einrichtest. Die App sendet nichts an den Entwickler, der deine Gesundheitsdaten nie erhält, speichert oder sieht."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion is een tool voor self-hosting. De app leest gezondheidsdata op deze iPhone en stuurt die alleen naar servers die je zelf instelt. De ontwikkelaar ontvangt, bewaart of ziet nooit iets van je data."
+            "value" : "Life Dashboard Companion is een tool voor self-hosting. De app leest gezondheidsdata op deze iPhone en stuurt die alleen naar servers die je zelf instelt. De app stuurt niets naar de ontwikkelaar, die je gezondheidsdata nooit ontvangt, bewaart of ziet."
           }
         }
       }
@@ -5298,6 +5314,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Zet nu de datatypes aan die je wilt versturen."
+          }
+        }
+      }
+    },
+    "No analytics, ads or trackers" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Analysen, Werbung oder Tracker"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen analytics, advertenties of trackers"
           }
         }
       }
@@ -5968,18 +6000,18 @@
         }
       }
     },
-    "Only to the destinations you enter or pair: your own webhook URLs, the Life Dashboard integration in your own Home Assistant, and your own MQTT broker. The app contacts no other server. There are no analytics, no crash reporting services and no advertising SDKs. Besides the types you switch on, each payload carries the app version, and each record the name of the app or device that wrote it, which on an iPhone often includes your name. MQTT is unencrypted unless you switch on TLS. States are published retained, so the broker keeps the latest value of each sensor even after you switch MQTT off in the app: clear the topics on the broker if you stop using it." : {
+    "Only to the destinations you enter or pair: your own webhook URLs, the Life Dashboard integration in your own Home Assistant, and your own MQTT broker. The app contacts no other server and has no analytics, no crash reporting and no advertising SDKs. Besides the records of the types you switch on, a payload carries the sync time, the app version, a counter, daily totals and the ids of deleted records. Each record carries its id and the name of the app or device that wrote it, which on an iPhone often includes your name. No device model or identifier of your iPhone is sent. MQTT is unencrypted unless you switch on TLS. States are published retained, so the broker keeps the latest value of each sensor even after you switch MQTT off in the app: clear the topics on the broker if you stop using it." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nur an die Ziele, die du selbst einträgst oder koppelst: deine eigenen Webhook-URLs, die Life-Dashboard-Integration in deinem eigenen Home Assistant und deinen eigenen MQTT-Broker. Die App kontaktiert keinen anderen Server. Es gibt keine Analysen, keine Absturzberichtsdienste und keine Werbe-SDKs. Neben den Typen, die du einschaltest, enthält jeder Payload die App-Version und jeder Datensatz den Namen der App oder des Geräts, das ihn geschrieben hat, was auf einem iPhone oft deinen Namen enthält. MQTT ist unverschlüsselt, außer du schaltest TLS ein. Zustände werden als retained veröffentlicht, daher behält der Broker den letzten Wert jedes Sensors, auch nachdem du MQTT in der App ausschaltest: Lösche die Topics auf dem Broker, wenn du ihn nicht mehr nutzt."
+            "value" : "Nur an die Ziele, die du selbst einträgst oder koppelst: deine eigenen Webhook-URLs, die Life-Dashboard-Integration in deinem eigenen Home Assistant und deinen eigenen MQTT-Broker. Die App kontaktiert keinen anderen Server und hat keine Analysen, keine Absturzberichte und keine Werbe-SDKs. Neben den Datensätzen der Typen, die du einschaltest, enthält ein Payload die Zeit der Synchronisierung, die App-Version, einen Zähler, Tagessummen und die IDs gelöschter Datensätze. Jeder Datensatz enthält seine ID und den Namen der App oder des Geräts, das ihn geschrieben hat, was auf einem iPhone oft deinen Namen enthält. Es wird kein Gerätemodell und keine Kennung deines iPhone gesendet. MQTT ist unverschlüsselt, außer du schaltest TLS ein. Zustände werden als retained veröffentlicht, daher behält der Broker den letzten Wert jedes Sensors, auch nachdem du MQTT in der App ausschaltest: Lösche die Topics auf dem Broker, wenn du ihn nicht mehr nutzt."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alleen naar de bestemmingen die je zelf invult of koppelt: je eigen webhook-URL's, de Life Dashboard-integratie in je eigen Home Assistant en je eigen MQTT-broker. De app neemt met geen enkele andere server contact op. Er zijn geen analytics, geen crashrapportagediensten en geen advertentie-SDK's. Naast de types die je aanzet, bevat elke payload de appversie, en elk record de naam van de app of het apparaat dat het schreef, en op een iPhone staat daar vaak je naam in. MQTT is onversleuteld tenzij je TLS aanzet. Statussen worden retained gepubliceerd, dus de broker bewaart de laatste waarde van elke sensor, ook nadat je MQTT in de app uitzet: wis de topics op de broker als je ermee stopt."
+            "value" : "Alleen naar de bestemmingen die je zelf invult of koppelt: je eigen webhook-URL's, de Life Dashboard-integratie in je eigen Home Assistant en je eigen MQTT-broker. De app neemt met geen enkele andere server contact op en heeft geen analytics, geen crashrapportage en geen advertentie-SDK's. Naast de records van de types die je aanzet, bevat een payload het tijdstip van de synchronisatie, de appversie, een teller, dagtotalen en de id's van verwijderde records. Elk record bevat zijn id en de naam van de app of het apparaat dat het schreef, en op een iPhone staat daar vaak je naam in. Er wordt geen apparaatmodel of kenmerk van je iPhone verstuurd. MQTT is onversleuteld tenzij je TLS aanzet. Statussen worden retained gepubliceerd, dus de broker bewaart de laatste waarde van elke sensor, ook nadat je MQTT in de app uitzet: wis de topics op de broker als je ermee stopt."
           }
         }
       }
@@ -6092,6 +6124,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Uitslag ovulatietest"
+          }
+        }
+      }
+    },
+    "Owen Vogelaar, trading as oVog Enterprise (KvK 81085583), is responsible for this app and this policy. For questions about privacy, email [owen282000@hotmail.com](mailto:owen282000@hotmail.com) or ask in [Discussions](https://github.com/owen282000/life-dashboard-companion-app/discussions) on GitHub." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Owen Vogelaar, handelnd als oVog Enterprise (KvK 81085583), ist für diese App und diese Datenschutzerklärung verantwortlich. Bei Fragen zum Datenschutz schreib an [owen282000@hotmail.com](mailto:owen282000@hotmail.com) oder frag in den [Discussions](https://github.com/owen282000/life-dashboard-companion-app/discussions) auf GitHub."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Owen Vogelaar, handelend onder de naam oVog Enterprise (KvK 81085583), is verantwoordelijk voor deze app en dit beleid. Voor vragen over privacy mail je naar [owen282000@hotmail.com](mailto:owen282000@hotmail.com) of stel je ze in [Discussions](https://github.com/owen282000/life-dashboard-companion-app/discussions) op GitHub."
           }
         }
       }
@@ -6326,6 +6374,22 @@
         }
       }
     },
+    "Permissions" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Berechtigungen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toestemmingen"
+          }
+        }
+      }
+    },
     "Phone name" : {
       "localizations" : {
         "de" : {
@@ -6482,22 +6546,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Publiceren naar de broker is mislukt. Bekijk het tabblad Logs voor details."
-          }
-        }
-      }
-    },
-    "Questions about privacy: open an issue on GitHub or email the developer at the address on the GitHub profile." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fragen zum Datenschutz: Eröffne ein Issue auf GitHub oder schreib dem Entwickler an die E-Mail-Adresse im GitHub-Profil."
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vragen over privacy: open een issue op GitHub of mail de ontwikkelaar op het adres in het GitHub-profiel."
           }
         }
       }
@@ -7256,22 +7304,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Instellingen geïmporteerd"
-          }
-        }
-      }
-    },
-    "Settings stay on your device unless you export them" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Einstellungen bleiben auf deinem Gerät, außer du exportierst sie"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Instellingen blijven op je apparaat, tenzij je ze exporteert"
           }
         }
       }
@@ -8200,6 +8232,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dit is geen Life Dashboard-koppelcode."
+          }
+        }
+      }
+    },
+    "The app itself sends nothing to the developer. Apple can share some things through App Store Connect: in the TestFlight beta, crash reports and any feedback you send through TestFlight, with the screenshot you attach; once the app is on the App Store, sales and usage reports. Apart from what you write or attach yourself, none of this carries your health data, your settings or the addresses you send to." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die App selbst sendet nichts an den Entwickler. Apple kann über App Store Connect einiges teilen: in der TestFlight-Beta Absturzberichte und Feedback, das du über TestFlight sendest, mit dem Screenshot, den du anhängst; sobald die App im App Store ist, Verkaufs- und Nutzungsberichte. Abgesehen von dem, was du selbst schreibst oder anhängst, enthält nichts davon deine Gesundheitsdaten, deine Einstellungen oder die Adressen, an die du sendest."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De app zelf stuurt niets naar de ontwikkelaar. Apple kan via App Store Connect wel iets delen: in de TestFlight-bèta crashrapporten en feedback die je via TestFlight stuurt, met de screenshot die je bijvoegt; zodra de app in de App Store staat, verkoop- en gebruiksrapporten. Behalve wat je zelf schrijft of bijvoegt, bevat niets daarvan je gezondheidsdata, je instellingen of de adressen waar je naartoe stuurt."
           }
         }
       }
@@ -9269,6 +9317,22 @@
         }
       }
     },
+    "What the developer can receive" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was der Entwickler erhalten kann"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wat de ontwikkelaar kan ontvangen"
+          }
+        }
+      }
+    },
     "What's new" : {
       "localizations" : {
         "de" : {
@@ -9525,18 +9589,18 @@
         }
       }
     },
-    "Your settings, with secrets in the iOS Keychain. Sync progress, so each record is sent once. A log of the last 100 deliveries, which you can clear, payloads that could not be delivered yet, at most 700, until they arrive or a server has turned them down for a week, and with MQTT on, the latest value of each sensor, so every publish can send them all. Your settings and the sync progress are part of your iPhone backup, like other app data. The log, the undelivered payloads and the sensor values are not: they stay on this iPhone, and a restored or new iPhone starts without them. Deleting the app removes all of it, but iOS can keep the secrets in the Keychain: clear them in the app first if you want them gone. Exports are files you create yourself and hand to the share sheet or the Files app, where the app you pick keeps its own copy. A settings export without secrets still contains your webhook URLs, which can work as a password, so share it with care." : {
+    "Your settings, with secrets in the iOS Keychain. Sync progress, so a sync sends only what is new; a backfill, or a delivery that iOS cut off, can send a record again. A log of the last 100 deliveries, which you can clear. Payloads that could not be delivered yet, at most 700: when the queue is full, the oldest one makes way. Otherwise a payload waits until it arrives, or until it is older than 7 days and a server answers it with an error; while no server can be reached, nothing is dropped for its age. With MQTT on, the latest value of each sensor. With a data resolution set, the samples of a window that is still filling. Your settings and most of the sync progress are in your iPhone backup, like other app data. The log, the undelivered payloads, the sensor values and the held samples are not: a restored or new iPhone starts without them. Deleting the app removes all of it, but iOS can keep the secrets in the Keychain: clear them in the app first if you want them gone. A settings export without secrets still contains your webhook URLs, which can work as a password, so share it with care." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deine Einstellungen, mit Geheimnissen im iOS-Schlüsselbund. Der Sync-Fortschritt, damit jeder Datensatz einmal gesendet wird. Ein Protokoll der letzten 100 Zustellungen, das du löschen kannst, Payloads, die noch nicht zugestellt werden konnten, höchstens 700, bis sie ankommen oder ein Server sie eine Woche lang abgelehnt hat, und mit eingeschaltetem MQTT der letzte Wert jedes Sensors, damit jede Veröffentlichung alle senden kann. Deine Einstellungen und der Sync-Fortschritt gehören zum Backup deines iPhone, wie andere App-Daten. Das Protokoll, die noch nicht zugestellten Payloads und die Sensorwerte nicht: sie bleiben auf diesem iPhone, und ein wiederhergestelltes oder neues iPhone beginnt ohne sie. Wenn du die App löschst, wird das entfernt, aber iOS kann die Geheimnisse im Schlüsselbund behalten: Lösche sie zuerst in der App, wenn sie weg sein sollen. Exporte sind Dateien, die du selbst erstellst und an das Teilen-Menü oder die Dateien-App übergibst, wo die gewählte App ihre eigene Kopie behält. Ein Einstellungsexport ohne Geheimnisse enthält trotzdem deine Webhook-URLs, die wie ein Passwort wirken können, also teile ihn mit Bedacht."
+            "value" : "Deine Einstellungen, mit Geheimnissen im iOS-Schlüsselbund. Der Sync-Fortschritt, damit eine Synchronisierung nur Neues sendet; beim Nachtragen, oder wenn iOS eine Zustellung abgebrochen hat, kann ein Datensatz erneut gehen. Ein Protokoll der letzten 100 Zustellungen, das du löschen kannst. Payloads, die noch nicht zugestellt werden konnten, höchstens 700: Ist die Warteschlange voll, macht der älteste Platz. Sonst wartet ein Payload, bis er ankommt oder älter als 7 Tage ist und ein Server ihn mit einem Fehler beantwortet; solange kein Server erreichbar ist, fällt nichts wegen seines Alters weg. Mit eingeschaltetem MQTT der letzte Wert jedes Sensors. Mit einer eingestellten Datenauflösung die Messwerte eines Zeitfensters, das sich noch füllt. Deine Einstellungen und der Großteil des Sync-Fortschritts gehören zum Backup deines iPhone, wie andere App-Daten. Das Protokoll, die noch nicht zugestellten Payloads, die Sensorwerte und die zurückgehaltenen Messwerte nicht: Ein wiederhergestelltes oder neues iPhone beginnt ohne sie. Wenn du die App löschst, wird das alles entfernt, aber iOS kann die Geheimnisse im Schlüsselbund behalten: Lösche sie zuerst in der App, wenn sie weg sein sollen. Ein Einstellungsexport ohne Geheimnisse enthält trotzdem deine Webhook-URLs, die wie ein Passwort wirken können, also teile ihn mit Bedacht."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Je instellingen, met geheimen in de iOS-sleutelhanger. De sync-voortgang, zodat elk record één keer wordt verstuurd. Een log van de laatste 100 afleveringen, dat je kunt wissen, payloads die nog niet konden worden afgeleverd, hooguit 700, tot ze aankomen of een server ze een week lang heeft geweigerd, en met MQTT aan de laatste waarde van elke sensor, zodat elke publicatie ze allemaal kan versturen. Je instellingen en de sync-voortgang horen bij de back-up van je iPhone, net als andere appdata. Het log, de nog niet afgeleverde payloads en de sensorwaarden niet: die blijven op deze iPhone, en een teruggezette of nieuwe iPhone begint zonder. Als je de app verwijdert, verdwijnt dit, maar iOS kan de geheimen in de sleutelhanger bewaren: wis ze eerst in de app als je ze weg wilt hebben. Exports zijn bestanden die je zelf maakt en aan het deelmenu of de Bestanden-app geeft, waar de app die je kiest een eigen kopie houdt. Een instellingenexport zonder geheimen bevat nog steeds je webhook-URL's, die als wachtwoord kunnen werken, dus deel die met zorg."
+            "value" : "Je instellingen, met geheimen in de iOS-sleutelhanger. De sync-voortgang, zodat een synchronisatie alleen verstuurt wat nieuw is; bij het aanvullen, of een aflevering die iOS afbrak, kan een record nog een keer gaan. Een log van de laatste 100 afleveringen, dat je kunt wissen. Payloads die nog niet konden worden afgeleverd, hooguit 700: als de wachtrij vol is, maakt de oudste plaats. Verder wacht een payload tot hij aankomt, of tot hij ouder is dan 7 dagen en een server hem met een fout beantwoordt; zolang geen server bereikbaar is, verdwijnt er niets door ouderdom. Met MQTT aan de laatste waarde van elke sensor. Met een dataresolutie ingesteld de metingen van een tijdvenster dat nog volloopt. Je instellingen en het grootste deel van de sync-voortgang horen bij de back-up van je iPhone, net als andere appdata. Het log, de nog niet afgeleverde payloads, de sensorwaarden en de vastgehouden metingen niet: een teruggezette of nieuwe iPhone begint zonder. Als je de app verwijdert, verdwijnt dit allemaal, maar iOS kan de geheimen in de sleutelhanger bewaren: wis ze eerst in de app als je ze weg wilt hebben. Een instellingenexport zonder geheimen bevat nog steeds je webhook-URL's, die als wachtwoord kunnen werken, dus deel die met zorg."
           }
         }
       }

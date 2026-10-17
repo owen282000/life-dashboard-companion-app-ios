@@ -97,6 +97,30 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(resolve("Delivered: the receiver accepted the test ping.", "de"), "Zugestellt: Der Empfänger hat den Test-Ping angenommen.")
     }
 
+    // MARK: - The privacy policy
+
+    /// The policy under About states the limits in the code, translated: the delivery log, the
+    /// retry queue and the age past which a failed delivery drops a payload.
+    func testThePrivacyPolicyStatesTheLimitsInTheCodeInEachLanguage() {
+        let days = Int(PendingSyncStore.maxAge / 86_400)
+        let english = resolve(PrivacyPolicyText.stays, "en")
+        for language in ["en", "nl", "de"] {
+            let stays = resolve(PrivacyPolicyText.stays, language)
+            if language != "en" { XCTAssertNotEqual(stays, english, language) }
+            XCTAssertTrue(stays.contains(" \(LogStore.maxLogs) "), language)
+            XCTAssertTrue(stays.contains(" \(PendingSyncStore.maxItems):"), language)
+            XCTAssertTrue(stays.contains(" \(days) "), language)
+        }
+    }
+
+    func testThePrivacyPolicyNamesTheControllerAndTheAddressInEachLanguage() {
+        for language in ["en", "nl", "de"] {
+            let contact = resolve(PrivacyPolicyText.contact, language)
+            XCTAssertTrue(contact.contains("(mailto:owen282000@hotmail.com)"), language)
+            XCTAssertTrue(contact.contains("oVog Enterprise (KvK 81085583)"), language)
+        }
+    }
+
     // MARK: - Stored in English, shown translated
 
     func testEveryStoredMessageIsRecognized() {

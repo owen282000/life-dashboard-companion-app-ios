@@ -34,19 +34,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wird nur verwendet, um den Kopplungscode der Life-Dashboard-Integration in Home Assistant zu scannen. Bilder werden auf dem Telefon ausgewertet und nie gespeichert oder gesendet."
+            "value" : "Wird nur verwendet, um den Kopplungscode zu scannen, den dein Empfänger anzeigt, etwa Home Assistant oder der Life Dashboard Stack. Bilder werden auf dem iPhone ausgewertet und nie gespeichert oder gesendet."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Used only to scan the pairing code from the Life Dashboard integration in Home Assistant. Frames are decoded on the phone and are never stored or sent."
+            "value" : "Used only to scan the pairing code your receiver shows, such as Home Assistant or the Life Dashboard Stack. Frames are decoded on the iPhone and are never stored or sent."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alleen gebruikt om de koppelcode van de Life Dashboard-integratie in Home Assistant te scannen. Beelden worden op de telefoon gedecodeerd en nooit opgeslagen of verstuurd."
+            "value" : "Alleen gebruikt om de koppelcode te scannen die je ontvanger toont, zoals Home Assistant of de Life Dashboard Stack. Beelden worden op de iPhone gedecodeerd en nooit opgeslagen of verstuurd."
           }
         }
       }
