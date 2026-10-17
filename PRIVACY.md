@@ -23,6 +23,6 @@ Life Dashboard Companion is a self-hosting tool. It reads health data on your iP
   Exports are files you create yourself and hand to the share sheet or the Files app, where the app you pick keeps its own copy. A settings export without secrets still contains your webhook URLs, which can work as a password, so share it with care.
 - **Your control** - everything is opt-in and reversible: which types are read, where they go and how often. Turning off access in the Health app stops the matching reads immediately. The developer holds no copy of anything, so there is nothing to request or delete on the developer's side.
 - **Changes** - a change to this policy is published here with a new date, and in the changelog.
-- **Contact** - ask privacy questions in [Discussions](https://github.com/owen282000/life-dashboard-companion-app/discussions). For anything personal, email owenvogelaar@hotmail.com. Security problems go through [SECURITY.md](SECURITY.md).
+- **Contact** - ask privacy questions in [Discussions](https://github.com/owen282000/life-dashboard-companion-app/discussions). For anything personal, email owen282000@hotmail.com. Security problems go through [SECURITY.md](SECURITY.md).
 
 The app ships a privacy manifest (`PrivacyInfo.xcprivacy`) that declares no tracking and no collected data.
