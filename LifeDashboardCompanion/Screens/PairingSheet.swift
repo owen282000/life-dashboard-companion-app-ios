@@ -180,7 +180,9 @@ struct PairingSheet: View {
                 icon: "exclamationmark.triangle", color: .orange))
         case .blockedByATS:
             lines.append(Line(
-                text: "iOS only allows plain HTTP to IP addresses and .local names. In Home Assistant, use Reconfigure on the integration with the IP address or an https address, and scan the new code.",
+                text: link.looksLikeHomeAssistant
+                    ? "iOS only allows plain HTTP to IP addresses and .local names. In Home Assistant, use Reconfigure on the integration with the IP address or an https address, and scan the new code."
+                    : "iOS only allows plain HTTP to IP addresses and .local names. Make a new pairing code on the receiver with the IP address or an https address, and scan that.",
                 icon: "xmark.octagon", color: .red))
         }
         if hadHeaders && change.addsUrl {
@@ -198,10 +200,11 @@ struct PairingSheet: View {
                 .font(.system(.body, design: .monospaced))
             switch phase {
             case .done(let outcome):
-                Label { outcomeText(outcome) } icon: { Image(systemName: outcome == .confirmed ? "checkmark.circle.fill" : "exclamationmark.circle") }
-                    .foregroundColor(outcome == .confirmed ? .green : .orange)
+                let done = outcome.isDone(at: link)
+                Label { outcomeText(outcome) } icon: { Image(systemName: done ? "checkmark.circle.fill" : "exclamationmark.circle") }
+                    .foregroundColor(done ? .green : .orange)
                     .font(.subheadline)
-                if outcome != .confirmed {
+                if !done {
                     Button("Try again") { Task { await check() } }
                 }
             default:
@@ -223,9 +226,18 @@ struct PairingSheet: View {
     private func outcomeText(_ outcome: PairingPingOutcome) -> Text {
         switch outcome {
         case .confirmed:
-            return Text("Home Assistant confirmed the pairing.")
+            // The name is the link's claim, cleaned and capped by PairingLinks, as on the confirm
+            // screen. Home Assistant's own links are named "Home Assistant".
+            if let name = link.name {
+                return Text("\(name) confirmed the pairing.")
+            }
+            return Text("The receiver confirmed the pairing.")
         case .deliveredUnconfirmed:
-            return Text("Delivered, but the Life Dashboard integration did not answer. Check that the entry for this phone still exists.")
+            // Only Home Assistant answers 200 to a webhook it no longer knows; anywhere else a
+            // plain 2xx is all the receiver says.
+            return link.looksLikeHomeAssistant
+                ? Text("Delivered, but the Life Dashboard integration did not answer. Check that the entry for this phone still exists.")
+                : Text("Delivered: the receiver accepted the test ping.")
         case .refused:
             return Text("Test ping failed: the receiver refused the signature. Scan the code again.")
         case .failed(let reason):

@@ -75,11 +75,12 @@ enum PairingApply {
 
 /// How the test ping after pairing went.
 enum PairingPingOutcome: Equatable, Sendable {
-    /// The integration answered this request, which it only does after checking the signature
-    /// with its own copy of the secret.
+    /// The receiver answered this request the way the Home Assistant integration does, which it
+    /// only does after checking the signature with its own copy of the secret.
     case confirmed
-    /// Something answered 2xx, but not the integration. Home Assistant answers 200 to a webhook
-    /// id it does not know, so this is what a deleted entry looks like.
+    /// Something answered 2xx without that answer. For most receivers (an older stack, n8n, a
+    /// webhook of your own) that is all they ever send. Home Assistant answers 200 to a webhook
+    /// id it does not know, so there it is also what a deleted entry looks like.
     case deliveredUnconfirmed
     /// 401: the receiver does not have this secret.
     case refused
@@ -112,6 +113,16 @@ enum PairingPingOutcome: Equatable, Sendable {
             return .deliveredUnconfirmed
         }
         return .confirmed
+    }
+
+    /// Whether the sheet shows the pairing as done. A plain 2xx is done everywhere but at Home
+    /// Assistant, where it can be a deleted entry and the sheet offers Try again.
+    func isDone(at link: PairingLink) -> Bool {
+        switch self {
+        case .confirmed: return true
+        case .deliveredUnconfirmed: return !link.looksLikeHomeAssistant
+        case .refused, .failed: return false
+        }
     }
 }
 

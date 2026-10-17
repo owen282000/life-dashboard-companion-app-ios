@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- After pairing with a receiver other than Home Assistant, such as the Life Dashboard Stack, the sheet said
+  the Life Dashboard integration did not answer and to check that the entry for this phone still exists,
+  while the receiver had taken the test ping. A receiver that accepts the ping now reads as delivered, with a
+  check mark. Only for a Home Assistant address (`/api/webhook/` or a Home Assistant Cloud cloudhook) does an
+  unconfirmed ping still point to a deleted entry and offer Try again, since Home Assistant also accepts a
+  webhook it no longer knows. A confirmed pairing names the receiver as its code does ("Life Dashboard Stack
+  confirmed the pairing."), or says the receiver confirmed it.
+- The scanner, the first-run setup and the plain HTTP warning on the pairing sheet spoke only of Home
+  Assistant. The scanner asks for the code your receiver shows, the setup offers the scan for Home Assistant
+  or the Life Dashboard Stack, and the warning says to make a new code on the receiver, keeping the step in
+  Home Assistant for a Home Assistant address.
+
 ## [1.8.0] - 2026-10-14
 
 ### Added

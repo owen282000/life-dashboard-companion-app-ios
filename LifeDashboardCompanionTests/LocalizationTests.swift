@@ -86,6 +86,17 @@ final class LocalizationTests: XCTestCase {
                        "Ersetzt das Signaturgeheimnis, das dieser Bereich jetzt verwendet. a.example bekommt ab dann Payloads, die mit dem neuen signiert sind: Prüft es Signaturen, gib ihm auch das neue Geheimnis, oder entferne es.")
     }
 
+    func testThePairingResultFitsAnyReceiverInEachLanguage() {
+        let name = "Life Dashboard Stack"
+        XCTAssertEqual(resolve("\(name) confirmed the pairing.", "en"), "Life Dashboard Stack confirmed the pairing.")
+        XCTAssertEqual(resolve("\(name) confirmed the pairing.", "nl"), "Life Dashboard Stack heeft de koppeling bevestigd.")
+        XCTAssertEqual(resolve("\("Home Assistant") confirmed the pairing.", "de"), "Home Assistant hat die Kopplung bestätigt.")
+        XCTAssertEqual(resolve("The receiver confirmed the pairing.", "nl"), "De ontvanger heeft de koppeling bevestigd.")
+        XCTAssertEqual(resolve("The receiver confirmed the pairing.", "de"), "Der Empfänger hat die Kopplung bestätigt.")
+        XCTAssertEqual(resolve("Delivered: the receiver accepted the test ping.", "nl"), "Afgeleverd: de ontvanger heeft de testping aangenomen.")
+        XCTAssertEqual(resolve("Delivered: the receiver accepted the test ping.", "de"), "Zugestellt: Der Empfänger hat den Test-Ping angenommen.")
+    }
+
     // MARK: - Stored in English, shown translated
 
     func testEveryStoredMessageIsRecognized() {

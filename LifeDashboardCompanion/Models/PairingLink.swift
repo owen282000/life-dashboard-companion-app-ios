@@ -30,6 +30,19 @@ struct PairingLink: Equatable, Sendable {
     }
 
     var reach: PairingReach { PairingReach.of(url) }
+
+    /// Whether the address is one of Home Assistant's own webhooks: /api/webhook/ on the
+    /// instance, also under a reverse proxy's path, or a Home Assistant Cloud cloudhook. Decided
+    /// by the address, not the name, which is only a claim. Home Assistant answers 200 to a
+    /// webhook id it no longer knows, so only there does an unconfirmed ping hint at a deleted
+    /// entry; any other receiver that answers 2xx has simply accepted it.
+    var looksLikeHomeAssistant: Bool {
+        guard let components = URLComponents(string: url) else { return false }
+        var host = (components.host ?? "").lowercased()
+        if host.hasSuffix(".") { host.removeLast() }
+        if host == "hooks.nabu.casa" { return true }
+        return components.path.lowercased().contains("/api/webhook/")
+    }
 }
 
 extension PairingLink: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {

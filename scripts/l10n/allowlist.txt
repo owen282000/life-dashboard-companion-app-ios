@@ -56,7 +56,6 @@ key:Localizable | Stopped after %lld of %lld windows: HealthKit did not return %
 key:Localizable | Delivered to %lld of %lld destinations, see Logs. | no-plural | shown only when some but not all webhooks took a sync, so the total is at least 2
 key:Localizable | Life Dashboard | brand | the app's name
 key:Localizable | Companion | brand | second line of the app's name on the About page
-key:Localizable | Home Assistant | brand | product name
 key:Localizable | MQTT | brand | protocol name
 key:Localizable | TLS | brand | protocol name
 key:InfoPlist | CFBundleDisplayName | brand | the app's name under its icon
