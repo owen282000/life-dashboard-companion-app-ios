@@ -173,4 +173,24 @@ final class PairingApplyTests: XCTestCase {
         XCTAssertEqual(outcome(status: 500, body: Data(), header: nil), .failed("HTTP 500"))
         XCTAssertEqual(outcome(status: nil, body: Data(), header: nil, error: "offline"), .failed("offline"))
     }
+
+    // MARK: - What the sheet calls done
+
+    func testAPlainOkIsDoneAtAnyReceiverButHomeAssistant() {
+        let stack = PairingLink(url: "https://stack.example.com/webhook/iphone", secret: "s", name: "Life Dashboard Stack")
+        let ownWebhook = PairingLink(url: "https://n8n.example.com/webhook/abc", secret: "s", name: nil)
+        let cloud = PairingLink(url: "https://hooks.nabu.casa/gAAAAAB", secret: "s", name: "Home Assistant")
+
+        XCTAssertTrue(PairingPingOutcome.deliveredUnconfirmed.isDone(at: stack))
+        XCTAssertTrue(PairingPingOutcome.deliveredUnconfirmed.isDone(at: ownWebhook))
+        // At Home Assistant it can be a deleted entry, so the sheet offers Try again.
+        XCTAssertFalse(PairingPingOutcome.deliveredUnconfirmed.isDone(at: link))
+        XCTAssertFalse(PairingPingOutcome.deliveredUnconfirmed.isDone(at: cloud))
+
+        for receiver in [stack, ownWebhook, link, cloud] {
+            XCTAssertTrue(PairingPingOutcome.confirmed.isDone(at: receiver), receiver.url)
+            XCTAssertFalse(PairingPingOutcome.refused.isDone(at: receiver), receiver.url)
+            XCTAssertFalse(PairingPingOutcome.failed("HTTP 500").isDone(at: receiver), receiver.url)
+        }
+    }
 }

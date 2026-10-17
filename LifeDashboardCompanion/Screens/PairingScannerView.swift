@@ -20,7 +20,7 @@ struct PairingScannerView: View {
     @State private var hint: LocalizedStringResource = PairingScannerView.defaultHint
     @State private var controller = QRCaptureController()
 
-    static let defaultHint: LocalizedStringResource = "Fill the frame with the code shown by the Life Dashboard integration in Home Assistant. Closer is better."
+    static let defaultHint: LocalizedStringResource = "Fill the frame with the pairing code your receiver shows, such as Home Assistant or the Life Dashboard Stack. Closer is better."
 
     var body: some View {
         ZStack {

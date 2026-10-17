@@ -37,7 +37,7 @@ These are the Apple Health types that have a counterpart in the Android app, und
 
 ## Webhook configuration
 
-- **Pairing by QR code** - the [Home Assistant integration](https://github.com/owen282000/life-dashboard-ha) (0.7.1 or newer) shows a code, and **Scan a pairing code** under the webhook fills in the address and the signing secret after one confirmation. See [Pairing by QR code](usage.md#pairing-by-qr-code)
+- **Pairing by QR code** - the [Home Assistant integration](https://github.com/owen282000/life-dashboard-ha) (0.7.1 or newer) or the [Life Dashboard Stack](https://github.com/owen282000/life-dashboard-stack) shows a code, and **Scan a pairing code** under the webhook fills in the address and the signing secret after one confirmation. See [Pairing by QR code](usage.md#pairing-by-qr-code)
 - **Multiple webhook URLs** - send to several endpoints at once; a sync counts as delivered when one of them accepted it
 - **Custom headers** - auth tokens, API keys or any other HTTP header, sent to the URLs you typed in and never to one that pairing added. A header HTTP cannot carry (a space in the name, a line break in the value) is refused when you add it
 - **HMAC payload signing** - an optional `X-Signature` header, the Android app's scheme, so your server can verify the sender

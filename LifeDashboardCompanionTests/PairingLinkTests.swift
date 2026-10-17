@@ -215,6 +215,36 @@ final class PairingLinkTests: XCTestCase {
         XCTAssertFalse(PairingLink(url: "http://my_ha:8123/x", secret: "s", name: nil).host.hasPrefix("null"))
     }
 
+    // MARK: - Home Assistant or another receiver
+
+    func testHomeAssistantIsToldByItsWebhookAddress() {
+        let homeAssistant = [
+            webhookUrl,
+            "https://ha.example.com/api/webhook/abc",
+            "https://example.com/ha/api/webhook/abc",
+            "https://hooks.nabu.casa/gAAAAAB",
+            "https://HOOKS.NABU.CASA./gAAAAAB"
+        ]
+        for url in homeAssistant {
+            XCTAssertTrue(PairingLink(url: url, secret: "s", name: nil).looksLikeHomeAssistant, url)
+        }
+        let others = [
+            "https://stack.example.com/webhook/iphone",
+            "http://192.168.1.20:8000/webhook/owen",
+            "https://n8n.example.com/webhook/abc",
+            "https://example.com/api/webhooks/abc",
+            "https://hooks.nabu.casa.example.com/x"
+        ]
+        for url in others {
+            XCTAssertFalse(PairingLink(url: url, secret: "s", name: nil).looksLikeHomeAssistant, url)
+        }
+    }
+
+    func testTheNameDoesNotMakeAReceiverHomeAssistant() {
+        XCTAssertFalse(PairingLink(url: "https://stack.example.com/webhook/iphone", secret: "s", name: "Home Assistant").looksLikeHomeAssistant)
+        XCTAssertTrue(PairingLink(url: "https://ha.example.com/api/webhook/abc", secret: "s", name: "Life Dashboard Stack").looksLikeHomeAssistant)
+    }
+
     // MARK: - The secret never prints
 
     func testTheSecretIsRedactedEverywhere() {

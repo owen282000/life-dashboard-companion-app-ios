@@ -105,8 +105,8 @@ struct OnboardingView: View {
             stepTitle("Where should your data go?", "You can add more, or change this, on the Health tab.")
 
             choiceCard(
-                title: "Home Assistant",
-                subtitle: Text("Scan the pairing code of the Life Dashboard integration"),
+                title: "Home Assistant or Life Dashboard Stack",
+                subtitle: Text("Scan the pairing code from the Life Dashboard integration or the stack"),
                 systemImage: "qrcode.viewfinder",
                 isDone: !prefs.healthUrlsWithoutHeaders.isEmpty
             ) {

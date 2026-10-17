@@ -265,6 +265,22 @@
         }
       }
     },
+    "%@ confirmed the pairing." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ hat die Kopplung bestätigt."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ heeft de koppeling bevestigd."
+          }
+        }
+      }
+    },
     "%@ missed the last %lld syncs. Another destination took them, so they are not queued for %@. See the Logs tab." : {
       "localizations" : {
         "de" : {
@@ -3092,6 +3108,22 @@
         }
       }
     },
+    "Delivered: the receiver accepted the test ping." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zugestellt: Der Empfänger hat den Test-Ping angenommen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afgeleverd: de ontvanger heeft de testping aangenomen."
+          }
+        }
+      }
+    },
     "Deliveries" : {
       "localizations" : {
         "de" : {
@@ -3950,18 +3982,18 @@
         }
       }
     },
-    "Fill the frame with the code shown by the Life Dashboard integration in Home Assistant. Closer is better." : {
+    "Fill the frame with the pairing code your receiver shows, such as Home Assistant or the Life Dashboard Stack. Closer is better." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fülle den Rahmen mit dem Code, den die Life-Dashboard-Integration in Home Assistant zeigt. Näher ist besser."
+            "value" : "Fülle den Rahmen mit dem Kopplungscode, den dein Empfänger zeigt, etwa Home Assistant oder der Life Dashboard Stack. Näher ist besser."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vul het kader met de code die de Life Dashboard-integratie in Home Assistant toont. Dichterbij werkt beter."
+            "value" : "Vul het kader met de koppelcode die je ontvanger toont, zoals Home Assistant of de Life Dashboard Stack. Dichterbij werkt beter."
           }
         }
       }
@@ -4334,21 +4366,18 @@
         }
       }
     },
-    "Home Assistant" : {
-      "shouldTranslate" : false
-    },
-    "Home Assistant confirmed the pairing." : {
+    "Home Assistant or Life Dashboard Stack" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant hat die Kopplung bestätigt."
+            "value" : "Home Assistant oder Life Dashboard Stack"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant heeft de koppeling bevestigd."
+            "value" : "Home Assistant of Life Dashboard Stack"
           }
         }
       }
@@ -4589,38 +4618,6 @@
         }
       }
     },
-    "Setup guides and the other Life Dashboard parts" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Einrichtungsanleitungen und die anderen Teile von Life Dashboard"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Installatiegidsen en de andere onderdelen van Life Dashboard"
-          }
-        }
-      }
-    },
-    "Website" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Website"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Website"
-          }
-        }
-      }
-    },
     "iOS blocks plain HTTP to this host. Use its IP address or https." : {
       "localizations" : {
         "de" : {
@@ -4681,6 +4678,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "iOS staat onversleutelde HTTP alleen toe naar IP-adressen en .local-namen. Gebruik in Home Assistant Herconfigureer op de integratie met het IP-adres of een https-adres, en scan de nieuwe code."
+          }
+        }
+      }
+    },
+    "iOS only allows plain HTTP to IP addresses and .local names. Make a new pairing code on the receiver with the IP address or an https address, and scan that." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS erlaubt unverschlüsseltes HTTP nur zu IP-Adressen und .local-Namen. Erstelle auf dem Empfänger einen neuen Kopplungscode mit der IP-Adresse oder einer https-Adresse und scanne diesen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS staat onversleutelde HTTP alleen toe naar IP-adressen en .local-namen. Maak op de ontvanger een nieuwe koppelcode met het IP-adres of een https-adres, en scan die."
           }
         }
       }
@@ -7023,18 +7036,18 @@
         }
       }
     },
-    "Scan the pairing code of the Life Dashboard integration" : {
+    "Scan the pairing code from the Life Dashboard integration or the stack" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Scanne den Kopplungscode der Life-Dashboard-Integration"
+            "value" : "Scanne den Kopplungscode der Life-Dashboard-Integration oder des Stacks"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Scan de koppelcode van de Life Dashboard-integratie"
+            "value" : "Scan de koppelcode van de Life Dashboard-integratie of de stack"
           }
         }
       }
@@ -7259,6 +7272,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Instellingen blijven op je apparaat, tenzij je ze exporteert"
+          }
+        }
+      }
+    },
+    "Setup guides and the other Life Dashboard parts" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einrichtungsanleitungen und die anderen Teile von Life Dashboard"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installatiegidsen en de andere onderdelen van Life Dashboard"
           }
         }
       }
@@ -8399,6 +8428,22 @@
         }
       }
     },
+    "The receiver confirmed the pairing." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Empfänger hat die Kopplung bestätigt."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De ontvanger heeft de koppeling bevestigd."
+          }
+        }
+      }
+    },
     "The signing secret on this iPhone is kept." : {
       "localizations" : {
         "de" : {
@@ -9108,6 +9153,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Webhooks die het vereisen, weigeren elke synchronisatie tot je het opnieuw importeert."
+          }
+        }
+      }
+    },
+    "Website" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Website"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Website"
           }
         }
       }
