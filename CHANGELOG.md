@@ -4,6 +4,23 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The privacy policy under About says what PRIVACY.md says. It said a sync sends each record once, while a
+  backfill, or a delivery that iOS cut off, can send one again, and that a payload leaves the retry queue
+  once a server has turned it down for a week, while a full queue also lets its oldest one go and a payload
+  older than 7 days goes at the next delivery a server answers with an error, never while no server can be
+  reached. It now lists the permissions, what a payload carries besides the records (the sync time, the app
+  version, a counter, daily totals and the ids of deleted records, no device model or identifier), what the
+  developer can receive through Apple from TestFlight and the App Store, the samples a data resolution holds,
+  and who is responsible for the app, with owen282000@hotmail.com as the address for privacy questions
+  instead of the GitHub profile. In English, Dutch and German.
+- PRIVACY.md says what the developer can receive through Apple and who is responsible for the app, that a
+  full retry queue lets its oldest payload go, and that the deletions still to report stay out of backups.
+- The camera permission text and the Privacy & Security card no longer speak only of Home Assistant or
+  say that settings stay on the iPhone, which an iPhone backup includes: the camera scans the code your
+  receiver shows, and the card says the app has no analytics, ads or trackers.
+
 ### Fixed
 
 - After pairing with a receiver other than Home Assistant, such as the Life Dashboard Stack, the sheet said
