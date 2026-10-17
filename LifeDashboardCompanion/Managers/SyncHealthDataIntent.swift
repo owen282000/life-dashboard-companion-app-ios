@@ -14,8 +14,9 @@ import UIKit
 /// otherwise run in the extension, which cannot read HealthKit or reach SyncCoordinator.
 struct SyncHealthDataIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Sync Health Data"
+    /// Apple rejects a build whose intent title or description says "Apple" (ITMS-90626), in any language.
     static let description = IntentDescription(
-        "Reads your enabled Apple Health data types and delivers them to your webhooks and MQTT broker."
+        "Reads the Health data types you turned on and delivers them to your webhooks and MQTT broker."
     )
 
     #if WIDGET_EXTENSION

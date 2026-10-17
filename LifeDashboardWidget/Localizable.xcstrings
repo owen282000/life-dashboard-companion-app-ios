@@ -84,18 +84,18 @@
         }
       }
     },
-    "Reads your enabled Apple Health data types and delivers them to your webhooks and MQTT broker." : {
+    "Reads the Health data types you turned on and delivers them to your webhooks and MQTT broker." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Liest die aktivierten Datentypen aus Apple Health und stellt sie an deine Webhooks und deinen MQTT-Broker zu."
+            "value" : "Liest die Datentypen aus Health, die du aktiviert hast, und stellt sie an deine Webhooks und deinen MQTT-Broker zu."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Leest de ingeschakelde datatypes uit Apple Gezondheid en levert ze af bij je webhooks en je MQTT-broker."
+            "value" : "Leest de datatypes uit Gezondheid die je hebt aangezet en levert ze af bij je webhooks en je MQTT-broker."
           }
         }
       }
