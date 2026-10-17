@@ -121,6 +121,18 @@ final class LocalizationTests: XCTestCase {
         }
     }
 
+    // MARK: - Shortcuts and Siri
+
+    /// App Store Connect turns a build away when the intent's title or description says "Apple"
+    /// (ITMS-90626), so they speak of Health, as iOS itself does in each language.
+    func testTheSyncIntentDoesNotSayAppleInAnyLanguage() {
+        for language in ["en", "nl", "de"] {
+            for text in [SyncHealthDataIntent.title, SyncHealthDataIntent.description.descriptionText] {
+                XCTAssertFalse(resolve(text, language).localizedCaseInsensitiveContains("apple"), language)
+            }
+        }
+    }
+
     // MARK: - Stored in English, shown translated
 
     func testEveryStoredMessageIsRecognized() {

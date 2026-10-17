@@ -23,6 +23,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- App Store Connect turned build 200 away because the description of the Sync Health Data shortcut said
+  "Apple Health" (ITMS-90626). It now says Health, in English, Dutch and German.
 - After pairing with a receiver other than Home Assistant, such as the Life Dashboard Stack, the sheet said
   the Life Dashboard integration did not answer and to check that the entry for this phone still exists,
   while the receiver had taken the test ping. A receiver that accepts the ping now reads as delivered, with a
