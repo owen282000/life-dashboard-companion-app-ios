@@ -164,6 +164,14 @@ actor SyncCoordinator {
         await withCheckedContinuation { waitingWatchers.append((count, $0)) }
     }
 
+    /// Returns once no flight is set. `fly` hands its caller the result before the flight has
+    /// cleared itself on this actor, so a test that starts its next step right away can still
+    /// find the last run in the air, and an automatic drain or run then counts as covered by
+    /// it. Tests wait here between steps.
+    func untilLanded() async {
+        while let flight { await flight.value }
+    }
+
     /// Runs `operation` as the one flight. Cancelling the caller cancels the work, which is how a
     /// background task that runs out of time stops its run.
     ///

@@ -332,9 +332,14 @@ final class SyncCoordinatorTests: XCTestCase {
         XCTAssertEqual(world.drains, 1)
         XCTAssertEqual(world.retriedRefused, [true], "Retry Now offers what was refused today too")
 
+        // Each step only once the one before it has landed: an automatic drain or run that finds
+        // a flight still in the air counts as covered by it and does not drain on its own.
+        await coordinator.untilLanded()
         world.schedule = SyncSchedule()
         await coordinator.drain(automatic: true)
+        await coordinator.untilLanded()
         _ = await coordinator.runAutomatic(.observer)
+        await coordinator.untilLanded()
         _ = await coordinator.runManual(syncNow: false)
         XCTAssertEqual(world.retriedRefused, [true, false, false, false])
     }
