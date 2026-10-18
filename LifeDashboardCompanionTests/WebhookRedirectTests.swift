@@ -170,6 +170,142 @@ final class WebhookRedirectTests: XCTestCase {
         XCTAssertTrue(RedirectStub.requests(to: login).isEmpty)
     }
 
+    // MARK: - Google Apps Script
+
+    private static let exec = URL(string: "https://script.google.com/macros/s/AKfycbx123/exec")!
+    private static let echo = "https://script.googleusercontent.com/macros/echo?user_content_key=abc&lib=xyz"
+
+    private func answer(_ from: URL, _ status: Int, _ location: String?) -> URL? {
+        WebhookRedirect.appsScriptAnswer(from: from, status: status, location: location)
+    }
+
+    func testTheAppsScriptAnswerIsReadFromGooglesAnswerHost() {
+        XCTAssertEqual(answer(Self.exec, 302, Self.echo)?.absoluteString, Self.echo)
+        // 301 and 303 become a GET as well, and the hosts are not case sensitive.
+        XCTAssertNotNil(answer(Self.exec, 303, Self.echo))
+        XCTAssertNotNil(answer(Self.exec, 301, Self.echo))
+        XCTAssertNotNil(answer(URL(string: "https://SCRIPT.google.com/macros/s/x/exec")!, 302, Self.echo))
+        // A Google Workspace deployment carries the domain in its path.
+        XCTAssertNotNil(answer(URL(string: "https://script.google.com/a/macros/example.com/s/x/exec")!, 302, Self.echo))
+        XCTAssertNotNil(answer(URL(string: "https://script.google.com:443/macros/s/x/exec")!, 302, Self.echo))
+    }
+
+    func testNoOtherRedirectCountsAsTheAppsScriptOne() {
+        // 307 and 308 would repeat the POST somewhere else.
+        XCTAssertNil(answer(Self.exec, 307, Self.echo))
+        XCTAssertNil(answer(Self.exec, 308, Self.echo))
+        XCTAssertNil(answer(Self.exec, 200, Self.echo))
+        // Google's sign-in page, another Google host, or anything that only looks like Google.
+        XCTAssertNil(answer(Self.exec, 302, "https://accounts.google.com/ServiceLogin?continue=x"))
+        XCTAssertNil(answer(Self.exec, 302, "https://docs.google.com/macros/echo?x=1"))
+        XCTAssertNil(answer(Self.exec, 302, "https://script.googleusercontent.com.evil.example/macros/echo"))
+        XCTAssertNil(answer(Self.exec, 302, "https://user@script.googleusercontent.com/macros/echo"))
+        XCTAssertNil(answer(URL(string: "https://script.google.com.evil.example/macros/s/x/exec")!, 302, Self.echo))
+        XCTAssertNil(answer(URL(string: "https://ha.example/macros/s/x/exec")!, 302, Self.echo))
+        // Plain http, another port, or a path outside /macros/ on either side.
+        XCTAssertNil(answer(Self.exec, 302, "http://script.googleusercontent.com/macros/echo"))
+        XCTAssertNil(answer(URL(string: "http://script.google.com/macros/s/x/exec")!, 302, Self.echo))
+        XCTAssertNil(answer(Self.exec, 302, "https://script.googleusercontent.com:8443/macros/echo"))
+        XCTAssertNil(answer(Self.exec, 302, "https://script.googleusercontent.com/other"))
+        XCTAssertNil(answer(URL(string: "https://script.google.com/home")!, 302, Self.echo))
+        XCTAssertNil(answer(Self.exec, 302, nil))
+        XCTAssertNil(answer(Self.exec, 302, " "))
+    }
+
+    func testAnAppsScriptThatAsksForASignInSaysHowToDeployIt() throws {
+        let response = try XCTUnwrap(HTTPURLResponse(
+            url: Self.exec, statusCode: 302, httpVersion: "HTTP/1.1",
+            headerFields: ["Location": "https://accounts.google.com/ServiceLogin?continue=x"]
+        ))
+        let message = WebhookRedirect.failureMessage(response, overLimit: false)
+        XCTAssertEqual(message, AppDiagnostic.appsScriptSignIn(302))
+        XCTAssertTrue(message.contains("Anyone"))
+        // Recognised when shown, so it is translated in Dutch and German.
+        XCTAssertEqual(AppDiagnostic.display(message), message)
+        XCTAssertFalse(WebhookRedirect.isAppsScriptSignIn(from: URL(string: "https://ha.example/hook"), targetHost: "accounts.google.com"))
+    }
+
+    func testAnAppsScriptDeliveryReadsTheAnswerWithAPlainGet() async {
+        let stub = appsScriptStub()
+        let (webhooks, script, answerHost) = (stub.webhooks, stub.script, stub.answerHost)
+        let exec = "https://\(script)/macros/s/abc/exec"
+        RedirectStub.route(exec, status: 302, location: "https://\(answerHost)/macros/echo?user_content_key=k")
+        RedirectStub.route("https://\(answerHost)/macros/echo?user_content_key=k", status: 200)
+
+        let delivery = await post(to: exec, through: webhooks, headers: ["X-Api-Key": "secret-key"])
+
+        XCTAssertEqual(delivery.outcome, .delivered)
+        let posted = RedirectStub.requests(to: script)
+        XCTAssertEqual(posted.count, 1)
+        XCTAssertEqual(posted.first?.method, "POST")
+        XCTAssertEqual(posted.first?.body, Self.body)
+        // Only the URL the user entered gets the payload and its headers.
+        let read = RedirectStub.requests(to: answerHost)
+        XCTAssertEqual(read.count, 1)
+        XCTAssertEqual(read.first?.method, "GET")
+        XCTAssertTrue(read.first?.body?.isEmpty ?? true)
+        XCTAssertNil(read.first?.headers["X-Api-Key"])
+        XCTAssertNil(read.first?.headers["X-Signature"])
+    }
+
+    func testAnAppsScriptAnswerThatFailsDoesNotRepeatThePost() async {
+        let stub = appsScriptStub()
+        let (webhooks, script, answerHost) = (stub.webhooks, stub.script, stub.answerHost)
+        let exec = "https://\(script)/macros/s/abc/exec"
+        RedirectStub.route(exec, status: 302, location: "https://\(answerHost)/macros/echo?k=1")
+        RedirectStub.route("https://\(answerHost)/macros/echo?k=1", status: 500)
+
+        // The script ran on the POST; running it again would write its rows twice.
+        let delivery = await post(to: exec, through: webhooks)
+
+        XCTAssertEqual(delivery.outcome, .delivered)
+        XCTAssertEqual(RedirectStub.requests(to: script).count, 1)
+        XCTAssertEqual(RedirectStub.requests(to: answerHost).count, 1)
+    }
+
+    func testAnAppsScriptRedirectThatKeepsThePostOrLeavesMacrosIsNotFollowed() async {
+        let stub = appsScriptStub()
+        let (webhooks, script, answerHost) = (stub.webhooks, stub.script, stub.answerHost)
+        let exec = "https://\(script)/macros/s/abc/exec"
+        RedirectStub.route(exec, status: 307, location: "https://\(answerHost)/macros/echo?k=1")
+        let kept = await post(to: exec, through: webhooks)
+        XCTAssertEqual(kept.outcome, .failed)
+
+        let hook = "https://\(script)/hook"
+        RedirectStub.route(hook, status: 302, location: "https://\(answerHost)/macros/echo?k=1")
+        let elsewhere = await post(to: hook, through: webhooks)
+        XCTAssertEqual(elsewhere.outcome, .failed)
+        XCTAssertTrue(RedirectStub.requests(to: answerHost).isEmpty)
+    }
+
+    /// A manager whose Apps Script rule names two stub hosts, and those hosts.
+    private struct AppsScriptStub {
+        let webhooks: WebhookManager
+        let script: String
+        let answerHost: String
+    }
+
+    private func appsScriptStub() -> AppsScriptStub {
+        let script = Self.host()
+        let answerHost = Self.host()
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [RedirectStub.self]
+        let rule = WebhookRedirect.AppsScriptRule(scheme: "https", scriptHost: "\(script):443", answerHost: "\(answerHost):443")
+        return AppsScriptStub(
+            webhooks: WebhookManager(configuration: configuration, appsScriptRule: rule),
+            script: script, answerHost: answerHost
+        )
+    }
+
+    private func post(to url: String, through manager: WebhookManager, headers: [String: String] = [:]) async -> WebhookManager.Delivery {
+        let delivery = await manager.post(
+            body: Self.body, urls: [url], headers: headers,
+            logType: .healthConnect, dataType: "health_connect", recordCount: 1
+        )
+        for row in LogStore.shared.load() where row.url == url { LogStore.shared.delete(id: row.id) }
+        return delivery
+    }
+
     // MARK: - Helpers
 
     private static let body = Data(#"{"records":1}"#.utf8)

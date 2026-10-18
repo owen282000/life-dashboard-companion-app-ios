@@ -4430,6 +4430,22 @@
         }
       }
     },
+    "HTTP %lld: Google asked for a sign-in, so nothing reached the script. Deploy the Apps Script web app with \"Who has access\" set to Anyone." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP %lld: Google hat eine Anmeldung verlangt, das Skript hat also nichts erhalten. Stell die Apps-Script-Web-App unter \"Wer hat Zugriff\" auf \"Jeder\"."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP %lld: Google vroeg om in te loggen, het script heeft dus niets ontvangen. Implementeer de Apps Script-web-app met \"Wie heeft toegang\" op \"Iedereen\"."
+          }
+        }
+      }
+    },
     "HTTP %lld: more than %lld redirects, the last to %@. Enter the final address as the webhook URL." : {
       "localizations" : {
         "de" : {

@@ -35,6 +35,7 @@ LifeDashboardCompanion/Models/AppDiagnostic.swift | Error: | diagnostic | prefix
 LifeDashboardCompanion/Models/AppDiagnostic.swift | HTTP %arg: redirect not followed, so nothing was sent there. %arg | diagnostic | stored form, display() translates it
 LifeDashboardCompanion/Models/AppDiagnostic.swift | HTTP %arg: redirect to %arg not followed, so nothing was sent there. %arg | diagnostic | stored form, display() translates it
 LifeDashboardCompanion/Models/AppDiagnostic.swift | HTTP %arg: more than %arg redirects, the last to %arg. Enter the final address as the webhook URL. | diagnostic | stored form, display() translates it
+LifeDashboardCompanion/Models/AppDiagnostic.swift | HTTP %arg: Google asked for a sign-in, so nothing reached the script. Deploy the Apps Script web app with "Who has access" set to Anyone. | diagnostic | stored form, display() translates it
 LifeDashboardCompanion/Models/AppDiagnostic.swift | Custom header "%arg" is not valid, so nothing was sent. Remove it under Webhook and add it again. | diagnostic | stored form, display() translates it
 LifeDashboardCompanion/Screens/AboutScreen.swift | MIT · © 2026 Owen Vogelaar | brand | licence name and author, the same in every language
 

@@ -13,10 +13,14 @@ actor WebhookManager {
     /// `WebhookTaskDelegate`, which decides about redirects.
     private let session: URLSession
 
+    /// Google's Apps Script hosts; a test replaces them with its stub hosts.
+    private let appsScriptRule: WebhookRedirect.AppsScriptRule
+
     /// Tests pass a configuration with their stub protocol; a session of its own does not
     /// consult `URLProtocol.registerClass`.
-    init(configuration: URLSessionConfiguration = .default) {
+    init(configuration: URLSessionConfiguration = .default, appsScriptRule: WebhookRedirect.AppsScriptRule = .google) {
         session = URLSession(configuration: configuration)
+        self.appsScriptRule = appsScriptRule
     }
 
     deinit {
@@ -275,6 +279,16 @@ actor WebhookManager {
         return Sent(data: data, response: response, stoppedAtLimit: delegate.stoppedAtLimit)
     }
 
+    /// Reads the answer an Apps Script web app parked on its answer host: a plain GET, without
+    /// the body, the signature or the custom headers, which stay with the URL the user entered.
+    /// Its outcome changes nothing, as the script has already taken the payload.
+    private func readAppsScriptAnswer(_ answer: URL) async {
+        var request = URLRequest(url: answer)
+        request.httpMethod = "GET"
+        request.timeoutInterval = Self.timeoutSeconds
+        _ = try? await send(request)
+    }
+
     private func postWithRetry(
         data: Data,
         urlString: String,
@@ -307,6 +321,19 @@ actor WebhookManager {
 
                 if let httpResponse = sent.response as? HTTPURLResponse {
                     lastStatusCode = httpResponse.statusCode
+                    // Apps Script ran doPost on the POST and parked its output elsewhere: the
+                    // payload has arrived. Reading the answer cannot fail the delivery, and the
+                    // POST is never repeated for it, which would run the script twice.
+                    if let from = httpResponse.url,
+                       let answer = WebhookRedirect.appsScriptAnswer(
+                           from: from,
+                           status: httpResponse.statusCode,
+                           location: httpResponse.value(forHTTPHeaderField: "Location"),
+                           rule: appsScriptRule
+                       ) {
+                        await readAppsScriptAnswer(answer)
+                        return WebhookResult(url: urlString, statusCode: httpResponse.statusCode, success: true, errorMessage: nil)
+                    }
                     if (200...299).contains(httpResponse.statusCode) {
                         return WebhookResult(
                             url: urlString,
