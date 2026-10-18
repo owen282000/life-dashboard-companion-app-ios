@@ -203,6 +203,7 @@ enum BackfillPayload {
             payload[key] = value
         }
         payload["timestamp"] = now.iso8601String
+        payload["timezone"] = HealthSyncManager.timezone
         payload["app_version"] = appVersion
         payload["source"] = "healthkit_ios"
         payload["backfill"] = true

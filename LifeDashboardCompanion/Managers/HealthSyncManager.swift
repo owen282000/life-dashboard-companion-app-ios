@@ -229,6 +229,7 @@ final class HealthSyncManager: Sendable {
             case .data(let healthData, let readCommit, let notCurrent):
                 var payload: [String: Any] = healthData
                 payload["timestamp"] = Date().iso8601String
+                payload["timezone"] = Self.timezone
                 payload["app_version"] = appVersion
                 payload["source"] = "healthkit_ios"
                 let deletions = await attachDeletions(to: &payload, records: healthData, readGeneration: readGeneration)
@@ -384,6 +385,11 @@ final class HealthSyncManager: Sendable {
         SyncFailureNotifier.shared.notifyDropped(count: dropped.count)
     }
 
+    /// The iPhone's time zone when a payload is built, such as Europe/Amsterdam, as the Android
+    /// app sends it: the zone `daily_totals` cut their days in. Every time is UTC; only the zone
+    /// tells a receiver the local day after a DST change or a trip.
+    static var timezone: String { TimeZone.current.identifier }
+
     // MARK: - Preview
 
     /// What View and Export show: no `sequence`, since looking is not sending, and a number
@@ -393,6 +399,7 @@ final class HealthSyncManager: Sendable {
 
         var payload = try await healthKit.readHealthData(for: enabledTypes)
         payload["timestamp"] = Date().iso8601String
+        payload["timezone"] = Self.timezone
         payload["app_version"] = appVersion
         payload["source"] = "healthkit_ios"
         await attachDailyTotals(to: &payload, types: enabledTypes)
@@ -430,6 +437,7 @@ final class HealthSyncManager: Sendable {
     ) async -> HealthSyncResult? {
         var payload: [String: Any] = [
             "timestamp": Date().iso8601String,
+            "timezone": Self.timezone,
             "app_version": appVersion,
             "source": "healthkit_ios"
         ]
