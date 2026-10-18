@@ -135,6 +135,15 @@ final class LocalizationTests: XCTestCase {
 
     // MARK: - Stored in English, shown translated
 
+    /// The Apps Script sign-in line names Google's own labels, as Google shows them in each language.
+    func testTheAppsScriptSignInLineUsesGooglesLabelsInEachLanguage() {
+        let status = 302
+        let line: LocalizedStringResource = "HTTP \(status): Google asked for a sign-in, so nothing reached the script. Deploy the Apps Script web app with \"Who has access\" set to Anyone."
+        XCTAssertTrue(resolve(line, "nl").contains("\"Wie heeft toegang\" op \"Iedereen\""))
+        XCTAssertTrue(resolve(line, "de").contains("\"Wer hat Zugriff\" auf \"Jeder\""))
+        XCTAssertEqual(resolve(line, "en"), AppDiagnostic.appsScriptSignIn(status))
+    }
+
     func testEveryStoredMessageIsRecognized() {
         for diagnostic in AppDiagnostic.allCases {
             XCTAssertEqual(AppDiagnostic(rawValue: diagnostic.rawValue), diagnostic)

@@ -93,6 +93,12 @@ enum AppDiagnostic: String, CaseIterable {
         "HTTP \(status): more than \(WebhookRedirect.maxRedirects) redirects, the last to \(host). Enter the final address as the webhook URL."
     }
 
+    /// An Apps Script web app that sent the POST to Google's sign-in page, worded as Android's
+    /// WebhookSupport.appsScriptSignInMessage.
+    static func appsScriptSignIn(_ status: Int) -> String {
+        "HTTP \(status): Google asked for a sign-in, so nothing reached the script. Deploy the Apps Script web app with \"Who has access\" set to Anyone."
+    }
+
     private static let redirectAdvice =
         "Only a redirect on the same host is followed; enter the final address as the webhook URL."
 
@@ -141,6 +147,9 @@ enum AppDiagnostic: String, CaseIterable {
     /// carry, so the English wording lives in one place.
     private static func displayRedirect(_ stored: String) -> String? {
         guard let head = stored.prefixMatch(of: /HTTP (\d+):/), let status = Int(head.1) else { return nil }
+        if stored == appsScriptSignIn(status) {
+            return String(localized: "HTTP \(status): Google asked for a sign-in, so nothing reached the script. Deploy the Apps Script web app with \"Who has access\" set to Anyone.")
+        }
         if stored == redirectNotFollowed(status, host: nil) {
             return String(localized: "HTTP \(status): redirect not followed, so nothing was sent there. Only a redirect on the same host is followed; enter the final address as the webhook URL.")
         }

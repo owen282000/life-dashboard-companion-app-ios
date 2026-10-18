@@ -32,7 +32,8 @@ enum WebhookRetryPolicy {
 
 /// Which redirects a delivery follows, as Android's WebhookSupport.followableRedirect.
 enum WebhookRedirect {
-    /// Redirects one delivery follows at most, all on the same host.
+    /// Redirects one delivery follows at most, all on the same host (Apps Script aside, see
+    /// `appsScriptAnswer`).
     static let maxRedirects = 5
 
     /// Where a post to `from` follows a redirect to `target` (already resolved against `from`),
@@ -55,6 +56,51 @@ enum WebhookRedirect {
         return fromPort == toPort || upgrade ? target : nil
     }
 
+    /// Google's Apps Script hosts, as `host:port`. A parameter only so a test can stand in for
+    /// Google; a delivery always uses `.google`.
+    struct AppsScriptRule: Sendable {
+        let scheme: String
+        let scriptHost: String
+        let answerHost: String
+
+        static let google = AppsScriptRule(
+            scheme: "https", scriptHost: "script.google.com:443", answerHost: "script.googleusercontent.com:443"
+        )
+    }
+
+    /// The one redirect to another host a delivery accepts, as Android's
+    /// WebhookSupport.appsScriptAnswer: a Google Apps Script web app. Its `/exec` URL runs doPost
+    /// on the POST itself and then answers 302 with the script's output parked on the answer
+    /// host. By then the payload has arrived, so nothing is sent again: the answer is read with
+    /// a plain GET, without the body, the signature or the custom headers. Only a 301, 302 or 303
+    /// (the ones that become a GET) from a `/macros/` path on the script host to a `/macros/`
+    /// path on the answer host counts; a sign-in page, another Google host or anything else does
+    /// not, and fails the delivery as before. Nil when this is not that redirect.
+    static func appsScriptAnswer(from: URL, status: Int, location: String?, rule: AppsScriptRule = .google) -> URL? {
+        guard [301, 302, 303].contains(status),
+              let location = location?.trimmingCharacters(in: .whitespaces), !location.isEmpty,
+              let target = URL(string: location, relativeTo: from)?.absoluteURL,
+              isAt(from, scheme: rule.scheme, hostAndPort: rule.scriptHost),
+              isAt(target, scheme: rule.scheme, hostAndPort: rule.answerHost),
+              from.path(percentEncoded: true).contains("/macros/"),
+              target.path(percentEncoded: true).hasPrefix("/macros/"),
+              target.user == nil, target.password == nil
+        else { return nil }
+        return target
+    }
+
+    private static func isAt(_ url: URL, scheme: String, hostAndPort: String) -> Bool {
+        guard let urlScheme = url.scheme?.lowercased(), urlScheme == scheme, let host = asciiHost(url) else { return false }
+        return "\(host):\(url.port ?? defaultPort(urlScheme))" == hostAndPort.lowercased()
+    }
+
+    /// True when an Apps Script web app sent the POST to Google's sign-in page: it is deployed
+    /// for signed-in users only, which a phone cannot be.
+    static func isAppsScriptSignIn(from: URL?, targetHost: String?) -> Bool {
+        guard let from, let fromHost = asciiHost(from) else { return false }
+        return fromHost == "script.google.com" && targetHost?.lowercased() == "accounts.google.com"
+    }
+
     /// The log line for a 3xx that was not followed. Names the host it pointed at, so the user
     /// can enter the final address, and says when it was the number of redirects that stopped it.
     /// The host stays percent-encoded, so a Location cannot put a line break into the log.
@@ -63,6 +109,9 @@ enum WebhookRedirect {
             .flatMap { URL(string: $0, relativeTo: response.url)?.absoluteURL }
         guard let host = target?.host(percentEncoded: true), !host.isEmpty else {
             return AppDiagnostic.redirectNotFollowed(response.statusCode, host: nil)
+        }
+        if isAppsScriptSignIn(from: response.url, targetHost: host) {
+            return AppDiagnostic.appsScriptSignIn(response.statusCode)
         }
         return overLimit
             ? AppDiagnostic.tooManyRedirects(response.statusCode, host: host)
