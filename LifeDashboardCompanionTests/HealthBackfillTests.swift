@@ -162,6 +162,7 @@ final class HealthBackfillTests: XCTestCase {
         XCTAssertTrue(text.contains("\"backfill\":true"))
         XCTAssertTrue(text.contains("\"window_complete\":false"))
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(json["timezone"] as? String, TimeZone.current.identifier, "the zone daily_totals cut their days in")
         XCTAssertEqual(json["window_start"] as? String, "2023-11-14T22:13:20Z")
         XCTAssertEqual(json["window_end"] as? String, "2023-11-17T22:13:20Z")
         XCTAssertEqual(json["source"] as? String, "healthkit_ios")

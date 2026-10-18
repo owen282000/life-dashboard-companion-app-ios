@@ -13,6 +13,8 @@ All notable changes to this project are documented in this file. The format is b
   headers. The delivery counts as soon as the script has run, so the POST is never sent twice. A
   script deployed for signed-in users only gets a log line that says to set its access to Anyone, in
   English, Dutch and German.
+- Every sync and backfill payload carries `timezone`, the iPhone's time zone such as
+  Europe/Amsterdam, as the Android app sends it: the zone the days of `daily_totals` are cut in.
 
 ### Changed
 
