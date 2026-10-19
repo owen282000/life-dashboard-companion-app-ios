@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<!--
+  Source for the App Store screenshots (6.9 inch, 1320x2868 each): one wide panorama of six
+  panels, 7920x2868, that docs/brand/app-store/render.sh renders whole (panorama-en.png) and
+  per panel (en-1.png to en-6.png, panorama.html?panel=1 to ?panel=6).
+
+  One continuous background, a heartbeat line that runs through all six panels, and phones
+  that lean over the edge into the next panel, so the row reads as one picture when swiping.
+
+  Every phone screen is a real capture of the app in the simulator (raw/, from
+  scripts/store-screenshots.sh), at its native size. The floating cards are enlarged crops of
+  those captures, or of the Life Dashboard integration's own example dashboard and pairing
+  code in Home Assistant (life-dashboard-ha, docs/screenshots), labelled as Home Assistant;
+  only its health cards, since an iPhone sends no screen time. Nothing in them is anyone's
+  real data.
+
+  Rules for the captions: no prices, no rankings, no competitor names, no Apple logos, no
+  medical claims, and nothing the app does not do.
+
+  Brand: heartbeat green #30B77E on the dark green-tinted ground, "Helvetica Neue".
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 7920px; height: 2868px; overflow: hidden; background: #0C1714; }
+  body.single, body.single html { width: 1320px; }
+  #stage {
+    position: absolute; left: 0; top: 0; width: 7920px; height: 2868px; overflow: hidden;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #fff;
+    background:
+      radial-gradient(900px 900px at 640px 1750px, rgba(48,183,126,0.20), transparent 70%),
+      radial-gradient(800px 800px at 2050px 1350px, rgba(48,183,126,0.13), transparent 70%),
+      radial-gradient(900px 900px at 3250px 1750px, rgba(70,140,255,0.13), transparent 70%),
+      radial-gradient(900px 900px at 4650px 1500px, rgba(48,183,126,0.16), transparent 70%),
+      radial-gradient(900px 900px at 5950px 1700px, rgba(48,183,126,0.15), transparent 70%),
+      radial-gradient(900px 900px at 7250px 1500px, rgba(48,183,126,0.17), transparent 70%),
+      radial-gradient(2600px 1300px at 3960px -300px, rgba(48,183,126,0.10), transparent 70%),
+      linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,0.35) 100%),
+      linear-gradient(90deg, #11221D 0%, #0E1B18 18%, #101C1C 36%, #0F1D19 54%, #0E1A17 72%, #112019 100%);
+  }
+  .grid {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(48,183,126,0.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(48,183,126,0.055) 1px, transparent 1px);
+    background-size: 88px 88px;
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, black 45%, rgba(0,0,0,0.5) 100%);
+  }
+  svg.pulse { position: absolute; left: 0; top: 0; }
+
+  /* Captions: a bold headline and a short subline at the top of each panel. */
+  .cap { position: absolute; top: 150px; width: 1160px; text-align: center; }
+  .cap h1 {
+    font-size: 124px; font-weight: 800; line-height: 1.02; letter-spacing: -3px;
+    text-shadow: 0 6px 40px rgba(0,0,0,0.45);
+  }
+  .cap h1 em {
+    font-style: normal;
+    background: linear-gradient(90deg, #5BE3A6, #30B77E);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .cap p { margin: 34px auto 0; max-width: 1060px; text-wrap: balance; font-size: 50px; line-height: 1.28; color: #B2C2BC; }
+
+  /* A phone: a dark titanium band, a black bezel and the capture at its own aspect ratio. */
+  .phone { position: absolute; transform-origin: 50% 40%; }
+  .phone .body {
+    position: relative; width: 100%; height: 100%; border-radius: var(--r);
+    background: linear-gradient(135deg, #5A6268 0%, #2A2F33 22%, #1A1D20 50%, #2E3438 78%, #5B6369 100%);
+    padding: var(--band);
+    box-shadow: 0 60px 120px rgba(0,0,0,0.6), 0 20px 50px rgba(0,0,0,0.5), 0 0 160px rgba(48,183,126,0.18);
+  }
+  .phone .bezel { width: 100%; height: 100%; border-radius: calc(var(--r) - var(--band)); background: #000; padding: var(--bezel); }
+  .phone .screen {
+    position: relative; width: 100%; height: 100%; overflow: hidden;
+    border-radius: calc(var(--r) - var(--band) - var(--bezel));
+    background-size: 100% 100%; background-repeat: no-repeat;
+  }
+  .phone .island {
+    position: absolute; left: 50%; transform: translateX(-50%); background: #000;
+    border-radius: 999px;
+  }
+  .phone .btn { position: absolute; width: 8px; border-radius: 4px; background: linear-gradient(90deg, #22272A, #5A6268); }
+  .phone .glare {
+    position: absolute; inset: 0; border-radius: calc(var(--r) - var(--band) - var(--bezel));
+    background: linear-gradient(115deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0) 32%);
+    pointer-events: none;
+  }
+
+  /* Floating cards: enlarged crops with a label saying where they come from. */
+  .float { position: absolute; }
+  .float .frame {
+    border-radius: 34px; overflow: hidden; background: #1C1C1E;
+    border: 2px solid rgba(255,255,255,0.14);
+    box-shadow: 0 50px 100px rgba(0,0,0,0.6), 0 0 0 12px rgba(0,0,0,0.12);
+  }
+  .float .label {
+    display: inline-flex; align-items: center; gap: 14px; margin-bottom: 18px;
+    padding: 14px 26px; border-radius: 999px; white-space: nowrap;
+    font-size: 34px; font-weight: 700; color: #DDE7E3;
+    background: rgba(10,18,16,0.86); border: 2px solid rgba(255,255,255,0.14);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+  }
+  .float .label i { width: 18px; height: 18px; border-radius: 50%; background: var(--dot, #41BDF5); display: inline-block; }
+  .crop { background-repeat: no-repeat; }
+
+  .badge {
+    position: absolute; display: flex; align-items: center; gap: 26px;
+    padding: 30px 46px 30px 34px; border-radius: 999px; white-space: nowrap;
+    background: linear-gradient(135deg, rgba(48,183,126,0.95), rgba(32,140,95,0.95));
+    color: #04140D; box-shadow: 0 40px 90px rgba(0,0,0,0.55), 0 0 90px rgba(48,183,126,0.45);
+  }
+  .badge svg { flex: none; }
+  .badge b { display: block; font-size: 58px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+  .badge small { display: block; margin-top: 8px; font-size: 32px; font-weight: 600; opacity: 0.8; }
+
+  .chip {
+    position: absolute; padding: 22px 36px; border-radius: 999px; white-space: nowrap;
+    font-size: 40px; font-weight: 700; color: #EAF3EF;
+    background: rgba(18,32,28,0.92); border: 2px solid rgba(48,183,126,0.45);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  }
+  .chip span { color: #30B77E; margin-right: 14px; }
+  .chip.big { font-size: 50px; padding: 26px 44px; }
+
+  .stat {
+    position: absolute; padding: 40px 48px; border-radius: 40px;
+    background: rgba(16,28,25,0.94); border: 2px solid rgba(255,255,255,0.14);
+    box-shadow: 0 50px 100px rgba(0,0,0,0.6);
+  }
+  .stat b { display: block; font-size: 150px; font-weight: 800; letter-spacing: -5px; line-height: 0.95; color: #3FD08F; }
+  .stat span { display: block; margin-top: 10px; font-size: 40px; font-weight: 600; color: #C9D6D1; }
+
+  .sign { position: absolute; display: flex; align-items: center; gap: 28px; }
+  .sign img { width: 190px; height: 190px; border-radius: 44px; box-shadow: 0 30px 70px rgba(0,0,0,0.55), 0 0 0 2px rgba(255,255,255,0.1); }
+  .sign b { display: block; font-size: 64px; font-weight: 800; letter-spacing: -1px; }
+  .sign span { display: block; margin-top: 6px; font-size: 40px; color: #AFC0BA; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="grid"></div>
+  <svg class="pulse" width="7920" height="2868" viewBox="0 0 7920 2868">
+    <defs>
+      <filter id="glow" x="-5%" y="-50%" width="110%" height="200%">
+        <feGaussianBlur stdDeviation="10" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <linearGradient id="fade" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0" stop-color="#30B77E" stop-opacity="0.15"/>
+        <stop offset="0.5" stop-color="#30B77E" stop-opacity="0.55"/>
+        <stop offset="1" stop-color="#30B77E" stop-opacity="0.2"/>
+      </linearGradient>
+    </defs>
+    <path id="beat" fill="none" stroke="url(#fade)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+  </svg>
+  <div id="items"></div>
+</div>
+
+<script>
+const W = 1320, H = 2868, RAW = "raw/", HA = "ha/";
+// Rows and cards in the captures, [x, y, w, h] in capture pixels.
+const LOGROW_BACKFILL = [52, 1488, 1216, 176];   // logs.png: the year of backfill, delivered
+const LOGROW_MQTT = [52, 1668, 1216, 176];       // logs.png: an MQTT publish
+const PRIVACY_CARD = [60, 930, 1200, 560];       // about-privacy.png: Privacy & Security
+
+// The heartbeat: a flat line through every panel with a beat in the gaps between phones.
+(function () {
+  const y = 2470, beats = [1180, 2620, 3960, 5250, 6560, 7700];
+  let d = `M -20 ${y}`;
+  for (const x of beats) {
+    d += ` L ${x - 120} ${y} L ${x - 80} ${y - 130} L ${x - 20} ${y + 190} L ${x + 30} ${y - 60} L ${x + 70} ${y}`;
+  }
+  d += ` L 7940 ${y}`;
+  document.getElementById("beat").setAttribute("d", d);
+})();
+
+// A phone of outer width w at (x, y), showing a capture, with a CSS transform.
+function phone(src, x, y, w, transform = "", z = 2) {
+  const band = Math.round(w * 0.016), bezel = Math.round(w * 0.022);
+  const sw = w - 2 * band - 2 * bezel, sh = Math.round(sw * 2868 / 1320);
+  const h = sh + 2 * band + 2 * bezel, r = Math.round(w * 0.15);
+  const k = sw / 1320;
+  const island = `<div class="island" style="top:${Math.round(33 * k)}px;width:${Math.round(378 * k)}px;height:${Math.round(111 * k)}px"></div>`;
+  const btns = `<div class="btn" style="left:-6px;top:${Math.round(h * 0.2)}px;height:${Math.round(h * 0.04)}px"></div>` +
+    `<div class="btn" style="left:-6px;top:${Math.round(h * 0.27)}px;height:${Math.round(h * 0.075)}px"></div>` +
+    `<div class="btn" style="left:-6px;top:${Math.round(h * 0.37)}px;height:${Math.round(h * 0.075)}px"></div>` +
+    `<div class="btn" style="right:-6px;top:${Math.round(h * 0.3)}px;height:${Math.round(h * 0.11)}px"></div>`;
+  return `<div class="phone" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;transform:${transform};z-index:${z};` +
+    `--r:${r}px;--band:${band}px;--bezel:${bezel}px">${btns}<div class="body"><div class="bezel">` +
+    `<div class="screen" style="background-image:url(${src})">${island}<div class="glare"></div></div></div></div></div>`;
+}
+
+// A crop of an image: rect [x, y, w, h] in its pixels, shown `width` wide.
+function crop(src, srcW, rect, width) {
+  const [x, y, w, h] = rect, k = width / w;
+  return `<div class="crop" style="width:${width}px;height:${Math.round(h * k)}px;background-image:url(${src});` +
+    `background-size:${Math.round(srcW * k)}px auto;background-position:${-Math.round(x * k)}px ${-Math.round(y * k)}px"></div>`;
+}
+
+function float(html, x, y, { label, dot, rotate = 0, z = 5, pad = 0, bg } = {}) {
+  return `<div class="float" style="left:${x}px;top:${y}px;transform:rotate(${rotate}deg);z-index:${z};${dot ? `--dot:${dot}` : ""}">` +
+    (label ? `<div class="label"><i></i>${label}</div>` : "") +
+    `<div class="frame" style="padding:${pad}px;${bg ? `background:${bg}` : ""}">${html}</div></div>`;
+}
+
+function caption(n, h, p) {
+  return `<div class="cap" style="left:${(n - 1) * W + 80}px"><h1>${h}</h1><p>${p}</p></div>`;
+}
+
+const tilt = (rz, ry = 0, rx = 0) => `perspective(3200px) rotateY(${ry}deg) rotateX(${rx}deg) rotate(${rz}deg)`;
+const shield = `<svg width="92" height="92" viewBox="0 0 24 24" fill="none" stroke="#04140D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l8 3v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10v-6z"/><path d="M8.3 12.2l2.6 2.6 4.9-5.2"/></svg>`;
+
+const items = [];
+
+// 1. Home Assistant
+items.push(caption(1, `Your health data,<br><em>in Home Assistant</em>`,
+  `Or on your own server, over MQTT or a webhook.`));
+items.push(phone(RAW + "health.png", 120, 830, 900, tilt(-6, 8)));
+items.push(float(
+  `<div style="display:flex;flex-direction:column;gap:16px;background:#111;padding:16px">` +
+  crop(HA + "dashboard.png", 2480, [64, 115, 366, 112], 540) +
+  crop(HA + "dashboard.png", 2480, [444, 115, 360, 112], 540) +
+  crop(HA + "dashboard.png", 2480, [64, 372, 366, 110], 540) + `</div>`,
+  680, 1420, { label: "Home Assistant", rotate: 3 }));
+
+// 2. Pairing
+items.push(caption(2, `Pair with<br><em>one QR code</em>`,
+  `Scan the code from the Life Dashboard integration. No account, no YAML.`));
+items.push(phone(RAW + "setup-destination.png", 1690, 830, 860, tilt(4, -12)));
+items.push(float(crop(HA + "pairing.png", 1160, [62, 54, 586, 586], 540),
+  1390, 1560, { label: "Home Assistant", rotate: -6, pad: 26, bg: "#1C1C1C" }));
+
+// 3. A year of history
+items.push(caption(3, `A year of history<br><em>in one go</em>`,
+  `Backfill up to 365 days. In Home Assistant, each day lands on its own date.`));
+items.push(phone(RAW + "logs.png", 2530, 860, 880, tilt(7, -6), 3));
+items.push(float(crop(RAW + "logs.png", 1320, LOGROW_BACKFILL, 1000),
+  2925, 1560, { label: "Backfill, 365 days", dot: "#30B77E", rotate: -3, z: 6 }));
+items.push(float(crop(HA + "statistics.png", 2048, [33, 8, 982, 614], 860),
+  3065, 1980, { label: "Home Assistant", rotate: 2 }));
+
+// 4. Webhooks and MQTT
+items.push(caption(4, `Webhooks, signed.<br><em>MQTT, built in.</em>`,
+  `HMAC-SHA256 on every webhook request. Over MQTT, sensors set themselves up.`));
+items.push(phone(RAW + "webhook.png", 4250, 830, 900, tilt(-5, 10)));
+items.push(`<div class="badge" style="left:4800px;top:1530px;transform:rotate(-4deg);z-index:6">${shield}<div><b>Signed</b><small>HMAC-SHA256</small></div></div>`);
+items.push(float(crop(RAW + "logs.png", 1320, LOGROW_MQTT, 980),
+  3995, 2330, { label: "MQTT", dot: "#30B77E", rotate: 3, z: 6 }));
+
+// 5. Sources
+items.push(caption(5, `Works with what<br><em>you already track</em>`,
+  `Apple Watch, iPhone and the apps that write to the Health app.`));
+items.push(phone(RAW + "types.png", 5880, 860, 860, tilt(-5, 12), 3));
+items.push(`<div class="stat" style="left:5330px;top:1000px;transform:rotate(-4deg);z-index:6"><b>28</b><span>data types</span></div>`);
+const chips = ["Steps", "Sleep stages", "Heart rate &amp; HRV", "Workouts", "Weight", "Blood pressure", "VO2 max"];
+chips.forEach((t, n) => items.push(`<div class="chip" style="left:${5330 + (n % 2) * 40}px;top:${1460 + n * 160}px;z-index:6"><span>&#9679;</span>${t}</div>`));
+
+// 6. Privacy
+items.push(caption(6, `No account.<br>No cloud.<br><em>No trackers.</em>`,
+  `Pay once, no subscription.<br>Your data goes only where you send it.`));
+items.push(float(crop(RAW + "about-privacy.png", 1320, PRIVACY_CARD, 1000),
+  6830, 1000, { label: "In the app", dot: "#30B77E", rotate: -2, z: 6 }));
+const pills = [["No account", 6900, 1760], ["No ads, no analytics", 7040, 1940], ["Open source, MIT", 6950, 2120]];
+for (const [t, x, y] of pills) items.push(`<div class="chip big" style="left:${x}px;top:${y}px;z-index:6"><span>&#10003;</span>${t}</div>`);
+items.push(`<div class="sign" style="left:6920px;top:2420px;z-index:6"><img src="icon.png" alt=""><div><b>Life Dashboard</b><span>Companion for iPhone</span></div></div>`);
+
+document.getElementById("items").innerHTML = items.join("");
+
+// ?panel=n shows one 1320-wide panel of the panorama.
+const panel = +(new URLSearchParams(location.search).get("panel") || 0);
+if (panel) {
+  document.documentElement.style.width = document.body.style.width = W + "px";
+  document.getElementById("stage").style.transform = `translateX(${-(panel - 1) * W}px)`;
+}
+</script>
+</body>
+</html>

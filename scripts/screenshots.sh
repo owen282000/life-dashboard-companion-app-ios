@@ -3,10 +3,12 @@
 # simulator: dark, English with 24-hour times, the status bar cropped off, 1080 pixels wide.
 #
 # The simulator has no Health data, so the app gets example settings and a week of example
-# log entries instead (homeassistant.local, nothing real). The Debug launch arguments -ld.tab,
-# -ld.about, -ld.expand and -ld.scroll open each page. The pairing sheet needs one tap on
-# iOS's "Open in Life Dashboard?" prompt: the script sends Return to the Simulator app, which
-# needs Accessibility access for the terminal (System Settings > Privacy & Security).
+# log entries instead (homeassistant.local, nothing real), and -ld.demoSteps fills the steps
+# sparkline. The Debug launch arguments -ld.tab, -ld.about, -ld.expand and -ld.scroll open
+# each page; -ld.expand takes YES for every row or a list such as "webhook,mqtt". The pairing
+# sheet needs one tap on iOS's "Open in Life Dashboard?" prompt: the script sends Return to the
+# Simulator app, which needs Accessibility access for the terminal (System Settings > Privacy &
+# Security). Without a Simulator app it keeps the pairing screenshot that is there.
 #
 #   scripts/screenshots.sh
 set -euo pipefail
@@ -28,11 +30,16 @@ xcodebuild build -project LifeDashboardCompanion.xcodeproj -scheme LifeDashboard
     CODE_SIGNING_ALLOWED=NO -quiet
 APP="$WORK/dd/Build/Products/Debug-iphonesimulator/LifeDashboardCompanion.app"
 
+# A fresh boot: an "Open in" prompt left from the last run stays up otherwise.
+xcrun simctl shutdown "$UDID" 2>/dev/null || true
 xcrun simctl boot "$UDID" 2>/dev/null || true
 xcrun simctl bootstatus "$UDID" >/dev/null
 xcrun simctl terminate "$UDID" "$ID" 2>/dev/null || true
 xcrun simctl uninstall "$UDID" "$ID" 2>/dev/null || true
 xcrun simctl install "$UDID" "$APP"
+# The simulator keeps an app's defaults across a reinstall: start from none.
+xcrun simctl spawn "$UDID" defaults delete "$ID" 2>/dev/null || true
+xcrun simctl spawn "$UDID" defaults delete "group.$ID" 2>/dev/null || true
 xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 \
     --wifiBars 3 --cellularBars 4 --operatorName ""
 xcrun simctl ui "$UDID" appearance dark
@@ -100,25 +107,34 @@ PY
 shot() { # file, launch arguments
     local file=$1; shift
     xcrun simctl terminate "$UDID" "$ID" 2>/dev/null || true
-    xcrun simctl launch "$UDID" "$ID" -AppleLanguages "(en)" -AppleLocale en_GB "$@" >/dev/null
+    xcrun simctl launch "$UDID" "$ID" -AppleLanguages "(en)" -AppleLocale en_GB \
+        -ld.demoSteps "5200,7100,9800,8400,6300,10900,7600" "$@" >/dev/null
     sleep 6
     xcrun simctl io "$UDID" screenshot --type=png "$WORK/raw/$file" >/dev/null 2>&1
+    # Now and then the first frame is still black: a black PNG is tiny, so take it again.
+    if [ "$(stat -f %z "$WORK/raw/$file")" -lt 100000 ]; then
+        sleep 4
+        xcrun simctl io "$UDID" screenshot --type=png "$WORK/raw/$file" >/dev/null 2>&1
+    fi
 }
 shot apple-health.png
-shot sync-schedule.png -ld.expand YES -ld.scroll 0.47
-shot mqtt.png -ld.expand YES -ld.scroll 0.715
+shot sync-schedule.png -ld.expand schedule -ld.scroll 0.3
+shot mqtt.png -ld.expand webhook,mqtt -ld.scroll 0.36
 shot logs.png -ld.tab 1
 shot about.png -ld.about YES
 
-shot pairing-base.png
-xcrun simctl openurl "$UDID" "lifedashboard://pair#v=1&url=http%3A%2F%2Fhomeassistant.local%3A8123%2Fapi%2Fwebhook%2F3f9c2a7e51b84d06a1e2c9d8b7f4e5a1&secret=0123456789abcdef&name=Home%20Assistant"
-open -a Simulator
-sleep 3
-osascript -e 'tell application "Simulator" to activate' -e 'delay 1' \
-    -e 'tell application "System Events" to keystroke return' || echo "Tap Open in the Simulator"
-sleep 4
-xcrun simctl io "$UDID" screenshot --type=png "$WORK/raw/home-assistant.png" >/dev/null 2>&1
-rm "$WORK/raw/pairing-base.png"
+if open -a Simulator 2>/dev/null; then
+    shot pairing-base.png
+    xcrun simctl openurl "$UDID" "lifedashboard://pair#v=1&url=http%3A%2F%2Fhomeassistant.local%3A8123%2Fapi%2Fwebhook%2F3f9c2a7e51b84d06a1e2c9d8b7f4e5a1&secret=0123456789abcdef&name=Home%20Assistant"
+    sleep 3
+    osascript -e 'tell application "Simulator" to activate' -e 'delay 1' \
+        -e 'tell application "System Events" to keystroke return' || echo "Tap Open in the Simulator"
+    sleep 4
+    xcrun simctl io "$UDID" screenshot --type=png "$WORK/raw/home-assistant.png" >/dev/null 2>&1
+    rm "$WORK/raw/pairing-base.png"
+else
+    echo "No Simulator app: kept $OUT/home-assistant.png as it is"
+fi
 
 # Crop the status bar and scale to 1080 pixels wide, like the Android app's screenshots.
 cat > "$WORK/crop.swift" <<'SWIFT'

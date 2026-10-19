@@ -29,8 +29,8 @@
 
 <p align="center">
   <picture>
-    <source media="(max-width: 600px)" srcset="docs/readme-screens-phone.png">
-    <img src="docs/readme-screens.png" alt="Four iPhone screens: the Health tab with 12 of 28 data types selected, the webhook and MQTT settings with the QR scanner button, a sync schedule at fixed times with quiet hours, and the Logs tab with a sync history" width="900">
+    <source media="(max-width: 600px)" srcset="docs/readme-hero-phone.png">
+    <img src="docs/readme-hero.png" alt="The app's Health tab on an iPhone, with 214 records today and the last sync at 9:38, next to the Home Assistant cards it feeds: today's steps, distance, heart rate and last sleep, and charts of steps per week and heart rate per day" width="900">
   </picture>
 </p>
 

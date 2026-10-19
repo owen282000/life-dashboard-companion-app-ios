@@ -84,11 +84,13 @@ It builds the app, installs it on a simulator of its own (`ld-screenshots`, an i
 | `-ld.nerd YES` | About with Nerd Stats |
 | `-ld.privacy YES` | the privacy policy |
 | `-ld.expand YES` | every row on the Health tab |
+| `-ld.expand schedule,mqtt` | only those rows: `types`, `schedule`, `webhook`, `mqtt`, `advanced`, `resolution`, `notifications` |
 | `-ld.scroll 0.5` | a long page, scrolled to that fraction |
 | `-ld.step 1` | a step of the first-run setup |
+| `-ld.demoSteps 5200,7100,...` | example daily step totals for the steps sparkline, since the simulator has none |
 | `-ld.ask NO` | no Health sheet: the Health tab does not ask for access by itself (the script sets it as a default) |
 
-The pairing sheet needs a tap on iOS's "Open in Life Dashboard?" prompt, which the script sends as Return to the Simulator app. The screenshots are dark, in English with 24-hour times, without the status bar, and 1080 pixels wide, like the Android app's. The simulator has no Health data, so the numbers on them are examples. Look at every one at full size before you commit it.
+The pairing sheet needs a tap on iOS's "Open in Life Dashboard?" prompt, which the script sends as Return to the Simulator app; without a Simulator app it keeps the pairing screenshot that is there. The screenshots are dark, in English with 24-hour times, without the status bar, and 1080 pixels wide, like the Android app's. The simulator has no Health data, so the numbers on them are examples. Look at every one at full size before you commit it.
 
 ## Brand images
 
@@ -96,5 +98,7 @@ The pairing sheet needs a tap on iOS's "Open in Life Dashboard?" prompt, which t
 
 - `banner.html` - the social preview, 1280 by 640, a copy of the Android app's banner
 - `app-icon.html` - the app icon, with its dark and tinted versions
+- `readme-hero.html` - the README's first image, the app next to the Home Assistant cards it feeds, in a desktop and a phone version
+- `app-store/` - the App Store screenshots, header and search asset: `scripts/store-screenshots.sh` takes the screens, `app-store/render.sh` renders them
 
 After changing the banner, upload the new PNG under the repository's Settings > Social preview; GitHub does not read it from the repository.
