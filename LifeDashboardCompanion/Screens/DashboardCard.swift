@@ -40,6 +40,13 @@ struct DashboardCard: View {
             status = SharedSyncStatus.read()
             lifetimeRecords = UserDefaults.standard.integer(forKey: "stats_lifetime_records")
             stepsPerDay = await HealthKitManager.shared.readDailyStepTotals(days: 7)
+            #if DEBUG
+            // For screenshots: the simulator has no Health data, so -ld.demoSteps "5200,7100,..."
+            // stands in for the last seven daily step totals.
+            if let demo = UserDefaults.standard.string(forKey: "ld.demoSteps") {
+                stepsPerDay = demo.split(separator: ",").compactMap { Int($0) }
+            }
+            #endif
         }
     }
 

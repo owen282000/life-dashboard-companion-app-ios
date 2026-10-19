@@ -89,10 +89,19 @@ struct HealthKitScreen: View {
             // Expanded on first run so new users see the data types; collapsed once configured
             showDataTypes = prefs.healthEnabledDataTypes.isEmpty
             #if DEBUG
-            // For screenshots: -ld.expand YES opens every row.
+            // For screenshots: -ld.expand YES opens every row, -ld.expand "schedule,mqtt" only
+            // those (types, schedule, webhook, mqtt, advanced, resolution, notifications).
             if UserDefaults.standard.bool(forKey: "ld.expand") {
                 (showDataTypes, showSchedule, showWebhook, showMqtt, showAdvanced, showNotifications) = (true, true, true, true, true, true)
                 showResolution = true
+            } else if let rows = UserDefaults.standard.string(forKey: "ld.expand")?.split(separator: ",").map(String.init) {
+                showDataTypes = rows.contains("types")
+                showSchedule = rows.contains("schedule")
+                showWebhook = rows.contains("webhook")
+                showMqtt = rows.contains("mqtt")
+                showAdvanced = rows.contains("advanced")
+                showResolution = rows.contains("resolution")
+                showNotifications = rows.contains("notifications")
             }
             #endif
         }
