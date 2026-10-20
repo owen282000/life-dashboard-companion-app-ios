@@ -5,3 +5,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      # Every github/codeql-action step must run the same version, or CodeQL fails;
+      # one pull request moves init, analyze and upload-sarif together.
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
