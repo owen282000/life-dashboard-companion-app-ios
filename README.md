@@ -28,15 +28,22 @@
 </p>
 
 <p align="center">
+  <sub>Life Dashboard: <a href="https://github.com/owen282000/life-dashboard-companion-app">Android app</a> &nbsp;·&nbsp; <b>iPhone app</b> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-ha">Home Assistant integration</a> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-stack">Grafana stack</a></sub>
+</p>
+
+<p align="center">
   <picture>
     <source media="(max-width: 600px)" srcset="docs/readme-hero-phone.png">
     <img src="docs/readme-hero.png" alt="The app's Health tab on an iPhone, with 214 records today and the last sync at 9:38, next to the Home Assistant cards it feeds: today's steps, distance, heart rate and last sleep, and charts of steps per week and heart rate per day" width="900">
   </picture>
 </p>
 
-Your Apple Watch, iPhone, ring or scale already writes to Apple Health. This app reads it and sends it to a server you run. In Home Assistant you get sensors for today and a year of history in long-term statistics. Over MQTT, sensors set themselves up. A webhook gets every record as JSON, signed if you set a secret.
+Your Apple Watch, iPhone, ring or scale already writes to Apple Health. This app sends it to Home Assistant, an MQTT broker or a webhook you run. There is no account in between, and none of it reaches me.
 
-It sends the same payload as the [Android app](https://github.com/owen282000/life-dashboard-companion-app), so an iPhone and an Android phone can feed one backend or one Home Assistant. There's no App Store or TestFlight build yet: you build it with Xcode and install it on your own iPhone.
+- Home Assistant gets up to a year of history, each day on its own date. The Home Assistant companion app's health sensors start the day you switch them on.
+- An iPhone and an Android phone send the same payload, so a mixed household shares one Home Assistant or one database.
+- Pay once, no subscription: the App Store version (EUR 6.99, USD 5.99) is in Apple's review. Until it's live you build it with Xcode, and building it yourself stays free.
+- Want to ask Claude or a local model in Ollama about your own history? The [Grafana stack](https://github.com/owen282000/life-dashboard-stack#ask-your-own-ai-mcp) adds an MCP server with eight read-only tools. The app itself contains no AI.
 
 <a id="why-this-app"></a>
 
@@ -152,11 +159,15 @@ Any server that accepts a JSON POST can be a destination: n8n, Node-RED, a small
 
 This example is shortened. The keys, units and signing are the Android app's. Every raw record has a `uuid` to deduplicate on and a `source`, the name of the app or device that wrote it. [webhook.md](docs/webhook.md) lists what an iPhone sends and where it differs from Android. The Android app's [payload reference](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/webhook.md) documents every type and has receivers to start from, and its [JSON Schema](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/webhook-schema.json) covers both apps.
 
-If you have no backend yet, [life-dashboard-stack](https://github.com/owen282000/life-dashboard-stack) is an example Docker Compose setup: a receiver that checks the signature, Postgres, and a Grafana dashboard. Treat it as a starting point rather than a finished product.
+If you have no backend yet, [life-dashboard-stack](https://github.com/owen282000/life-dashboard-stack) is an example Docker Compose setup: a receiver that checks the signature, Postgres, and a Grafana dashboard. It's a one-person project offered as-is, built to be changed.
+
+## Ask your own AI
+
+Want to ask an AI how your sleep changed in the weeks you walked more? The [Grafana stack](https://github.com/owen282000/life-dashboard-stack#ask-your-own-ai-mcp) keeps every record in Postgres and has an MCP server with eight read-only tools, for Claude, a local model in Ollama or any other MCP client. Already on Home Assistant or your own Postgres? The [recipe](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/recipes/ask-your-own-llm.md) has a route for each, without the stack. The app itself sends nothing to any AI: the data only goes where you point it.
 
 ## Privacy
 
-The app has no analytics, no crash reporting and no ads, and there's no Life Dashboard server. Your data goes from the iPhone to the destinations you set and nowhere else. Webhooks use HTTPS. iOS allows plain HTTP only to an IP address, a .local name or a name without a dot, meant for your own network. The app only asks Apple Health for read access, and secrets stay in the iOS Keychain. [PRIVACY.md](PRIVACY.md) lists everything the app reads, sends and keeps.
+The app has no analytics, no crash reporting and no ads, and there's no Life Dashboard server. Your data goes from the iPhone to the destinations you set and nowhere else. Webhooks use HTTPS. iOS allows plain HTTP only to an IP address, a .local name or a name without a dot, meant for your own network. The app only asks Apple Health for read access, and secrets stay in the iOS Keychain. [PRIVACY.md](PRIVACY.md) lists everything the app reads, sends and keeps. iOS gives you no way to check that an App Store build matches this source. If that matters to you, build it yourself: it's free, and the app has no third-party dependencies.
 
 ## Documentation
 
@@ -172,7 +183,7 @@ The app has no analytics, no crash reporting and no ads, and there's no Life Das
 
 Questions go to the Android app's [Discussions](https://github.com/owen282000/life-dashboard-companion-app/discussions), which cover both apps; say that it's about the iPhone. Bugs go to [issues](https://github.com/owen282000/life-dashboard-companion-app-ios/issues/new/choose) here. [SUPPORT.md](.github/SUPPORT.md) explains which is which.
 
-Pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers the checks CI runs, and [building.md](docs/building.md) gets you a working build.
+Pull requests are welcome. The app is Swift with no third-party dependencies. [CONTRIBUTING.md](CONTRIBUTING.md) covers the checks CI runs, and [building.md](docs/building.md) gets you a working build.
 
 ## Acknowledgments
 
@@ -183,7 +194,7 @@ Pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers the checks 
 
 ## Support the project
 
-Stars, shares and good bug reports all help. This is a one-person project, but your setup doesn't depend on that person: there's no server of mine to switch off, your history lives in your own Home Assistant or database, and the code is MIT. If you want to chip in for the evenings that go into it, there's [Ko-fi](https://ko-fi.com/owen282000). The app stays free and open source either way.
+Stars, shares and good bug reports all help. This is a one-person project, but your setup doesn't depend on that person: there's no server of mine to switch off, your history lives in your own Home Assistant or database, and the code is MIT. If you want to chip in for the evenings that go into it, there's [Ko-fi](https://ko-fi.com/owen282000). The code stays open source, and building it yourself stays free, either way.
 
 MIT licensed. See [LICENSE](LICENSE).
 
