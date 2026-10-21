@@ -1,6 +1,6 @@
 # Privacy policy
 
-Last updated: October 18, 2026, for version 1.8.0.
+Last updated: October 21, 2026, for version 1.9.0.
 
 **In short:** the app reads the Apple Health types you switch on and sends them only to the webhooks, Home Assistant and MQTT broker you set up. There is no Life Dashboard server, no analytics, no crash reporting and no advertising in the app, and the app sends nothing to the developer. The app never writes into Apple Health.
 
@@ -11,8 +11,8 @@ Life Dashboard Companion is a self-hosting tool. It reads health data on your iP
 - **Permissions** - Apple Health, read only, for the types you switch on. Camera, only while the pairing scanner is open: frames are decoded on the iPhone and are never stored or sent. Local Network, to reach a webhook server or MQTT broker on your home network. Notifications, for failed syncs and payloads that were dropped; they are shown on the iPhone and sent nowhere.
 - **Where it goes** - only to the destinations you enter or pair: your own webhook URLs, the Life Dashboard integration in your own Home Assistant, and your own MQTT broker. The app contacts no other server. There are no analytics, no crash reporting services and no advertising SDKs. Besides the records of the types you switch on, a payload carries the sync time, the app version, a counter (`sequence`), daily totals and the `uuid` of records deleted in Apple Health; [docs/webhook.md](docs/webhook.md) lists every field. Each record carries its `uuid` and the name of the app or device that wrote it. On an iPhone that name often includes your own name. No device model or identifier of your iPhone is sent. MQTT is unencrypted unless you switch on **TLS**. States are published retained, so the broker keeps the latest value of each sensor even after you switch MQTT off in the app: clear the topics on the broker if you stop using it.
 - **What the developer can receive** - the app itself sends nothing to the developer. Apple can share some things with the developer through App Store Connect, under [Apple's privacy policy](https://www.apple.com/legal/privacy/):
-  - In the TestFlight beta: crash reports, and any feedback you send through TestFlight, with the screenshot you attach.
-  - Once the app is on the App Store: sales and usage reports.
+  - For the App Store version: sales reports, and crash reports and usage figures from people who chose in their iPhone's settings to share analytics with app developers.
+  - If you test a beta through TestFlight: crash reports, and any feedback you send through TestFlight, with the screenshot you attach.
 
   Apart from what you write or attach yourself, none of this carries your health data, your settings or the addresses you send to.
 - **What stays on the iPhone:**

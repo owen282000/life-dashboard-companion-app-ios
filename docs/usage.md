@@ -3,13 +3,14 @@
 ## Requirements
 
 - An iPhone with iOS 17.0 or later
-- A Mac with Xcode 26 or later, to build the app (CI builds with Xcode 26.6)
-- An Apple Account; a free one is enough, see [below](#free-or-paid-apple-account)
+- To build the app yourself: a Mac with Xcode 26 or later (CI builds with Xcode 26.6), and an Apple Account; a free one is enough, see [below](#free-or-paid-apple-account)
 - Home Assistant with the Life Dashboard integration 0.7.1 or newer (HACS), a webhook endpoint, or an MQTT broker
 
 ## Build and install
 
-There is no App Store or TestFlight build. You build the app with Xcode and run it on your own iPhone.
+The app is on the [App Store](https://apps.apple.com/app/life-dashboard-companion/id6824075761) as a one-time purchase of EUR 6.99 (USD 5.99), with no subscription. It's the same app as this source, and you set it up the same way: install it and continue with [First run](#first-run).
+
+Building it yourself with Xcode stays free. You then run it on your own iPhone:
 
 ```bash
 git clone https://github.com/owen282000/life-dashboard-companion-app-ios.git
@@ -144,8 +145,8 @@ Apple Health often holds the same activity from the iPhone and the Watch, each a
 
 ### The app says a pairing code is from a newer version
 
-The code carries a format version, and this build only reads version 1. Pull the latest version of this repository, run it again from Xcode, and scan again.
+The code carries a format version, and this build only reads version 1. Update the app from the App Store, or pull the latest version of this repository and run it again from Xcode, and scan again.
 
 ### The app no longer opens
 
-With a free Apple Account the app's provisioning profile expires after 7 days. Run the app from Xcode again; see [Free or paid Apple Account](#free-or-paid-apple-account).
+For a build of your own with a free Apple Account, the app's provisioning profile expires after 7 days. Run the app from Xcode again; see [Free or paid Apple Account](#free-or-paid-apple-account).

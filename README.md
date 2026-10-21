@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="#build-and-install"><img src="https://img.shields.io/badge/Build%20it-with%20Xcode-30b77e" alt="Build it with Xcode"></a>
+  <a href="https://apps.apple.com/app/life-dashboard-companion/id6824075761"><img src="https://img.shields.io/badge/App%20Store-Download-000000?logo=apple&logoColor=white" alt="Download on the App Store"></a>
   <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-ha&category=integration"><img src="https://img.shields.io/badge/Home%20Assistant-HACS-41BDF5" alt="Home Assistant integration in HACS"></a>
   <a href="#build-and-install"><img src="https://img.shields.io/badge/iOS-17%2B-000000" alt="iOS 17 or newer"></a>
   <a href="https://scorecard.dev/viewer/?uri=github.com/owen282000/life-dashboard-companion-app-ios"><img src="https://api.scorecard.dev/projects/github.com/owen282000/life-dashboard-companion-app-ios/badge" alt="OpenSSF Scorecard"></a>
@@ -18,7 +18,9 @@
 </p>
 
 <p align="center">
-  <a href="#build-and-install"><b>Build&nbsp;and&nbsp;install</b></a>
+  <a href="https://apps.apple.com/app/life-dashboard-companion/id6824075761"><b>App&nbsp;Store</b></a>
+  &nbsp;·&nbsp;
+  <a href="#build-it-yourself">Build&nbsp;it&nbsp;yourself</a>
   &nbsp;·&nbsp;
   <a href="docs/usage.md">Setup&nbsp;guide</a>
   &nbsp;·&nbsp;
@@ -42,7 +44,7 @@ Your Apple Watch, iPhone, ring or scale already writes to Apple Health. This app
 
 - Home Assistant gets up to a year of history, each day on its own date. The Home Assistant companion app's health sensors start the day you switch them on.
 - An iPhone and an Android phone send the same payload, so a mixed household shares one Home Assistant or one database.
-- Pay once, no subscription: the App Store version (EUR 6.99, USD 5.99) is in Apple's review. Until it's live you build it with Xcode, and building it yourself stays free.
+- Pay once, no subscription: the app is on the [App Store](https://apps.apple.com/app/life-dashboard-companion/id6824075761) for EUR 6.99 (USD 5.99), and building it yourself stays free.
 - Want to ask Claude or a local model in Ollama about your own history? The [Grafana stack](https://github.com/owen282000/life-dashboard-stack#ask-your-own-ai-mcp) adds an MCP server with eight read-only tools. The app itself contains no AI.
 
 <a id="why-this-app"></a>
@@ -83,10 +85,17 @@ Life Dashboard is four projects, and you only install the parts you need. Put th
 The data can also go to an MQTT broker or a webhook of your own instead. Both apps have that built in, for n8n, Node-RED or a script.
 
 <a id="quick-start"></a>
+<a id="build-and-install"></a>
 
-## Build and install
+## Install
 
-You need a Mac with Xcode 26 (the newest Xcode needs macOS 26.2; on macOS 15.6, Xcode 26.3 works), an iPhone on iOS 17 or newer, and an Apple Account. A free account works, but then the app stops opening after 7 days until you run it from Xcode again. A paid developer account signs it for a year.
+### From the App Store
+
+Get [Life Dashboard Companion on the App Store](https://apps.apple.com/app/life-dashboard-companion/id6824075761), for iOS 17 or newer. It's a one-time purchase of EUR 6.99 (USD 5.99), with no subscription and nothing to buy inside the app. It's the same app as this source, and you set it up the same way: continue with step 3 below.
+
+### Build it yourself
+
+Building it yourself is free. You need a Mac with Xcode 26 (the newest Xcode needs macOS 26.2; on macOS 15.6, Xcode 26.3 works), an iPhone on iOS 17 or newer, and an Apple Account. A free account works, but then the app stops opening after 7 days until you run it from Xcode again. A paid developer account signs it for a year.
 
 1. Clone the repository, open `LifeDashboardCompanion.xcodeproj`, and set your own team, bundle identifiers and app group. The [setup guide](docs/usage.md#build-and-install) shows where each one goes.
 2. Run it on your iPhone. The first time, iOS asks you to switch on Developer Mode and trust your certificate.
@@ -94,7 +103,7 @@ You need a Mac with Xcode 26 (the newest Xcode needs macOS 26.2; on macOS 15.6, 
 4. The app's setup asks where your data should go: scan the code, or enter your broker or webhook URL. Then pick your data types and allow Apple Health access.
 5. Tap **Sync Now**. Tap **View** first if you want to preview the payload.
 
-To update, pull the repository and run it from Xcode again. Your settings stay. The [setup guide](docs/usage.md) covers every step and what to do when nothing arrives.
+To update a build of your own, pull the repository and run it from Xcode again. Your settings stay. The [setup guide](docs/usage.md) covers every step and what to do when nothing arrives.
 
 ## Home Assistant
 

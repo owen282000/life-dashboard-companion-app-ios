@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The app is on the App Store, a one-time purchase of EUR 6.99 (USD 5.99). The README, the setup guide and
+  features.md say so and link to it, and building it yourself with Xcode stays free. PRIVACY.md no longer
+  reads as if TestFlight were the way to get the app.
+
 ## [1.9.0] - 2026-10-19
 
 ### Added
