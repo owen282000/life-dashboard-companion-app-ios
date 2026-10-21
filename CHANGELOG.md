@@ -9,6 +9,10 @@ All notable changes to this project are documented in this file. The format is b
 - The app is on the App Store, a one-time purchase of EUR 6.99 (USD 5.99). The README, the setup guide and
   features.md say so and link to it, and building it yourself with Xcode stays free. PRIVACY.md no longer
   reads as if TestFlight were the way to get the app.
+- The privacy policy under About says the app is on the App Store: what Apple can share through App Store
+  Connect for the App Store version, and TestFlight only for whoever tests a beta. It also names the
+  iPhone's time zone among what a payload carries, as it has since 1.9.0. PRIVACY.md and the page on
+  GitHub Pages already said so.
 
 ## [1.9.0] - 2026-10-19
 
