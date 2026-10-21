@@ -135,7 +135,7 @@ The payload is the Android app's, but an iPhone is not an Android phone. Where i
 - **A client certificate comes from a file.** The Android app picks one from Android's credential store. iOS gives apps no such picker, and a certificate installed as a profile in Settings is for Safari and Apple's own apps, so the app imports a `.p12` file into its own Keychain instead.
 - **Record source.** `source` is the name HealthKit gives the writing app or device, not a package name.
 - **No diagnostics.** The Android app's `_diagnostics` block is not built on iOS. See [what iOS does not send](webhook.md#what-ios-does-not-send).
-- **No App Store or TestFlight build.** You build the app with Xcode; see [usage.md](usage.md#build-and-install).
+- **App Store or Xcode.** The app is on the [App Store](https://apps.apple.com/app/life-dashboard-companion/id6824075761) as a one-time purchase. Building it yourself with Xcode is the free alternative; see [usage.md](usage.md#build-and-install).
 
 ## Tech stack
 
