@@ -206,6 +206,9 @@ struct BackfillLengthSheet: View {
                         }
                         .disabled(days == BackfillPlan.allHistory && earliest == nil)
                     }
+                } footer: {
+                    // P2-28: until the integration takes in older days, say so before someone picks All.
+                    Text("Home Assistant takes in about the last year for now. A webhook or the Life Dashboard stack gets everything.")
                 }
             }
             .navigationTitle("Backfill History")
