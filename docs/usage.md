@@ -10,7 +10,7 @@
 
 The app is on the [App Store](https://apps.apple.com/app/life-dashboard-companion/id6824075761) as a one-time purchase of EUR 6.99 (USD 5.99), with no subscription. It's the same app as this source, and you set it up the same way: install it and continue with [First run](#first-run).
 
-Building it yourself with Xcode stays free. You then run it on your own iPhone:
+Building it from source with Xcode costs nothing extra if you already have an Apple Developer Program membership, which HealthKit needs (see [below](#apple-developer-program)). You then run it on your own iPhone:
 
 ```bash
 git clone https://github.com/owen282000/life-dashboard-companion-app-ios.git

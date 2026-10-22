@@ -9,7 +9,7 @@ All notable changes to this project are documented in this file. The format is b
 - The README and the setup guide said a free Apple Account could build the app, with a profile that
   expires after 7 days. It can't: Apple gives the HealthKit capability only to a paid Apple Developer
   Program membership, and Xcode refuses to sign the app for a free personal team. Both now say so: building it
-  yourself stays free, with a membership of your own.
+  from source costs nothing extra with a membership of your own.
 
 ### Added
 
@@ -54,7 +54,7 @@ All notable changes to this project are documented in this file. The format is b
   picked already on the types step; Choose later stays. A setup left halfway comes back at the next start
   instead of counting as done.
 - The app is on the App Store, a one-time purchase of EUR 6.99 (USD 5.99). The README, the setup guide and
-  features.md say so and link to it, and building it yourself with Xcode stays free. PRIVACY.md no longer
+  features.md say so and link to it, and building it yourself with Xcode stays possible from source. PRIVACY.md no longer
   reads as if TestFlight were the way to get the app.
 - The privacy policy under About says the app is on the App Store: what Apple can share through App Store
   Connect for the App Store version, and TestFlight only for whoever tests a beta. It also names the
