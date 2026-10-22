@@ -119,7 +119,8 @@ Each sends only what is new. Health data cannot be read while the iPhone is lock
 <img src="screenshots/about.png" alt="The About screen: the heartbeat mark on the dark brand ground with the version, and what the app reads from Apple Health" width="300" align="right">
 
 - **First-run setup** - what the app does, where the data goes (the pairing scanner, a webhook with a **Test ping**, or an MQTT broker), which types (the essentials are picked already), and Apple Health access as a step of its own, followed by a first sync that shows its result. Every step can be skipped, and a setup left halfway comes back at the next start
-- **About** - behind the (i) button on the Health and Logs tabs: what the app reads and where it goes, the privacy policy, settings backup, and links to the documentation, the changelog and issues
+- **About** - behind the (i) button on the Health and Logs tabs: what the app reads and where it goes, the privacy policy, settings backup, and links to the documentation, the changelog and issues, and **Rate the app** for the App Store
+- **Asking for a rating** - once per version, a few days after first use and only at a good moment: the last sync reached every address and nothing is failing or queued, or a backfill just finished. Apple shows the prompt at most three times a year and decides itself whether it appears
 - **Privacy policy in the app** - a summary of [PRIVACY.md](../PRIVACY.md)
 - **Languages** - English, Dutch and German, following the iPhone's language or the one set for the app under Settings. See [localization.md](localization.md)
 - **SwiftUI** - the Android app's look, with Dynamic Type and dark mode; **About > Appearance** follows the system or keeps the app light or dark

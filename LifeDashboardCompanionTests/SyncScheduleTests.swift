@@ -568,4 +568,39 @@ final class SyncScheduleTests: XCTestCase {
         XCTAssertEqual(SyncHealthCheck.cause(refreshOff: false, lowPower: true), .lowPower)
         XCTAssertEqual(SyncHealthCheck.cause(refreshOff: false, lowPower: false), .unknown)
     }
+
+    // MARK: - Asking for a rating (P1-28)
+
+    private func good(_ now: Date) -> ReviewPrompt.State {
+        ReviewPrompt.State(lastDelivered: now.addingTimeInterval(-3600), lastSyncSucceeded: true, failureStreak: 0, partialStreak: 0, pending: 0)
+    }
+
+    func testOnlyARecentCleanDeliveryIsAGoodMoment() {
+        let now = instant("2026-10-22T10:00:00Z")
+        XCTAssertTrue(ReviewPrompt.isGoodMoment(good(now), now: now))
+        var state = good(now)
+        state.lastSyncSucceeded = false
+        XCTAssertFalse(ReviewPrompt.isGoodMoment(state, now: now), "the last sync failed")
+        state = good(now); state.failureStreak = 1
+        XCTAssertFalse(ReviewPrompt.isGoodMoment(state, now: now), "syncs are failing")
+        state = good(now); state.partialStreak = 2
+        XCTAssertFalse(ReviewPrompt.isGoodMoment(state, now: now), "an address misses payloads")
+        state = good(now); state.pending = 3
+        XCTAssertFalse(ReviewPrompt.isGoodMoment(state, now: now), "payloads wait in the queue")
+        state = good(now); state.lastDelivered = now.addingTimeInterval(-2 * 86_400)
+        XCTAssertFalse(ReviewPrompt.isGoodMoment(state, now: now), "nothing delivered lately")
+        state = good(now); state.lastDelivered = nil
+        XCTAssertFalse(ReviewPrompt.isGoodMoment(state, now: now))
+    }
+
+    func testAskedOncePerVersionAndNotInTheFirstDays() {
+        let now = instant("2026-10-22T10:00:00Z")
+        let longAgo = now.addingTimeInterval(-4 * 86_400)
+        XCTAssertTrue(ReviewPrompt.shouldAsk(goodMoment: true, firstUse: longAgo, askedVersion: nil, version: "1.10.0", now: now))
+        XCTAssertFalse(ReviewPrompt.shouldAsk(goodMoment: false, firstUse: longAgo, askedVersion: nil, version: "1.10.0", now: now))
+        XCTAssertFalse(ReviewPrompt.shouldAsk(goodMoment: true, firstUse: now.addingTimeInterval(-86_400), askedVersion: nil, version: "1.10.0", now: now))
+        XCTAssertFalse(ReviewPrompt.shouldAsk(goodMoment: true, firstUse: nil, askedVersion: nil, version: "1.10.0", now: now))
+        XCTAssertFalse(ReviewPrompt.shouldAsk(goodMoment: true, firstUse: longAgo, askedVersion: "1.10.0", version: "1.10.0", now: now))
+        XCTAssertTrue(ReviewPrompt.shouldAsk(goodMoment: true, firstUse: longAgo, askedVersion: "1.10.0", version: "1.11.0", now: now))
+    }
 }

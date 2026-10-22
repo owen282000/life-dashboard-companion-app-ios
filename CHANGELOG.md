@@ -13,6 +13,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- The app asks for an App Store rating once per version, at a good moment only: a few days after it
+  was first used, when the last sync reached every address and nothing is failing or queued, or right
+  after a backfill finished. Never next to an error. Apple shows the prompt at most three times a year and
+  never in TestFlight. **Rate the app** under About opens the App Store page with the review sheet.
 - Backfill reaches back to all history, as in the Android app since 1.28.0. The list offers 30 and 90 days,
   6 months, 1, 2 and 5 years, and All history, each with the number of 3-day chunks it covers. All history
   starts at the oldest record of the enabled types (one read per type, oldest first and one record long,
