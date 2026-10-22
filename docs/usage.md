@@ -40,7 +40,7 @@ A fresh install opens a short setup: what the app does, where the data should go
 After the setup:
 
 1. **Grant Apple Health access.** When a type is on that iOS has not asked about yet, the green Apple Health banner shows **Grant**. iOS never tells an app whether you allowed reading, so a type you declined simply sends nothing; change it in the Health app under your profile, Apps, Life Dashboard.
-2. **Add webhook headers** (optional), such as an auth token or API key, and an **HMAC Signing Secret** if your receiver checks signatures.
+2. **Tap a webhook address** for its own headers (optional), such as an auth token or API key, and its own **HMAC Signing Secret** if that receiver checks signatures. Every address has its own, so two receivers never get each other's key.
 3. **Set the sync schedule**: an interval (at least 15 minutes) or fixed times, with optional weekdays and quiet hours. On iOS a fixed time means "not before"; see [Sync scheduling](features.md#sync-scheduling).
 4. **Tap View** to see the last 7 days as a payload, then **Sync Now** to send what is new. A type's first sync sends its last 7 days.
 
@@ -65,9 +65,9 @@ An Android phone and an iPhone can each be paired with the same integration, eac
 
 The integration shows a QR code when you add it, and again under its Reconfigure. In the app, tap **Scan a pairing code**: in the setup, or on the Webhook card of the Health tab, where it is the QR button next to the address field. iOS asks for the camera the first time.
 
-A sheet then shows what the receiver calls itself, the address, whether it is new, whether the signing secret is replaced, and what iOS will do with a plain `http://` address. Nothing is saved until you tap **Pair**, and a code only ever fills in the address and the secret: what is synced, and when, stays your choice on the Health tab. After pairing, the app sends one test ping and the sheet says how it went: confirmed, when the receiver answers the way the integration does, or delivered, when it simply accepted the ping, which is all most other receivers do. For a Home Assistant address a ping that is delivered but not confirmed can mean the entry for this phone was deleted, since Home Assistant also accepts a webhook it no longer knows, and the sheet says so.
+A sheet then shows what the receiver calls itself, the address, whether it is new, whether that address's signing secret is replaced (your other addresses keep their own), and what iOS will do with a plain `http://` address. Nothing is saved until you tap **Pair**, and a code only ever fills in the address and the secret: what is synced, and when, stays your choice on the Health tab. After pairing, the app sends one test ping and the sheet says how it went: confirmed, when the receiver answers the way the integration does, or delivered, when it simply accepted the ping, which is all most other receivers do. For a Home Assistant address a ping that is delivered but not confirmed can mean the entry for this phone was deleted, since Home Assistant also accepts a webhook it no longer knows, and the sheet says so.
 
-An address added by pairing gets none of your custom headers. Those were typed for the receivers you entered yourself, and a code can come from anyone, so an API key never follows a scanned code to its host. To send them there anyway, type the address in by hand.
+Pairing sets the secret of the address it pairs, and only that one: a second receiver never changes the secret the first one checks. An address added by pairing starts without headers, since a code can come from anyone and an API key typed for another receiver must never follow it. Tap the address to add headers for it.
 
 iOS decides in advance which plain `http://` addresses an app may use: an IP address, a `.local` name like `homeassistant.local`, or a name without a dot. A name like `ha.lan` over `http://` cannot be paired; the sheet says so. Use the IP address, or an `https://` address, in the integration's Reconfigure.
 

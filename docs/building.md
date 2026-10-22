@@ -85,6 +85,7 @@ It builds the app, installs it on a simulator of its own (`ld-screenshots`, an i
 | `-ld.privacy YES` | the privacy policy |
 | `-ld.expand YES` | every row on the Health tab |
 | `-ld.expand schedule,mqtt` | only those rows: `types`, `schedule`, `webhook`, `mqtt`, `advanced`, `resolution`, `notifications` |
+| `-ld.destination 0` | the sheet of the first webhook address, with its secret and headers |
 | `-ld.scroll 0.5` | a long page, scrolled to that fraction |
 | `-ld.step 1` | a step of the first-run setup |
 | `-ld.demoSteps 5200,7100,...` | example daily step totals for the steps sparkline, since the simulator has none |

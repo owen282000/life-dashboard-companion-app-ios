@@ -6,68 +6,111 @@ final class PairingApplyTests: XCTestCase {
     private let link = PairingLink(url: "http://192.168.1.10:8123/api/webhook/abc", secret: "new-secret", name: "Home Assistant")
     private let mine = "https://my.server/hook"
 
-    private func section(_ urls: [String], secret: String = "", marks: Set<String> = []) -> SectionWebhook {
-        SectionWebhook(urls: urls, secret: secret, urlsWithoutHeaders: marks)
+    private func destination(_ url: String, secret: String = "", headers: [String: String] = [:]) -> WebhookDestination {
+        WebhookDestination(id: WebhookDestinations.stableId(url), url: url, secret: secret, headers: headers)
     }
 
     // MARK: - Apply
 
-    func testAFreshInstallGetsTheAddressTheSecretAndTheMark() {
-        let next = PairingApply.applied(link, to: section([]))
-        XCTAssertEqual(next.urls, [link.url])
-        XCTAssertEqual(next.secret, "new-secret")
-        XCTAssertEqual(next.urlsWithoutHeaders, [link.url])
+    func testAFreshInstallGetsTheAddressWithItsSecretAndNoHeaders() {
+        let next = PairingApply.applied(link, to: [])
+        XCTAssertEqual(next.map(\.url), [link.url])
+        XCTAssertEqual(next.first?.secret, "new-secret")
+        XCTAssertEqual(next.first?.headers, [:])
     }
 
-    func testAnExistingReceiverIsKeptAndTheSecretReplaced() {
-        let next = PairingApply.applied(link, to: section([mine], secret: "old"))
-        XCTAssertEqual(next.urls, [mine, link.url])
-        XCTAssertEqual(next.secret, "new-secret")
-        XCTAssertEqual(next.urlsWithoutHeaders, [link.url])
+    func testAnotherReceiverKeepsItsOwnSecretAndHeaders() {
+        let other = destination(mine, secret: "old", headers: ["Authorization": "Bearer key"])
+        let next = PairingApply.applied(link, to: [other])
+        XCTAssertEqual(next.map(\.url), [mine, link.url])
+        XCTAssertEqual(next[0], other)
+        XCTAssertEqual(next[1].secret, "new-secret")
+        XCTAssertEqual(next[1].headers, [:])
     }
 
-    func testTheSameAddressIsNotAddedTwiceAndKeepsItsHeaders() {
-        let next = PairingApply.applied(link, to: section([link.url], secret: "old"))
-        XCTAssertEqual(next.urls, [link.url])
-        XCTAssertTrue(next.urlsWithoutHeaders.isEmpty)
+    func testPairingTheSameAddressAgainReplacesOnlyItsSecret() {
+        let paired = destination(link.url, secret: "old", headers: ["X-Typed": "kept"])
+        let next = PairingApply.applied(link, to: [paired])
+        XCTAssertEqual(next.count, 1)
+        XCTAssertEqual(next[0].id, paired.id)
+        XCTAssertEqual(next[0].secret, "new-secret")
+        XCTAssertEqual(next[0].headers, ["X-Typed": "kept"])
     }
 
     // MARK: - Preview
 
     func testPreviewOfAFreshInstall() {
-        let change = PairingApply.preview(link, current: section([]))
+        let change = PairingApply.preview(link, current: [])
         XCTAssertTrue(change.addsUrl)
         XCTAssertFalse(change.replacesSecret)
         XCTAssertEqual(change.otherUrls, 0)
     }
 
-    func testPreviewNextToAnotherReceiverWithAnotherSecret() {
-        let change = PairingApply.preview(link, current: section([mine], secret: "old"))
+    func testPreviewNextToAnotherReceiverReplacesNothing() {
+        // Since every address has its own secret, the other one's secret is never replaced.
+        let change = PairingApply.preview(link, current: [destination(mine, secret: "old")])
         XCTAssertTrue(change.addsUrl)
-        XCTAssertTrue(change.replacesSecret)
+        XCTAssertFalse(change.replacesSecret)
         XCTAssertEqual(change.otherUrls, 1)
     }
 
     func testPreviewWhenAlreadyPaired() {
-        XCTAssertTrue(PairingApply.preview(link, current: section([link.url], secret: "new-secret")).changesNothing)
+        XCTAssertTrue(PairingApply.preview(link, current: [destination(link.url, secret: "new-secret")]).changesNothing)
     }
 
-    func testPreviewOfTheSameSecretOnANewAddress() {
-        let change = PairingApply.preview(link, current: section([mine], secret: "new-secret"))
-        XCTAssertTrue(change.addsUrl)
-        XCTAssertFalse(change.replacesSecret)
+    func testPreviewOfANewSecretForTheSameAddress() {
+        let change = PairingApply.preview(link, current: [destination(mine), destination(link.url, secret: "old")])
+        XCTAssertFalse(change.addsUrl)
+        XCTAssertTrue(change.replacesSecret)
+        XCTAssertEqual(change.otherUrls, 1)
     }
 
-    func testThePreviewNamesTheOtherAddressesOnlyWhenTheSecretIsReplaced() {
-        let replaced = PairingApply.preview(link, current: section([mine, link.url], secret: "old"))
-        XCTAssertEqual(replaced.othersSignedWithNewSecret, [mine])
-        XCTAssertEqual(WebhookHosts.list(replaced.othersSignedWithNewSecret), "my.server")
+    func testABlankSecretCountsAsNone() {
+        XCTAssertFalse(PairingApply.preview(link, current: [destination(link.url, secret: "  ")]).replacesSecret)
+    }
 
-        // Same secret, or none before: nothing the other addresses get changes.
-        XCTAssertEqual(PairingApply.preview(link, current: section([mine], secret: "new-secret")).othersSignedWithNewSecret, [])
-        XCTAssertEqual(PairingApply.preview(link, current: section([mine])).othersSignedWithNewSecret, [])
-        // Only the paired address: no other to name.
-        XCTAssertEqual(PairingApply.preview(link, current: section([link.url], secret: "old")).othersSignedWithNewSecret, [])
+    // MARK: - Destinations
+
+    func testTheSettingsOfBeforeBecomeDestinationsWithoutAnyChange() {
+        let list = WebhookDestinations.derived(
+            urls: [mine, link.url], secret: "shared", headers: ["Authorization": "Bearer key"], urlsWithoutHeaders: [link.url]
+        )
+        XCTAssertEqual(list.map(\.secret), ["shared", "shared"])
+        XCTAssertEqual(list.map(\.headers), [["Authorization": "Bearer key"], [:]])
+        // The same ids on every read, until the list is stored.
+        XCTAssertEqual(list.map(\.id), WebhookDestinations.derived(urls: [mine, link.url], secret: "", headers: [:], urlsWithoutHeaders: []).map(\.id))
+    }
+
+    func testANewAddressGetsTheDefaultSecretAndARemovedOneGoes() {
+        let kept = destination(mine, secret: "mine", headers: ["K": "V"])
+        let next = WebhookDestinations.synced([kept, destination(link.url, secret: "gone")], urls: [mine, "https://new/hook"], newSecret: "default")
+        XCTAssertEqual(next[0], kept)
+        XCTAssertEqual(next[1].url, "https://new/hook")
+        XCTAssertEqual(next[1].secret, "default")
+        XCTAssertEqual(next[1].headers, [:])
+    }
+
+    func testTheSectionKeysAreOnlyWhatEveryAddressShares() {
+        let same = WebhookDestinations.sectionKeys([destination(mine, secret: "s", headers: ["K": "V"]), destination(link.url, secret: "s")])
+        XCTAssertEqual(same.secret, "s")
+        XCTAssertEqual(same.headers, ["K": "V"])
+        XCTAssertEqual(same.urlsWithoutHeaders, [link.url])
+
+        // Different secrets or headers: none, and every address listed, so an older reader sends
+        // no receiver's credentials to another.
+        let different = WebhookDestinations.sectionKeys([destination(mine, secret: "a", headers: ["K": "1"]), destination(link.url, secret: "b", headers: ["K": "2"])])
+        XCTAssertEqual(different.secret, "")
+        XCTAssertEqual(different.headers, [:])
+        XCTAssertEqual(different.urlsWithoutHeaders, [mine, link.url])
+
+        XCTAssertEqual(WebhookDestinations.sectionKeys([destination(mine)]).urlsWithoutHeaders, [])
+    }
+
+    func testAGeneratedSecretIs64HexCharacters() {
+        let secret = WebhookDestinations.generatedSecret()
+        XCTAssertEqual(secret.count, 64)
+        XCTAssertTrue(secret.allSatisfy { $0.isHexDigit })
+        XCTAssertNotEqual(secret, WebhookDestinations.generatedSecret())
     }
 
     // MARK: - Hosts
@@ -89,36 +132,6 @@ final class PairingApplyTests: XCTestCase {
             "https://a.example/hook/1?k=v", "https://b.example/hook", "https://a.example/hook/2"
         ]), "a.example, b.example")
         XCTAssertEqual(WebhookHosts.list([]), "")
-    }
-
-    func testABlankSecretCountsAsNone() {
-        XCTAssertFalse(PairingApply.preview(link, current: section([mine], secret: "  ")).replacesSecret)
-    }
-
-    // MARK: - Headers
-
-    func testAPairedAddressGetsNoCustomHeaders() {
-        let next = PairingApply.applied(link, to: section([mine]))
-        let custom = ["Authorization": "Bearer key"]
-        XCTAssertEqual(PairingApply.headers(for: mine, custom: custom, configuredUrls: next.urls, urlsWithoutHeaders: next.urlsWithoutHeaders), custom)
-        XCTAssertEqual(PairingApply.headers(for: link.url, custom: custom, configuredUrls: next.urls, urlsWithoutHeaders: next.urlsWithoutHeaders), [:])
-    }
-
-    func testAnAddressNoLongerListedGetsNoCustomHeaders() {
-        // A queued payload can still name an address the user removed since.
-        XCTAssertEqual(PairingApply.headers(for: "https://removed/hook", custom: ["K": "V"], configuredUrls: [mine], urlsWithoutHeaders: []), [:])
-    }
-
-    func testTypingAPairedAddressLiftsItsMarkWithoutADuplicate() {
-        let next = section([mine, link.url], marks: [link.url]).withTypedUrl(link.url)
-        XCTAssertEqual(next.urls, [mine, link.url])
-        XCTAssertTrue(next.urlsWithoutHeaders.isEmpty)
-    }
-
-    func testTypingANewAddressAppendsItUnmarked() {
-        let next = section([mine]).withTypedUrl("https://other/hook")
-        XCTAssertEqual(next.urls, [mine, "https://other/hook"])
-        XCTAssertTrue(next.urlsWithoutHeaders.isEmpty)
     }
 
     // MARK: - The ping after pairing

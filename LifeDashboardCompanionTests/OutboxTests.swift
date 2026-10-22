@@ -179,7 +179,7 @@ final class OutboxTests: XCTestCase {
 
     func testAFailedPostSaysWhyAndTheNotificationShowsIt() async {
         let delivery = await WebhookManager.shared.post(
-            body: Data("{}".utf8), urls: [""], headers: [:],
+            body: Data("{}".utf8), urls: [""],
             logType: .healthConnect, dataType: "health_connect", recordCount: 1
         )
         XCTAssertEqual(delivery, WebhookManager.Delivery(outcome: .failed, error: AppDiagnostic.invalidURL.rawValue, urlCount: 1, unanswered: true))
@@ -329,7 +329,6 @@ final class OutboxTests: XCTestCase {
         var answers: [String: WebhookManager.Outcome] = [:]
         /// The status a receiver answered a failure with; none means it reached no receiver.
         var codes: [String: Int] = [:]
-        var headers = ["Authorization": "Bearer old-key"]
         var configured = ["https://new.example/hook"]
         var posted: [QueuedPost] = []
         var removed: [String] = []
@@ -342,11 +341,8 @@ final class OutboxTests: XCTestCase {
                 now: now,
                 retryRefused: retryRefused,
                 urls: { self.configured },
-                headers: { self.headers },
-                post: { item, urls, headers in
-                    self.posted.append(QueuedPost(id: item.id, urls: urls, headers: headers))
-                    // The key is rotated while the queue drains.
-                    self.headers = ["Authorization": "Bearer new-key"]
+                post: { item, urls in
+                    self.posted.append(QueuedPost(id: item.id, urls: urls))
                     let outcome = self.answers[item.id] ?? .delivered
                     return WebhookManager.Delivery(outcome: outcome, statusCode: outcome == .refused ? 400 : self.codes[item.id])
                 },
@@ -372,7 +368,6 @@ final class OutboxTests: XCTestCase {
     func testEveryRetryGoesWhereAndWithWhatIsConfiguredNow() async {
         let receiver = Receiver()
         await receiver.drain.run([item("a"), item("b")])
-        XCTAssertEqual(receiver.posted.map(\.headers["Authorization"]), ["Bearer old-key", "Bearer new-key"])
         XCTAssertEqual(receiver.posted.map(\.urls), [["https://new.example/hook"], ["https://new.example/hook"]])
         XCTAssertEqual(receiver.removed, ["a", "b"])
     }
@@ -584,7 +579,7 @@ final class OutboxTests: XCTestCase {
         configuration.protocolClasses = [StatusStub.self]
         let urls = codes.map { "https://status-\($0)-\(UUID().uuidString.prefix(8)).test/hook" }
         let delivery = await WebhookManager(configuration: configuration).post(
-            body: Data("{}".utf8), urls: urls, headers: [:],
+            body: Data("{}".utf8), urls: urls,
             logType: .healthConnect, dataType: "health_connect", recordCount: 1
         )
         for row in LogStore.shared.load() where urls.contains(row.url) { LogStore.shared.delete(id: row.id) }
@@ -643,5 +638,4 @@ final class OutboxTests: XCTestCase {
 private struct QueuedPost {
     let id: String
     let urls: [String]
-    let headers: [String: String]
 }

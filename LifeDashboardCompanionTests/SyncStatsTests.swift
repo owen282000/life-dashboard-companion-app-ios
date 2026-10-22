@@ -256,7 +256,7 @@ final class DeliveryInterruptionTests: XCTestCase {
         let outcome = await Task { () -> WebhookManager.Outcome in
             withUnsafeCurrentTask { $0?.cancel() }
             return await WebhookManager.shared.post(
-                body: Data("{}".utf8), urls: [url], headers: [:],
+                body: Data("{}".utf8), urls: [url],
                 logType: .healthConnect, dataType: "health_connect", recordCount: 3
             ).outcome
         }.value

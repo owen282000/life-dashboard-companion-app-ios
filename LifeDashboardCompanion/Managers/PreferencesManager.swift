@@ -30,6 +30,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         static let healthEnabledDataTypes = "health_enabled_data_types"
         static let healthWebhookHeaders = "health_webhook_headers"
         static let healthSigningSecret = "health_signing_secret"
+        static let healthDestinations = "health_destinations"
         static let includeDailyTotals = "include_daily_totals"
         static let healthSeriesResolutions = "health_series_resolutions"
         static let webhookLogs = "webhook_logs"
@@ -99,8 +100,44 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
                 defaults.set(data, forKey: Keys.healthWebhookUrls)
             }
             pruneUrlsWithoutHeaders()
+            // An address added keeps the default secret and no headers, a removed one goes with
+            // its own; an address already there keeps what it has.
+            let synced = WebhookDestinations.synced(healthDestinations, urls: healthWebhookUrls, newSecret: healthSigningSecret)
+            if synced != healthDestinations { healthDestinations = synced }
             if healthWebhookUrls != oldValue { destinationsDidChange() }
         }
+    }
+
+    /// Every webhook address with its own secret and headers (P2-13). Until the first change it
+    /// is derived from the section's secret and headers of 1.9.0, so nothing changes on update;
+    /// the first save, pairing or import stores it, in the Keychain as one item.
+    @Published var healthDestinations: [WebhookDestination] {
+        didSet {
+            if healthDestinations != oldValue, let data = try? encoder.encode(healthDestinations) {
+                secrets.setData(data, forKey: Keys.healthDestinations)
+            }
+        }
+    }
+
+    /// The same list read back from storage, which is thread-safe: WebhookManager reads it at
+    /// every send, off the main actor. Not stored yet: derived from the stored 1.9.0 settings.
+    var storedHealthDestinations: [WebhookDestination] {
+        if let data = secrets.data(forKey: Keys.healthDestinations),
+           let list = try? JSONDecoder().decode([WebhookDestination].self, from: data) {
+            return list
+        }
+        return PreferencesManager.derivedDestinations(defaults: defaults, secrets: secrets)
+    }
+
+    private static func derivedDestinations(defaults: UserDefaults, secrets: any SecretStore) -> [WebhookDestination] {
+        let urls = (defaults.data(forKey: Keys.healthWebhookUrls)).flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? []
+        let headers = secrets.data(forKey: Keys.healthWebhookHeaders).flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
+        return WebhookDestinations.derived(
+            urls: urls,
+            secret: secrets.string(forKey: Keys.healthSigningSecret) ?? "",
+            headers: headers,
+            urlsWithoutHeaders: decodeUrls(defaults.data(forKey: Keys.healthUrlsWithoutHeaders))
+        )
     }
 
     /// URLs that get none of the custom headers: the ones QR pairing added. Android's key and
@@ -357,6 +394,17 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
             defaults.removeObject(forKey: Keys.healthSigningSecret)
         } else {
             self.healthSigningSecret = ""
+        }
+        // From storage, after the 1.9.0 settings above have moved into the Keychain.
+        let derived = PreferencesManager.derivedDestinations(defaults: defaults, secrets: secrets)
+        if let data = secrets.data(forKey: Keys.healthDestinations),
+           let list = try? JSONDecoder().decode([WebhookDestination].self, from: data) {
+            // Stored by an earlier run; an address list changed meanwhile (a restore) wins.
+            self.healthDestinations = WebhookDestinations.synced(
+                list, urls: derived.map(\.url), newSecret: secrets.string(forKey: Keys.healthSigningSecret) ?? ""
+            )
+        } else {
+            self.healthDestinations = derived
         }
         self.includeDailyTotals = defaults.object(forKey: Keys.includeDailyTotals) as? Bool ?? true
         self.seriesResolutions = PreferencesManager.parseResolutions(defaults.string(forKey: Keys.healthSeriesResolutions))

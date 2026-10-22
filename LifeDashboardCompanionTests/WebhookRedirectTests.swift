@@ -232,7 +232,7 @@ final class WebhookRedirectTests: XCTestCase {
         RedirectStub.route(exec, status: 302, location: "https://\(answerHost)/macros/echo?user_content_key=k")
         RedirectStub.route("https://\(answerHost)/macros/echo?user_content_key=k", status: 200)
 
-        let delivery = await post(to: exec, through: webhooks, headers: ["X-Api-Key": "secret-key"])
+        let delivery = await post(to: exec, through: webhooks)
 
         XCTAssertEqual(delivery.outcome, .delivered)
         let posted = RedirectStub.requests(to: script)
@@ -297,9 +297,9 @@ final class WebhookRedirectTests: XCTestCase {
         )
     }
 
-    private func post(to url: String, through manager: WebhookManager, headers: [String: String] = [:]) async -> WebhookManager.Delivery {
+    private func post(to url: String, through manager: WebhookManager) async -> WebhookManager.Delivery {
         let delivery = await manager.post(
-            body: Self.body, urls: [url], headers: headers,
+            body: Self.body, urls: [url],
             logType: .healthConnect, dataType: "health_connect", recordCount: 1
         )
         for row in LogStore.shared.load() where row.url == url { LogStore.shared.delete(id: row.id) }
@@ -320,7 +320,7 @@ final class WebhookRedirectTests: XCTestCase {
 
     private func post(to url: String) async -> WebhookManager.Delivery {
         let delivery = await webhooks.post(
-            body: Self.body, urls: [url], headers: [:],
+            body: Self.body, urls: [url],
             logType: .healthConnect, dataType: "health_connect", recordCount: 1
         )
         for row in LogStore.shared.load() where row.url == url { LogStore.shared.delete(id: row.id) }

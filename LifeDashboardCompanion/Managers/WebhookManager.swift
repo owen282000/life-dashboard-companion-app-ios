@@ -85,14 +85,12 @@ actor WebhookManager {
     /// `logSuccess: false` logs only the URLs that failed: a backfill posts hundreds of chunks,
     /// which would push every other entry out of the log, and writes one summary row instead.
     ///
-    /// Which URL gets the custom headers is decided here, per URL, at send time, so every
-    /// caller obeys it: an address pairing added gets none. Any new way of posting must go
-    /// through this method for that reason, with the headers configured now: the retry queue
-    /// passes the current ones too, not those of the day a payload was queued.
+    /// Each URL's secret and headers are decided here, per URL, at send time, from its own
+    /// destination, so every caller obeys them. Any new way of posting must go through this
+    /// method for that reason.
     func post(
         body jsonData: Data,
         urls: [String],
-        headers: [String: String],
         logType: LogType,
         dataType: String,
         recordCount: Int,
@@ -121,12 +119,10 @@ actor WebhookManager {
             return Delivery(outcome: .failed, error: reason, urlCount: urls.count)
         }
 
-        let signingSecret = prefs.healthSigningSecret
-        let signature = signingSecret.isEmpty
-            ? nil
-            : WebhookSigner.signatureHeader(for: jsonData, secret: signingSecret)
-        let configuredUrls = prefs.healthWebhookUrls
-        let urlsWithoutHeaders = prefs.storedUrlsWithoutHeaders
+        // Each address with its own secret and headers, read now: the retry queue too sends with
+        // the current ones, not those of the day a payload was queued. An address no longer
+        // listed gets neither, so a key never reaches a host it was not set for.
+        let destinations = prefs.storedHealthDestinations
 
         var anySuccess = false
         var notTaken: [String] = []
@@ -138,14 +134,10 @@ actor WebhookManager {
         var lastStatusCode: Int?
 
         for url in urls {
-            var urlHeaders = PairingApply.headers(
-                for: url,
-                custom: headers,
-                configuredUrls: configuredUrls,
-                urlsWithoutHeaders: urlsWithoutHeaders
-            )
-            if let signature {
-                urlHeaders["X-Signature"] = signature
+            let destination = destinations.first { $0.url == url }
+            var urlHeaders = destination?.headers ?? [:]
+            if let secret = destination?.secret, !secret.isEmpty {
+                urlHeaders["X-Signature"] = WebhookSigner.signatureHeader(for: jsonData, secret: secret)
             }
             // iOS leaves a bad header out without a word, so the server would answer for a
             // request without it. Nothing goes out, and the row names the header instead.
