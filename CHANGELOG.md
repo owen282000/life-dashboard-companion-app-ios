@@ -6,6 +6,19 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- Every webhook address has its own signing secret and headers, as in the Android app since 1.28.0.
+  Pairing a second receiver used to replace the one secret all addresses were signed with, so the first
+  receiver started refusing every payload without a word; now pairing sets the secret of the paired
+  address only, and the sheet says the other addresses keep theirs. Tap an address under Webhook for
+  its secret and headers: Generate a secret, or copy the secret or the headers of another address, while
+  the field is empty. They are stored per address in the Keychain. Every send path signs with the
+  address's own secret and sends only its headers: syncs, deletions, backfill, the retry queue and Test
+  ping. Nothing changes on update: until the first change, every address has the secret and headers it
+  had, the headers left out where pairing added the address.
+- The settings backup carries a `destinations` block with each address's headers and secret, in the
+  Android app's format, so a file moves between the two apps with every address intact. A file without
+  secrets keeps each address's own on the iPhone, by id and then by URL. For an older reader the section
+  keys are filled in only when every address shares them.
 - The Health screen says when iOS holds syncs back, as the Android app's battery card does. While
   Background App Refresh is off for the app, a card says that iOS holds background syncs until the app is
   opened, with Open Settings, Help for your phone and Don't show again; while Low Power Mode is on, one
@@ -23,7 +36,6 @@ All notable changes to this project are documented in this file. The format is b
   first sync right after it, with its result: "Synced 412 records", or what to check. The essentials are
   picked already on the types step; Choose later stays. A setup left halfway comes back at the next start
   instead of counting as done.
-
 - The app is on the App Store, a one-time purchase of EUR 6.99 (USD 5.99). The README, the setup guide and
   features.md say so and link to it, and building it yourself with Xcode stays free. PRIVACY.md no longer
   reads as if TestFlight were the way to get the app.

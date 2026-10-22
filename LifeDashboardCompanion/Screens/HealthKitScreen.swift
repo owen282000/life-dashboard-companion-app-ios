@@ -15,9 +15,7 @@ struct HealthKitScreen: View {
     @State private var showResolution = false
     @State private var showNotifications = false
     @State private var newWebhookUrl: String = ""
-    @State private var newHeaderKey: String = ""
-    @State private var newHeaderValue: String = ""
-    @State private var headerProblem: SettingsValidation.HeaderProblem?
+    @State private var editingDestination: WebhookDestination?
     @State private var mqttHostText = PreferencesManager.shared.mqttHost
     @State private var mqttPortText = String(PreferencesManager.shared.mqttPort)
     @State private var phoneNameText = PreferencesManager.shared.phoneName
@@ -107,12 +105,27 @@ struct HealthKitScreen: View {
                 showResolution = rows.contains("resolution")
                 showNotifications = rows.contains("notifications")
             }
+            // -ld.destination 0 opens the first webhook address's sheet.
+            if UserDefaults.standard.object(forKey: "ld.destination") != nil {
+                let index = UserDefaults.standard.integer(forKey: "ld.destination")
+                if prefs.healthDestinations.indices.contains(index) {
+                    editingDestination = prefs.healthDestinations[index]
+                }
+            }
             #endif
         }
         .task(id: prefs.healthEnabledDataTypes) { await refreshAccessRequest() }
         .task { await askOnceAfterUpdate() }
         .sheet(isPresented: $showPreview) {
             previewSheet
+        }
+        // On the screen, not in the Webhook row, which is not there while it is collapsed.
+        .sheet(item: $editingDestination) { destination in
+            DestinationSheet(
+                destination: destination,
+                others: prefs.healthDestinations.filter { $0.id != destination.id },
+                onSave: { prefs.updateDestination($0) }
+            )
         }
         .shareSheet(for: $exportFileURL)
         // A pairing link needs the root sheet, which cannot show over this one.
@@ -239,15 +252,25 @@ struct HealthKitScreen: View {
                     remaining.remove(at: index)
                     prefs.healthWebhookUrls = remaining
                 } content: {
-                    Text(verbatim: url)
-                        .font(.footnote)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    if !prefs.healthWebhookHeaders.isEmpty && prefs.healthUrlsWithoutHeaders.contains(url) {
-                        Text("Paired by QR code: custom headers are not sent here")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    // Tap an address for its own signing secret and headers, as on Android.
+                    Button {
+                        editingDestination = prefs.healthDestinations.first { $0.url == url }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(verbatim: url)
+                                .font(.footnote)
+                                .foregroundStyle(Brand.ink)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            destinationSummary(prefs.healthDestinations.first { $0.url == url })
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityHint(Text("Opens its signing secret and headers"))
                 }
             }
             HStack(spacing: 8) {
@@ -269,68 +292,21 @@ struct HealthKitScreen: View {
                 }
             }
 
-            Divider()
-            RowSubheading("Custom Headers")
-            ForEach(Array(prefs.healthWebhookHeaders.keys.sorted()), id: \.self) { key in
-                ListLine(removeLabel: Text("Remove header \(key)")) {
-                    prefs.healthWebhookHeaders.removeValue(forKey: key)
-                } content: {
-                    Text(verbatim: "\(key): \(prefs.healthWebhookHeaders[key] ?? "")")
-                        .font(.footnote)
-                        .lineLimit(1)
-                    if SettingsValidation.firstInvalidHeader([key: prefs.healthWebhookHeaders[key] ?? ""]) != nil {
-                        Text("Not a valid header, so nothing is sent. Remove it and add it again.")
-                            .font(.caption)
-                            .foregroundStyle(Brand.errorInk)
-                    }
-                }
-            }
-            HStack(spacing: 8) {
-                TextField("Key", text: $newHeaderKey)
-                    .font(.footnote)
-                    .textFieldStyle(.filled)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                TextField("Value", text: $newHeaderValue)
-                    .font(.footnote)
-                    .textFieldStyle(.filled)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                iconButton("plus", label: "Add header", action: addHeader)
-            }
-            .onChange(of: newHeaderKey) { headerProblem = nil }
-            .onChange(of: newHeaderValue) { headerProblem = nil }
-            if let headerProblem {
-                FieldError(message: headerProblem.message)
-            }
-
-            Divider()
-            RowSubheading("HMAC Signing Secret")
-            SecureField("Optional secret for X-Signature", text: Binding(
-                get: { prefs.healthSigningSecret },
-                set: { prefs.healthSigningSecret = $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            ))
-            .font(.footnote)
-            .textFieldStyle(.filled)
-            Text("When set, every request includes X-Signature: sha256=HMAC-SHA256(secret, body) so your server can verify the sender.")
+            Text("Every address has its own signing secret and headers. Pairing sets them for the address it adds; tap an address to see or change them.")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
     }
 
-    /// A header goes in only when iOS would send it as typed; otherwise the line under the
-    /// fields says why, and what was typed stays to be corrected.
-    private func addHeader() {
-        let key = newHeaderKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        let value = newHeaderValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let problem = SettingsValidation.headerProblem(name: key, value: value, existing: prefs.healthWebhookHeaders) {
-            headerProblem = problem
-            AccessibilityNotification.Announcement(problem.message).post()
-            return
+    private func destinationSummary(_ destination: WebhookDestination?) -> Text {
+        let signed = !(destination?.secret.isEmpty ?? true)
+        let names = (destination?.headers.keys.sorted() ?? []).joined(separator: ", ")
+        switch (signed, names.isEmpty) {
+        case (true, true): return Text("Signed, no headers")
+        case (true, false): return Text("Signed, headers: \(names)")
+        case (false, true): return Text("Not signed, no headers")
+        case (false, false): return Text("Not signed, headers: \(names)")
         }
-        prefs.healthWebhookHeaders[key] = value
-        newHeaderKey = ""
-        newHeaderValue = ""
     }
 
     /// Android's square add button: the green fill with the dark ink glyph.
@@ -786,7 +762,6 @@ enum TestPing {
         let delivery = await WebhookManager.shared.post(
             body: body,
             urls: prefs.healthWebhookUrls,
-            headers: prefs.healthWebhookHeaders,
             logType: .healthConnect,
             dataType: "test",
             recordCount: 0
@@ -851,5 +826,130 @@ enum SyncOutcome: Equatable {
         case .noData: return .info
         case .failed, .partlySynced, .pingFailed, .exportFailed: return .failure
         }
+    }
+}
+
+/// One address's own signing secret and headers (P2-13), as Android's address dialog since
+/// 1.28.0. Generate and the copies from another address are offered only while the field is
+/// empty, so nothing typed is overwritten by a tap. Saved as a whole, or not at all.
+struct DestinationSheet: View {
+    @State var destination: WebhookDestination
+    let others: [WebhookDestination]
+    let onSave: (WebhookDestination) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var newKey = ""
+    @State private var newValue = ""
+    @State private var problem: SettingsValidation.HeaderProblem?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(verbatim: destination.url)
+                        .font(.footnote)
+                        .textSelection(.enabled)
+                } header: {
+                    Text("Address")
+                }
+
+                Section {
+                    RevealableSecureField("Optional secret for X-Signature", text: Binding(
+                        get: { destination.secret },
+                        set: { destination.secret = $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    ))
+                    if destination.secret.isEmpty {
+                        Button("Generate") { destination.secret = WebhookDestinations.generatedSecret() }
+                        let signed = others.filter { !$0.secret.isEmpty }
+                        if !signed.isEmpty {
+                            Menu("Use the secret of another address") {
+                                ForEach(signed) { other in
+                                    Button { destination.secret = other.secret } label: { Text(verbatim: other.host) }
+                                }
+                            }
+                        }
+                    }
+                } header: {
+                    Text("HMAC Signing Secret")
+                } footer: {
+                    Text("When set, every request includes X-Signature: sha256=HMAC-SHA256(secret, body) so your server can verify the sender.")
+                }
+
+                Section {
+                    ForEach(destination.headers.keys.sorted(), id: \.self) { key in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(verbatim: "\(key): \(destination.headers[key] ?? "")")
+                                .font(.footnote)
+                                .lineLimit(1)
+                            if SettingsValidation.firstInvalidHeader([key: destination.headers[key] ?? ""]) != nil {
+                                Text("Not a valid header, so nothing is sent. Remove it and add it again.")
+                                    .font(.caption)
+                                    .foregroundStyle(Brand.errorInk)
+                            }
+                        }
+                    }
+                    .onDelete { offsets in
+                        let keys = destination.headers.keys.sorted()
+                        for index in offsets { destination.headers.removeValue(forKey: keys[index]) }
+                    }
+                    HStack(spacing: 8) {
+                        TextField("Key", text: $newKey)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        TextField("Value", text: $newValue)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        Button("Add", action: addHeader)
+                            .disabled(newKey.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                    .font(.footnote)
+                    .onChange(of: newKey) { problem = nil }
+                    .onChange(of: newValue) { problem = nil }
+                    if let problem {
+                        FieldError(message: problem.message)
+                    }
+                    let withHeaders = others.filter { !$0.headers.isEmpty }
+                    if destination.headers.isEmpty && !withHeaders.isEmpty {
+                        Menu("Use the headers of another address") {
+                            ForEach(withHeaders) { other in
+                                Button { destination.headers = other.headers } label: { Text(verbatim: other.host) }
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Custom Headers")
+                } footer: {
+                    Text("Sent to this address only. Swipe a header to remove it.")
+                }
+            }
+            .navigationTitle(Text(verbatim: destination.host))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        onSave(destination)
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    /// A header goes in only when iOS would send it as typed; otherwise the line under the
+    /// fields says why, and what was typed stays to be corrected.
+    private func addHeader() {
+        let key = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let found = SettingsValidation.headerProblem(name: key, value: value, existing: destination.headers) {
+            problem = found
+            AccessibilityNotification.Announcement(found.message).post()
+            return
+        }
+        destination.headers[key] = value
+        newKey = ""
+        newValue = ""
     }
 }

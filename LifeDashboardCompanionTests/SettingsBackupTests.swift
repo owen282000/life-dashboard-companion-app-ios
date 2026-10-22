@@ -14,6 +14,12 @@ final class SettingsBackupTests: XCTestCase {
     /// Differs from a fresh install in every field, so a round trip proves each one travels.
     private let fixture = SettingsSnapshot(
         healthWebhookUrls: ["https://example.com/health", "http://homeassistant.local:8123/api/webhook/abc"],
+        healthDestinations: WebhookDestinations.derived(
+            urls: ["https://example.com/health", "http://homeassistant.local:8123/api/webhook/abc"],
+            secret: "fixture-hmac",
+            headers: ["Authorization": "Bearer fixture-token", "X-Api-Key": "fixture-key"],
+            urlsWithoutHeaders: ["http://homeassistant.local:8123/api/webhook/abc"]
+        ),
         healthWebhookHeaders: ["Authorization": "Bearer fixture-token", "X-Api-Key": "fixture-key"],
         healthUrlsWithoutHeaders: ["http://homeassistant.local:8123/api/webhook/abc"],
         healthSigningSecret: "fixture-hmac",
@@ -199,11 +205,15 @@ final class SettingsBackupTests: XCTestCase {
     }
 
     func testExportWithoutSecretsLeavesThemOut() throws {
-        let data = try SettingsBackup.encode(SettingsBackup.export(fixture, includeSecrets: false, appVersion: nil))
+        let export = SettingsBackup.export(fixture, includeSecrets: false, appVersion: nil)
+        let data = try SettingsBackup.encode(export)
         let text = String(bytes: data, encoding: .utf8) ?? ""
-        for secret in ["fixture-token", "fixture-key", "fixture-hmac", "fixture-user", "fixture-pass", "\"headers\"", "signing_secret", "username", "password"] {
+        for secret in ["fixture-token", "fixture-key", "fixture-hmac", "fixture-user", "fixture-pass", "Authorization", "signing_secret", "username", "password"] {
             XCTAssertFalse(text.contains(secret), "\(secret) leaked into an export without secrets")
         }
+        // Android's format: each destination has empty headers and no secret, the section none.
+        XCTAssertNil(export.health?.headers)
+        XCTAssertEqual(export.health?.destinations?.map { $0.headers ?? ["missing": ""] }, [[:], [:]])
         XCTAssertTrue(text.contains("https://example.com/health"))
         XCTAssertTrue(text.contains("urls_without_headers"), "Not a secret: Android keeps it in an export without secrets")
     }
@@ -644,6 +654,9 @@ final class SettingsBackupTests: XCTestCase {
         next.healthWebhookUrls = ["https://other.example/hook"]
         next.healthUrlsWithoutHeaders = []
         next.healthWebhookHeaders = ["X-Other": "value"]
+        next.healthDestinations = WebhookDestinations.derived(
+            urls: next.healthWebhookUrls, secret: next.healthSigningSecret, headers: next.healthWebhookHeaders, urlsWithoutHeaders: []
+        )
         prefs.applyBackup(next)
 
         XCTAssertEqual(events, [
@@ -662,5 +675,69 @@ final class SettingsBackupTests: XCTestCase {
         prefs.applyBackup(fixture)
         subscription.cancel()
         XCTAssertEqual(writes, 0)
+    }
+
+    // MARK: - Destinations (P2-13)
+
+    func testEveryAddressTravelsWithItsOwnSecretAndHeaders() throws {
+        var settings = fixture
+        settings.healthDestinations = [
+            WebhookDestination(id: "a", url: "https://example.com/health", secret: "secret-a", headers: ["X-Key": "a"]),
+            WebhookDestination(id: "b", url: "http://homeassistant.local:8123/api/webhook/abc", secret: "secret-b", headers: [:])
+        ]
+        let file = try SettingsBackup.decode(SettingsBackup.encode(SettingsBackup.export(settings, includeSecrets: true, appVersion: nil)))
+        XCTAssertEqual(file.health?.destinations?.map(\.signingSecret), ["secret-a", "secret-b"])
+        // An older reader gets no shared secret, so it signs for neither receiver, and the headers
+        // only for the address that has them, the other listed as without.
+        XCTAssertNil(file.health?.signingSecret)
+        XCTAssertEqual(file.health?.headers, ["X-Key": "a"])
+        XCTAssertEqual(file.health?.urlsWithoutHeaders, ["http://homeassistant.local:8123/api/webhook/abc"])
+
+        var current = fixture
+        current.healthDestinations = []
+        current.healthWebhookUrls = []
+        let plan = try SettingsImport.plan(file, current: current)
+        XCTAssertEqual(plan.result.healthDestinations, settings.healthDestinations)
+        XCTAssertEqual(plan.result.healthWebhookUrls, settings.healthDestinations.map(\.url))
+    }
+
+    func testAFileWithoutSecretsKeepsThePhonesPerAddressByIdThenUrl() throws {
+        let json = """
+        {"version":1,"platform":"android","health":{"webhook_urls":["https://moved.example/hook","https://same.example/hook","https://new.example/hook"],
+         "destinations":[
+          {"id":"keep-1","url":"https://moved.example/hook","format":"default","headers":{}},
+          {"id":"other","url":"https://same.example/hook","format":"default","headers":{}},
+          {"id":"n","url":"https://new.example/hook","format":"default","headers":{}}]}}
+        """
+        var current = fixture
+        current.healthSigningSecret = "default"
+        current.healthDestinations = [
+            WebhookDestination(id: "keep-1", url: "https://old.example/hook", secret: "by-id", headers: ["K": "1"]),
+            WebhookDestination(id: "x", url: "https://same.example/hook", secret: "by-url", headers: [:])
+        ]
+        let plan = try SettingsImport.plan(SettingsBackup.decode(Data(json.utf8)), current: current)
+        XCTAssertEqual(plan.result.healthDestinations.map(\.secret), ["by-id", "by-url", "default"])
+        XCTAssertEqual(plan.result.healthDestinations.map(\.headers), [["K": "1"], [:], [:]])
+    }
+
+    func testAFileWithoutDestinationsIsReadAsItWasWritten() throws {
+        let json = """
+        {"version":1,"platform":"ios","health":{"webhook_urls":["https://a.example/hook","https://b.example/hook"],
+         "headers":{"Authorization":"Bearer t"},"signing_secret":"shared","urls_without_headers":["https://b.example/hook"]}}
+        """
+        let plan = try SettingsImport.plan(SettingsBackup.decode(Data(json.utf8)), current: fixture)
+        XCTAssertEqual(plan.result.healthDestinations.map(\.secret), ["shared", "shared"])
+        XCTAssertEqual(plan.result.healthDestinations.map(\.headers), [["Authorization": "Bearer t"], [:]])
+    }
+
+    func testAnImportedListIsStoredAndUsedForSending() {
+        let prefs = makePrefs()
+        var next = fixture
+        next.healthDestinations = [
+            WebhookDestination(id: "a", url: "https://example.com/health", secret: "secret-a", headers: [:]),
+            WebhookDestination(id: "b", url: "http://homeassistant.local:8123/api/webhook/abc", secret: "secret-b", headers: ["X": "y"])
+        ]
+        prefs.applyBackup(next)
+        XCTAssertEqual(prefs.storedHealthDestinations, next.healthDestinations)
     }
 }

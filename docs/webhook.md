@@ -215,7 +215,7 @@ Every sync payload goes into a queue on the phone before it is posted, and leave
 
 iOS allows plain `http://` only to the home network: an IP address, a `.local` name or a name without a dot. Use `https://` for anything else.
 
-With an HMAC signing secret set (under the webhook's custom headers), every POST carries:
+With an HMAC signing secret set for an address (tap the address under Webhook), every POST to that address carries:
 
 ```
 X-Signature: sha256=<hex of HMAC-SHA256(secret, raw request body)>

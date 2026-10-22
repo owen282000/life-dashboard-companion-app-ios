@@ -422,20 +422,17 @@ private struct ImportSheet: View {
         return Form {
             Section {
                 LabeledContent("Webhooks", value: "\(result.healthWebhookUrls.count)")
-                ForEach(result.healthWebhookUrls, id: \.self) { url in
-                    let host = URLComponents(string: url)?.host ?? url
+                ForEach(result.healthDestinations) { destination in
+                    let names = destination.headers.keys.sorted().joined(separator: ", ")
                     Group {
-                        if !result.healthWebhookHeaders.isEmpty && result.healthUrlsWithoutHeaders.contains(url) {
-                            Text("\(host), no custom headers")
+                        if names.isEmpty {
+                            Text("\(destination.host), no custom headers")
                         } else {
-                            Text(host)
+                            Text("\(destination.host), headers: \(names)")
                         }
                     }
                     .font(.caption)
                     .foregroundColor(.secondary)
-                }
-                if !result.healthWebhookHeaders.isEmpty {
-                    LabeledContent("Custom Headers", value: result.healthWebhookHeaders.keys.sorted().joined(separator: ", "))
                 }
                 LabeledContent("Data Types", value: "\(result.healthEnabledDataTypes.count)")
                 LabeledContent(

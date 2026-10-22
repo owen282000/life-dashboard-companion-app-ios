@@ -168,7 +168,6 @@ final class HealthSyncManager: Sendable {
         publishesToMqtt: Bool = true
     ) async -> (result: HealthSyncResult, behind: Set<HealthDataType>) {
         let webhookUrls = prefs.healthWebhookUrls
-        let headers = prefs.healthWebhookHeaders
 
         guard !types.isEmpty, !webhookUrls.isEmpty || prefs.mqttConfigured else { return (.noData, []) }
 
@@ -212,14 +211,14 @@ final class HealthSyncManager: Sendable {
                 // As on Android: deletions read before still go out, and a sync that sent them
                 // did something. Without them, no type answering is a failure, not "no data".
                 if let result = await postDeletionsOnly(
-                    readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: nil
+                    readGeneration: readGeneration, urls: webhookUrls, commit: nil
                 ) {
                     return (result, [])
                 }
                 return (readFailed(HealthKitManager.NoTypeAnswered()), [])
             case .empty(let commit):
                 guard let result = await postDeletionsOnly(
-                    readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: commit
+                    readGeneration: readGeneration, urls: webhookUrls, commit: commit
                 ) else {
                     commit.save()
                     if publishesToMqtt { await MqttPublisher.shared.republishIfPending() }
@@ -247,7 +246,7 @@ final class HealthSyncManager: Sendable {
                 // go with the deletions. MQTT still gets the new records.
                 if resolved.leavesNothingToSend(of: totalRecords) {
                     let posted = await postDeletionsOnly(
-                        readGeneration: readGeneration, urls: webhookUrls, headers: headers, commit: commit, records: healthData
+                        readGeneration: readGeneration, urls: webhookUrls, commit: commit, records: healthData
                     )
                     if posted == nil { commit.save() }
                     if publishesToMqtt, !Task.isCancelled {
@@ -259,7 +258,7 @@ final class HealthSyncManager: Sendable {
 
                 let outcome = await send(
                     payload, totalsDay: totalsDay, recordCount: totalRecords,
-                    urls: webhookUrls, headers: headers, deletions: deletions, commit: commit
+                    urls: webhookUrls, deletions: deletions, commit: commit
                 )
                 guard let outcome else { return (.failure(error: AppDiagnostic.serializeFailed.rawValue), []) }
                 let result: HealthSyncResult = outcome.delivered
@@ -350,12 +349,10 @@ final class HealthSyncManager: Sendable {
                 return DrainBudget.allowsAnotherPost(elapsed: Date().timeIntervalSince(startedAt), backgroundTimeRemaining: remaining)
             },
             urls: { prefs.healthWebhookUrls },
-            headers: { prefs.healthWebhookHeaders },
-            post: { item, urls, headers in
+            post: { item, urls in
                 await WebhookManager.shared.post(
                     body: item.payload,
                     urls: urls,
-                    headers: headers,
                     logType: LogType(rawValue: item.logType) ?? .healthConnect,
                     dataType: item.dataType,
                     recordCount: item.recordCount
@@ -434,7 +431,6 @@ final class HealthSyncManager: Sendable {
     private func postDeletionsOnly(
         readGeneration: Int,
         urls: [String],
-        headers: [String: String],
         commit: AnchorCommit?,
         records: [String: Any] = [:]
     ) async -> HealthSyncResult? {
@@ -451,7 +447,7 @@ final class HealthSyncManager: Sendable {
 
         let outcome = await send(
             payload, totalsDay: nil, recordCount: 0,
-            urls: urls, headers: headers, deletions: deletions, commit: commit
+            urls: urls, deletions: deletions, commit: commit
         )
         guard let outcome else { return .failure(error: AppDiagnostic.serializeFailed.rawValue) }
         return outcome.delivered
@@ -479,7 +475,6 @@ final class HealthSyncManager: Sendable {
         totalsDay: String?,
         recordCount: Int,
         urls: [String],
-        headers: [String: String],
         deletions: DeletionPlan,
         commit: AnchorCommit?
     ) async -> WebhookManager.Delivery? {
@@ -519,7 +514,6 @@ final class HealthSyncManager: Sendable {
                 await WebhookManager.shared.post(
                     body: body,
                     urls: urls,
-                    headers: headers,
                     logType: .healthConnect,
                     dataType: "health_connect",
                     recordCount: recordCount
@@ -808,9 +802,9 @@ enum DrainBudget {
 
 /// One pass over the retry queue, oldest first, apart from the stores and the network so the
 /// tests can run it. Every item is posted with the webhook settings of that moment, as Android's
-/// PendingDrainer does: to the URLs configured now, which WebhookManager gives the headers
-/// configured now, apart from the addresses that pairing added. A rotated API key or a new
-/// address therefore reaches what was queued before, and a removed address gets nothing more.
+/// PendingDrainer does: to the URLs configured now, which WebhookManager gives each its own
+/// secret and headers of now. A rotated API key or a new address therefore reaches what was
+/// queued before, and a removed address gets nothing more.
 ///
 /// The pass stops at the first item that fails, so the rest wait in order for a receiver that
 /// answers again. An item refused for what it carries (400, 413, 422) does not hold them up: it
@@ -834,8 +828,7 @@ struct QueueDrain {
     var hasTime: () async -> Bool = { true }
     /// The URLs configured now; none leaves every item waiting.
     var urls: () -> [String]
-    var headers: () -> [String: String]
-    var post: (PendingSyncItem, [String], [String: String]) async -> WebhookManager.Delivery
+    var post: (PendingSyncItem, [String]) async -> WebhookManager.Delivery
     var remove: (PendingSyncItem) -> Void
     /// Counts a failed or refused delivery on the item.
     var attempt: (PendingSyncItem, WebhookManager.Delivery) -> Void
@@ -849,7 +842,7 @@ struct QueueDrain {
             guard await hasTime() else { return }
             let urls = urls()
             guard !urls.isEmpty else { return }
-            let delivery = await post(item, urls, headers())
+            let delivery = await post(item, urls)
             let expired = item.expired(at: now)
             switch delivery.outcome {
             case .delivered:

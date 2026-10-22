@@ -79,11 +79,10 @@ final class LocalizationTests: XCTestCase {
                        "ha.example hat die letzten 3 Synchronisierungen verpasst. Ein anderes Ziel hat sie bekommen, deshalb stehen sie für ha.example nicht in der Warteschlange. Sieh im Tab Logs nach.")
     }
 
-    func testThePairingSheetNamesTheOtherAddressesInEachLanguage() {
-        XCTAssertEqual(resolve("Replaces the signing secret this section uses now. \("a.example, b.example") gets payloads signed with the new one from then on: if it checks signatures, give it the new secret too, or remove it.", "nl"),
-                       "Vervangt het ondertekeningsgeheim dat dit onderdeel nu gebruikt. a.example, b.example krijgt vanaf dan payloads met het nieuwe: controleert het handtekeningen, geef het dan ook het nieuwe geheim, of haal het weg.")
-        XCTAssertEqual(resolve("Replaces the signing secret this section uses now. \("a.example") gets payloads signed with the new one from then on: if it checks signatures, give it the new secret too, or remove it.", "de"),
-                       "Ersetzt das Signaturgeheimnis, das dieser Bereich jetzt verwendet. a.example bekommt ab dann Payloads, die mit dem neuen signiert sind: Prüft es Signaturen, gib ihm auch das neue Geheimnis, oder entferne es.")
+    func testTheImportPreviewNamesEachAddressWithItsHeaders() {
+        XCTAssertEqual(resolve("\("ha.example"), headers: \("Authorization, X-Key")", "nl"), "ha.example, headers: Authorization, X-Key")
+        XCTAssertEqual(resolve("\("ha.example"), headers: \("Authorization")", "de"), "ha.example, Header: Authorization")
+        XCTAssertEqual(resolve("Signed, headers: \("Authorization")", "nl"), "Ondertekend, headers: Authorization")
     }
 
     func testThePairingResultFitsAnyReceiverInEachLanguage() {

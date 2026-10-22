@@ -52,8 +52,12 @@ struct SectionConfig: Codable, Equatable {
     /// URLs that get none of the headers: the ones QR pairing added, on either app. Not a
     /// secret, so it stays in an export without secrets, as on Android.
     var urlsWithoutHeaders: [String]?
+    /// Each address with its own headers and secret, Android's block since 1.28.0. When a file
+    /// has it, the import takes the addresses, headers and secrets from here.
+    var destinations: [DestinationConfig]?
 
     enum CodingKeys: String, CodingKey {
+        case destinations
         case headers
         case webhookUrls = "webhook_urls"
         case signingSecret = "signing_secret"
@@ -67,7 +71,23 @@ struct SectionConfig: Codable, Equatable {
     }
 
     var containsSecrets: Bool {
-        !(headers ?? [:]).isEmpty || !(signingSecret ?? "").trimmingCharacters(in: .whitespaces).isEmpty
+        !(headers ?? [:]).isEmpty || !(signingSecret ?? "").trimmingCharacters(in: .whitespaces).isEmpty ||
+            (destinations ?? []).contains { !($0.headers ?? [:]).isEmpty || !($0.signingSecret ?? "").isEmpty }
+    }
+}
+
+/// One entry of `destinations`. `format` is always "default", the JSON payload; a file without
+/// secrets has empty headers and no `signing_secret`, never null.
+struct DestinationConfig: Codable, Equatable {
+    var id: String?
+    var url: String?
+    var format: String?
+    var headers: [String: String]?
+    var signingSecret: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, url, format, headers
+        case signingSecret = "signing_secret"
     }
 }
 
@@ -157,6 +177,9 @@ extension ConfigBackup {
 /// values, so a new property breaks every place that builds one until it is filled in.
 struct SettingsSnapshot: Equatable, Sendable {
     var healthWebhookUrls: [String]
+    /// Every address with its own secret and headers; the three section fields below are what
+    /// a reader without destinations gets, and the default for an address added by hand.
+    var healthDestinations: [WebhookDestination]
     var healthWebhookHeaders: [String: String]
     var healthUrlsWithoutHeaders: Set<String>
     var healthSigningSecret: String
@@ -213,8 +236,15 @@ enum SettingsBackup {
         now: Date = Date()
     ) -> ConfigBackup {
         func secret(_ value: String) -> String? { includeSecrets && !value.isEmpty ? value : nil }
-        // Android reads an absent list as empty, so an empty one is left out.
-        let marked = settings.healthWebhookUrls.filter { settings.healthUrlsWithoutHeaders.contains($0) }
+        // The section keys for a reader without destinations: a secret or headers only when the
+        // addresses share them (WebhookDestinations.sectionKeys), so it never sends one
+        // receiver's credentials to another. Android reads an absent list as empty.
+        let keys = WebhookDestinations.sectionKeys(settings.healthDestinations)
+        let marked = settings.healthWebhookUrls.filter { keys.urlsWithoutHeaders.contains($0) }
+        let destinations = settings.healthDestinations.map {
+            DestinationConfig(id: $0.id, url: $0.url, format: "default",
+                              headers: includeSecrets ? $0.headers : [:], signingSecret: secret($0.secret))
+        }
 
         return ConfigBackup(
             version: currentVersion,
@@ -223,15 +253,16 @@ enum SettingsBackup {
             appVersion: appVersion,
             health: SectionConfig(
                 webhookUrls: settings.healthWebhookUrls,
-                headers: includeSecrets ? settings.healthWebhookHeaders : nil,
-                signingSecret: secret(settings.healthSigningSecret),
+                headers: includeSecrets ? keys.headers : nil,
+                signingSecret: secret(keys.secret),
                 syncIntervalMinutes: settings.healthSyncSchedule.intervalMinutes,
                 syncMode: settings.healthSyncSchedule.mode.rawValue,
                 syncTimes: SyncSchedule.formatTimes(settings.healthSyncSchedule.times),
                 syncDays: SyncSchedule.formatDays(settings.healthSyncSchedule.days),
                 quietFrom: settings.healthSyncSchedule.quietWindow?.from.text,
                 quietTo: settings.healthSyncSchedule.quietWindow?.to.text,
-                urlsWithoutHeaders: marked.isEmpty ? nil : marked
+                urlsWithoutHeaders: marked.isEmpty ? nil : marked,
+                destinations: destinations.isEmpty ? nil : destinations
             ),
             mqtt: MqttConfig(
                 shared: BrokerConfig(
@@ -478,7 +509,7 @@ enum SettingsImport {
         let fromIPhone = file.platform == SettingsBackup.platformName
 
         if let health = file.health {
-            try planHealth(health, current: current, result: &result, notes: &notes)
+            try planHealth(health, fileHasSecrets: file.containsSecrets, current: current, result: &result, notes: &notes)
         }
         if !fromIPhone, !(file.screenTime?.webhookUrls ?? []).isEmpty {
             notes.append(.screenTimeSkipped)
@@ -503,6 +534,7 @@ enum SettingsImport {
 
     private static func planHealth(
         _ health: SectionConfig,
+        fileHasSecrets: Bool,
         current: SettingsSnapshot,
         result: inout SettingsSnapshot,
         notes: inout [ImportNote]
@@ -548,12 +580,79 @@ enum SettingsImport {
             notes.append(.signingSecretKept)
         }
 
+        if let fileDestinations = health.destinations {
+            try planDestinations(fileDestinations, fileHasSecrets: fileHasSecrets, current: current, result: &result, notes: &notes)
+        } else {
+            // A file without destinations (Android before 1.28.0, the iPhone app before 1.10.0)
+            // as it was written: its secret to every address, its headers to every address it
+            // does not list as without. Without them in the file, each address keeps what the
+            // phone has for it, and an address new to the phone gets the default and no headers.
+            result.healthDestinations = result.healthWebhookUrls.map { url in
+                let device = current.healthDestinations.first { $0.url == url }
+                return WebhookDestination(
+                    id: device?.id ?? WebhookDestinations.stableId(url),
+                    url: url,
+                    secret: secret.isEmpty ? (device?.secret ?? result.healthSigningSecret) : secret,
+                    headers: headers.isEmpty
+                        ? (device?.headers ?? [:])
+                        : (result.healthUrlsWithoutHeaders.contains(url) ? [:] : headers)
+                )
+            }
+        }
+
         if let minutes = health.syncIntervalMinutes {
             let clamped = min(max(minutes, intervalRange.lowerBound), intervalRange.upperBound)
             if clamped != minutes { notes.append(.intervalAdjusted(clamped)) }
             result.healthSyncSchedule.intervalMinutes = clamped
         }
         restoreSchedule(health, into: &result.healthSyncSchedule)
+    }
+
+    /// Android's destinations block: addresses, headers and secrets from here, the section keys
+    /// ignored. A file without secrets keeps what the phone has for the same address, by id
+    /// first and URL second; an address new to the phone starts with the default secret and no
+    /// headers, like one added by hand.
+    private static func planDestinations(
+        _ entries: [DestinationConfig],
+        fileHasSecrets: Bool,
+        current: SettingsSnapshot,
+        result: inout SettingsSnapshot,
+        notes: inout [ImportNote]
+    ) throws {
+        guard entries.count <= maxWebhookUrls else { throw invalid("health.destinations") }
+        var list: [WebhookDestination] = []
+        for entry in entries {
+            let url = (entry.url ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard url.count <= maxUrlLength else { throw invalid("health.destinations") }
+            guard SettingsBackup.isAllowedWebhookURL(url) else {
+                notes.append(.skippedUrl(URLComponents(string: url)?.host ?? url))
+                continue
+            }
+            guard !list.contains(where: { $0.url == url }) else { continue }
+            let fileHeaders = entry.headers ?? [:]
+            guard fileHeaders.count <= maxHeaders else { throw invalid("health.destinations") }
+            let headers = fileHeaders.filter { SettingsValidation.firstInvalidHeader([$0.key: $0.value]) == nil }
+            for name in fileHeaders.keys.sorted() where headers[name] == nil {
+                notes.append(.headerSkipped(SettingsValidation.printable(name)))
+            }
+            let secret = (entry.signingSecret ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard secret.count <= maxSecretLength else { throw invalid("health.destinations") }
+            let id = (entry.id ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let device = current.healthDestinations.first { !id.isEmpty && $0.id == id }
+                ?? current.healthDestinations.first { $0.url == url }
+            list.append(WebhookDestination(
+                id: id.isEmpty ? (device?.id ?? WebhookDestinations.stableId(url)) : id,
+                url: url,
+                secret: fileHasSecrets ? secret : (device?.secret ?? current.healthSigningSecret),
+                headers: fileHasSecrets ? headers : (device?.headers ?? [:])
+            ))
+        }
+        result.healthDestinations = list
+        result.healthWebhookUrls = list.map(\.url)
+        let keys = WebhookDestinations.sectionKeys(list)
+        result.healthSigningSecret = keys.secret
+        result.healthWebhookHeaders = keys.headers
+        result.healthUrlsWithoutHeaders = keys.urlsWithoutHeaders
     }
 
     /// Android's ConfigBackupManager.restoreSchedule. A file from before the schedule carries
@@ -723,6 +822,7 @@ extension PreferencesManager {
     func backupSnapshot() -> SettingsSnapshot {
         SettingsSnapshot(
             healthWebhookUrls: healthWebhookUrls,
+            healthDestinations: healthDestinations,
             healthWebhookHeaders: healthWebhookHeaders,
             healthUrlsWithoutHeaders: healthUrlsWithoutHeaders,
             healthSigningSecret: healthSigningSecret,
@@ -763,6 +863,9 @@ extension PreferencesManager {
         if mqttChanges && mqttEnabled { mqttEnabled = false }
 
         if new.healthUrlsWithoutHeaders != old.healthUrlsWithoutHeaders { healthUrlsWithoutHeaders = new.healthUrlsWithoutHeaders }
+        // Each address's own secret and headers before the list, so a new address is never
+        // posted to with a default it should not have.
+        if new.healthDestinations != old.healthDestinations { healthDestinations = new.healthDestinations }
         if new.healthWebhookUrls != old.healthWebhookUrls { healthWebhookUrls = new.healthWebhookUrls }
         // Through the property that stamps the change and re-aims the background tasks.
         if new.healthSyncSchedule != old.healthSyncSchedule { healthSyncSchedule = new.healthSyncSchedule }

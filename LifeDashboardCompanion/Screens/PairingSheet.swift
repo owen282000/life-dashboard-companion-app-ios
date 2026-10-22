@@ -73,14 +73,12 @@ struct PairingSheet: View {
     @State private var phase: Phase = .confirm
     /// Taken when the sheet opens, so the lines do not flip once Pair has written.
     @State private var change: SectionChange
-    @State private var hadHeaders: Bool
     @State private var enabledTypes: Int
 
     init(link: PairingLink) {
         self.link = link
         let prefs = PreferencesManager.shared
-        _change = State(initialValue: PairingApply.preview(link, current: prefs.healthSection))
-        _hadHeaders = State(initialValue: !prefs.healthWebhookHeaders.isEmpty)
+        _change = State(initialValue: PairingApply.preview(link, current: prefs.healthDestinations))
         _enabledTypes = State(initialValue: prefs.healthEnabledDataTypes.count)
     }
 
@@ -161,11 +159,12 @@ struct PairingSheet: View {
             lines.append(Line(text: "Adds this address to your webhook URLs.", icon: "plus.circle", color: .primary))
         }
         if change.replacesSecret {
-            let others = WebhookHosts.list(change.othersSignedWithNewSecret)
-            lines.append(others.isEmpty
-                ? Line(text: "Replaces the signing secret.", icon: "key", color: .primary)
-                : Line(text: "Replaces the signing secret this section uses now. \(others) gets payloads signed with the new one from then on: if it checks signatures, give it the new secret too, or remove it.",
-                       icon: "exclamationmark.triangle", color: .orange))
+            lines.append(Line(text: "Replaces the signing secret of this address.", icon: "key", color: .primary))
+        }
+        // Since 1.10.0 every address has its own secret and headers, so a second receiver no
+        // longer changes what the first one gets.
+        if change.otherUrls > 0 && !change.changesNothing {
+            lines.append(Line(text: "Your other addresses keep their own signing secret and headers.", icon: "checkmark.shield", color: .secondary))
         }
         switch link.reach {
         case .secure:
@@ -184,9 +183,6 @@ struct PairingSheet: View {
                     ? "iOS only allows plain HTTP to IP addresses and .local names. In Home Assistant, use Reconfigure on the integration with the IP address or an https address, and scan the new code."
                     : "iOS only allows plain HTTP to IP addresses and .local names. Make a new pairing code on the receiver with the IP address or an https address, and scan that.",
                 icon: "xmark.octagon", color: .red))
-        }
-        if hadHeaders && change.addsUrl {
-            lines.append(Line(text: "Your custom headers are not sent to this address.", icon: "doc.text", color: .secondary))
         }
         return lines
     }

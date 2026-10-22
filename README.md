@@ -139,7 +139,7 @@ This app covers the health side in depth: 28 types, every record with the app or
 
 ## Webhooks
 
-Any server that accepts a JSON POST can be a destination: n8n, Node-RED, a small script, or your own API. Payloads are signed with HMAC-SHA256 if you set a secret, and you can add custom headers or a client certificate.
+Any server that accepts a JSON POST can be a destination: n8n, Node-RED, a small script, or your own API. Each address has its own signing secret (HMAC-SHA256) and its own custom headers, so pairing a second receiver never breaks the first, and you can add a client certificate.
 
 ```json
 {

@@ -366,7 +366,7 @@ final class ClientCertificateTests: XCTestCase {
         }
 
         let delivery = await webhooks.post(
-            body: Data("{}".utf8), urls: urls, headers: [:],
+            body: Data("{}".utf8), urls: urls,
             logType: .healthConnect, dataType: "health_connect", recordCount: 1
         )
         XCTAssertEqual(delivery.outcome, .failed, "queued, as for any failure")
@@ -380,7 +380,7 @@ final class ClientCertificateTests: XCTestCase {
 
         _ = try ClientCertificateStore.importPKCS12(ClientCertificateFixtures.modern, password: ClientCertificateFixtures.password)
         let imported = await webhooks.post(
-            body: Data("{}".utf8), urls: urls, headers: [:],
+            body: Data("{}".utf8), urls: urls,
             logType: .healthConnect, dataType: "health_connect", recordCount: 1
         )
         XCTAssertEqual(imported.outcome, .delivered)

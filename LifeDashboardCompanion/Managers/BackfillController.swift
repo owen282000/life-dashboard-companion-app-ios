@@ -429,7 +429,6 @@ struct WebhookBackfillSink: BackfillDelivering {
         return await WebhookManager.shared.post(
             body: body,
             urls: prefs.healthWebhookUrls,
-            headers: prefs.healthWebhookHeaders,
             logType: .healthConnect,
             dataType: BackfillController.logDataType,
             recordCount: recordCount,

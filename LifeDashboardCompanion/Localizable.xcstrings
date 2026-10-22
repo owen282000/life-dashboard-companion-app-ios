@@ -577,6 +577,28 @@
         }
       }
     },
+    "%@, headers: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, Header: %2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, headers: %2$@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, headers: %2$@"
+          }
+        }
+      }
+    },
     "%@, no custom headers" : {
       "localizations" : {
         "de" : {
@@ -1707,22 +1729,6 @@
         }
       }
     },
-    "Add header" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Header hinzufügen"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Header toevoegen"
-          }
-        }
-      }
-    },
     "Add webhook URL" : {
       "localizations" : {
         "de" : {
@@ -1735,6 +1741,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Webhook-URL toevoegen"
+          }
+        }
+      }
+    },
+    "Address" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adres"
           }
         }
       }
@@ -3610,6 +3632,22 @@
         }
       }
     },
+    "Every address has its own signing secret and headers. Pairing sets them for the address it adds; tap an address to see or change them." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jede Adresse hat ihr eigenes Signaturgeheimnis und eigene Header. Das Koppeln setzt sie für die Adresse, die es hinzufügt; tippe auf eine Adresse, um sie zu sehen oder zu ändern."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elk adres heeft een eigen ondertekeningsgeheim en eigen headers. Koppelen stelt ze in voor het adres dat het toevoegt; tik op een adres om ze te zien of te wijzigen."
+          }
+        }
+      }
+    },
     "Every delivery and MQTT publish shows up here." : {
       "localizations" : {
         "de" : {
@@ -4202,6 +4240,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Volledige controle over sync-instellingen"
+          }
+        }
+      }
+    },
+    "Generate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erzeugen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Genereren"
           }
         }
       }
@@ -5974,6 +6028,38 @@
         }
       }
     },
+    "Not signed, headers: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht signiert, Header: %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niet ondertekend, headers: %@"
+          }
+        }
+      }
+    },
+    "Not signed, no headers" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht signiert, keine Header"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niet ondertekend, geen headers"
+          }
+        }
+      }
+    },
     "Nothing delivered since %@." : {
       "localizations" : {
         "de" : {
@@ -6368,6 +6454,22 @@
         }
       }
     },
+    "Opens its signing secret and headers" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffnet das Signaturgeheimnis und die Header"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opent het ondertekeningsgeheim en de headers"
+          }
+        }
+      }
+    },
     "Optional" : {
       "localizations" : {
         "de" : {
@@ -6476,22 +6578,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gekoppeld"
-          }
-        }
-      }
-    },
-    "Paired by QR code: custom headers are not sent here" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Per QR-Code gekoppelt: eigene Header werden hier nicht gesendet"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gekoppeld via QR-code: eigen headers gaan hier niet heen"
           }
         }
       }
@@ -7100,22 +7186,6 @@
         }
       }
     },
-    "Remove header %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Header %@ entfernen"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Header %@ verwijderen"
-          }
-        }
-      }
-    },
     "Remove the client certificate?" : {
       "localizations" : {
         "de" : {
@@ -7196,34 +7266,18 @@
         }
       }
     },
-    "Replaces the signing secret this section uses now. %@ gets payloads signed with the new one from then on: if it checks signatures, give it the new secret too, or remove it." : {
+    "Replaces the signing secret of this address." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ersetzt das Signaturgeheimnis, das dieser Bereich jetzt verwendet. %@ bekommt ab dann Payloads, die mit dem neuen signiert sind: Prüft es Signaturen, gib ihm auch das neue Geheimnis, oder entferne es."
+            "value" : "Ersetzt das Signaturgeheimnis dieser Adresse."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vervangt het ondertekeningsgeheim dat dit onderdeel nu gebruikt. %@ krijgt vanaf dan payloads met het nieuwe: controleert het handtekeningen, geef het dan ook het nieuwe geheim, of haal het weg."
-          }
-        }
-      }
-    },
-    "Replaces the signing secret." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ersetzt das Signaturgeheimnis."
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vervangt het ondertekeningsgeheim."
+            "value" : "Vervangt het ondertekeningsgeheim van dit adres."
           }
         }
       }
@@ -7320,6 +7374,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nu opnieuw proberen"
+          }
+        }
+      }
+    },
+    "Save" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sichern"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bewaren"
           }
         }
       }
@@ -7548,6 +7618,22 @@
         }
       }
     },
+    "Sent to this address only. Swipe a header to remove it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur an diese Adresse gesendet. Wische über einen Header, um ihn zu entfernen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alleen naar dit adres verstuurd. Veeg over een header om hem te verwijderen."
+          }
+        }
+      }
+    },
     "Set the time and the days, and choose Run Immediately." : {
       "localizations" : {
         "de" : {
@@ -7752,6 +7838,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Toont de details"
+          }
+        }
+      }
+    },
+    "Signed, headers: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signiert, Header: %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ondertekend, headers: %@"
+          }
+        }
+      }
+    },
+    "Signed, no headers" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signiert, keine Header"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ondertekend, geen headers"
           }
         }
       }
@@ -9295,6 +9413,38 @@
         }
       }
     },
+    "Use the headers of another address" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Header einer anderen Adresse verwenden"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De headers van een ander adres gebruiken"
+          }
+        }
+      }
+    },
+    "Use the secret of another address" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Geheimnis einer anderen Adresse verwenden"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het geheim van een ander adres gebruiken"
+          }
+        }
+      }
+    },
     "Username (optional)" : {
       "localizations" : {
         "de" : {
@@ -9829,22 +9979,6 @@
         }
       }
     },
-    "Your custom headers are not sent to this address." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deine eigenen Header werden nicht an diese Adresse gesendet."
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Je eigen headers worden niet naar dit adres gestuurd."
-          }
-        }
-      }
-    },
     "Your health data, your server" : {
       "localizations" : {
         "de" : {
@@ -9873,6 +10007,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Je iPhone is vergrendeld, dus gezondheidsdata kan niet worden gelezen. De volgende synchronisatie haalt het in."
+          }
+        }
+      }
+    },
+    "Your other addresses keep their own signing secret and headers." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine anderen Adressen behalten ihr eigenes Signaturgeheimnis und ihre Header."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je andere adressen houden hun eigen ondertekeningsgeheim en headers."
           }
         }
       }
