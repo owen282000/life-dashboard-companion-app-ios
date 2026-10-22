@@ -27,9 +27,11 @@ if [ -z "$UDID" ]; then
     UDID=$(xcrun simctl create "$NAME" "iPhone 17 Pro Max")
 fi
 
+# Signed ad hoc, as in CI: an unsigned app gets no Keychain on the simulator, so the example
+# secret would not show.
 xcodebuild build -project LifeDashboardCompanion.xcodeproj -scheme LifeDashboardCompanion \
     -configuration Debug -destination "id=$UDID" -derivedDataPath "$WORK/dd" \
-    CODE_SIGNING_ALLOWED=NO -quiet
+    CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= -quiet
 APP="$WORK/dd/Build/Products/Debug-iphonesimulator/LifeDashboardCompanion.app"
 
 # A fresh boot: an "Open in" prompt left from the last run stays up otherwise.
@@ -38,6 +40,9 @@ xcrun simctl boot "$UDID" 2>/dev/null || true
 xcrun simctl bootstatus "$UDID" >/dev/null
 xcrun simctl terminate "$UDID" "$ID" 2>/dev/null || true
 xcrun simctl uninstall "$UDID" "$ID" 2>/dev/null || true
+# The Keychain outlives an uninstall on the simulator: without this, secrets and destinations of
+# an earlier run would win over the example settings below.
+xcrun simctl keychain "$UDID" reset 2>/dev/null || true
 xcrun simctl install "$UDID" "$APP"
 # The simulator keeps an app's defaults across a reinstall: start from none.
 xcrun simctl spawn "$UDID" defaults delete "$ID" 2>/dev/null || true
@@ -89,8 +94,8 @@ for DOMAIN in "$ID" "group.$ID"; do
 done
 
 # A week of example log entries as the one-file log of 1.4.1, which LogStore splits into its
-# row files at launch: four syncs a day to the webhook and MQTT, and this morning a year of
-# backfill.
+# row files at launch: four syncs a day to the webhook and MQTT, and this morning a backfill of
+# all history.
 DATA=$(xcrun simctl get_app_container "$UDID" "$ID" data)
 mkdir -p "$DATA/Library/Application Support"
 python3 - "$DATA/Library/Application Support/webhook_logs.json" <<'PY'
@@ -114,10 +119,10 @@ for day in range(6, -1, -1):
         i += 1
         if day > 0 or hour < 9:
             row(t + datetime.timedelta(seconds=1), url="mqtt://homeassistant.local:1883", code=None, records=19, dest="MQTT")
-# A year of backfill this morning, after the first sync: 122 windows of three days.
+# A backfill of all history this morning, after the first sync: six years in windows of three days.
 start = now.replace(hour=8, minute=15, second=40)
-row(start, records=141862, data="health_connect_backfill_run",
-    raw=json.dumps({"backfill": True, "status": "done", "windows_done": 122, "window_count": 122, "records_sent": 141862}, sort_keys=True))
+row(start, records=486215, data="health_connect_backfill_run",
+    raw=json.dumps({"backfill": True, "length": "all_history", "status": "done", "windows_done": 731, "window_count": 731, "records_sent": 486215}, sort_keys=True))
 row(now, records=26)
 row(now + datetime.timedelta(seconds=1), url="mqtt://homeassistant.local:1883", code=None, records=19, dest="MQTT")
 rows.sort(key=lambda r: r["timestamp"], reverse=True)

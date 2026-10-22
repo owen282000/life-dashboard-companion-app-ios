@@ -232,18 +232,18 @@ items.push(phone(RAW + "setup-destination.png", 1690, 830, 860, tilt(4, -12)));
 items.push(float(crop(HA + "pairing.png", 1160, [62, 54, 586, 586], 540),
   1390, 1560, { label: "Home Assistant", rotate: -6, pad: 26, bg: "#1C1C1C" }));
 
-// 3. A year of history
-items.push(caption(3, `A year of history<br><em>in one go</em>`,
-  `Backfill up to 365 days. In Home Assistant, each day lands on its own date.`));
+// 3. All your history
+items.push(caption(3, `All your history<br><em>in one go</em>`,
+  `Backfill from 30 days to everything Apple Health has. In Home Assistant, each day lands on its own date.`));
 items.push(phone(RAW + "logs.png", 2530, 860, 880, tilt(7, -6), 3));
 items.push(float(crop(RAW + "logs.png", 1320, LOGROW_BACKFILL, 1000),
-  2925, 1560, { label: "Backfill, 365 days", dot: "#30B77E", rotate: -3, z: 6 }));
+  2925, 1560, { label: "Backfill, all history", dot: "#30B77E", rotate: -3, z: 6 }));
 items.push(float(crop(HA + "statistics.png", 2048, [33, 8, 982, 614], 860),
   3065, 1980, { label: "Home Assistant", rotate: 2 }));
 
 // 4. Webhooks and MQTT
 items.push(caption(4, `Webhooks, signed.<br><em>MQTT, built in.</em>`,
-  `HMAC-SHA256 on every webhook request. Over MQTT, sensors set themselves up.`));
+  `Every address its own signing secret. Over MQTT, sensors set themselves up.`));
 items.push(phone(RAW + "webhook.png", 4250, 830, 900, tilt(-5, 10)));
 items.push(`<div class="badge" style="left:4800px;top:1530px;transform:rotate(-4deg);z-index:6">${shield}<div><b>Signed</b><small>HMAC-SHA256</small></div></div>`);
 items.push(float(crop(RAW + "logs.png", 1320, LOGROW_MQTT, 980),
