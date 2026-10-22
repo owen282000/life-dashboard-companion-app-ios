@@ -184,4 +184,80 @@ final class SyncFailureNotifier: Sendable {
     static func droppedBody(count: Int) -> String {
         String(localized: "\(count) undelivered syncs were dropped from the queue, so their records are lost. Check the Logs tab for details.")
     }
+
+    // MARK: - Too quiet
+
+    private static let quietNotificationId = "sync-quiet"
+
+    /// A reminder for the moment the next delivery is overdue (`SyncHealthCheck`), set after
+    /// every delivery and replaced by the next one. It is scheduled ahead, because an app that
+    /// iOS no longer wakes in the background cannot post anything at that moment itself.
+    /// Without a delivery yet, without a destination, with a schedule that never runs or with
+    /// the failure notifications off, there is none.
+    func scheduleQuietReminder(lastDelivered: Date?) {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [SyncFailureNotifier.quietNotificationId])
+        center.removeDeliveredNotifications(withIdentifiers: [SyncFailureNotifier.quietNotificationId])
+        let prefs = PreferencesManager.shared
+        guard prefs.failureNotificationsEnabled, let lastDelivered,
+              let due = SyncHealthCheck.overdueDate(
+                lastDelivered: lastDelivered, schedule: prefs.healthSyncSchedule,
+                hasDestination: prefs.healthSyncConfigured, timeZone: .current
+              ) else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "No sync in a while")
+        content.body = SyncFailureNotifier.quietBody(since: lastDelivered)
+        content.sound = nil
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(60, due.timeIntervalSinceNow), repeats: false)
+        let request = UNNotificationRequest(identifier: SyncFailureNotifier.quietNotificationId, content: content, trigger: trigger)
+        center.add(request) { [logger] error in
+            if let error {
+                logger.error("Failed to schedule the quiet reminder: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    static func quietBody(since: Date) -> String {
+        let day = since.formatted(date: .abbreviated, time: .omitted)
+        return String(localized: "Nothing was delivered since \(day). iOS may be holding the app back: open it to sync, and check Background App Refresh and Low Power Mode.")
+    }
+}
+
+/// When background syncs are too quiet (P2-27). iOS gives no app a battery exemption, so a sync
+/// that stops does so silently: Background App Refresh off holds every background sync until the
+/// app is opened, and Low Power Mode pauses them while it is on. Pure, so it is unit tested; the
+/// Health screen and the reminder above read it.
+enum SyncHealthCheck {
+    /// At least two days, so a phone left at home over a weekend does not count.
+    static let minimumQuiet: TimeInterval = 2 * 24 * 3600
+    /// A day past the next sync the schedule expects, for a schedule that runs less than daily.
+    static let grace: TimeInterval = 24 * 3600
+
+    /// When a delivery at `lastDelivered` counts as overdue: the later of two days on and a day
+    /// past the next scheduled sync. Nil when no automatic sync is expected at all.
+    static func overdueDate(lastDelivered: Date, schedule: SyncSchedule, hasDestination: Bool, timeZone: TimeZone) -> Date? {
+        guard hasDestination, !schedule.isNeverRunning,
+              let next = schedule.nextRunDate(now: lastDelivered, lastRun: lastDelivered, timeZone: timeZone) else {
+            return nil
+        }
+        return max(lastDelivered.addingTimeInterval(minimumQuiet), next.addingTimeInterval(grace))
+    }
+
+    static func isOverdue(lastDelivered: Date?, now: Date, schedule: SyncSchedule, hasDestination: Bool, timeZone: TimeZone) -> Bool {
+        guard let lastDelivered,
+              let due = overdueDate(lastDelivered: lastDelivered, schedule: schedule, hasDestination: hasDestination, timeZone: timeZone) else {
+            return false
+        }
+        return now >= due
+    }
+
+    /// What most likely holds the syncs, for the line on the Health screen.
+    enum Cause: Equatable {
+        case refreshOff, lowPower, unknown
+    }
+
+    static func cause(refreshOff: Bool, lowPower: Bool) -> Cause {
+        refreshOff ? .refreshOff : lowPower ? .lowPower : .unknown
+    }
 }

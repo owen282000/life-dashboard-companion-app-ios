@@ -1659,6 +1659,22 @@
         }
       }
     },
+    "Add a destination on the Health tab, and the first sync goes out." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Füge im Tab Gesundheit ein Ziel hinzu, dann geht die erste Synchronisierung raus."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voeg een bestemming toe op het tabblad Gezondheid, dan gaat de eerste synchronisatie eruit."
+          }
+        }
+      }
+    },
     "Add a time" : {
       "localizations" : {
         "de" : {
@@ -1803,18 +1819,18 @@
         }
       }
     },
-    "All of this can be changed on the Health tab. iOS asks which of the types the app may read." : {
+    "All of this can be changed on the Health tab." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "All das kannst du im Tab Gesundheit ändern. iOS fragt, welche Typen die App lesen darf."
+            "value" : "All das kannst du im Tab Gesundheit ändern."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dit kun je allemaal wijzigen op het tabblad Gezondheid. iOS vraagt welke types de app mag lezen."
+            "value" : "Dit kun je allemaal wijzigen op het tabblad Gezondheid."
           }
         }
       }
@@ -1899,6 +1915,22 @@
         }
       }
     },
+    "Apple Health access" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zugriff auf Apple Health"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toegang tot Apple Gezondheid"
+          }
+        }
+      }
+    },
     "Apple Health data, only for the types you switch on and only after you allow them in the Health access sheet. With Backfill, also older records for the range you pick. When you delete a record in Apple Health, the next sync reports its id so your server can remove it too." : {
       "localizations" : {
         "de" : {
@@ -1959,6 +1991,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Apple Gezondheid, alleen lezen, voor de types die je aanzet. Camera, alleen zolang de koppelscanner open is: beelden worden op de iPhone gedecodeerd en nooit opgeslagen of verstuurd. Lokaal netwerk, om een webhookserver of MQTT-broker op je thuisnetwerk te bereiken. Meldingen, voor mislukte synchronisaties en verloren payloads: die verschijnen op deze iPhone en gaan nergens heen."
+          }
+        }
+      }
+    },
+    "Ask iOS again" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS erneut fragen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS opnieuw vragen"
           }
         }
       }
@@ -2199,6 +2247,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aanvullen %1$lld/%2$lld..."
+          }
+        }
+      }
+    },
+    "Background App Refresh is off" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Hintergrundaktualisierung ist aus"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ververs op achtergrond staat uit"
           }
         }
       }
@@ -3290,6 +3354,22 @@
         }
       }
     },
+    "Don't show again" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht mehr anzeigen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niet meer tonen"
+          }
+        }
+      }
+    },
     "Done" : {
       "localizations" : {
         "de" : {
@@ -4334,6 +4414,22 @@
         }
       }
     },
+    "Help for your phone" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hilfe für dein Handy"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hulp voor je telefoon"
+          }
+        }
+      }
+    },
     "Hide password" : {
       "localizations" : {
         "de" : {
@@ -4650,6 +4746,22 @@
         }
       }
     },
+    "iOS asks which of the chosen types the app may read. A first sync then shows that it works." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS fragt, welche der gewählten Typen die App lesen darf. Eine erste Synchronisierung zeigt dann, dass es funktioniert."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS vraagt welke van de gekozen typen de app mag lezen. Een eerste synchronisatie laat daarna zien dat het werkt."
+          }
+        }
+      }
+    },
     "iOS blocks plain HTTP to this host. Use its IP address or https." : {
       "localizations" : {
         "de" : {
@@ -4694,6 +4806,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "iOS laat apps niet op een vaste tijd synchroniseren, maar een automatisering in Opdrachten kan Gezondheidsdata synchroniseren uitvoeren op de tijden en dagen die je kiest."
+          }
+        }
+      }
+    },
+    "iOS holds background syncs until you open the app. Allow Background App Refresh for Life Dashboard." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS hält Synchronisierungen im Hintergrund zurück, bis du die App öffnest. Erlaube die Hintergrundaktualisierung für Life Dashboard."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS houdt synchronisaties op de achtergrond tegen tot je de app opent. Zet Ververs op achtergrond aan voor Life Dashboard."
           }
         }
       }
@@ -5033,6 +5161,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Logs en sync-voortgang blijven zoals ze zijn."
+          }
+        }
+      }
+    },
+    "Low Power Mode is on, so syncs can wait until it switches off." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Stromsparmodus ist an, daher können Synchronisierungen warten, bis er sich ausschaltet."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energiebesparingsmodus staat aan, dus synchronisaties kunnen wachten tot die uitgaat."
           }
         }
       }
@@ -5446,6 +5590,22 @@
         }
       }
     },
+    "No data types yet. Pick them on the Health tab, then tap Sync Now." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine Datentypen. Wähle sie im Tab Gesundheit und tippe dann auf Jetzt synchronisieren."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nog geen datatypen. Kies ze op het tabblad Gezondheid en tik dan op Nu synchroniseren."
+          }
+        }
+      }
+    },
     "No deliveries yet" : {
       "localizations" : {
         "de" : {
@@ -5538,6 +5698,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Er past geen eigen header meer bij. Verwijder er eerst een."
+          }
+        }
+      }
+    },
+    "No sync in a while" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seit einer Weile keine Synchronisierung"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Al een tijd geen synchronisatie"
           }
         }
       }
@@ -5794,6 +5970,102 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Niet meegenomen"
+          }
+        }
+      }
+    },
+    "Nothing delivered since %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seit %@ nichts zugestellt."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niets afgeleverd sinds %@."
+          }
+        }
+      }
+    },
+    "Nothing delivered since %@. Background App Refresh is off for Life Dashboard." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seit %@ nichts zugestellt. Die Hintergrundaktualisierung ist für Life Dashboard aus."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niets afgeleverd sinds %@. Ververs op achtergrond staat uit voor Life Dashboard."
+          }
+        }
+      }
+    },
+    "Nothing delivered since %@. Low Power Mode may be holding the syncs." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seit %@ nichts zugestellt. Vielleicht hält der Stromsparmodus die Synchronisierungen zurück."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niets afgeleverd sinds %@. Misschien houdt Energiebesparingsmodus de synchronisaties tegen."
+          }
+        }
+      }
+    },
+    "Nothing delivered since %@. The Logs tab shows what happened." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seit %@ nichts zugestellt. Der Tab Logs zeigt, was passiert ist."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niets afgeleverd sinds %@. Het tabblad Logs laat zien wat er gebeurde."
+          }
+        }
+      }
+    },
+    "Nothing to send yet, or iOS gives no access. Settings > Health > Data Access & Devices > Life Dashboard shows what it may read." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch nichts zu senden, oder iOS gibt keinen Zugriff. Einstellungen > Health > Datenzugriff & Geräte > Life Dashboard zeigt, was die App lesen darf."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nog niets te versturen, of iOS geeft geen toegang. Instellingen > Gezondheid > Datatoegang en apparaten > Life Dashboard laat zien wat de app mag lezen."
+          }
+        }
+      }
+    },
+    "Nothing was delivered since %@. iOS may be holding the app back: open it to sync, and check Background App Refresh and Low Power Mode." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seit %@ wurde nichts zugestellt. Vielleicht hält iOS die App zurück: Öffne sie zum Synchronisieren und prüfe die Hintergrundaktualisierung und den Stromsparmodus."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sinds %@ is er niets afgeleverd. Misschien houdt iOS de app tegen: open hem om te synchroniseren, en kijk naar Ververs op achtergrond en Energiebesparingsmodus."
           }
         }
       }
@@ -7180,6 +7452,22 @@
         }
       }
     },
+    "Sending a first sync..." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erste Synchronisierung wird gesendet..."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eerste synchronisatie versturen..."
+          }
+        }
+      }
+    },
     "Sends historical data for all enabled types to your webhooks in 3-day chunks, oldest first. Regular syncing is unaffected; overlapping records deduplicate on their uuid. Keep your iPhone unlocked: Health data can't be read while it's locked. This can take a while and use mobile data." : {
       "localizations" : {
         "de" : {
@@ -7748,6 +8036,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Opgeteld per venster"
+          }
+        }
+      }
+    },
+    "Sync again" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erneut synchronisieren"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opnieuw synchroniseren"
           }
         }
       }

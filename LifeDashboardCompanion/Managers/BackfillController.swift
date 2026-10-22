@@ -166,6 +166,7 @@ final class BackfillController: ObservableObject {
         // A delivered window counts on the dashboard, as on Android: "today" and "last sync"
         // would otherwise say nothing while thousands of records go out.
         SharedSyncStatus.record(success: true, records: windowRecords)
+        SyncFailureNotifier.shared.scheduleQuietReminder(lastDelivered: Date())
     }
 
     private func finish(_ final: BackfillJob, for token: UUID) {

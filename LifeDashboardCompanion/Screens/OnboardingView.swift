@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// The Android app's first-run setup in four steps: what the app does, where the data goes,
-/// which types, and Apple Health access. Only a fresh install sees it; every step can be
-/// skipped, and it writes only the settings the Health tab writes too.
+/// The Android app's first-run setup: what the app does, where the data goes, which types,
+/// Apple Health access with a first sync that shows it works, and a summary. Only a fresh
+/// install sees it; every step can be skipped, and it writes only the settings the Health tab
+/// writes too.
 struct OnboardingView: View {
     let onFinish: () -> Void
 
@@ -16,11 +17,14 @@ struct OnboardingView: View {
     @State private var typeChoice: TypeChoice?
     @State private var isPinging = false
     @State private var pingOutcome: SyncOutcome?
+    @State private var accessAsked = false
+    @State private var isFirstSyncing = false
+    @State private var firstSync: SyncOutcome?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     enum Step: Int, CaseIterable {
-        case welcome, destination, types, done
+        case welcome, destination, types, access, done
     }
 
     enum TypeChoice {
@@ -46,6 +50,7 @@ struct OnboardingView: View {
                     case .welcome: welcome
                     case .destination: destination
                     case .types: types
+                    case .access: access
                     case .done: done
                     }
                 }
@@ -201,11 +206,62 @@ struct OnboardingView: View {
             typeCard(.all, title: "All types", subtitle: Text("All \(HealthDataType.allCases.count) types the app can read"), systemImage: "square.grid.2x2")
             typeCard(.later, title: "Choose later", subtitle: Text("Pick them on the Health tab"), systemImage: "clock")
         }
+        // The essentials are the answer for most, so they are picked already; Choose later stays.
+        .onAppear {
+            if typeChoice == nil && prefs.healthEnabledDataTypes.isEmpty { choose(.essentials) }
+        }
+    }
+
+    /// Its own step since 1.10.0: as a button on the summary it was easy to pass, and an app
+    /// without Health access sends nothing and says little about why. A first sync follows at
+    /// once, so the setup ends on proof that data arrives, or on what to fix.
+    private var access: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            stepTitle("Apple Health access", "iOS asks which of the chosen types the app may read. A first sync then shows that it works.")
+            if prefs.healthEnabledDataTypes.isEmpty {
+                NoticeBanner(text: Text("No data types yet. Pick them on the Health tab, then tap Sync Now."), tone: .info) { EmptyView() }
+            } else {
+                Button(action: allowAccess) {
+                    Label(accessAsked ? "Ask iOS again" : "Allow Apple Health access", systemImage: "heart")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .disabled(isFirstSyncing)
+
+                if accessAsked {
+                    if destinationCount == 0 {
+                        NoticeBanner(text: Text("Add a destination on the Health tab, and the first sync goes out."), tone: .info) { EmptyView() }
+                    } else if isFirstSyncing {
+                        HStack(spacing: 10) {
+                            ProgressView()
+                            Text("Sending a first sync...")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                    } else if let firstSync {
+                        ResultLine(text: firstSync.text, tone: firstSync.tone)
+                        if firstSync == .noData {
+                            Text("Nothing to send yet, or iOS gives no access. Settings > Health > Data Access & Devices > Life Dashboard shows what it may read.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        if firstSync.tone != .success {
+                            Button("Sync again", action: sendFirstSync)
+                                .buttonStyle(.bordered)
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private var done: some View {
         VStack(alignment: .leading, spacing: 12) {
-            stepTitle("Ready", "All of this can be changed on the Health tab. iOS asks which of the types the app may read.")
+            stepTitle("Ready", "All of this can be changed on the Health tab.")
             VStack(alignment: .leading, spacing: 0) {
                 SettingRow(
                     "Destinations",
@@ -223,16 +279,8 @@ struct OnboardingView: View {
             }
             .cardStyle(padding: 0)
 
-            if !prefs.healthEnabledDataTypes.isEmpty {
-                Button {
-                    Task { try? await HealthKitManager.shared.requestAuthorization(for: prefs.healthEnabledDataTypes) }
-                } label: {
-                    Label("Allow Apple Health access", systemImage: "heart")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.capsule)
+            if let firstSync {
+                ResultLine(text: firstSync.text, tone: firstSync.tone)
             }
         }
     }
@@ -310,12 +358,7 @@ struct OnboardingView: View {
     private func typeCard(_ choice: TypeChoice, title: LocalizedStringKey, subtitle: Text, systemImage: String) -> some View {
         let isSelected = typeChoice == choice
         return Button {
-            typeChoice = choice
-            switch choice {
-            case .essentials: prefs.healthEnabledDataTypes = OnboardingView.essentials
-            case .all: prefs.healthEnabledDataTypes = Set(HealthDataType.allCases)
-            case .later: prefs.healthEnabledDataTypes = []
-            }
+            choose(choice)
         } label: {
             SettingRow(title: title, systemImage: systemImage, subtitle: subtitle) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
@@ -334,6 +377,36 @@ struct OnboardingView: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func choose(_ choice: TypeChoice) {
+        typeChoice = choice
+        switch choice {
+        case .essentials: prefs.healthEnabledDataTypes = OnboardingView.essentials
+        case .all: prefs.healthEnabledDataTypes = Set(HealthDataType.allCases)
+        case .later: prefs.healthEnabledDataTypes = []
+        }
+        firstSync = nil
+    }
+
+    private func allowAccess() {
+        Task {
+            try? await HealthKitManager.shared.requestAuthorization(for: prefs.healthEnabledDataTypes)
+            accessAsked = true
+            if destinationCount > 0 { sendFirstSync() }
+        }
+    }
+
+    /// Sync Now, as on the Health tab, with its result line.
+    private func sendFirstSync() {
+        isFirstSyncing = true
+        firstSync = nil
+        Task {
+            let outcome = SyncOutcome(await SyncCoordinator.shared.runManual(syncNow: true))
+            isFirstSyncing = false
+            firstSync = outcome
+            AccessibilityNotification.Announcement(outcome.announcement).post()
+        }
     }
 
     /// The Health tab's rule: a host that is not one stays in the field, with what is wrong.

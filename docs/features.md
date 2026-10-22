@@ -102,7 +102,8 @@ Each sends only what is new. Health data cannot be read while the iPhone is lock
 - **Home screen widget** - the last sync result, records delivered today, and a status mark, so a failing background sync shows. Its button syncs now
 - **Control Center** - on iOS 18 and later, a **Sync Now** control for Control Center, the Android app's Quick Settings tile. It needs an unlocked iPhone, as every sync does
 - The widget button, the control and the Shortcuts action run **Sync Health Data**, and together sync at most once a minute, like the Android app's sync broadcast: a tap within a minute of the last accepted one does nothing
-- **Failure notifications** - a local notification after a number of failed syncs in a row, which you choose
+- **Failure notifications** - a local notification after a number of failed syncs in a row, which you choose, and one when nothing was delivered for two days or a day past the next scheduled sync, whichever is later. That one is set ahead after every delivery, so it also comes when iOS no longer wakes the app
+- **When iOS holds syncs back** - a card on the Health screen while Background App Refresh is off for the app (Open Settings, Help for your phone, Don't show again), a line while Low Power Mode is on, and since when nothing was delivered when that is longer than the schedule explains
 
 ## Data tools
 
@@ -117,7 +118,7 @@ Each sends only what is new. Health data cannot be read while the iPhone is lock
 
 <img src="screenshots/about.png" alt="The About screen: the heartbeat mark on the dark brand ground with the version, and what the app reads from Apple Health" width="300" align="right">
 
-- **First-run setup** - what the app does, where the data goes (the pairing scanner, a webhook with a **Test ping**, or an MQTT broker), which types, and Apple Health access. Every step can be skipped
+- **First-run setup** - what the app does, where the data goes (the pairing scanner, a webhook with a **Test ping**, or an MQTT broker), which types (the essentials are picked already), and Apple Health access as a step of its own, followed by a first sync that shows its result. Every step can be skipped, and a setup left halfway comes back at the next start
 - **About** - behind the (i) button on the Health and Logs tabs: what the app reads and where it goes, the privacy policy, settings backup, and links to the documentation, the changelog and issues
 - **Privacy policy in the app** - a summary of [PRIVACY.md](../PRIVACY.md)
 - **Languages** - English, Dutch and German, following the iPhone's language or the one set for the app under Settings. See [localization.md](localization.md)

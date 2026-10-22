@@ -48,7 +48,11 @@ struct HealthKitScreen: View {
                     )
                 } else {
                     statusHeader
-                    DashboardCard()
+                    // No spacing of its own: an empty hold card adds no gap above the dashboard.
+                    VStack(spacing: 0) {
+                        SyncHoldCard()
+                        DashboardCard()
+                    }
                     CardGroup {
                         dataTypesRow
                         CardDivider()
@@ -646,17 +650,7 @@ struct HealthKitScreen: View {
             let result = await SyncCoordinator.shared.runManual(syncNow: true)
             await MainActor.run {
                 isSyncing = false
-                switch result {
-                case .noData:
-                    report(.noData)
-                case .success(let counts, let reach):
-                    let records = counts.values.reduce(0, +)
-                    report(reach.partial
-                           ? .partlySynced(records, delivered: reach.delivered, of: reach.total)
-                           : .synced(records))
-                case .failure(let error):
-                    report(.failed(AppDiagnostic.display(error)))
-                }
+                report(SyncOutcome(result))
             }
         }
     }
@@ -803,6 +797,19 @@ enum TestPing {
 
 /// What Sync Now or Test ping last did. It decides the colour, instead of the text deciding it.
 enum SyncOutcome: Equatable {
+    /// What Sync Now's result line says, on the Health tab and in the setup.
+    init(_ result: HealthSyncResult) {
+        switch result {
+        case .noData:
+            self = .noData
+        case .success(let counts, let reach):
+            let records = counts.values.reduce(0, +)
+            self = reach.partial ? .partlySynced(records, delivered: reach.delivered, of: reach.total) : .synced(records)
+        case .failure(let error):
+            self = .failed(AppDiagnostic.display(error))
+        }
+    }
+
     case synced(Int)
     /// Delivered, but not to every webhook: those that missed it get nothing queued.
     case partlySynced(Int, delivered: Int, of: Int)
