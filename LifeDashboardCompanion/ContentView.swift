@@ -7,6 +7,9 @@ struct ContentView: View {
     @StateObject private var pairing = PairingCoordinator()
     // UI state, not a setting, so it stays out of PreferencesManager and the settings backup.
     @AppStorage("onboarding_completed") private var onboardingCompleted = false
+    // Set when the setup first shows: it picks the essentials on its own, so a setup that was
+    // left halfway no longer looks like a fresh install, and would otherwise not come back.
+    @AppStorage("onboarding_started") private var onboardingStarted = false
     @State private var showOnboarding = false
 
     var body: some View {
@@ -24,11 +27,12 @@ struct ContentView: View {
         .onAppear {
             guard !onboardingCompleted else { return }
             let prefs = PreferencesManager.shared
-            if OnboardingView.isFreshInstall(
+            if onboardingStarted || OnboardingView.isFreshInstall(
                 webhookUrls: prefs.healthWebhookUrls,
                 mqttHost: prefs.mqttHost,
                 enabledTypes: prefs.healthEnabledDataTypes
             ) {
+                onboardingStarted = true
                 showOnboarding = true
             } else {
                 // An upgrade from a version without the setup: it is already set up.

@@ -54,7 +54,7 @@ Your Apple Watch, iPhone, ring or scale already writes to Apple Health. This app
 - **28 Apple Health types.** Steps, sleep with stages, heart rate and HRV, weight and body composition, blood pressure, glucose, workouts, nutrition, VO2 max, cycle tracking and more. Each one is off until you switch it on.
 - **Every record, plus clean daily totals.** Every record goes out with the app or device that wrote it. Daily totals for steps, distance and calories come from Apple Health's own statistics, so a walk recorded by both iPhone and Watch counts once.
 - **A year of history.** Backfill 30, 90 or 365 days. In Home Assistant each day lands on its own date. When you delete a record in Apple Health, the next sync tells your server.
-- **Runs in the background.** An interval or fixed times, on the days you pick, with quiet hours. iOS decides the exact moment. For an exact time, a Shortcuts automation runs **Sync Health Data**. Payloads that can't be delivered wait on the iPhone for the next sync.
+- **Runs in the background.** An interval or fixed times, on the days you pick, with quiet hours. iOS decides the exact moment. For an exact time, a Shortcuts automation runs **Sync Health Data**. Payloads that can't be delivered wait on the iPhone for the next sync. When iOS holds syncs back (Background App Refresh off, Low Power Mode on) or nothing arrives for days, the app says so.
 - **Widget, Control Center and Shortcuts.** See the last sync on your home screen, and sync from there, from Control Center (iOS 18 or newer) or with Siri.
 - **English, Dutch and German.** The Android app's look, with Dynamic Type and dark mode.
 
@@ -100,8 +100,8 @@ Building it yourself is free. You need a Mac with Xcode 26 (the newest Xcode nee
 1. Clone the repository, open `LifeDashboardCompanion.xcodeproj`, and set your own team, bundle identifiers and app group. The [setup guide](docs/usage.md#build-and-install) shows where each one goes.
 2. Run it on your iPhone. The first time, iOS asks you to switch on Developer Mode and trust your certificate.
 3. In Home Assistant (2026.3 or newer, with [HACS](https://hacs.xyz/docs/use/) installed), download the [Life Dashboard integration](https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-ha&category=integration) from HACS, restart, and add the integration. It shows a QR code. Skip this step if you use MQTT or a webhook.
-4. The app's setup asks where your data should go: scan the code, or enter your broker or webhook URL. Then pick your data types and allow Apple Health access.
-5. Tap **Sync Now**. Tap **View** first if you want to preview the payload.
+4. The app's setup asks where your data should go: scan the code, or enter your broker or webhook URL. Then pick your data types and allow Apple Health access. A first sync follows right away and shows what arrived.
+5. After that it syncs by itself; **Sync Now** sends at once. Tap **View** to preview the payload.
 
 To update a build of your own, pull the repository and run it from Xcode again. Your settings stay. The [setup guide](docs/usage.md) covers every step and what to do when nothing arrives.
 

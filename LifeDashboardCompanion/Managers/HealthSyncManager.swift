@@ -311,6 +311,9 @@ final class HealthSyncManager: Sendable {
         // The notification is read in the phone's language; the row keeps the English text.
         SyncFailureNotifier.shared.recordResult(success: success, lastError: delivery.error.map(AppDiagnostic.display))
         SyncFailureNotifier.shared.recordReach(delivered: success, missedUrls: delivery.missedUrls)
+        if success {
+            SyncFailureNotifier.shared.scheduleQuietReminder(lastDelivered: Date())
+        }
     }
 
     // MARK: - Pending Queue Drain

@@ -113,7 +113,7 @@ iOS decides when an app runs in the background, and syncs can come later than th
 - The iPhone was locked: Health data cannot be read then, and the sync waits for the unlock
 - Quiet hours, or a day that is off in the weekday filter
 
-The line under **Sync Now** says why automatic syncs are waiting, and the Logs tab shows when syncs actually ran. For a sync at an exact time, use a Shortcuts automation with **Sync Health Data**; **Need an exact time?** under Sync Schedule explains how.
+The Health screen shows a card while Background App Refresh is off and a line while Low Power Mode is on, and says since when nothing was delivered once that is longer than the schedule explains; with failure notifications on, a notification says the same. The line under **Sync Now** says why automatic syncs are waiting, and the Logs tab shows when syncs actually ran. For a sync at an exact time, use a Shortcuts automation with **Sync Health Data**; **Need an exact time?** under Sync Schedule explains how.
 
 ### "Your iPhone is locked"
 

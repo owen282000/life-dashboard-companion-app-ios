@@ -9,6 +9,8 @@ enum SharedSyncStatus {
         let lastSync: Date?
         let lastSuccess: Bool
         let recordsToday: Int
+        /// The last sync that delivered, which a failed one after it does not move.
+        var lastDelivered: Date?
     }
 
     static func record(success: Bool, records: Int) {
@@ -27,6 +29,9 @@ enum SharedSyncStatus {
         defaults.set(Date(), forKey: "records_today_date")
         defaults.set(Date(), forKey: "last_sync")
         defaults.set(success, forKey: "last_sync_success")
+        if success {
+            defaults.set(Date(), forKey: "last_delivered")
+        }
     }
 
     static func read() -> Status {
@@ -43,7 +48,10 @@ enum SharedSyncStatus {
         return Status(
             lastSync: defaults.object(forKey: "last_sync") as? Date,
             lastSuccess: defaults.object(forKey: "last_sync_success") as? Bool ?? true,
-            recordsToday: records
+            recordsToday: records,
+            // Installs from before 1.10.0 only know the last sync, which counts if it delivered.
+            lastDelivered: defaults.object(forKey: "last_delivered") as? Date
+                ?? ((defaults.object(forKey: "last_sync_success") as? Bool ?? false) ? defaults.object(forKey: "last_sync") as? Date : nil)
         )
     }
 }

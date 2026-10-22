@@ -531,4 +531,41 @@ final class SyncScheduleTests: XCTestCase {
         XCTAssertEqual(SyncSchedule.parseDays(nil), Set(Weekday.allCases))
         XCTAssertEqual(SyncSchedule.parseDays(SyncSchedule.formatDays([])), [])
     }
+
+    // MARK: - A quiet app (P2-27)
+
+    func testAnHourlyScheduleIsOverdueAfterTwoDays() {
+        let delivered = instant("2026-09-14T10:00:00Z")
+        let due = SyncHealthCheck.overdueDate(lastDelivered: delivered, schedule: SyncSchedule(), hasDestination: true, timeZone: utc)
+        XCTAssertEqual(due, instant("2026-09-16T10:00:00Z"))
+    }
+
+    func testAWeeklyScheduleGetsADayPastItsNextRun() {
+        // Saturdays at 08:00 only: delivered on Saturday the 19th, next run Saturday the 26th.
+        let schedule = SyncSchedule(mode: .times, times: [time("08:00")], days: [.saturday])
+        let delivered = instant("2026-09-19T08:00:00Z")
+        let due = SyncHealthCheck.overdueDate(lastDelivered: delivered, schedule: schedule, hasDestination: true, timeZone: utc)
+        XCTAssertEqual(due, instant("2026-09-27T08:00:00Z"))
+    }
+
+    func testNoReminderWithoutADestinationOrARun() {
+        let delivered = instant("2026-09-14T10:00:00Z")
+        XCTAssertNil(SyncHealthCheck.overdueDate(lastDelivered: delivered, schedule: SyncSchedule(), hasDestination: false, timeZone: utc))
+        let never = SyncSchedule(mode: .times, times: [])
+        XCTAssertNil(SyncHealthCheck.overdueDate(lastDelivered: delivered, schedule: never, hasDestination: true, timeZone: utc))
+    }
+
+    func testOverdueOnlyFromTheDueMomentAndNeverWithoutADelivery() {
+        let delivered = instant("2026-09-14T10:00:00Z")
+        let schedule = SyncSchedule()
+        XCTAssertFalse(SyncHealthCheck.isOverdue(lastDelivered: delivered, now: instant("2026-09-16T09:59:00Z"), schedule: schedule, hasDestination: true, timeZone: utc))
+        XCTAssertTrue(SyncHealthCheck.isOverdue(lastDelivered: delivered, now: instant("2026-09-16T10:00:00Z"), schedule: schedule, hasDestination: true, timeZone: utc))
+        XCTAssertFalse(SyncHealthCheck.isOverdue(lastDelivered: nil, now: instant("2026-09-30T10:00:00Z"), schedule: schedule, hasDestination: true, timeZone: utc))
+    }
+
+    func testTheLikelyCauseNamesRefreshFirst() {
+        XCTAssertEqual(SyncHealthCheck.cause(refreshOff: true, lowPower: true), .refreshOff)
+        XCTAssertEqual(SyncHealthCheck.cause(refreshOff: false, lowPower: true), .lowPower)
+        XCTAssertEqual(SyncHealthCheck.cause(refreshOff: false, lowPower: false), .unknown)
+    }
 }

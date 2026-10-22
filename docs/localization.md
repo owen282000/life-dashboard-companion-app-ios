@@ -138,4 +138,4 @@ German runs about a third longer than English. Run the app in German and in Dutc
 release, or after changing a screen: in Xcode set the scheme's App Language (Edit Scheme > Run >
 Options), or launch the simulator app with `-AppleLanguages "(de)" -AppleLocale de_DE`. The Debug
 launch arguments `-ld.tab 1`, `-ld.about YES`, `-ld.nerd YES`, `-ld.privacy YES`, `-ld.expand YES`,
-`-ld.step 0...3` and `-ld.scroll 0.5` open every page directly.
+`-ld.step 0...4` and `-ld.scroll 0.5` open every page directly.

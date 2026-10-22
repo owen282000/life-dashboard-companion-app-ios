@@ -4,7 +4,25 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- The Health screen says when iOS holds syncs back, as the Android app's battery card does. While
+  Background App Refresh is off for the app, a card says that iOS holds background syncs until the app is
+  opened, with Open Settings, Help for your phone and Don't show again; while Low Power Mode is on, one
+  line says syncs can wait until it switches off. Both are checked again whenever the app comes to the
+  foreground or the setting changes.
+- When nothing was delivered for longer than the schedule explains (two days, or a day past the next
+  scheduled sync, whichever is later), the Health screen says since when, with the likely cause, and a
+  notification says the same. The notification is set ahead after every delivery and moved by the next
+  one, so it also comes when iOS no longer wakes the app at all. It follows the failure notifications
+  switch.
+
 ### Changed
+
+- The first-run setup has Apple Health access as a step of its own, before the summary, and sends a
+  first sync right after it, with its result: "Synced 412 records", or what to check. The essentials are
+  picked already on the types step; Choose later stays. A setup left halfway comes back at the next start
+  instead of counting as done.
 
 - The app is on the App Store, a one-time purchase of EUR 6.99 (USD 5.99). The README, the setup guide and
   features.md say so and link to it, and building it yourself with Xcode stays free. PRIVACY.md no longer

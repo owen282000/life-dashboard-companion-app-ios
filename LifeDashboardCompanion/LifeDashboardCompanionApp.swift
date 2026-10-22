@@ -22,6 +22,9 @@ struct LifeDashboardCompanionApp: App {
             Task {
                 _ = await SyncCoordinator.shared.runAutomatic(.foreground)
                 BackgroundSyncManager.shared.replan()
+                // A changed schedule or destination, or the failure notifications switched off,
+                // moves or removes the reminder for a quiet app; a delivery just now set it already.
+                SyncFailureNotifier.shared.scheduleQuietReminder(lastDelivered: SharedSyncStatus.read().lastDelivered)
             }
         }
     }
