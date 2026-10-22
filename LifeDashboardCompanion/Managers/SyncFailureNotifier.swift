@@ -261,3 +261,37 @@ enum SyncHealthCheck {
         refreshOff ? .refreshOff : lowPower ? .lowPower : .unknown
     }
 }
+
+/// When to ask for an App Store rating (P1-28). Only after something went right, never next to
+/// an error: the last sync delivered to every address, nothing is failing or waiting, or a
+/// backfill just finished. Not in the first days of use, and once per version at most; Apple
+/// shows the prompt itself at most three times a year, never in TestFlight, and decides on its
+/// own whether it appears. Pure, so it is unit tested; the Health screen asks it.
+enum ReviewPrompt {
+    static let firstUseKey = "review_first_use"
+    static let askedVersionKey = "review_asked_version"
+    /// Three days, so the first question comes after the app has proved itself for a while.
+    static let minimumUse: TimeInterval = 3 * 24 * 3600
+    /// A delivery this recent counts as the moment when the app comes to the foreground.
+    static let recentDelivery: TimeInterval = 24 * 3600
+
+    struct State: Equatable {
+        var lastDelivered: Date?
+        var lastSyncSucceeded: Bool
+        var failureStreak: Int
+        var partialStreak: Int
+        var pending: Int
+    }
+
+    /// Whether the sync side is in a good moment: delivered lately, to every address, and
+    /// nothing failing or queued.
+    static func isGoodMoment(_ state: State, now: Date) -> Bool {
+        guard let delivered = state.lastDelivered, now.timeIntervalSince(delivered) <= recentDelivery else { return false }
+        return state.lastSyncSucceeded && state.failureStreak == 0 && state.partialStreak == 0 && state.pending == 0
+    }
+
+    static func shouldAsk(goodMoment: Bool, firstUse: Date?, askedVersion: String?, version: String, now: Date) -> Bool {
+        guard goodMoment, let firstUse, now.timeIntervalSince(firstUse) >= minimumUse else { return false }
+        return askedVersion != version
+    }
+}

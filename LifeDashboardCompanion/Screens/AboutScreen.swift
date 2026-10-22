@@ -13,6 +13,8 @@ enum AboutLinks {
     static let privacy = URL(string: "https://owen282000.github.io/life-dashboard-companion/ios/privacy/")!
     /// The project's website: the setup guides and the other Life Dashboard parts.
     static let website = URL(string: "https://owen282000.com/life-dashboard/ios/")!
+    /// The App Store page with the review sheet open (P1-28), for anyone who wants to rate it.
+    static let rate = URL(string: "https://apps.apple.com/app/id6824075761?action=write-review")!
     /// Only in builds run from source; see the Buy me a coffee row.
     static let tip = URL(string: "https://ko-fi.com/owen282000")!
 
@@ -190,6 +192,7 @@ struct AboutScreen: View {
             LinkCard(title: "Website", subtitle: Text("Setup guides and the other Life Dashboard parts"), systemImage: "globe", url: AboutLinks.website)
             LinkCard(title: "Documentation", subtitle: Text("Setup, webhook payload, MQTT"), systemImage: "doc.text", url: AboutLinks.documentation)
             LinkCard(title: "What's new", subtitle: Text("Changelog for \(version)"), systemImage: "sparkles", url: AboutLinks.changelog)
+            LinkCard(title: "Rate the app", subtitle: Text("A rating in the App Store helps others find it"), systemImage: "star", url: AboutLinks.rate)
             LinkCard(title: "Report a problem", subtitle: Text("GitHub issues"), systemImage: "ladybug", url: AboutLinks.newIssue)
             LinkCard(
                 title: "View on GitHub",

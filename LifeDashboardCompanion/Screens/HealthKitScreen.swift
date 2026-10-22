@@ -1,5 +1,6 @@
 import SwiftUI
 import HealthKit
+import StoreKit
 
 struct HealthKitScreen: View {
     @ObservedObject private var prefs = PreferencesManager.shared
@@ -34,6 +35,8 @@ struct HealthKitScreen: View {
     @State private var showBackfillDialog = false
     @State private var backfillNotice: String?
     @State private var accessRequest: HKAuthorizationRequestStatus?
+    @Environment(\.requestReview) private var requestReview
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ScrollView {
@@ -118,6 +121,10 @@ struct HealthKitScreen: View {
         }
         .task(id: prefs.healthEnabledDataTypes) { await refreshAccessRequest() }
         .task { await askOnceAfterUpdate() }
+        .onAppear { considerReview() }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { considerReview() } }
+        // A backfill that just finished is a good moment of its own.
+        .onChange(of: backfill.job?.status) { _, status in if status == .done { considerReview(backfillDone: true) } }
         .sheet(isPresented: $showPreview) {
             previewSheet
         }
@@ -180,6 +187,31 @@ struct HealthKitScreen: View {
             return
         }
         accessRequest = try? await healthKit.healthStore.statusForAuthorizationRequest(toShare: [], read: types)
+    }
+
+    /// Asks for an App Store rating at a good moment (P1-28): see `ReviewPrompt`. The first use
+    /// is noted here too, the first time this screen shows after the setup.
+    private func considerReview(backfillDone: Bool = false) {
+        let defaults = UserDefaults.standard
+        let now = Date()
+        if defaults.object(forKey: ReviewPrompt.firstUseKey) == nil { defaults.set(now, forKey: ReviewPrompt.firstUseKey) }
+        let status = SharedSyncStatus.read()
+        let state = ReviewPrompt.State(
+            lastDelivered: status.lastDelivered,
+            lastSyncSucceeded: status.lastSuccess,
+            failureStreak: defaults.integer(forKey: "sync_failure_streak"),
+            partialStreak: defaults.integer(forKey: "sync_partial_streak"),
+            pending: PendingSyncStore.shared.pendingCount
+        )
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        guard ReviewPrompt.shouldAsk(
+            goodMoment: backfillDone || ReviewPrompt.isGoodMoment(state, now: now),
+            firstUse: defaults.object(forKey: ReviewPrompt.firstUseKey) as? Date,
+            askedVersion: defaults.string(forKey: ReviewPrompt.askedVersionKey),
+            version: version, now: now
+        ) else { return }
+        defaults.set(version, forKey: ReviewPrompt.askedVersionKey)
+        requestReview()
     }
 
     // MARK: - Rows
@@ -648,6 +680,7 @@ struct HealthKitScreen: View {
 
     private func report(_ result: SyncOutcome) {
         outcome = result
+        if case .synced = result { considerReview() }
         AccessibilityNotification.Announcement(result.announcement).post()
     }
 

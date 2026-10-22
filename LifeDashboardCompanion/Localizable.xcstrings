@@ -1755,6 +1755,22 @@
         }
       }
     },
+    "A rating in the App Store helps others find it" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Bewertung im App Store hilft anderen, sie zu finden"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een beoordeling in de App Store helpt anderen hem te vinden"
+          }
+        }
+      }
+    },
     "A receiver wants your data at:" : {
       "localizations" : {
         "de" : {
@@ -7280,6 +7296,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stille uren tot %@. Nu synchroniseren werkt nog steeds."
+          }
+        }
+      }
+    },
+    "Rate the app" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App bewerten"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beoordeel de app"
           }
         }
       }
