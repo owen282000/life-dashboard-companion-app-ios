@@ -44,7 +44,7 @@ Your Apple Watch, iPhone, ring or scale already writes to Apple Health. This app
 
 - Home Assistant gets up to a year of history, each day on its own date. The Home Assistant companion app's health sensors start the day you switch them on.
 - An iPhone and an Android phone send the same payload, so a mixed household shares one Home Assistant or one database.
-- Pay once, no subscription: the app is on the [App Store](https://apps.apple.com/app/life-dashboard-companion/id6824075761) for EUR 6.99 (USD 5.99), and building it yourself stays free.
+- Pay once, no subscription: the app is on the [App Store](https://apps.apple.com/app/life-dashboard-companion/id6824075761) for EUR 6.99 (USD 5.99), and building it yourself stays free, with an Apple Developer Program membership of your own.
 - Want to ask Claude or a local model in Ollama about your own history? The [Grafana stack](https://github.com/owen282000/life-dashboard-stack#ask-your-own-ai-mcp) adds an MCP server with eight read-only tools. The app itself contains no AI.
 
 <a id="why-this-app"></a>
@@ -95,7 +95,7 @@ Get [Life Dashboard Companion on the App Store](https://apps.apple.com/app/life-
 
 ### Build it yourself
 
-Building it yourself is free. You need a Mac with Xcode 26 (the newest Xcode needs macOS 26.2; on macOS 15.6, Xcode 26.3 works), an iPhone on iOS 17 or newer, and an Apple Account. A free account works, but then the app stops opening after 7 days until you run it from Xcode again. A paid developer account signs it for a year.
+Building it yourself is free: the app costs nothing that way. You need a Mac with Xcode 26 (the newest Xcode needs macOS 26.2; on macOS 15.6, Xcode 26.3 works), an iPhone on iOS 17 or newer, and a paid Apple Developer Program membership (USD 99 a year): Apple doesn't give a free Apple Account the HealthKit capability the app needs. A build signed with a membership runs for a year.
 
 1. Clone the repository, open `LifeDashboardCompanion.xcodeproj`, and set your own team, bundle identifiers and app group. The [setup guide](docs/usage.md#build-and-install) shows where each one goes.
 2. Run it on your iPhone. The first time, iOS asks you to switch on Developer Mode and trust your certificate.
