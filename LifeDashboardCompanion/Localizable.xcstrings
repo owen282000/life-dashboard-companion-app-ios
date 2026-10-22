@@ -663,6 +663,64 @@
         }
       }
     },
+    "%lld chunks of 3 days" : {
+      "localizations" : {
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Block zu 3 Tagen"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Blöcke zu 3 Tagen"
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld chunk of 3 days"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld chunks of 3 days"
+                }
+              }
+            }
+          }
+        },
+        "nl" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld blok van 3 dagen"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld blokken van 3 dagen"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld configured" : {
       "localizations" : {
         "de" : {
@@ -1521,6 +1579,38 @@
         }
       }
     },
+    "1 year" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Jahr"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 jaar"
+          }
+        }
+      }
+    },
+    "2 years" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 Jahre"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 jaar"
+          }
+        }
+      }
+    },
     "5 min" : {
       "localizations" : {
         "de" : {
@@ -1533,6 +1623,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "5 min"
+          }
+        }
+      }
+    },
+    "5 years" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 Jahre"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 jaar"
+          }
+        }
+      }
+    },
+    "6 months" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6 Monate"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6 maanden"
           }
         }
       }
@@ -1553,6 +1675,22 @@
         }
       }
     },
+    "30 days" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30 Tage"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30 dagen"
+          }
+        }
+      }
+    },
     "60" : {
       "localizations" : {
         "de" : {
@@ -1565,6 +1703,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "60"
+          }
+        }
+      }
+    },
+    "90 days" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "90 Tage"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "90 dagen"
           }
         }
       }
@@ -1837,6 +1991,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Alle %lld types die de app kan lezen"
+          }
+        }
+      }
+    },
+    "All history" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alles"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alles"
           }
         }
       }
@@ -3712,6 +3882,22 @@
         }
       }
     },
+    "Everything Apple Health has, from your oldest record" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alles, was Apple Health hat, ab deinem ältesten Datensatz"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alles wat Apple Gezondheid heeft, vanaf je oudste record"
+          }
+        }
+      }
+    },
     "Everything is opt-in and reversible: which types are read, where they go and how often. Turning off access in the Health app stops the matching reads immediately. The developer holds no copy of your health data or settings, so there is nothing of that to request or delete on the developer's side." : {
       "localizations" : {
         "de" : {
@@ -3724,6 +3910,94 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Alles is opt-in en terug te draaien: welke types worden gelezen, waar ze heen gaan en hoe vaak. Zet je de toegang in de Gezondheid-app uit, dan stoppen de bijbehorende leesacties meteen. De ontwikkelaar heeft geen kopie van je gezondheidsdata of instellingen, dus daarvan valt bij de ontwikkelaar niets op te vragen of te verwijderen."
+          }
+        }
+      }
+    },
+    "Everything since %@, %lld chunks of 3 days" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alles seit %1$@, %#@chunks@"
+          },
+          "substitutions" : {
+            "chunks" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg Block zu 3 Tagen"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg Blöcke zu 3 Tagen"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Everything since %1$@, %#@chunks@"
+          },
+          "substitutions" : {
+            "chunks" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg chunk of 3 days"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg chunks of 3 days"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alles sinds %1$@, %#@chunks@"
+          },
+          "substitutions" : {
+            "chunks" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg blok van 3 dagen"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg blokken van 3 dagen"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -5008,22 +5282,6 @@
         }
       }
     },
-    "Last %lld days" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Letzte %lld Tage"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Laatste %lld dagen"
-          }
-        }
-      }
-    },
     "Last error: %@" : {
       "localizations" : {
         "de" : {
@@ -5720,6 +5978,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Geen nieuwe gezondheidsdata om te synchroniseren."
+          }
+        }
+      }
+    },
+    "No records found for the enabled types" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Datensätze für die eingeschalteten Typen gefunden"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen records gevonden voor de ingeschakelde typen"
           }
         }
       }

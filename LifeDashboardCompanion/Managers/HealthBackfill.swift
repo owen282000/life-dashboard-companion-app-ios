@@ -19,12 +19,45 @@ enum BackfillPlan {
     static let sleepPadding: TimeInterval = 86_400
     static let periodPadding: TimeInterval = 14 * 86_400
 
+    /// The length for a backfill of all history (P2-29, stack#23): its range starts at the
+    /// oldest record of the enabled types instead of a fixed number of days back, as on Android.
+    static let allHistory = 0
+
+    /// The lengths the list offers, shortest first: Android's seven, the last one all history.
+    static let lengths = [30, 90, 180, 365, 730, 1825, allHistory]
+
+    /// Nothing older counts as the start of all history, so one record with a wrong date (a
+    /// weight entered as 1970) cannot add decades of empty windows.
+    static let allHistoryNotBefore = Date(timeIntervalSince1970: 946_684_800)  // 2000-01-01T00:00:00Z
+
     /// The range for a backfill of `days` started at `now`. The end is floored to a whole
-    /// second so `window_end` in the payload, which has no fractions, is the real bound.
-    static func range(days: Int, now: Date, earliestPermitted: Date = .distantPast) -> DateInterval {
+    /// second so `window_end` in the payload, which has no fractions, is the real bound. All
+    /// history starts at `earliest`, the oldest record found, also floored, and covers a day at least.
+    static func range(days: Int, now: Date, earliestPermitted: Date = .distantPast, earliest: Date? = nil) -> DateInterval {
         let end = Date(timeIntervalSinceReferenceDate: now.timeIntervalSinceReferenceDate.rounded(.down))
-        let start = max(end.addingTimeInterval(-TimeInterval(days) * 86_400), earliestPermitted)
+        let wanted: Date
+        if days == allHistory, let earliest {
+            let floored = Date(timeIntervalSinceReferenceDate: earliest.timeIntervalSinceReferenceDate.rounded(.down))
+            wanted = min(max(floored, allHistoryNotBefore), end.addingTimeInterval(-86_400))
+        } else {
+            wanted = end.addingTimeInterval(-TimeInterval(max(days, 1)) * 86_400)
+        }
+        let start = max(wanted, earliestPermitted)
         return DateInterval(start: min(start, end), end: end)
+    }
+
+    /// The lengths the list offers when the oldest record is `earliest` (nil while it is not
+    /// known: all of them). A fixed length that reaches back past the oldest record would send
+    /// what All history sends, so it is left out, as on Android.
+    static func lengths(earliest: Date?, now: Date) -> [Int] {
+        guard let earliest else { return lengths }
+        let historyDays = Int((now.timeIntervalSince(earliest) / 86_400).rounded(.up))
+        return lengths.filter { $0 == allHistory || $0 < historyDays }
+    }
+
+    /// The windows a backfill of `days` walks, for the line under each length.
+    static func windows(days: Int) -> Int {
+        Int((Double(days) / (windowLength / 86_400)).rounded(.up))
     }
 
     static func windowCount(of range: DateInterval) -> Int {

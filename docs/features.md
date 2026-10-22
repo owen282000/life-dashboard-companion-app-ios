@@ -30,7 +30,7 @@ These are the Apple Health types that have a counterpart in the Android app, und
 
 ## History
 
-- **Backfill** on the Health tab sends the last 30, 90 or 365 days of every enabled type to your webhooks, in 3-day windows, oldest first, with the Android app's backfill fields
+- **Backfill** on the Health tab sends 30 or 90 days, 6 months, 1, 2 or 5 years, or **All history** from the oldest record of the enabled types, of every enabled type to your webhooks, in 3-day windows, oldest first, with the Android app's backfill fields. The list says how many windows each length takes and the month All history starts in, and leaves out a length that reaches back past the oldest record. The Home Assistant integration takes in about the last year for now
 - Progress is kept per window: **Pause** stops after the window in flight, and **Resume** continues at the first window that was not delivered in full
 - It runs while the app is open and the iPhone is unlocked, and keeps the screen on meanwhile. On iOS 26 it runs as a continued processing task instead, which keeps going when you switch apps and shows its progress in the system UI
 - Backfill payloads go to webhooks only, never to MQTT or the retry queue

@@ -105,6 +105,8 @@ struct HealthKitScreen: View {
                 showResolution = rows.contains("resolution")
                 showNotifications = rows.contains("notifications")
             }
+            // -ld.backfill YES opens the list of backfill lengths.
+            if UserDefaults.standard.bool(forKey: "ld.backfill") { showBackfillDialog = true }
             // -ld.destination 0 opens the first webhook address's sheet.
             if UserDefaults.standard.object(forKey: "ld.destination") != nil {
                 let index = UserDefaults.standard.integer(forKey: "ld.destination")

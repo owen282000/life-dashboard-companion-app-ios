@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- Backfill reaches back to all history, as in the Android app since 1.28.0. The list offers 30 and 90 days,
+  6 months, 1, 2 and 5 years, and All history, each with the number of 3-day chunks it covers. All history
+  starts at the oldest record of the enabled types (one read per type, oldest first and one record long,
+  ignoring anything before 2000, so a record with a wrong date cannot add decades of empty chunks), and
+  the list names the month it starts in. A length that reaches back past the oldest record is left out.
+  The Logs row of a run says its length, or `all_history`. The payload is unchanged.
 - Every webhook address has its own signing secret and headers, as in the Android app since 1.28.0.
   Pairing a second receiver used to replace the one secret all addresses were signed with, so the first
   receiver started refusing every payload without a word; now pairing sets the secret of the paired

@@ -45,15 +45,10 @@ struct BackfillSection: View {
                 ResultLine(text: Text(notice), tone: .warning)
             }
         }
-        .confirmationDialog("Backfill History", isPresented: $showDialog, titleVisibility: .visible) {
-            ForEach(BackfillController.rangeOptions, id: \.self) { days in
-                Button("Last \(days) days") {
-                    backfill.start(days: days)
-                }
+        .sheet(isPresented: $showDialog) {
+            BackfillLengthSheet(enabledTypes: prefs.healthEnabledDataTypes, message: dialogMessage) { days, earliest in
+                backfill.start(days: days, earliest: earliest)
             }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            dialogMessage
         }
     }
 
@@ -169,5 +164,85 @@ struct BackfillSection: View {
             .font(.caption)
             .foregroundColor(Brand.successInk)
             .frame(maxWidth: .infinity)
+    }
+}
+
+/// The lengths a backfill can take (P2-29), as on Android since 1.28.0: 30 and 90 days, 6 months,
+/// 1, 2 and 5 years, and All history from the oldest record of the enabled types, each with the
+/// number of 3-day chunks it covers. The oldest record is looked up when the list opens; until
+/// then every length is listed, and the fixed ones that reach back past it are left out after.
+struct BackfillLengthSheet: View {
+    let enabledTypes: Set<HealthDataType>
+    let message: Text
+    let onStart: (Int, Date?) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var earliest: Date?
+    @State private var lookedUp = false
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    message
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Section {
+                    ForEach(BackfillPlan.lengths(earliest: earliest, now: Date()), id: \.self) { days in
+                        Button {
+                            onStart(days, earliest)
+                            dismiss()
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                title(days)
+                                    .font(.body)
+                                    .foregroundStyle(Brand.ink)
+                                subtitle(days)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .disabled(days == BackfillPlan.allHistory && earliest == nil)
+                    }
+                }
+            }
+            .navigationTitle("Backfill History")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+        .task {
+            earliest = await HealthKitManager.shared.oldestSampleDate(for: enabledTypes)
+            lookedUp = true
+        }
+    }
+
+    private func title(_ days: Int) -> Text {
+        switch days {
+        case 30: return Text("30 days")
+        case 90: return Text("90 days")
+        case 180: return Text("6 months")
+        case 365: return Text("1 year")
+        case 730: return Text("2 years")
+        case 1825: return Text("5 years")
+        default: return Text("All history")
+        }
+    }
+
+    private func subtitle(_ days: Int) -> Text {
+        guard days == BackfillPlan.allHistory else {
+            return Text("\(BackfillPlan.windows(days: days)) chunks of 3 days")
+        }
+        guard let earliest else {
+            return lookedUp ? Text("No records found for the enabled types") : Text("Everything Apple Health has, from your oldest record")
+        }
+        let range = BackfillPlan.range(days: days, now: Date(), earliest: earliest)
+        let month = range.start.formatted(.dateTime.month(.wide).year())
+        return Text("Everything since \(month), \(BackfillPlan.windowCount(of: range)) chunks of 3 days")
     }
 }
