@@ -187,7 +187,7 @@ The Life Dashboard integration reads the measured series only, and combines them
 
 ## Backfill
 
-**Backfill** on the Health tab sends the last 30, 90 or 365 days in 3-day windows, oldest first, with the Android app's fields: `backfill`, `window_start`, `window_end` and `window_complete`. The records are the ones a sync sends, `uuid` included, so the overlap deduplicates. `daily_totals` in a backfill payload covers every whole day of its window. Each sleep session and menstruation period goes out once, in the window it ends or starts in.
+**Backfill** on the Health tab sends 30 or 90 days, 6 months, 1, 2 or 5 years, or all history from the oldest record (nothing before 2000), in 3-day windows, oldest first, with the Android app's fields: `backfill`, `window_start`, `window_end` and `window_complete`. The records are the ones a sync sends, `uuid` included, so the overlap deduplicates. `daily_totals` in a backfill payload covers every whole day of its window. Each sleep session and menstruation period goes out once, in the window it ends or starts in.
 
 `window_complete` is always `false` on iOS. HealthKit does not tell an app that it may not read a type, so the app cannot vouch that a window is complete.
 

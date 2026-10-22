@@ -69,6 +69,32 @@ final class HealthKitManager: ObservableObject, @unchecked Sendable {
         return hkTypes
     }
 
+    /// Where All history starts (P2-29): the oldest sample of the enabled types, one read per
+    /// sample type, oldest first and one sample long, ignoring anything before 2000. HealthKit has
+    /// no separate access to history, so this works whenever reading does. Nil without any.
+    func oldestSampleDate(for types: Set<HealthDataType>) async -> Date? {
+        let sampleTypes = readTypesFor(types).compactMap { $0 as? HKSampleType }
+        let predicate = HKQuery.predicateForSamples(withStart: BackfillPlan.allHistoryNotBefore, end: nil, options: [])
+        let sort = [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+        return await withTaskGroup(of: Date?.self) { group in
+            for sampleType in sampleTypes {
+                group.addTask {
+                    await withCheckedContinuation { continuation in
+                        let query = HKSampleQuery(sampleType: sampleType, predicate: predicate, limit: 1, sortDescriptors: sort) { _, samples, _ in
+                            continuation.resume(returning: samples?.first?.startDate)
+                        }
+                        self.healthStore.execute(query)
+                    }
+                }
+            }
+            var oldest: Date?
+            for await date in group {
+                if let date, date < (oldest ?? .distantFuture) { oldest = date }
+            }
+            return oldest
+        }
+    }
+
     func requestAuthorization(for types: Set<HealthDataType>) async throws {
         let readTypes = readTypesFor(types)
         guard !readTypes.isEmpty else { return }

@@ -48,7 +48,6 @@ key:Localizable | Step %lld of %lld | no-plural | a position, not an amount
 key:Localizable | Every %lld min | no-plural | abbreviated unit
 key:Localizable | Sync interval set to %lld min, the nearest this app allows. | no-plural | abbreviated unit
 key:Localizable | Min %lld minutes | no-plural | never below 15
-key:Localizable | Last %lld days | no-plural | 30, 90 or 365
 key:Localizable | Steps, last %lld days | no-plural | always 7
 key:Localizable | Unknown error after %lld attempts | no-plural | always WebhookRetryPolicy.maxAttempts, 3
 key:Localizable | HTTP %lld: more than %lld redirects, the last to %@. Enter the final address as the webhook URL. | no-plural | always WebhookRedirect.maxRedirects, 5

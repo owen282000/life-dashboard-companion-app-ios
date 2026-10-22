@@ -335,4 +335,48 @@ final class HealthBackfillTests: XCTestCase {
             base.failed(.delivery, at: now), now: now, hasWebhook: true, hasTypes: true
         ))
     }
+
+    // MARK: - All history (P2-29)
+
+    private let october = Date(timeIntervalSince1970: 1_792_000_000.4)  // October 2026, with a fraction
+
+    func testAllHistoryStartsAtTheOldestRecordFlooredToASecond() {
+        let oldest = Date(timeIntervalSince1970: 1_500_000_000.7)
+        let range = BackfillPlan.range(days: BackfillPlan.allHistory, now: october, earliest: oldest)
+        XCTAssertEqual(range.start, Date(timeIntervalSince1970: 1_500_000_000))
+        XCTAssertEqual(range.end, Date(timeIntervalSince1970: 1_792_000_000))
+    }
+
+    func testAllHistoryIgnoresAnythingBefore2000() {
+        let range = BackfillPlan.range(days: BackfillPlan.allHistory, now: october, earliest: Date(timeIntervalSince1970: 0))
+        XCTAssertEqual(range.start, BackfillPlan.allHistoryNotBefore)
+    }
+
+    func testAllHistoryCoversADayAtLeast() {
+        let range = BackfillPlan.range(days: BackfillPlan.allHistory, now: october, earliest: october.addingTimeInterval(-60))
+        XCTAssertEqual(range.duration, 86_400)
+        XCTAssertEqual(BackfillPlan.windowCount(of: range), 1)
+    }
+
+    func testAllHistoryStaysWithinWhatHealthKitPermits() {
+        let permitted = october.addingTimeInterval(-400 * 86_400)
+        let range = BackfillPlan.range(days: BackfillPlan.allHistory, now: october, earliestPermitted: permitted,
+                                       earliest: Date(timeIntervalSince1970: 1_000_000_000))
+        XCTAssertEqual(range.start, permitted)
+    }
+
+    func testTheListLeavesOutLengthsPastTheOldestRecord() {
+        XCTAssertEqual(BackfillPlan.lengths(earliest: nil, now: october), [30, 90, 180, 365, 730, 1825, 0])
+        // A record 400 days back: 1 year fits, 2 and 5 years would send what All history sends.
+        XCTAssertEqual(BackfillPlan.lengths(earliest: october.addingTimeInterval(-400 * 86_400), now: october), [30, 90, 180, 365, 0])
+        // Exactly 365 days back: a year would reach the oldest record, so it goes too.
+        XCTAssertEqual(BackfillPlan.lengths(earliest: october.addingTimeInterval(-365 * 86_400), now: october), [30, 90, 180, 0])
+        XCTAssertEqual(BackfillPlan.lengths(earliest: october.addingTimeInterval(-10 * 86_400), now: october), [0])
+    }
+
+    func testTheChunksPerLengthAreThreeDayWindowsRoundedUp() {
+        XCTAssertEqual(BackfillPlan.lengths.dropLast().map(BackfillPlan.windows(days:)), [10, 30, 60, 122, 244, 609])
+        XCTAssertEqual(BackfillPlan.windows(days: 1825),
+                       BackfillPlan.windowCount(of: BackfillPlan.range(days: 1825, now: october)))
+    }
 }

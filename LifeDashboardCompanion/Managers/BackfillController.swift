@@ -11,7 +11,6 @@ import WidgetKit
 @MainActor
 final class BackfillController: ObservableObject {
     static let shared = BackfillController()
-    static let rangeOptions = [30, 90, 365]
     static let logDataType = "health_connect_backfill"
 
     @Published private(set) var job: BackfillJob?
@@ -59,10 +58,12 @@ final class BackfillController: ObservableObject {
 
     // MARK: - Actions
 
-    func start(days: Int) {
+    /// `earliest` is where All history starts, the oldest record the list looked up.
+    func start(days: Int, earliest: Date? = nil) {
         guard !isRunning else { return }
         let range = BackfillPlan.range(
-            days: days, now: Date(), earliestPermitted: HealthKitManager.shared.healthStore.earliestPermittedSampleDate()
+            days: days, now: Date(), earliestPermitted: HealthKitManager.shared.healthStore.earliestPermittedSampleDate(),
+            earliest: earliest
         )
         run(BackfillJob(days: days, range: range))
     }
@@ -218,6 +219,8 @@ final class BackfillController: ObservableObject {
         guard sent > 0 || final.status == .done || final.failure != nil else { return }
         let summary: [String: Any] = [
             "backfill": true,
+            // The chosen length, or all_history, as Android's summary says it.
+            "length": final.days == BackfillPlan.allHistory ? "all_history" as Any : final.days as Any,
             "status": final.status.rawValue,
             "windows_done": final.nextWindow,
             "window_count": final.windowCount,
