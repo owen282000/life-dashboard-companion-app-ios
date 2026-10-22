@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- The README and the setup guide said a free Apple Account could build the app, with a profile that
+  expires after 7 days. It can't: Apple gives the HealthKit capability only to a paid Apple Developer
+  Program membership, and Xcode refuses to sign the app for a free personal team. Both now say so: building it
+  yourself stays free, with a membership of your own.
+
 ### Added
 
 - Backfill reaches back to all history, as in the Android app since 1.28.0. The list offers 30 and 90 days,

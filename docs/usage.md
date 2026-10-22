@@ -3,7 +3,7 @@
 ## Requirements
 
 - An iPhone with iOS 17.0 or later
-- To build the app yourself: a Mac with Xcode 26 or later (CI builds with Xcode 26.6), and an Apple Account; a free one is enough, see [below](#free-or-paid-apple-account)
+- To build the app yourself: a Mac with Xcode 26 or later (CI builds with Xcode 26.6), and a paid Apple Developer Program membership, see [below](#apple-developer-program)
 - Home Assistant with the Life Dashboard integration 0.7.1 or newer (HACS), a webhook endpoint, or an MQTT broker
 
 ## Build and install
@@ -27,9 +27,9 @@ The project carries Owen's team and identifiers, and Xcode can only sign it for 
 
 The simulator is fine for trying the screens, but it has none of your Health data, and HealthKit's background delivery does not work there.
 
-### Free or paid Apple Account
+### Apple Developer Program
 
-With a free Apple Account, Xcode signs the app with a provisioning profile that expires 7 days after it was issued. After that the app no longer opens until you run it from Xcode again. Settings and sync progress stay. A paid Apple Developer Program membership signs for a year. Apple lists what each membership includes on [Choosing a Membership](https://developer.apple.com/support/compare-memberships/), and which capabilities each can use on [Supported capabilities (iOS)](https://developer.apple.com/help/account/reference/supported-capabilities-ios). The app uses HealthKit, App Groups and Background Modes.
+The app reads Apple Health, and Apple gives the HealthKit capability only to a paid Apple Developer Program membership (USD 99 a year). With a free Apple Account, Xcode refuses to sign it: "Personal development teams ... do not support the HealthKit capability". With a membership the provisioning profile runs for a year; after that, run the app from Xcode again. Settings and sync progress stay. Apple lists what each membership includes on [Choosing a Membership](https://developer.apple.com/support/compare-memberships/), and which capabilities each can use on [Supported capabilities (iOS)](https://developer.apple.com/help/account/reference/supported-capabilities-ios). The app uses HealthKit, App Groups and Background Modes.
 
 To update, pull the repository and run it again from Xcode. Your settings stay.
 
@@ -149,4 +149,4 @@ The code carries a format version, and this build only reads version 1. Update t
 
 ### The app no longer opens
 
-For a build of your own with a free Apple Account, the app's provisioning profile expires after 7 days. Run the app from Xcode again; see [Free or paid Apple Account](#free-or-paid-apple-account).
+A build of your own runs as long as its provisioning profile, a year with an Apple Developer Program membership. Run the app from Xcode again; see [Apple Developer Program](#apple-developer-program).
