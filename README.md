@@ -10,7 +10,11 @@
 </p>
 
 <p align="center">
-  <a href="https://apps.apple.com/app/life-dashboard-companion/id6824075761"><img src="https://img.shields.io/badge/App%20Store-Download-000000?logo=apple&logoColor=white" alt="Download on the App Store"></a>
+  <a href="https://apps.apple.com/app/apple-store/id6824075761?pt=128699800&ct=gh-ios-readme&mt=8"><img src="docs/badges/app-store.png" alt="Download on the App Store" height="48"></a><br>
+  <sub>EUR 6.99 (USD 5.99) once. No subscription, no in-app purchases. Same code as this repo, or <a href="#build-it-yourself">build it yourself</a>.</sub>
+</p>
+
+<p align="center">
   <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-ha&category=integration"><img src="https://img.shields.io/badge/Home%20Assistant-HACS-41BDF5" alt="Home Assistant integration in HACS"></a>
   <a href="#build-and-install"><img src="https://img.shields.io/badge/iOS-17%2B-000000" alt="iOS 17 or newer"></a>
   <a href="https://scorecard.dev/viewer/?uri=github.com/owen282000/life-dashboard-companion-app-ios"><img src="https://api.scorecard.dev/projects/github.com/owen282000/life-dashboard-companion-app-ios/badge" alt="OpenSSF Scorecard"></a>
@@ -18,8 +22,6 @@
 </p>
 
 <p align="center">
-  <a href="https://apps.apple.com/app/life-dashboard-companion/id6824075761"><b>App&nbsp;Store</b></a>
-  &nbsp;·&nbsp;
   <a href="#build-it-yourself">Build&nbsp;it&nbsp;yourself</a>
   &nbsp;·&nbsp;
   <a href="docs/usage.md">Setup&nbsp;guide</a>
@@ -44,7 +46,7 @@ Your Apple Watch, iPhone, ring or scale already writes to Apple Health. This app
 
 - Home Assistant gets up to a year of history, each day on its own date. The Home Assistant companion app's health sensors start the day you switch them on.
 - An iPhone and an Android phone send the same payload, so a mixed household shares one Home Assistant or one database.
-- Pay once, no subscription: the app is on the [App Store](https://apps.apple.com/app/life-dashboard-companion/id6824075761) for EUR 6.99 (USD 5.99), and building it yourself stays free, with an Apple Developer Program membership of your own.
+- Pay once, no subscription: the app is on the [App Store](https://apps.apple.com/app/apple-store/id6824075761?pt=128699800&ct=gh-ios-readme&mt=8) for EUR 6.99 (USD 5.99), and building it from source costs nothing extra if you already have an Apple Developer Program membership.
 - Want to ask Claude or a local model in Ollama about your own history? The [Grafana stack](https://github.com/owen282000/life-dashboard-stack#ask-your-own-ai-mcp) adds an MCP server with eight read-only tools. The app itself contains no AI.
 
 <a id="why-this-app"></a>
@@ -91,11 +93,11 @@ The data can also go to an MQTT broker or a webhook of your own instead. Both ap
 
 ### From the App Store
 
-Get [Life Dashboard Companion on the App Store](https://apps.apple.com/app/life-dashboard-companion/id6824075761), for iOS 17 or newer. It's a one-time purchase of EUR 6.99 (USD 5.99), with no subscription and nothing to buy inside the app. It's the same app as this source, and you set it up the same way: continue with step 3 below.
+Get [Life Dashboard Companion on the App Store](https://apps.apple.com/app/apple-store/id6824075761?pt=128699800&ct=gh-ios-readme&mt=8), for iOS 17 or newer. It's a one-time purchase of EUR 6.99 (USD 5.99), with no subscription and nothing to buy inside the app. It's the same app as this source, and you set it up the same way: continue with step 3 below.
 
 ### Build it yourself
 
-Building it yourself is free: the app costs nothing that way. You need a Mac with Xcode 26 (the newest Xcode needs macOS 26.2; on macOS 15.6, Xcode 26.3 works), an iPhone on iOS 17 or newer, and a paid Apple Developer Program membership (USD 99 a year): Apple doesn't give a free Apple Account the HealthKit capability the app needs. A build signed with a membership runs for a year.
+Building it from source costs nothing extra if you already have an Apple Developer Program membership. You need a Mac with Xcode 26 (the newest Xcode needs macOS 26.2; on macOS 15.6, Xcode 26.3 works), an iPhone on iOS 17 or newer, and a paid Apple Developer Program membership (USD 99 a year): Apple doesn't give a free Apple Account the HealthKit capability the app needs. A build signed with a membership runs for a year.
 
 1. Clone the repository, open `LifeDashboardCompanion.xcodeproj`, and set your own team, bundle identifiers and app group. The [setup guide](docs/usage.md#build-and-install) shows where each one goes.
 2. Run it on your iPhone. The first time, iOS asks you to switch on Developer Mode and trust your certificate.
@@ -208,5 +210,6 @@ Stars, shares and good bug reports all help. This is a one-person project, but y
 MIT licensed. See [LICENSE](LICENSE).
 
 <p align="center">
-  <sub>Made by <a href="https://github.com/owen282000">Owen Vogelaar</a> for the self-hosting and quantified self crowd.</sub>
+  <sub>Made by <a href="https://github.com/owen282000">Owen Vogelaar</a> for the self-hosting and quantified self crowd.</sub><br>
+  <sub>Apple, the Apple logo and App Store are trademarks of Apple Inc.</sub>
 </p>
