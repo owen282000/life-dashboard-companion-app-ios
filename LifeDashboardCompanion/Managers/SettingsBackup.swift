@@ -449,7 +449,7 @@ enum ImportNote: Equatable, Sendable {
         case .headersKept:
             return String(localized: "This file has no custom headers. The ones on this iPhone are kept, for the addresses they were already sent to.")
         case .signingSecretKept:
-            return String(localized: "The signing secret on this iPhone is kept.")
+            return String(localized: "The signing secrets on this iPhone are kept, for each address.")
         case .brokerCredentialsKept:
             return String(localized: "The MQTT username and password on this iPhone are kept.")
         case .brokerCredentialsCleared:

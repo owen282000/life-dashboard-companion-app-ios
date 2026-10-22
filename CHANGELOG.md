@@ -13,6 +13,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- Questions under About, with the email address to write to. The backfill list says
+  that Home Assistant takes in about the last year for now, so All history mostly matters for a webhook or
+  the stack. The privacy policy names the reminder for syncs that stay away for days among the
+  notifications. The README leads with Apple's Download on the App Store badge and the price.
 - The app asks for an App Store rating once per version, at a good moment only: a few days after it
   was first used, when the last sync reached every address and nothing is failing or queued, or right
   after a backfill finished. Never next to an error. Apple shows the prompt at most three times a year and

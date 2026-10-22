@@ -2187,18 +2187,18 @@
         }
       }
     },
-    "Apple Health, read only, for the types you switch on. Camera, only while the pairing scanner is open: frames are decoded on the iPhone and are never stored or sent. Local Network, to reach a webhook server or MQTT broker on your home network. Notifications, for failed syncs and lost payloads: they are shown on this iPhone and sent nowhere." : {
+    "Apple Health, read only, for the types you switch on. Camera, only while the pairing scanner is open: frames are decoded on the iPhone and are never stored or sent. Local Network, to reach a webhook server or MQTT broker on your home network. Notifications, for failed syncs, lost payloads and syncs that stay away for days: they are shown on this iPhone and sent nowhere." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apple Health, nur lesend, für die Typen, die du einschaltest. Kamera, nur solange der Kopplungsscanner offen ist: Bilder werden auf dem iPhone ausgewertet und nie gespeichert oder gesendet. Lokales Netzwerk, um einen Webhook-Server oder MQTT-Broker in deinem Heimnetz zu erreichen. Mitteilungen, für fehlgeschlagene Synchronisierungen und verlorene Payloads: Sie erscheinen auf diesem iPhone und gehen nirgendwohin."
+            "value" : "Apple Health, nur lesend, für die Typen, die du einschaltest. Kamera, nur solange der Kopplungsscanner offen ist: Bilder werden auf dem iPhone ausgewertet und nie gespeichert oder gesendet. Lokales Netzwerk, um einen Webhook-Server oder MQTT-Broker in deinem Heimnetz zu erreichen. Mitteilungen, für fehlgeschlagene Synchronisierungen, verlorene Payloads und Synchronisierungen, die tagelang ausbleiben: Sie erscheinen auf diesem iPhone und gehen nirgendwohin."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apple Gezondheid, alleen lezen, voor de types die je aanzet. Camera, alleen zolang de koppelscanner open is: beelden worden op de iPhone gedecodeerd en nooit opgeslagen of verstuurd. Lokaal netwerk, om een webhookserver of MQTT-broker op je thuisnetwerk te bereiken. Meldingen, voor mislukte synchronisaties en verloren payloads: die verschijnen op deze iPhone en gaan nergens heen."
+            "value" : "Apple Gezondheid, alleen lezen, voor de types die je aanzet. Camera, alleen zolang de koppelscanner open is: beelden worden op de iPhone gedecodeerd en nooit opgeslagen of verstuurd. Lokaal netwerk, om een webhookserver of MQTT-broker op je thuisnetwerk te bereiken. Meldingen, voor mislukte synchronisaties, verloren payloads en synchronisaties die dagen wegblijven: die verschijnen op deze iPhone en gaan nergens heen."
           }
         }
       }
@@ -4838,6 +4838,22 @@
         }
       }
     },
+    "Home Assistant takes in about the last year for now. A webhook or the Life Dashboard stack gets everything." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home Assistant übernimmt vorerst etwa das letzte Jahr. Ein Webhook oder der Life Dashboard Stack bekommt alles."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home Assistant neemt voorlopig ongeveer het laatste jaar over. Een webhook of de Life Dashboard-stack krijgt alles."
+          }
+        }
+      }
+    },
     "Home Assistant, paired by QR code" : {
       "localizations" : {
         "de" : {
@@ -7214,6 +7230,22 @@
         }
       }
     },
+    "Questions" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fragen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vragen"
+          }
+        }
+      }
+    },
     "quiet %@ to %@" : {
       "localizations" : {
         "de" : {
@@ -9236,18 +9268,18 @@
         }
       }
     },
-    "The signing secret on this iPhone is kept." : {
+    "The signing secrets on this iPhone are kept, for each address." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Signaturgeheimnis auf diesem iPhone bleibt erhalten."
+            "value" : "Die Signaturgeheimnisse auf diesem iPhone bleiben erhalten, für jede Adresse."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Het ondertekeningsgeheim op deze iPhone blijft behouden."
+            "value" : "De ondertekeningsgeheimen op deze iPhone blijven staan, per adres."
           }
         }
       }
