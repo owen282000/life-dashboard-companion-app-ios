@@ -228,4 +228,23 @@ final class UIParityTests: XCTestCase {
         "square.and.pencil", "envelope", "star", "square.grid.2x2", "circle",
         "circle.lefthalf.filled"
     ]
+
+    // MARK: - About and the tabs
+
+    /// Health, Logs, About, Health, Logs: Logs shows Logs, not About (P2-34).
+    func testAboutClosesOnTheTabYouLeave() {
+        var about = AboutPresentation()
+        about.logs = true            // About opened on Logs
+        about.leave(tab: 1)          // to Health
+        XCTAssertFalse(about.logs)
+        about.health = true          // About opened on Health
+        about.leave(tab: 0)          // to Logs
+        XCTAssertEqual(about, AboutPresentation())
+    }
+
+    func testLeavingATabLeavesAboutOnTheOtherTabAlone() {
+        var about = AboutPresentation(health: true, logs: false)
+        about.leave(tab: 1)
+        XCTAssertTrue(about.health)
+    }
 }
