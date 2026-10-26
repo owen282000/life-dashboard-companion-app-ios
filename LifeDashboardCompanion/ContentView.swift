@@ -2,8 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab = 0
-    @State private var healthShowsAbout = false
-    @State private var logsShowsAbout = false
+    @State private var about = AboutPresentation()
     @StateObject private var pairing = PairingCoordinator()
     // UI state, not a setting, so it stays out of PreferencesManager and the settings backup.
     @AppStorage("onboarding_completed") private var onboardingCompleted = false
@@ -46,8 +45,7 @@ struct ContentView: View {
         }
         // A pairing link lands on the Health screen itself, not on About pushed over it.
         .onChange(of: pairing.incoming) { _, _ in
-            healthShowsAbout = false
-            logsShowsAbout = false
+            about = AboutPresentation()
         }
         .fullScreenCover(isPresented: $pairing.scanning, onDismiss: pairing.scannerDismissed) {
             PairingScannerView(
@@ -78,7 +76,7 @@ struct ContentView: View {
                 HealthKitScreen()
                     .navigationTitle("Health")
                     .navigationBarTitleDisplayMode(.inline)
-                    .aboutButton(isPresented: $healthShowsAbout)
+                    .aboutButton(isPresented: $about.health)
             }
             .tabItem {
                 Label("Health", systemImage: "heart.fill")
@@ -89,7 +87,7 @@ struct ContentView: View {
                 LogsScreen()
                     .navigationTitle("Logs")
                     .navigationBarTitleDisplayMode(.inline)
-                    .aboutButton(isPresented: $logsShowsAbout)
+                    .aboutButton(isPresented: $about.logs)
             }
             .tabItem {
                 Label("Logs", systemImage: "clock.arrow.circlepath")
@@ -98,16 +96,31 @@ struct ContentView: View {
         }
         // Each tab in its own accent, as in the Android app: green for Health, blue for Logs.
         .tint(selectedTab == 1 ? Brand.logsInk : Color.accentColor)
+        // About closes on the tab you leave: Health, Logs, About, Health, Logs shows Logs, not About.
+        .onChange(of: selectedTab) { old, _ in
+            about.leave(tab: old)
+        }
         .onAppear {
             #if DEBUG
             // For screenshots of every page: -ld.tab 1 opens Logs, -ld.about YES opens About.
             let arguments = UserDefaults.standard
             selectedTab = arguments.integer(forKey: "ld.tab")
             if arguments.bool(forKey: "ld.about") {
-                if selectedTab == 1 { logsShowsAbout = true } else { healthShowsAbout = true }
+                if selectedTab == 1 { about.logs = true } else { about.health = true }
             }
             #endif
         }
+    }
+}
+
+/// Whether About is pushed on each tab. Each tab has its own navigation stack, so About stayed open on
+/// a tab after switching away and back; leaving a tab now closes it there.
+struct AboutPresentation: Equatable {
+    var health = false
+    var logs = false
+
+    mutating func leave(tab: Int) {
+        if tab == 1 { logs = false } else { health = false }
     }
 }
 

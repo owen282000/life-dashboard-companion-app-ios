@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- About closes when you switch tabs. Opened from Health or Logs, it stayed on that tab, so going back to it
+  showed About again instead of the tab, until a second tap.
+
 ## [1.10.0] - 2026-10-22
 
 ### Fixed
