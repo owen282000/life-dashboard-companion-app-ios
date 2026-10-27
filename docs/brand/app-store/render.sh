@@ -11,6 +11,7 @@
 #     contact-sheet-nl.png, and de in place of nl
 #   header-5244x2950.png, header-3840x1646.png  the product page header, header.html
 #   search-3840x2560.png  the search results asset, header.html in 3:2
+#   header-nl-*.png, header-de-*.png, search-nl-*.png, search-de-*.png  the same in Dutch and German
 #
 # Only what is uploaded or reviewed goes into git: the 6.9 inch panels, the contact sheets, the
 # header and search images and the raw captures. The panoramas (about 10 MB each) and the 6.3
@@ -46,8 +47,14 @@ for lang in en nl de; do
 done
 for size in 5244x2950 3840x1646; do
   shot "$DIR/header-$size.png" "${size%x*}" "${size#*x}" "file://$PWD/$DIR/header.html?size=$size"
+  for lang in nl de; do
+    shot "$DIR/header-$lang-$size.png" "${size%x*}" "${size#*x}" "file://$PWD/$DIR/header.html?size=$size&lang=$lang"
+  done
 done
 shot "$DIR/search-3840x2560.png" 3840 2560 "file://$PWD/$DIR/header.html?size=3840x2560"
+for lang in nl de; do
+  shot "$DIR/search-$lang-3840x2560.png" 3840 2560 "file://$PWD/$DIR/header.html?size=3840x2560&lang=$lang"
+done
 
 # Tagged as sRGB, which is what Chrome rendered them in.
 for f in "$DIR"/??-[1-6].png "$DIR"/6.3/??-[1-6].png "$DIR"/panorama-??.png "$DIR"/header-*.png "$DIR"/search-*.png; do
