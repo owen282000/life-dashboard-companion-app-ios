@@ -121,7 +121,14 @@
 <script>
 const [W, H] = (new URLSearchParams(location.search).get("size") || "5244x2950").split("x").map(Number);
 const D = 2950, DW = Math.round(W * D / H), s = H / D;
-const RAW = "raw/", HA = "ha/";
+const LANG = new URLSearchParams(location.search).get("lang") || "en";
+const RAW = LANG === "en" ? "raw/" : `raw/${LANG}/`, HA = "ha/";
+// The words per language; nl and de follow docs/localization.md ("je", "du").
+const T = {
+  en: { wide: "Health data to<br>Home Assistant<br><em>or your own server</em>", sub: "No account, no cloud in between.", head: "Your health data,<br><em>on your own server</em>", signed: "Signed" },
+  nl: { wide: "Gezondheidsdata naar<br>Home Assistant<br><em>of je eigen server</em>", sub: "Geen account, geen cloud ertussen.", head: "Je gezondheidsdata,<br><em>op je eigen server</em>", signed: "Ondertekend" },
+  de: { wide: "Gesundheitsdaten an<br>Home Assistant<br><em>oder deinen Server</em>", sub: "Kein Konto, keine Cloud dazwischen.", head: "Deine Gesundheitsdaten,<br><em>auf deinem Server</em>", signed: "Signiert", scale: 0.86 },
+}[LANG];
 // The safe area: 6 percent in from every edge, in design pixels.
 const MX = Math.round(DW * 0.06), MY = Math.round(D * 0.06);
 
@@ -192,8 +199,8 @@ const items = [];
 const chips = `<div class="chips">` + ["Home Assistant", "MQTT", "Webhooks"].map(t => `<span><i></i>${t}</span>`).join("") + `</div>`;
 if (search) {
   items.push(`<div class="text" style="left:${MX + 30}px;top:0;height:${D}px;display:flex;flex-direction:column;justify-content:center">` +
-    `<h1 style="font-size:270px">Health data to<br>Home Assistant<br><em>or your own server</em></h1>` +
-    `<p style="font-size:104px">No account, no cloud in between.</p></div>`);
+    `<h1 style="font-size:270px">${T.wide}</h1>` +
+    `<p style="font-size:104px">${T.sub}</p></div>`);
   const right = DW - MX - 40, pw = 1000;
   items.push(phone(RAW + "health.png", right - pw, 360, pw, tilt(-4, -8), 4));
 } else {
@@ -202,16 +209,16 @@ if (search) {
   // pill floats over the top 12 percent. So the headline is centred in the band from 25 to
   // 55 percent of the height and the middle half of the width, the chips sit small right
   // under it, and the phones are decoration at the sides, free to be cropped.
-  const h1 = wide ? 270 : 230, sub = wide ? 68 : 62, cx = DW / 2;
+  const h1 = Math.round((wide ? 270 : 230) * (T.scale || 1)), sub = wide ? 68 : 62, cx = DW / 2;
   items.push(`<div style="position:absolute;left:${cx - 1500}px;top:300px;width:3000px;height:1700px;` +
     `background:radial-gradient(closest-side, rgba(48,183,126,0.16), transparent);z-index:1"></div>`);
   items.push(`<div class="text center" style="left:${cx - DW * 0.25}px;width:${DW * 0.5}px;top:${Math.round(D * (wide ? 0.27 : 0.285))}px;z-index:8">` +
-    `<h1 style="font-size:${h1}px">Your health data,<br><em>on your own server</em></h1>` +
+    `<h1 style="font-size:${h1}px">${T.head}</h1>` +
     `<div style="font-size:${sub}px">${chips}</div></div>`);
   const pw = 1000, side = Math.round(DW * (wide ? 0.13 : 0.06));
   items.push(phone(RAW + "logs.png", side, 430, pw, tilt(9, 16), 3, "back"));
   items.push(phone(RAW + "health.png", DW - side - pw, 430, pw, tilt(-9, -16), 3, "back"));
-  items.push(`<div class="badge" style="left:${DW - side - pw + 110}px;top:1480px;transform:rotate(-5deg);z-index:7">${shield}<div><b>Signed</b><small>HMAC-SHA256</small></div></div>`);
+  items.push(`<div class="badge" style="left:${DW - side - pw + 110}px;top:1480px;transform:rotate(-5deg);z-index:7">${shield}<div><b>${T.signed}</b><small>HMAC-SHA256</small></div></div>`);
 }
 
 document.getElementById("items").innerHTML = items.join("");
