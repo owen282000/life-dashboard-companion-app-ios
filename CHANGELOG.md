@@ -4,13 +4,20 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-10-28
+
+### Added
+
+- The App Store page is in Dutch and German too, with the screenshots in each language.
+
 ### Changed
 
 - The app icon is made of Liquid Glass on iOS 26 and later. The pulse and the two signal arcs are
   separate glass layers on the dark brand ground, so iOS gives them depth, highlights and a green
   shadow, and draws its own dark, clear and tinted versions. It is an Icon Composer document,
   `LifeDashboardCompanion/AppIcon.icon`, instead of three flat pictures; iOS 17 and 18 get the flat
-  icon Xcode renders from it.
+  icon Xcode renders from it. The README, its diagram and the last App Store screenshot show the
+  glass icon too, exported from the document with `ictool`.
 
 ### Fixed
 
@@ -379,7 +386,8 @@ All notable changes to this project are documented in this file. The format is b
 - Offline queue with retries and exponential backoff
 - Webhook logs with CSV/JSON export and payload preview
 
-[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.10.0...HEAD
+[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.10.1...HEAD
+[1.10.1]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.10.0...1.10.1
 [1.10.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.9.0...1.10.0
 [1.9.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.8.0...1.9.0
 [1.8.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.7.0...1.8.0
