@@ -99,7 +99,8 @@ The pairing sheet needs a tap on iOS's "Open in Life Dashboard?" prompt, which t
 `docs/social-preview.png`, the repository's social preview, and the other brand images are rendered from HTML with headless Chrome, never drawn by hand or generated. The sources are in `docs/brand/`, with the command in each file's header:
 
 - `banner.html` - the social preview, 1280 by 640, a copy of the Android app's banner
-- `app-icon.html` - the heartbeat mark on its dark ground, flat, as `app-icon.png` for the README icon
+- `app-icon.html` - the heartbeat mark on its dark ground, flat, the source of the app icon's layers
+- `readme-icon.html` - the README icon: `app-icon.png`, the Liquid Glass icon exported from `AppIcon.icon` with `ictool`, on a transparent background
 - `readme-hero.html` - the README's first image, the app next to the Home Assistant cards it feeds, in a desktop and a phone version
 - `app-store/` - the App Store screenshots, header and search asset: `scripts/store-screenshots.sh` takes the screens, `app-store/render.sh` renders them
 

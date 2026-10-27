@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!--
+  Source for icon.png, the app icon in the store art (the sign on panel 6 of panorama.html): the
+  Liquid Glass icon as iOS draws it, docs/brand/app-icon.png (exported from AppIcon.icon with
+  ictool, see app-icon.html), on the ground of the store art, so it is RGB without alpha like the
+  rest. From the repository root:
+
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
+      --screenshot=docs/brand/app-store/icon.png --window-size=1024,1024 --hide-scrollbars \
+      --force-device-scale-factor=1 --force-color-profile=srgb --default-background-color=0C1714FF \
+      "file://$PWD/docs/brand/app-store/icon.html"
+    oxipng -o 4 --nx --strip safe docs/brand/app-store/icon.png
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; }
+  html, body { width: 1024px; height: 1024px; overflow: hidden; background: #0C1714; }
+  img { width: 1024px; height: 1024px; display: block; }
+</style>
+</head>
+<body>
+  <img src="../app-icon.png" alt="">
+</body>
+</html>

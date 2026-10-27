@@ -10,7 +10,8 @@ All notable changes to this project are documented in this file. The format is b
   separate glass layers on the dark brand ground, so iOS gives them depth, highlights and a green
   shadow, and draws its own dark, clear and tinted versions. It is an Icon Composer document,
   `LifeDashboardCompanion/AppIcon.icon`, instead of three flat pictures; iOS 17 and 18 get the flat
-  icon Xcode renders from it.
+  icon Xcode renders from it. The README, its diagram and the last App Store screenshot show the
+  glass icon too, exported from the document with `ictool`.
 
 ### Fixed
 

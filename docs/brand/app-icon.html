@@ -16,19 +16,25 @@
   The SVG layers are written from the points below by app-icon-layers.swift (run it after
   changing the mark here). Open AppIcon.icon in Icon Composer (Xcode > Open Developer Tool) to
   preview or tune the glass. Xcode compiles it into the dark, clear and tinted appearances of
-  iOS 26 and later, and into flat icons for iOS 17 and 18. Preview a rendition without Xcode:
+  iOS 26 and later, and into flat icons for iOS 17 and 18. Export a rendition without Xcode;
+  docs/brand/app-icon.png is the Default one, the icon as iOS draws it with its rounded shape,
+  glass edge and transparent corners, which readme-icon.html (the README icon) and
+  app-store/icon.html (the store art) frame. From the repository root:
 
     ICTOOL="/Applications/Xcode.app/Contents/Applications/Icon Composer.app/Contents/Executables/ictool"
-    "$ICTOOL" LifeDashboardCompanion/AppIcon.icon --export-image --output-file /tmp/icon.png \
+    "$ICTOOL" LifeDashboardCompanion/AppIcon.icon --export-image --output-file docs/brand/app-icon.png \
       --platform iOS --rendition Default --width 1024 --height 1024 --scale 1
+    sips --matchTo "/System/Library/ColorSync/Profiles/sRGB Profile.icc" docs/brand/app-icon.png
+    oxipng -o 4 --nx --strip safe docs/brand/app-icon.png
     # renditions: Default, Dark, ClearLight, ClearDark, TintedLight, TintedDark
 
-  This page renders docs/brand/app-icon.png, the flat icon that readme-icon.html frames, at
-  1024 px with headless Chrome, from the repository root:
+  ictool writes Display P3; sips turns it into sRGB, which the brand pages are rendered in. Then
+  render readme-icon.html and app-store/icon.html again. To look at the flat mark itself, render
+  this page with headless Chrome:
 
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
       --hide-scrollbars --window-size=512,512 --force-device-scale-factor=2 \
-      --screenshot=docs/brand/app-icon.png "file://$PWD/docs/brand/app-icon.html"
+      --screenshot=/tmp/app-icon-flat.png "file://$PWD/docs/brand/app-icon.html"
 
   Colours: background #171D21 -> #14181C -> #101C1C, heartbeat green #30B77E.
 -->
