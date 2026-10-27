@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The app icon is made of Liquid Glass on iOS 26 and later. The pulse and the two signal arcs are
+  separate glass layers on the dark brand ground, so iOS gives them depth, highlights and a green
+  shadow, and draws its own dark, clear and tinted versions. It is an Icon Composer document,
+  `LifeDashboardCompanion/AppIcon.icon`, instead of three flat pictures; iOS 17 and 18 get the flat
+  icon Xcode renders from it.
+
 ### Fixed
 
 - About closes when you switch tabs. Opened from Health or Logs, it stayed on that tab, so going back to it

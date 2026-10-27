@@ -96,11 +96,13 @@ The pairing sheet needs a tap on iOS's "Open in Life Dashboard?" prompt, which t
 
 ## Brand images
 
-`docs/social-preview.png`, the repository's social preview, and the app icon are rendered from HTML with headless Chrome, never drawn by hand or generated. The sources are in `docs/brand/`, with the command in each file's header:
+`docs/social-preview.png`, the repository's social preview, and the other brand images are rendered from HTML with headless Chrome, never drawn by hand or generated. The sources are in `docs/brand/`, with the command in each file's header:
 
 - `banner.html` - the social preview, 1280 by 640, a copy of the Android app's banner
-- `app-icon.html` - the app icon, with its dark and tinted versions
+- `app-icon.html` - the heartbeat mark on its dark ground, flat, as `app-icon.png` for the README icon
 - `readme-hero.html` - the README's first image, the app next to the Home Assistant cards it feeds, in a desktop and a phone version
 - `app-store/` - the App Store screenshots, header and search asset: `scripts/store-screenshots.sh` takes the screens, `app-store/render.sh` renders them
+
+The app icon is the Icon Composer document `LifeDashboardCompanion/AppIcon.icon`: the background fill and the Liquid Glass settings in `icon.json`, and the mark as SVG layers in `Assets/`, which `docs/brand/app-icon-layers.swift` writes from the points in `app-icon.html`. iOS 26 and later draw it in Liquid Glass, with its dark, clear and tinted versions; Xcode flattens it into the icon for iOS 17 and 18. Open it in Icon Composer (Xcode > Open Developer Tool) to preview or tune the glass; `app-icon.html` says how to export a preview with `ictool`.
 
 After changing the banner, upload the new PNG under the repository's Settings > Social preview; GitHub does not read it from the repository.
