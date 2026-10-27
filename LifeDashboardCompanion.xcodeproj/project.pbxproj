@@ -18,6 +18,7 @@
 		B1000001 /* LifeDashboardCompanionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000001 /* LifeDashboardCompanionApp.swift */; };
 		B1000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000002 /* ContentView.swift */; };
 		B1000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F1000003 /* Assets.xcassets */; };
+		B100002F /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = F100002F /* AppIcon.icon */; };
 		B1000004 /* HealthDataType.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000004 /* HealthDataType.swift */; };
 		B1000005 /* WebhookLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000005 /* WebhookLog.swift */; };
 		B1000006 /* SyncResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000006 /* SyncResult.swift */; };
@@ -156,6 +157,7 @@
 		F1000001 /* LifeDashboardCompanionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeDashboardCompanionApp.swift; sourceTree = "<group>"; };
 		F1000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		F1000003 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F100002F /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		F1000004 /* HealthDataType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthDataType.swift; sourceTree = "<group>"; };
 		F1000005 /* WebhookLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookLog.swift; sourceTree = "<group>"; };
 		F1000006 /* SyncResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncResult.swift; sourceTree = "<group>"; };
@@ -298,6 +300,7 @@
 				D1000005 /* Managers */,
 				D1000006 /* Screens */,
 				F1000003 /* Assets.xcassets */,
+				F100002F /* AppIcon.icon */,
 				F1000013 /* Info.plist */,
 				F1000014 /* LifeDashboardCompanion.entitlements */,
 				F1000024 /* PrivacyInfo.xcprivacy */,
@@ -567,6 +570,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B1000003 /* Assets.xcassets in Resources */,
+				B100002F /* AppIcon.icon in Resources */,
 				B1000024 /* PrivacyInfo.xcprivacy in Resources */,
 				B1000025 /* Localizable.xcstrings in Resources */,
 				E7F06130A2C6E123FC9BF861 /* InfoPlist.xcstrings in Resources */,

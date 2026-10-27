@@ -1,26 +1,34 @@
 <!DOCTYPE html>
 <!--
-  Source for the app icon (LifeDashboardCompanion/Assets.xcassets/AppIcon.appiconset), the
-  same mark and ground as the Android app's store icon (life-dashboard-companion-app,
-  docs/brand/icon.html), so both apps carry one identity. The in-app mark (BrandMark in
-  Screens/Brand.swift) draws the same paths.
+  The heartbeat mark on its dark ground, flat: the same mark and ground as the Android app's
+  store icon (life-dashboard-companion-app, docs/brand/icon.html), so both apps carry one
+  identity. The in-app mark (BrandMark in Screens/Brand.swift) draws the same paths.
 
-  Three variants, picked by the query string: none for the default icon, ?dark and ?tinted
-  for the iOS 18 dark and tinted appearances (no ground, transparent, so iOS draws its own).
-  Rendered at 1024 px with headless Chrome, from the repository root:
+  This file is the source of the mark, not of the app icon itself. The app icon is the
+  Icon Composer document LifeDashboardCompanion/AppIcon.icon:
 
-    CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    OUT=LifeDashboardCompanion/Assets.xcassets/AppIcon.appiconset
-    SRC="file://$PWD/docs/brand/app-icon.html"
-    "$CHROME" --headless=new --hide-scrollbars --window-size=512,512 \
-      --force-device-scale-factor=2 --screenshot="$OUT/AppIcon.png" "$SRC"
-    "$CHROME" --headless=new --hide-scrollbars --window-size=512,512 \
-      --force-device-scale-factor=2 --default-background-color=00000000 \
-      --screenshot="$OUT/AppIcon-Dark.png" "$SRC?dark"
-    "$CHROME" --headless=new --hide-scrollbars --window-size=512,512 \
-      --force-device-scale-factor=2 --default-background-color=00000000 \
-      --screenshot="$OUT/AppIcon-Tinted.png" "$SRC?tinted"
-    sips -g hasAlpha "$OUT/AppIcon.png"   # must say no: the App Store refuses an icon with alpha
+    icon.json            the background fill (#171D21 to #101C1C, deeper in dark mode), the
+                         groups and their Liquid Glass settings
+    Assets/pulse.svg     the pulse with its endpoint dot, the front group
+    Assets/arc-inner.svg the two signal arcs, the group behind it, at 85 and 50 percent
+    Assets/arc-outer.svg
+
+  The SVG layers are written from the points below by app-icon-layers.swift (run it after
+  changing the mark here). Open AppIcon.icon in Icon Composer (Xcode > Open Developer Tool) to
+  preview or tune the glass. Xcode compiles it into the dark, clear and tinted appearances of
+  iOS 26 and later, and into flat icons for iOS 17 and 18. Preview a rendition without Xcode:
+
+    ICTOOL="/Applications/Xcode.app/Contents/Applications/Icon Composer.app/Contents/Executables/ictool"
+    "$ICTOOL" LifeDashboardCompanion/AppIcon.icon --export-image --output-file /tmp/icon.png \
+      --platform iOS --rendition Default --width 1024 --height 1024 --scale 1
+    # renditions: Default, Dark, ClearLight, ClearDark, TintedLight, TintedDark
+
+  This page renders docs/brand/app-icon.png, the flat icon that readme-icon.html frames, at
+  1024 px with headless Chrome, from the repository root:
+
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
+      --hide-scrollbars --window-size=512,512 --force-device-scale-factor=2 \
+      --screenshot=docs/brand/app-icon.png "file://$PWD/docs/brand/app-icon.html"
 
   Colours: background #171D21 -> #14181C -> #101C1C, heartbeat green #30B77E.
 -->
@@ -44,13 +52,6 @@
     -webkit-mask-image: radial-gradient(100% 100% at 100% 100%, black 30%, transparent 75%);
   }
   svg { position: absolute; inset: 0; }
-  /* Dark and tinted: no ground and no grid, the system puts the mark on its own. */
-  body.dark, body.tinted { background: transparent; }
-  body.dark .grid, body.tinted .grid { display: none; }
-  /* Tinted: grayscale only; iOS colours it. The arcs keep their lower intensity. */
-  body.tinted path.mark { stroke: #FFFFFF; }
-  body.tinted circle.mark { fill: #FFFFFF; }
-  body.tinted g { filter: none; }
 </style>
 </head>
 <body>
@@ -78,9 +79,5 @@
             stroke-width="20" stroke-linecap="round" opacity="0.5"/>
     </g>
   </svg>
-  <script>
-    const variant = location.search.replace("?", "");
-    if (variant === "dark" || variant === "tinted") document.body.className = variant;
-  </script>
 </body>
 </html>
