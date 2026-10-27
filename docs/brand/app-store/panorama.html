@@ -4,6 +4,10 @@
   panels, 7920x2868, that docs/brand/app-store/render.sh renders whole (panorama-en.png) and
   per panel (en-1.png to en-6.png, panorama.html?panel=1 to ?panel=6).
 
+  ?lang=nl and ?lang=de render the Dutch and German set (nl-1.png, de-1.png and so on) from
+  raw/nl/ and raw/de/, with the captions and labels from TEXT below; English is the default.
+  The Home Assistant cards stay as they are: they come from the integration's English docs.
+
   One continuous background, a heartbeat line that runs through all six panels, and phones
   that lean over the edge into the next panel, so the row reads as one picture when swiping.
 
@@ -159,11 +163,84 @@
 </div>
 
 <script>
-const W = 1320, H = 2868, RAW = "raw/", HA = "ha/";
-// Rows and cards in the captures, [x, y, w, h] in capture pixels.
-const LOGROW_BACKFILL = [52, 1488, 1216, 176];   // logs.png: the year of backfill, delivered
-const LOGROW_MQTT = [52, 1668, 1216, 176];       // logs.png: an MQTT publish
-const PRIVACY_CARD = [60, 930, 1200, 560];       // about-privacy.png: Privacy & Security
+const params = new URLSearchParams(location.search);
+const LANG = ["nl", "de"].includes(params.get("lang")) ? params.get("lang") : "en";
+document.documentElement.lang = LANG;
+const W = 1320, H = 2868, RAW = LANG === "en" ? "raw/" : `raw/${LANG}/`, HA = "ha/";
+// Rows and cards in the captures, [x, y, w, h] in capture pixels. The rows move with the
+// language: in German the backfill row is taller, its badge wraps under the record count.
+const RECTS = {
+  en: {
+    LOGROW_BACKFILL: [52, 1488, 1216, 176],   // logs.png: the year of backfill, delivered
+    LOGROW_MQTT: [52, 1668, 1216, 176],       // logs.png: an MQTT publish
+    PRIVACY_CARD: [60, 698, 1200, 562],       // about-privacy.png: Privacy & Security (below Questions since 1.10.0)
+  },
+  nl: {
+    LOGROW_BACKFILL: [52, 1488, 1216, 176],
+    LOGROW_MQTT: [52, 1668, 1216, 176],
+    PRIVACY_CARD: [60, 618, 1200, 562],
+  },
+  de: {
+    LOGROW_BACKFILL: [52, 1488, 1216, 256],
+    LOGROW_MQTT: [52, 1749, 1216, 176],
+    PRIVACY_CARD: [60, 618, 1200, 562],
+  },
+};
+const { LOGROW_BACKFILL, LOGROW_MQTT, PRIVACY_CARD } = RECTS[LANG];
+
+// Every word on the panels, per language. Dutch says "je", German "du"; the app's own terms
+// from docs/localization.md (Apple Gezondheid, Aanvullen, Nachtragen, Datensätze).
+const TEXT = {
+  en: {
+    cap1: [`Your health data,<br><em>in Home Assistant</em>`, `Or on your own server, over MQTT or a webhook.`],
+    cap2: [`Pair with<br><em>one QR code</em>`, `Scan the code from the Life Dashboard integration. No account, no YAML.`],
+    cap3: [`All your history<br><em>in one go</em>`, `Backfill from 30 days to everything Apple Health has. In Home Assistant, each day lands on its own date.`],
+    backfill: "Backfill, all history",
+    cap4: [`Webhooks, signed.<br><em>MQTT, built in.</em>`, `Every address its own signing secret. Over MQTT, sensors set themselves up.`],
+    signed: "Signed",
+    cap5: [`Works with what<br><em>you already track</em>`, `Apple Watch, iPhone and the apps that write to the Health app.`],
+    types: "data types",
+    chips: ["Steps", "Sleep stages", "Heart rate &amp; HRV", "Workouts", "Weight", "Blood pressure", "VO2 max"],
+    cap6: [`No account.<br>No cloud.<br><em>No trackers.</em>`, `Pay once, no subscription.<br>Your data goes only where you send it.`],
+    inApp: "In the app",
+    pills: ["No account", "No ads, no analytics", "Open source, MIT"],
+    companion: "Companion for iPhone",
+  },
+  nl: {
+    cap1: [`Je gezondheidsdata<br><em>in Home Assistant</em>`, `Of op je eigen server, via MQTT of een webhook.`, 112],
+    cap2: [`Koppelen met<br><em>één QR-code</em>`, `Scan de code van de Life Dashboard-integratie. Geen account, geen YAML.`],
+    cap3: [`Al je geschiedenis<br><em>in één keer</em>`, `Vul 30 dagen aan, of alles wat in Apple Gezondheid staat. In Home Assistant komt elke dag op zijn eigen datum.`],
+    backfill: "Aanvullen, alles",
+    cap4: [`Webhooks, ondertekend.<br><em>MQTT, ingebouwd.</em>`, `Elk adres een eigen ondertekeningsgeheim. Via MQTT stellen sensoren zichzelf in.`],
+    signed: "Ondertekend",
+    signedX: 4680,
+    cap5: [`Werkt met wat je<br><em>al bijhoudt</em>`, `Apple Watch, iPhone en de apps die naar de Gezondheid-app schrijven.`],
+    types: "datatypes",
+    chips: ["Stappen", "Slaapfases", "Hartslag en HRV", "Work-outs", "Gewicht", "Bloeddruk", "VO2max"],
+    cap6: [`Geen account.<br>Geen cloud.<br><em>Geen trackers.</em>`, `Eenmalig betalen, geen abonnement.<br>Je data gaat alleen naar de plek die jij kiest.`],
+    inApp: "In de app",
+    pills: ["Geen account", "Geen reclame, geen analytics", "Open source, MIT"],
+    pillsShift: -110,
+    companion: "Companion voor iPhone",
+  },
+  de: {
+    cap1: [`Deine Gesundheitsdaten<br><em>in Home Assistant</em>`, `Oder auf deinem eigenen Server, per MQTT oder Webhook.`],
+    cap2: [`Koppeln mit<br><em>einem QR-Code</em>`, `Scanne den Code der Life-Dashboard-Integration. Kein Konto, kein YAML.`],
+    cap3: [`Dein ganzer Verlauf<br><em>auf einmal</em>`, `Trage 30 Tage oder alles nach, was Apple Health hat. In Home Assistant steht jeder Tag unter seinem eigenen Datum.`],
+    backfill: "Nachtragen, alles",
+    cap4: [`Webhooks, signiert.<br><em>MQTT, eingebaut.</em>`, `Jede Adresse mit eigenem Signaturgeheimnis. Per MQTT richten sich Sensoren selbst ein.`],
+    signed: "Signiert",
+    cap5: [`Passt zu allem,<br><em>was du schon misst</em>`, `Apple Watch, iPhone und die Apps, die in die Health-App schreiben.`],
+    types: "Datentypen",
+    chips: ["Schritte", "Schlafphasen", "Herzfrequenz &amp; HRV", "Trainings", "Gewicht", "Blutdruck", "VO2max"],
+    cap6: [`Kein Konto.<br>Keine Cloud.<br><em>Keine Tracker.</em>`, `Einmal zahlen, kein Abo.<br>Deine Daten landen nur da, wo du willst.`],
+    inApp: "In der App",
+    pills: ["Kein Konto", "Keine Werbung, keine Analysen", "Open Source, MIT"],
+    pillsShift: -130,
+    companion: "Companion für iPhone",
+  },
+};
+const T = TEXT[LANG];
 
 // The heartbeat: a flat line through every panel with a beat in the gaps between phones.
 (function () {
@@ -205,8 +282,10 @@ function float(html, x, y, { label, dot, rotate = 0, z = 5, pad = 0, bg } = {}) 
     `<div class="frame" style="padding:${pad}px;${bg ? `background:${bg}` : ""}">${html}</div></div>`;
 }
 
-function caption(n, h, p) {
-  return `<div class="cap" style="left:${(n - 1) * W + 80}px"><h1>${h}</h1><p>${p}</p></div>`;
+// size: a smaller headline, for a language whose first line would not fit at 124px.
+function caption(n, h, p, size) {
+  const style = size ? ` style="font-size:${size}px;letter-spacing:${Math.round(-3 * size / 124)}px"` : "";
+  return `<div class="cap" style="left:${(n - 1) * W + 80}px"><h1${style}>${h}</h1><p>${p}</p></div>`;
 }
 
 const tilt = (rz, ry = 0, rx = 0) => `perspective(3200px) rotateY(${ry}deg) rotateX(${rx}deg) rotate(${rz}deg)`;
@@ -215,8 +294,7 @@ const shield = `<svg width="92" height="92" viewBox="0 0 24 24" fill="none" stro
 const items = [];
 
 // 1. Home Assistant
-items.push(caption(1, `Your health data,<br><em>in Home Assistant</em>`,
-  `Or on your own server, over MQTT or a webhook.`));
+items.push(caption(1, ...T.cap1));
 items.push(phone(RAW + "health.png", 120, 830, 900, tilt(-6, 8)));
 items.push(float(
   `<div style="display:flex;flex-direction:column;gap:16px;background:#111;padding:16px">` +
@@ -226,50 +304,44 @@ items.push(float(
   680, 1420, { label: "Home Assistant", rotate: 3 }));
 
 // 2. Pairing
-items.push(caption(2, `Pair with<br><em>one QR code</em>`,
-  `Scan the code from the Life Dashboard integration. No account, no YAML.`));
+items.push(caption(2, ...T.cap2));
 items.push(phone(RAW + "setup-destination.png", 1690, 830, 860, tilt(4, -12)));
 items.push(float(crop(HA + "pairing.png", 1160, [62, 54, 586, 586], 540),
   1390, 1560, { label: "Home Assistant", rotate: -6, pad: 26, bg: "#1C1C1C" }));
 
 // 3. All your history
-items.push(caption(3, `All your history<br><em>in one go</em>`,
-  `Backfill from 30 days to everything Apple Health has. In Home Assistant, each day lands on its own date.`));
+items.push(caption(3, ...T.cap3));
 items.push(phone(RAW + "logs.png", 2530, 860, 880, tilt(7, -6), 3));
 items.push(float(crop(RAW + "logs.png", 1320, LOGROW_BACKFILL, 1000),
-  2925, 1560, { label: "Backfill, all history", dot: "#30B77E", rotate: -3, z: 6 }));
+  2925, 1560, { label: T.backfill, dot: "#30B77E", rotate: -3, z: 6 }));
 items.push(float(crop(HA + "statistics.png", 2048, [33, 8, 982, 614], 860),
   3065, 1980, { label: "Home Assistant", rotate: 2 }));
 
 // 4. Webhooks and MQTT
-items.push(caption(4, `Webhooks, signed.<br><em>MQTT, built in.</em>`,
-  `Every address its own signing secret. Over MQTT, sensors set themselves up.`));
+items.push(caption(4, ...T.cap4));
 items.push(phone(RAW + "webhook.png", 4250, 830, 900, tilt(-5, 10)));
-items.push(`<div class="badge" style="left:4800px;top:1530px;transform:rotate(-4deg);z-index:6">${shield}<div><b>Signed</b><small>HMAC-SHA256</small></div></div>`);
+items.push(`<div class="badge" style="left:${T.signedX || 4800}px;top:1530px;transform:rotate(-4deg);z-index:6">${shield}<div><b>${T.signed}</b><small>HMAC-SHA256</small></div></div>`);
 items.push(float(crop(RAW + "logs.png", 1320, LOGROW_MQTT, 980),
   3995, 2330, { label: "MQTT", dot: "#30B77E", rotate: 3, z: 6 }));
 
 // 5. Sources
-items.push(caption(5, `Works with what<br><em>you already track</em>`,
-  `Apple Watch, iPhone and the apps that write to the Health app.`));
+items.push(caption(5, ...T.cap5));
 items.push(phone(RAW + "types.png", 5880, 860, 860, tilt(-5, 12), 3));
-items.push(`<div class="stat" style="left:5330px;top:1000px;transform:rotate(-4deg);z-index:6"><b>28</b><span>data types</span></div>`);
-const chips = ["Steps", "Sleep stages", "Heart rate &amp; HRV", "Workouts", "Weight", "Blood pressure", "VO2 max"];
-chips.forEach((t, n) => items.push(`<div class="chip" style="left:${5330 + (n % 2) * 40}px;top:${1460 + n * 160}px;z-index:6"><span>&#9679;</span>${t}</div>`));
+items.push(`<div class="stat" style="left:5330px;top:1000px;transform:rotate(-4deg);z-index:6"><b>28</b><span>${T.types}</span></div>`);
+T.chips.forEach((t, n) => items.push(`<div class="chip" style="left:${5330 + (n % 2) * 40}px;top:${1460 + n * 160}px;z-index:6"><span>&#9679;</span>${t}</div>`));
 
 // 6. Privacy
-items.push(caption(6, `No account.<br>No cloud.<br><em>No trackers.</em>`,
-  `Pay once, no subscription.<br>Your data goes only where you send it.`));
+items.push(caption(6, ...T.cap6));
 items.push(float(crop(RAW + "about-privacy.png", 1320, PRIVACY_CARD, 1000),
-  6830, 1000, { label: "In the app", dot: "#30B77E", rotate: -2, z: 6 }));
-const pills = [["No account", 6900, 1760], ["No ads, no analytics", 7040, 1940], ["Open source, MIT", 6950, 2120]];
+  6830, 1000, { label: T.inApp, dot: "#30B77E", rotate: -2, z: 6 }));
+const pills = [[T.pills[0], 6900, 1760], [T.pills[1], 7040 + (T.pillsShift || 0), 1940], [T.pills[2], 6950, 2120]];
 for (const [t, x, y] of pills) items.push(`<div class="chip big" style="left:${x}px;top:${y}px;z-index:6"><span>&#10003;</span>${t}</div>`);
-items.push(`<div class="sign" style="left:6920px;top:2420px;z-index:6"><img src="icon.png" alt=""><div><b>Life Dashboard</b><span>Companion for iPhone</span></div></div>`);
+items.push(`<div class="sign" style="left:6920px;top:2420px;z-index:6"><img src="icon.png" alt=""><div><b>Life Dashboard</b><span>${T.companion}</span></div></div>`);
 
 document.getElementById("items").innerHTML = items.join("");
 
 // ?panel=n shows one 1320-wide panel of the panorama.
-const panel = +(new URLSearchParams(location.search).get("panel") || 0);
+const panel = +(params.get("panel") || 0);
 if (panel) {
   document.documentElement.style.width = document.body.style.width = W + "px";
   document.getElementById("stage").style.transform = `translateX(${-(panel - 1) * W}px)`;

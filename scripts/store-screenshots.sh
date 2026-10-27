@@ -4,7 +4,7 @@
 # docs/brand/app-store/panorama.html puts them in device frames.
 #
 # The store variant of scripts/screenshots.sh: its own simulator (ld-store-shots), dark,
-# English with 24-hour times, the status bar at 9:41, and example data that reads as a phone
+# in one of the app's languages with 24-hour times, the status bar at 9:41, and example data that reads as a phone
 # in use: syncs four times a day for a week, a year of backfill, MQTT and a signing secret.
 # Everything points at homeassistant.local; nothing is real. "Now" in the example data is
 # today at 9:38, so the last sync matches the 9:41 in the status bar.
@@ -12,13 +12,24 @@
 # The pairing sheet needs one tap on iOS's "Open in Life Dashboard?" prompt: the script sends
 # Return to the Simulator app, which needs Accessibility access for the terminal.
 #
+# LANG_CODE picks the language: en (the default, British English) writes to raw/, nl and de
+# to raw/nl/ and raw/de/ for the Dutch and German store pages. Units and dates follow the
+# locale; the example data is the same in every language.
+#
 #   scripts/store-screenshots.sh
+#   LANG_CODE=nl scripts/store-screenshots.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 NAME=ld-store-shots
 ID=com.owen282000.lifedashboard
-OUT=docs/brand/app-store/raw
+LANG_CODE=${LANG_CODE:-en}
+case "$LANG_CODE" in
+    en) LOCALE=en_GB; OUT=docs/brand/app-store/raw ;;
+    nl) LOCALE=nl_NL; OUT=docs/brand/app-store/raw/nl ;;
+    de) LOCALE=de_DE; OUT=docs/brand/app-store/raw/de ;;
+    *) echo "LANG_CODE must be en, nl or de" >&2; exit 1 ;;
+esac
 WORK=build/store-shots
 mkdir -p "$OUT" "$WORK"
 
@@ -58,7 +69,7 @@ NOW_ISO=$(python3 -c 'import datetime as d; n=d.datetime.now().astimezone().repl
 shot() { # file, launch arguments
     local file=$1; shift
     xcrun simctl terminate "$UDID" "$ID" 2>/dev/null || true
-    xcrun simctl launch "$UDID" "$ID" -AppleLanguages "(en)" -AppleLocale en_GB "$@" >/dev/null
+    xcrun simctl launch "$UDID" "$ID" -AppleLanguages "($LANG_CODE)" -AppleLocale "$LOCALE" "$@" >/dev/null
     sleep 6
     xcrun simctl io "$UDID" screenshot --type=png "$OUT/$file" >/dev/null 2>&1
 }
@@ -154,4 +165,4 @@ else
 fi
 xcrun simctl terminate "$UDID" "$ID" 2>/dev/null || true
 
-echo "Wrote $(ls "$OUT" | wc -l | tr -d ' ') captures to $OUT. Look at every one at full size."
+echo "Wrote $(ls "$OUT"/*.png | wc -l | tr -d ' ') captures to $OUT. Look at every one at full size."
