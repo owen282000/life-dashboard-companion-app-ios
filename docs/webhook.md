@@ -4,6 +4,8 @@ The iPhone app sends the Android app's payload: the same keys, fields, units and
 
 This page lists what an iPhone sends and where it differs, so a receiver can handle both.
 
+A receiver can let its users connect by scanning one QR code, as the Life Dashboard integration does. The Android app's [Pairing your own receiver](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/pairing.md) describes the link and how to build it. The iPhone reads the same link, with [three differences](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/pairing.md#iphone): the code must accept `health_connect`, plain `http://` works only to a home network address, and the camera opens the landing page first.
+
 ## Contents
 
 - [Top-level fields](#top-level-fields)
