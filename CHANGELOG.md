@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- The app in French, Spanish, Italian, Portuguese (Brazil), Japanese, Arabic, Hindi and Simplified
+  Chinese, so it speaks eleven languages, like the Android app. Each uses the names the Health app
+  and iOS itself use in that language, and the same words as the Android app. Arabic runs right to
+  left. The translation check in CI now asks for every language, with the plural forms each one has.
+
 ## [1.10.1] - 2026-10-28
 
 ### Added

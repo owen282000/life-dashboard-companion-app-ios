@@ -551,6 +551,14 @@
 				Base,
 				nl,
 				de,
+				fr,
+				es,
+				it,
+				"pt-BR",
+				ja,
+				ar,
+				hi,
+				"zh-Hans",
 			);
 			mainGroup = D1000001;
 			productRefGroup = D1000003 /* Products */;

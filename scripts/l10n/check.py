@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fails when the app could ship with English showing on a Dutch or German iPhone.
+"""Fails when the app could ship with English showing on an iPhone set to one of its languages.
 
 iOS 1.3.0 removed a half-finished Dutch localization (56 of 71 strings). This makes that state
 unbuildable in CI. It reads the String Catalogs, the .stringsdata files the compiler writes next
@@ -10,8 +10,8 @@ to every object file, and the built .app, and never writes anything. It reports:
      catalog in that target, a localized string inside #if DEBUG (an export for translation
      skips it) and NSLocalizedString (the compiler does not extract it). Xcode adds new strings
      only when a build runs in the IDE; a command-line build never does.
-  B. every key without shouldTranslate=false has a translated nl and de value, in every plural
-     case and substitution, with the same format specifiers per argument position as English,
+  B. every key without shouldTranslate=false has a translated value in every language of LANGS,
+     in every plural case of that language (PLURAL_CASES) and substitution, with the same format specifiers per argument position as English,
      no em or en dash, App Shortcut phrases that keep ${applicationName}, a plural for every
      count, no two keys that differ only in case, and the terms in scripts/l10n/terms.json.
      InfoPlist.xcstrings covers every usage description and display name in the built
@@ -20,7 +20,7 @@ to every object file, and the built .app, and never writes anything. It reports:
   C. English prose that never reaches a catalog: a string literal the compiler did not extract
      (so it is a plain String) that reads like a sentence or a label. Log calls, identifiers,
      raw values and dictionary keys are skipped; the rest goes in scripts/l10n/allowlist.txt.
-  D. the built bundles contain nl.lproj and de.lproj for every catalog, so a catalog that fell
+  D. the built bundles contain an .lproj for every language and catalog, so a catalog that fell
      out of its target's Resources phase is caught as well.
   E. every catalog is in Xcode's own format (scripts/l10n/catalog.py), so an IDE build does not
      rewrite it.
@@ -44,8 +44,16 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import catalog  # noqa: E402
 
-LANGS = ("nl", "de")
-REQUIRED_PLURAL_CASES = {"one", "other"}  # CLDR categories for nl and de
+LANGS = ("nl", "de", "fr", "es", "it", "pt-BR", "ja", "ar", "hi", "zh-Hans")
+# The CLDR plural categories of each language. Xcode offers exactly these in its catalog editor;
+# a missing one falls back to "other" at run time, which reads wrong ("1 million de records").
+PLURAL_CASES = {
+    "nl": {"one", "other"}, "de": {"one", "other"}, "hi": {"one", "other"},
+    "fr": {"one", "many", "other"}, "es": {"one", "many", "other"},
+    "it": {"one", "many", "other"}, "pt-BR": {"one", "many", "other"},
+    "ja": {"other"}, "zh-Hans": {"other"},
+    "ar": {"zero", "one", "two", "few", "many", "other"},
+}
 DASHES = ("\u2014", "\u2013")  # em dash, en dash
 CONFIG = "Debug-iphonesimulator"
 
@@ -158,7 +166,7 @@ def check_entry(cat_path, key, entry, is_app_shortcut):
     en_loc = entry.get("localizations", {}).get("en", {})
     if COUNTED_NOUN.search(key) and "plural" not in en_loc.get("variations", {}) \
             and "substitutions" not in en_loc and not allowed_key(table, key, "no-plural"):
-        problem(cat_path, f"{key!r} counts something: vary it by plural in en, nl and de, "
+        problem(cat_path, f"{key!r} counts something: vary it by plural in every language, "
                           f"or list it in {ALLOWLIST} as no-plural with a reason")
     locs = entry.get("localizations", {})
     en = locs.get("en", {})
@@ -171,14 +179,14 @@ def check_entry(cat_path, key, entry, is_app_shortcut):
         plural = loc.get("variations", {}).get("plural")
         if en_plural and plural is None and "substitutions" not in loc:
             problem(cat_path, f"{lang} for {key!r} is not split into plural cases like English")
-        if plural is not None and not REQUIRED_PLURAL_CASES <= set(plural):
-            problem(cat_path, f"{lang} plural for {key!r} lacks {sorted(REQUIRED_PLURAL_CASES - set(plural))}")
+        if plural is not None and not PLURAL_CASES[lang] <= set(plural):
+            problem(cat_path, f"{lang} plural for {key!r} lacks {sorted(PLURAL_CASES[lang] - set(plural))}")
         en_subs, subs = set(en.get("substitutions", {})), set(loc.get("substitutions", {}))
         if en_subs != subs:
             problem(cat_path, f"{lang} substitutions for {key!r} are {sorted(subs)}, English has {sorted(en_subs)}")
         for name, sub in loc.get("substitutions", {}).items():
             cases = sub.get("variations", {}).get("plural", {})
-            if not REQUIRED_PLURAL_CASES <= set(cases):
+            if not PLURAL_CASES[lang] <= set(cases):
                 problem(cat_path, f"{lang} substitution {name} of {key!r} lacks plural cases")
         for path, value, state in leaves(loc):
             where = f"{lang}{path}"
@@ -189,7 +197,7 @@ def check_entry(cat_path, key, entry, is_app_shortcut):
             if any(d in value for d in DASHES):
                 problem(cat_path, f"{where} for {key!r} contains an em or en dash: {value!r}")
             # A sentence left in English but marked translated. Single words and names (Webhook,
-            # MQTT, Health Connect) are often the same in nl and de; three words hardly ever are.
+            # MQTT, Health Connect) are often the same in other languages; three words hardly ever are.
             words = re.findall(r"[A-Za-z]{2,}", SPEC.sub(" ", value))
             if value == english_for(entry, key, path) and len(words) >= 3:
                 problem(cat_path, f"{where} for {key!r} is the English text; translate it, or mark the key "
@@ -200,7 +208,8 @@ def check_entry(cat_path, key, entry, is_app_shortcut):
                     problem(cat_path, f"{where} phrase for {key!r} needs ${{applicationName}} exactly once")
                 continue
             want, got = spec_types(english_for(entry, key, path)), spec_types(value)
-            optional_case = re.search(r"plural\.(zero|one)$", path)
+            # A case that names one amount (zero, one, Arabic's two) may say it in words.
+            optional_case = re.search(r"plural\.(zero|one|two)$", path)
             if got != want and not (optional_case and all(want.get(k) == t for k, t in got.items())):
                 problem(cat_path, f"{where} for {key!r} has format {fmt(got)}, English has {fmt(want)}")
 
@@ -337,7 +346,7 @@ def check_infoplist(symroot, target, folder, product):
         en_unit = entry.get("localizations", {}).get("en", {}).get("stringUnit", {})
         if en_unit.get("value") != value:
             problem(cat_path, f"{key}: Info.plist now says {value!r}, the catalog's English is {en_unit.get('value')!r}; "
-                              f"update it and the nl and de translations")
+                              f"update it and its translations")
         # A translated English entry would replace the Info.plist text for English users, and
         # then an edit to the plist alone would no longer show.
         if en_unit.get("state") != "new":
@@ -465,14 +474,17 @@ def allowed_key(table, key, category):
 
 
 def check_terms(cat_path, key, lang, value):
-    """Register and word choices from scripts/l10n/terms.json, so a Dutch or German string
-    written months later still says "je"/"du" and uses the glossary's words."""
+    """Register and word choices from scripts/l10n/terms.json, so a string written months later
+    still uses the register and the glossary's words of its language."""
     for rule in terms.get("forbidden", {}).get(lang, []):
         if key in rule.get("except_keys", []):
             continue
         if re.search(rule["pattern"], value):
             problem(cat_path, f"{lang} for {key!r}: {rule['reason']} ({value!r})")
     for label in terms.get("labels", []):
+        if lang not in label:
+            problem(TERMS, f"label {label['en']!r} has no {lang}")
+            continue
         if label["en"].lower() in key.lower() and label[lang].lower() not in value.lower():
             problem(cat_path, f"{lang} for {key!r} names the {label['en']!r} button, so it must say "
                               f"{label[lang]!r} as that button does ({value!r})")
@@ -644,9 +656,9 @@ def main():
             print(f"::error file={path}{',line=' + str(line) if line else ''}::{msg}")
     if problems:
         print(f"\n{len(problems)} localization problem(s). New or changed strings: run scripts/l10n.sh sync, "
-              f"write nl and de (docs/localization.md), then scripts/l10n.sh check again.")
+              f"write every language (docs/localization.md), then scripts/l10n.sh check again.")
         return 1
-    print("Localizations complete: every string in nl and de, nothing English left outside the catalogs.")
+    print(f"Localizations complete: every string in {', '.join(LANGS)}, nothing English left outside the catalogs.")
     return 0
 
 

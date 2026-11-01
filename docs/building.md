@@ -35,7 +35,7 @@ The Xcode project does not use synchronized folders: a new Swift file has to be 
 
 ## Translations
 
-The app speaks English, Dutch and German, and CI fails on a string without Dutch or German. [localization.md](localization.md) has the loop, the rules and the glossary.
+The app speaks English, Dutch, German, French, Spanish, Italian, Portuguese (Brazil), Japanese, Arabic, Hindi and Simplified Chinese, and CI fails on a string without a translation in every one of them. [localization.md](localization.md) has the loop, the rules and the glossary.
 
 ## Releasing
 

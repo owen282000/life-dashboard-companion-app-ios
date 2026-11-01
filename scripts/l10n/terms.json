@@ -1,5 +1,5 @@
 {
-  "comment" : "Checked by scripts/l10n/check.py on every nl and de value. The reasons come from docs/localization.md: je and du, and the glossary's words where Android used two.",
+  "comment" : "Checked by scripts/l10n/check.py on every translated value. The reasons come from docs/localization.md: each language's register, and the glossary's words where a translation could drift.",
   "forbidden" : {
     "de" : [
       { "pattern" : "\\b(Ihnen|Ihr|Ihre|Ihren|Ihrem|Ihrer|Ihres)\\b", "reason" : "formal address: the app says du" },
@@ -17,10 +17,56 @@
       { "pattern" : "\\b[Pp]ermissies?\\b|\\b[Rr]echten\\b", "reason" : "permission is toestemming" },
       { "pattern" : "\\bPlain HTTP\\b", "reason" : "plain HTTP is onversleutelde HTTP" },
       { "pattern" : "\\bAnnuleer\\b", "reason" : "buttons are infinitives: Annuleren" }
+    ],
+    "fr" : [
+      { "pattern" : "(?i)\\b(tu|toi|ton|ta|tes|te)\\b|\\bt’", "reason" : "formal address: the app says vous (Siri phrases are bare imperatives)" },
+      { "pattern" : "(?i)appair", "reason" : "pair is associer, pairing code is code d’association" },
+      { "pattern" : "(?i)\\bremplissage\\b|\\bbackfill", "reason" : "backfill is rattraper, as a noun le rattrapage" },
+      { "pattern" : "(?i)\\bApple Santé\\b|\\bSanté Apple\\b", "reason" : "the Health app is Santé, l’app Santé" }
+    ],
+    "es" : [
+      { "pattern" : "\\b([Uu]sted(es)?|[Vv]osotr[oa]s|[Vv]uestr[oa]s?)\\b", "reason" : "informal address: the app says tú" },
+      { "pattern" : "\\b[Mm]óvil\\b|\\b[Oo]rdenador", "reason" : "Spain-only words: the app is for every Spanish speaker, say teléfono" },
+      { "pattern" : "\\b[Bb]ackfill", "reason" : "backfill is recuperar el historial, as a noun la recuperación" },
+      { "pattern" : "Apple Health", "reason" : "the Health app is la app Salud" }
+    ],
+    "it" : [
+      { "pattern" : "\\b(Lei|Suo|Sua|Suoi|Sue)\\b", "reason" : "formal address: the app says tu" },
+      { "pattern" : "\\b[Bb]ackfill", "reason" : "backfill is recuperare lo storico, as a noun il recupero" },
+      { "pattern" : "\\b[Rr]icevitor", "reason" : "receiver is destinatario" },
+      { "pattern" : "\\bApple Health\\b|\\bApple Salute\\b", "reason" : "the Health app is Salute, l’app Salute" }
+    ],
+    "pt-BR" : [
+      { "pattern" : "\\b([Oo] senhor|[Aa] senhora|[Vv]ossa|[Vv]osso)\\b", "reason" : "the app says você" },
+      { "pattern" : "\\b(telemóvel|ecrã|ficheiros?|utilizador(es)?|registo)\\b", "reason" : "European Portuguese: celular, tela, arquivo, usuário, registro" },
+      { "pattern" : "\\b[Bb]ackfill", "reason" : "backfill is enviar histórico, as a noun o envio do histórico" }
+    ],
+    "ja" : [
+      { "pattern" : "(だ|である|だった)。", "reason" : "plain form: the app says desu/masu" },
+      { "pattern" : "バックフィル", "reason" : "backfill is 過去データ送信" },
+      { "pattern" : "受信者|レシーバー", "reason" : "receiver is 受信側" },
+      { "pattern" : "Apple ?Health|Appleヘルスケア", "reason" : "the Health app is ヘルスケア" }
+    ],
+    "ar" : [
+      { "pattern" : "المستلم|المتلقي", "reason" : "receiver is جهة الاستقبال" },
+      { "pattern" : "ملء رجعي|تعبئة خلفية", "reason" : "backfill is استكمال" },
+      { "pattern" : "أنتِ|عليكِ|يمكنكِ", "reason" : "gender-neutral address, as Apple and Google write Arabic" },
+      { "pattern" : "Apple Health", "reason" : "the Health app is صحتي" }
+    ],
+    "hi" : [
+      { "pattern" : "(तुम|तुम्हें|तुम्हारा|तुम्हारी|तुम्हारे|तेरा|तेरी|तेरे)", "reason" : "the app says आप" },
+      { "pattern" : "प्राप्तकर्ता", "reason" : "receiver is रिसीवर" },
+      { "pattern" : "समन्वयन|तुल्यकालन", "reason" : "sync is सिंक" }
+    ],
+    "zh-Hans" : [
+      { "pattern" : "您", "reason" : "iOS says 你, as Apple does" },
+      { "pattern" : "分块", "reason" : "a backfill chunk is 批" },
+      { "pattern" : "苹果", "reason" : "Apple stays Apple" },
+      { "pattern" : "健康数据共享", "reason" : "that is Health Connect on Android; iOS says Apple 健康" }
     ]
   },
   "labels" : [
-    { "en" : "Sync Now", "nl" : "Nu synchroniseren", "de" : "Jetzt synchronisieren" }
+    { "en" : "Sync Now", "nl" : "Nu synchroniseren", "de" : "Jetzt synchronisieren", "fr" : "Synchroniser maintenant", "es" : "Sincronizar ahora", "it" : "Sincronizza ora", "pt-BR" : "Sincronizar agora", "ja" : "今すぐ同期", "ar" : "المزامنة الآن", "hi" : "अभी सिंक करें", "zh-Hans" : "立即同步" }
   ],
   "case_pairs_ok" : [
     [ "records", "Records" ]

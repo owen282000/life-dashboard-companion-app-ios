@@ -3,7 +3,7 @@
 # The translation loop, without opening Xcode. See docs/localization.md.
 #
 #   scripts/l10n.sh sync     puts every string the code uses into the String Catalogs, the way an
-#                            Xcode build does, and lists what still needs Dutch and German
+#                            Xcode build does, and lists what still needs a translation
 #   scripts/l10n.sh prune    removes the keys the code no longer uses (after their translation
 #                            served as a starting point for the reworded English)
 #   scripts/l10n.sh check    builds and fails on anything untranslated, as CI does
@@ -15,6 +15,9 @@ cd "$(dirname "$0")/.."
 
 command="${1:-check}"
 shift || true
+
+# Every language the app ships besides English: LANGS in scripts/l10n/check.py.
+read -r -a languages <<< "$(cd scripts/l10n && python3 -c 'from check import LANGS; print(*LANGS)')"
 
 catalogs=(
     LifeDashboardCompanion/Localizable.xcstrings
@@ -31,12 +34,13 @@ sync)
     xcodebuild -exportLocalizations \
         -project LifeDashboardCompanion.xcodeproj \
         -localizationPath "$out/xcloc" \
-        -exportLanguage nl -exportLanguage de \
+        $(printf -- '-exportLanguage %s ' "${languages[@]}") \
         SYMROOT="$PWD/$out/sym" OBJROOT="$PWD/$out/obj" >/dev/null
     python3 - "${catalogs[@]}" <<'EOF'
 import sys
 sys.path.insert(0, "scripts/l10n")
 import catalog
+from check import LANGS
 
 for path in sys.argv[1:]:
     for key, entry in catalog.load(path)["strings"].items():
@@ -45,9 +49,9 @@ for path in sys.argv[1:]:
         if entry.get("extractionState") == "stale":
             print(f"{path}: stale (reuse its translation, then prune): {key!r}")
             continue
-        missing = [lang for lang in ("nl", "de") if lang not in entry.get("localizations", {})]
+        missing = [lang for lang in LANGS if lang not in entry.get("localizations", {})]
         if missing:
-            print(f"{path}: needs {' and '.join(missing)}: {key!r}")
+            print(f"{path}: needs {', '.join(missing)}: {key!r}")
 EOF
     ;;
 prune)
