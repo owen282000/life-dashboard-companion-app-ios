@@ -58,7 +58,7 @@ Your Apple Watch, iPhone, ring or scale already writes to Apple Health. This app
 - **All your history.** Backfill from 30 days up to 5 years, or everything Apple Health has, in one go. In Home Assistant each day lands on its own date. When you delete a record in Apple Health, the next sync tells your server.
 - **Runs in the background.** An interval or fixed times, on the days you pick, with quiet hours. iOS decides the exact moment. For an exact time, a Shortcuts automation runs **Sync Health Data**. Payloads that can't be delivered wait on the iPhone for the next sync. When iOS holds syncs back (Background App Refresh off, Low Power Mode on) or nothing arrives for days, the app says so.
 - **Widget, Control Center and Shortcuts.** See the last sync on your home screen, and sync from there, from Control Center (iOS 18 or newer) or with Siri.
-- **English, Dutch and German.** The Android app's look, with Dynamic Type and dark mode.
+- **Eleven languages:** English, Dutch, German, French, Spanish, Italian, Portuguese (Brazil), Japanese, Arabic, Hindi and Simplified Chinese. The Android app's look, with Dynamic Type and dark mode.
 
 ## How it works
 

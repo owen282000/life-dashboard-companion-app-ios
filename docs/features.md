@@ -122,7 +122,7 @@ Each sends only what is new. Health data cannot be read while the iPhone is lock
 - **About** - behind the (i) button on the Health and Logs tabs: what the app reads and where it goes, the privacy policy, settings backup, and links to the documentation, the changelog and issues, and **Rate the app** for the App Store
 - **Asking for a rating** - once per version, a few days after first use and only at a good moment: the last sync reached every address and nothing is failing or queued, or a backfill just finished. Apple shows the prompt at most three times a year and decides itself whether it appears
 - **Privacy policy in the app** - a summary of [PRIVACY.md](../PRIVACY.md)
-- **Languages** - English, Dutch and German, following the iPhone's language or the one set for the app under Settings. See [localization.md](localization.md)
+- **Languages** - English, Dutch, German, French, Spanish, Italian, Portuguese (Brazil), Japanese, Arabic (right to left), Hindi and Simplified Chinese, following the iPhone's language or the one set for the app under Settings. See [localization.md](localization.md)
 - **SwiftUI** - the Android app's look, with Dynamic Type and dark mode; **About > Appearance** follows the system or keeps the app light or dark
 - **No third-party dependencies** - only Apple's frameworks
 

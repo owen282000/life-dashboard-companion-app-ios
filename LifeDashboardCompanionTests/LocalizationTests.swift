@@ -7,6 +7,15 @@ import XCTest
 /// any test language; CI runs it in English and again in German.
 final class LocalizationTests: XCTestCase {
 
+    /// Every language the app ships besides English, as in scripts/l10n/check.py.
+    private let languages = ["nl", "de", "fr", "es", "it", "pt-BR", "ja", "ar", "hi", "zh-Hans"]
+
+    /// True when the number stands on its own in the text, whatever punctuation or space
+    /// the language puts around it ("700:", "700 :", "700件").
+    private func contains(_ text: String, number: Int) -> Bool {
+        text.range(of: "(?<![0-9])\(number)(?![0-9])", options: .regularExpression) != nil
+    }
+
     private func resolve(_ resource: LocalizedStringResource, _ language: String) -> String {
         var resource = resource
         resource.locale = Locale(identifier: language)
@@ -15,9 +24,10 @@ final class LocalizationTests: XCTestCase {
 
     // MARK: - The bundle
 
-    func testTheAppShipsDutchAndGerman() {
-        XCTAssertTrue(Bundle.main.localizations.contains("nl"))
-        XCTAssertTrue(Bundle.main.localizations.contains("de"))
+    func testTheAppShipsEveryLanguage() {
+        for language in languages {
+            XCTAssertTrue(Bundle.main.localizations.contains(language), language)
+        }
     }
 
     func testButtonsResolveInEachLanguage() {
@@ -103,17 +113,17 @@ final class LocalizationTests: XCTestCase {
     func testThePrivacyPolicyStatesTheLimitsInTheCodeInEachLanguage() {
         let days = Int(PendingSyncStore.maxAge / 86_400)
         let english = resolve(PrivacyPolicyText.stays, "en")
-        for language in ["en", "nl", "de"] {
+        for language in ["en"] + languages {
             let stays = resolve(PrivacyPolicyText.stays, language)
             if language != "en" { XCTAssertNotEqual(stays, english, language) }
-            XCTAssertTrue(stays.contains(" \(LogStore.maxLogs) "), language)
-            XCTAssertTrue(stays.contains(" \(PendingSyncStore.maxItems):"), language)
-            XCTAssertTrue(stays.contains(" \(days) "), language)
+            XCTAssertTrue(contains(stays, number: LogStore.maxLogs), language)
+            XCTAssertTrue(contains(stays, number: PendingSyncStore.maxItems), language)
+            XCTAssertTrue(contains(stays, number: days), language)
         }
     }
 
     func testThePrivacyPolicyNamesTheControllerAndTheAddressInEachLanguage() {
-        for language in ["en", "nl", "de"] {
+        for language in ["en"] + languages {
             let contact = resolve(PrivacyPolicyText.contact, language)
             XCTAssertTrue(contact.contains("(mailto:owen282000@hotmail.com)"), language)
             XCTAssertTrue(contact.contains("oVog Enterprise (KvK 81085583)"), language)
@@ -125,7 +135,7 @@ final class LocalizationTests: XCTestCase {
     /// App Store Connect turns a build away when the intent's title or description says "Apple"
     /// (ITMS-90626), so they speak of Health, as iOS itself does in each language.
     func testTheSyncIntentDoesNotSayAppleInAnyLanguage() {
-        for language in ["en", "nl", "de"] {
+        for language in ["en"] + languages {
             for text in [SyncHealthDataIntent.title, SyncHealthDataIntent.description.descriptionText] {
                 XCTAssertFalse(resolve(text, language).localizedCaseInsensitiveContains("apple"), language)
             }

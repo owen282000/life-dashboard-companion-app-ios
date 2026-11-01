@@ -4,6 +4,15 @@
     "Sync my health data with ${applicationName}" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "ar" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "مزامنة بياناتي الصحية مع ${applicationName}",
+              "مزامنة ${applicationName}"
+            ]
+          }
+        },
         "de" : {
           "stringSet" : {
             "state" : "translated",
@@ -22,12 +31,75 @@
             ]
           }
         },
+        "es" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Sincroniza mis datos de salud con ${applicationName}",
+              "Sincronizar ${applicationName}"
+            ]
+          }
+        },
+        "fr" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Synchronise mes données de santé avec ${applicationName}",
+              "Synchronise ${applicationName}"
+            ]
+          }
+        },
+        "hi" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "${applicationName} से मेरा स्वास्थ्य डेटा सिंक करो",
+              "${applicationName} सिंक करो"
+            ]
+          }
+        },
+        "it" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Sincronizza i miei dati sulla salute con ${applicationName}",
+              "Sincronizza ${applicationName}"
+            ]
+          }
+        },
+        "ja" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "${applicationName}で健康データを同期して",
+              "${applicationName}を同期して"
+            ]
+          }
+        },
         "nl" : {
           "stringSet" : {
             "state" : "translated",
             "values" : [
               "Synchroniseer mijn gezondheidsdata met ${applicationName}",
               "Synchroniseer ${applicationName}"
+            ]
+          }
+        },
+        "pt-BR" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Sincronizar meus dados de saúde com o ${applicationName}",
+              "Sincronizar o ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "用 ${applicationName} 同步我的健康数据",
+              "同步 ${applicationName}"
             ]
           }
         }

@@ -31,6 +31,12 @@
       "comment" : "Privacy - Camera Usage Description",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يُستخدم فقط لمسح رمز الإقران الذي تعرضه جهة الاستقبال، مثل Home Assistant أو Life Dashboard Stack. تُفك ترميز الإطارات على iPhone ولا تُخزّن أو تُرسل أبدًا."
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
@@ -43,10 +49,52 @@
             "value" : "Used only to scan the pairing code your receiver shows, such as Home Assistant or the Life Dashboard Stack. Frames are decoded on the iPhone and are never stored or sent."
           }
         },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo se usa para escanear el código de vinculación que muestra tu receptor, como Home Assistant o el Life Dashboard Stack. Las imágenes se procesan en el iPhone y nunca se guardan ni se envían."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisé uniquement pour scanner le code d’association affiché par votre récepteur, par exemple Home Assistant ou le Life Dashboard Stack. Les images sont décodées sur l’iPhone et ne sont jamais stockées ni envoyées."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "सिर्फ़ उस पेयरिंग कोड को स्कैन करने के लिए इस्तेमाल होता है जो आपका रिसीवर दिखाता है, जैसे Home Assistant या Life Dashboard Stack। फ़्रेम iPhone पर ही डिकोड होते हैं और कभी सेव या भेजे नहीं जाते।"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usata solo per scansionare il codice di associazione mostrato dal tuo destinatario, per esempio Home Assistant o lo stack Life Dashboard. I fotogrammi vengono decodificati sull'iPhone e non vengono mai salvati né inviati."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "受信側（Home AssistantやLife Dashboard Stackなど）に表示されたペアリングコードのスキャンにだけ使います。映像はiPhone上で解析され、保存も送信もされません。"
+          }
+        },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Alleen gebruikt om de koppelcode te scannen die je ontvanger toont, zoals Home Assistant of de Life Dashboard Stack. Beelden worden op de iPhone gedecodeerd en nooit opgeslagen of verstuurd."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usada só para escanear o código de pareamento que o seu receptor mostra, como o do Home Assistant ou do Life Dashboard Stack. As imagens são decodificadas no iPhone e nunca são guardadas nem enviadas."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅用于扫描接收端（例如 Home Assistant 或 Life Dashboard Stack）显示的配对码。画面在 iPhone 上解码，绝不会被存储或发送。"
           }
         }
       }
@@ -55,6 +103,12 @@
       "comment" : "Privacy - Health Share Usage Description",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يقرأ Life Dashboard أنواع البيانات الصحية التي تفعّلها ويرسلها فقط إلى webhook الخاص بك أو Home Assistant أو وسيط MQTT."
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
@@ -67,10 +121,52 @@
             "value" : "Life Dashboard reads the health data types you switch on and sends them only to your own webhook, Home Assistant or MQTT broker."
           }
         },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard lee los tipos de datos de salud que activas y los envía solo a tu propio webhook, Home Assistant o broker MQTT."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard lit les types de données de santé que vous activez et les envoie uniquement à votre propre webhook, à Home Assistant ou à votre broker MQTT."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard आपके चालू किए गए स्वास्थ्य डेटा टाइप पढ़ता है और उन्हें सिर्फ़ आपके अपने वेबहुक, Home Assistant या MQTT ब्रोकर पर भेजता है।"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard legge i tipi di dati sulla salute che attivi e li invia solo al tuo webhook, a Home Assistant o al tuo broker MQTT."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboardは、オンにした健康データのタイプを読み取り、自分のWebhook、Home Assistant、またはMQTTブローカーにだけ送信します。"
+          }
+        },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Life Dashboard leest de types gezondheidsdata die je aanzet en stuurt ze alleen naar je eigen webhook, Home Assistant of MQTT-broker."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Life Dashboard lê os tipos de dados de saúde que você ativa e os envia só para o seu próprio webhook, Home Assistant ou broker MQTT."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard 会读取你开启的健康数据类型，并且只将其发送到你自己的 Webhook、Home Assistant 或 MQTT 代理服务器。"
           }
         }
       }
@@ -79,6 +175,12 @@
       "comment" : "Privacy - Health Update Usage Description",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لا يحفظ Life Dashboard أي شيء في تطبيق صحتي أبدًا. إنه يقرأ فقط الأنواع التي تفعّلها ويرسلها إلى webhook الخاص بك أو Home Assistant أو وسيط MQTT."
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
@@ -91,10 +193,52 @@
             "value" : "Life Dashboard never saves anything to Apple Health. It only reads the types you switch on and sends them to your own webhook, Home Assistant or MQTT broker."
           }
         },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard nunca guarda nada en la app Salud. Solo lee los tipos que activas y los envía a tu propio webhook, Home Assistant o broker MQTT."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard n’enregistre jamais rien dans Santé. L’app lit uniquement les types que vous activez et les envoie à votre propre webhook, à Home Assistant ou à votre broker MQTT."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard कभी भी Apple स्वास्थ्य में कुछ सेव नहीं करता। यह सिर्फ़ आपके चालू किए गए टाइप पढ़ता है और उन्हें आपके अपने वेबहुक, Home Assistant या MQTT ब्रोकर पर भेजता है।"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard non salva mai nulla in Salute. Legge solo i tipi che attivi e li invia al tuo webhook, a Home Assistant o al tuo broker MQTT."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboardがヘルスケアに何かを保存することはありません。オンにしたタイプを読み取って、自分のWebhook、Home Assistant、またはMQTTブローカーに送信するだけです。"
+          }
+        },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Life Dashboard slaat nooit iets op in Apple Gezondheid. Het leest alleen de types die je aanzet en stuurt ze naar je eigen webhook, Home Assistant of MQTT-broker."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Life Dashboard nunca grava nada no app Saúde. Ele só lê os tipos que você ativa e os envia para o seu próprio webhook, Home Assistant ou broker MQTT."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life Dashboard 绝不会向 Apple 健康存储任何内容。它只读取你开启的类型，并将其发送到你自己的 Webhook、Home Assistant 或 MQTT 代理服务器。"
           }
         }
       }
@@ -103,6 +247,12 @@
       "comment" : "Privacy - Local Network Usage Description",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يُستخدم لتسليم بياناتك الصحية إلى خوادم webhook ووسطاء MQTT على شبكتك المحلية."
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
@@ -115,10 +265,52 @@
             "value" : "Used to deliver your health data to webhook servers and MQTT brokers on your own local network."
           }
         },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se usa para entregar tus datos de salud a servidores de webhook y brokers MQTT de tu propia red local."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisé pour livrer vos données de santé aux serveurs webhook et aux brokers MQTT de votre propre réseau local."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "आपके अपने स्थानीय नेटवर्क पर वेबहुक सर्वर और MQTT ब्रोकर तक आपका स्वास्थ्य डेटा पहुंचाने के लिए इस्तेमाल होता है।"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usata per consegnare i tuoi dati sulla salute a server webhook e broker MQTT sulla tua rete locale."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自分のローカルネットワーク上のWebhookサーバーやMQTTブローカーに健康データを配信するために使います。"
+          }
+        },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gebruikt om je gezondheidsdata af te leveren bij webhookservers en MQTT-brokers op je eigen lokale netwerk."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usada para entregar seus dados de saúde a servidores de webhook e brokers MQTT na sua própria rede local."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用于将你的健康数据传送到你自己本地网络中的 Webhook 服务器和 MQTT 代理服务器。"
           }
         }
       }
