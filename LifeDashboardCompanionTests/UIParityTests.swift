@@ -174,8 +174,9 @@ final class UIParityTests: XCTestCase {
         XCTAssertEqual(AboutLinks.privacy.pathComponents, ["/", "life-dashboard-companion", "ios", "privacy"])
     }
 
-    func testTheAppHasNoTipLink() {
+    func testTheTipLinkIsNotAmongTheLinksEveryBuildShows() {
         XCTAssertFalse(AboutLinks.all.contains { $0.host?.contains("ko-fi") == true })
+        XCTAssertEqual(AboutLinks.tip.host, "ko-fi.com")
     }
 
     func testTheGrantChipShowsOnlyWhileIOSWouldAsk() {

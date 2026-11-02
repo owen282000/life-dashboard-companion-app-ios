@@ -17,6 +17,8 @@ enum AboutLinks {
     static let support = URL(string: "mailto:owen282000@hotmail.com")!
     /// The App Store page with the review sheet open (P1-28), for anyone who wants to rate it.
     static let rate = URL(string: "https://apps.apple.com/app/id6824075761?action=write-review")!
+    /// Only in builds run from source; see the Buy me a coffee row.
+    static let tip = URL(string: "https://ko-fi.com/owen282000")!
     /// Where Home's Background App Refresh card sends someone for help with their phone.
     static let troubleshooting = URL(string: "https://owen282000.com/life-dashboard/troubleshooting/")!
 
