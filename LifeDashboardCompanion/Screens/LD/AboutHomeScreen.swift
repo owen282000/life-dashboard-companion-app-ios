@@ -1,6 +1,31 @@
 import SwiftUI
 import UIKit
 
+/// Every link on About, built on the iOS repository so none can point at the Android app's.
+/// The privacy policy has a page of its own, the address App Store Connect has too.
+enum AboutLinks {
+    static let repository = URL(string: "https://github.com/owen282000/life-dashboard-companion-app-ios")!
+    static let repositorySlug = "owen282000/life-dashboard-companion-app-ios"
+    static let documentation = URL(string: repository.absoluteString + "#readme")!
+    static let changelog = repository.appending(path: "blob/main/CHANGELOG.md")
+    static let newIssue = repository.appending(path: "issues/new")
+    static let licence = repository.appending(path: "blob/main/LICENSE")
+    static let privacy = URL(string: "https://owen282000.github.io/life-dashboard-companion/ios/privacy/")!
+    /// The project's website: the setup guides and the other Life Dashboard parts.
+    static let website = URL(string: "https://owen282000.com/life-dashboard/ios/")!
+    /// Where a buyer with a question writes (P1-24).
+    static let support = URL(string: "mailto:owen282000@hotmail.com")!
+    /// The App Store page with the review sheet open (P1-28), for anyone who wants to rate it.
+    static let rate = URL(string: "https://apps.apple.com/app/id6824075761?action=write-review")!
+    /// Only in builds run from source; see the Buy me a coffee row.
+    static let tip = URL(string: "https://ko-fi.com/owen282000")!
+    /// Where Home's Background App Refresh card sends someone for help with their phone.
+    static let troubleshooting = URL(string: "https://owen282000.com/life-dashboard/troubleshooting/")!
+
+    /// The links every build shows.
+    static let all = [website, repository, documentation, changelog, newIssue, licence, privacy]
+}
+
 /// The other Life Dashboard parts this page points to, next to the links in `AboutLinks`.
 private enum AboutFamilyLinks {
     static let stack = URL(string: "https://owen282000.com/life-dashboard/grafana/")!

@@ -256,7 +256,7 @@ struct HomeScreen: View {
                     }
                 }
                 .padding(.trailing, 16)
-                LDBannerAction("Help for your phone") { openURL(SyncHoldCard.troubleshootingURL) }
+                LDBannerAction("Help for your phone") { openURL(AboutLinks.troubleshooting) }
                     .padding(.trailing, 16)
                 LDBannerAction("Don't show again") { refreshHintDismissed = true }
             }

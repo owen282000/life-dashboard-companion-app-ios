@@ -6,6 +6,11 @@ import SwiftUI
 struct DataResolutionScreen: View {
     @ObservedObject private var prefs = PreferencesManager.shared
 
+    /// The enabled types that are not at every record, the number on What to send.
+    static func bucketedCount(_ resolutions: [HealthDataType: SeriesResolution], enabled: Set<HealthDataType>) -> Int {
+        ResolutionFamily.configurableTypes.filter { enabled.contains($0) && (resolutions[$0] ?? .raw) != .raw }.count
+    }
+
     var body: some View {
         let configurable = ResolutionFamily.configurableTypes.filter { prefs.healthEnabledDataTypes.contains($0) }
         LDScreen {

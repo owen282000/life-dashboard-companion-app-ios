@@ -1,6 +1,14 @@
 import SwiftUI
 import HealthKit
 
+/// The rule behind Grant, under the name the tests hold it to.
+enum HealthKitScreen {
+    /// HealthKit never says whether read access was given, only whether asking would show the sheet.
+    static func showsGrant(_ request: HKAuthorizationRequestStatus?, enabledCount: Int) -> Bool {
+        enabledCount > 0 && request == .shouldRequest
+    }
+}
+
 /// Which types go out and how: the presets, the categories, resolution, history and preview, and
 /// Grant while iOS still has something to ask.
 struct WhatToSendScreen: View {
@@ -89,7 +97,7 @@ struct WhatToSendScreen: View {
     }
 
     private func howItGoesOut(_ enabled: Set<HealthDataType>) -> some View {
-        let bucketed = ResolutionRow.bucketedCount(prefs.seriesResolutions, enabled: enabled)
+        let bucketed = DataResolutionScreen.bucketedCount(prefs.seriesResolutions, enabled: enabled)
         return LDCard {
             LDRow("Data resolution", value: bucketed == 0 ? Text("Every record") : Text("\(bucketed) bucketed"))
                 .ldLink(to: .dataResolution)

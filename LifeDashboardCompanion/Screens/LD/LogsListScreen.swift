@@ -1,5 +1,7 @@
 import SwiftUI
 
+private let logDateFormat = Date.FormatStyle.dateTime.month(.abbreviated).day().hour().minute()
+
 /// The Logs tab, for developers who scan: one row per delivery with what the log stores. Duration,
 /// response body and attempt count are not stored, so they are not here.
 struct LogsListScreen: View {
@@ -70,7 +72,7 @@ struct LogsListScreen: View {
             Text(verbatim: stateLine)
             if !logs.isEmpty {
                 if let lastSuccess = stats.lastSuccess {
-                    Text("Last success: \(lastSuccess.formatted(SyncStatsCard.dateFormat))")
+                    Text("Last success: \(lastSuccess.formatted(logDateFormat))")
                 } else {
                     Text("Last success: never")
                 }
@@ -133,7 +135,7 @@ struct LogsListScreen: View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 0) {
                 if let since = stats.since {
-                    Text("Since \(since.formatted(SyncStatsCard.dateFormat))")
+                    Text("Since \(since.formatted(logDateFormat))")
                 }
                 Text(verbatim: String(localized: "Deliveries") + " \(stats.deliveries.formatted()) · "
                     + String(localized: "Records") + " \(stats.records.formatted())")
@@ -491,7 +493,7 @@ private struct LogFailureGroupLine: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    Text(verbatim: failure.latest.formatted(SyncStatsCard.dateFormat))
+                    Text(verbatim: failure.latest.formatted(logDateFormat))
                         .font(LDType.mono(12))
                         .foregroundStyle(LDTheme.muted)
                         .lineLimit(1)

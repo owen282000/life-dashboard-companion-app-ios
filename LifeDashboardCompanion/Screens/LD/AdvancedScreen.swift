@@ -1,9 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Daily totals and the client certificate (mTLS). The certificate flow is that of
-/// ClientCertificateLine, with a file import in place of Android's system picker, which iOS does
-/// not offer to apps.
+/// Daily totals and the client certificate (mTLS), imported from a file: iOS offers apps no system
+/// picker for certificates.
 struct AdvancedScreen: View {
     @ObservedObject private var prefs = PreferencesManager.shared
     @EnvironmentObject private var pairing: PairingCoordinator
@@ -155,9 +154,22 @@ struct AdvancedScreen: View {
             case .failure(let error):
                 // The Keychain refused the new identity after the old one was deleted.
                 if case .keychain = error as? ClientCertificateError { prefs.clientCertificate = nil }
-                alertMessage = ClientCertificateLine.message(for: error)
+                alertMessage = Self.message(for: error)
             }
             await WebhookManager.shared.dropConnections()
+        }
+    }
+
+    private static func message(for error: Error) -> String {
+        switch error as? ClientCertificateError {
+        case .wrongPassword:
+            return String(localized: "Wrong password for this certificate file")
+        case .noIdentity:
+            return String(localized: "This file has no private key. Export the certificate together with its key.")
+        case .keychain(let status):
+            return String(localized: "Could not save the certificate in the Keychain (error \(Int(status)))")
+        case .unreadable, nil:
+            return String(localized: "This is not a certificate file the iPhone can read. Export it as a .p12 file with its private key.")
         }
     }
 }

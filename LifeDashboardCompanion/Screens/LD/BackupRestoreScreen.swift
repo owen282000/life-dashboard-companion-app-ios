@@ -2,6 +2,29 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
+/// The file handed to the save dialog. `.fileExporter` writes it straight to where the user
+/// picks, so no copy of an export with secrets is left in the app's temporary folder.
+struct SettingsBackupDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+
+    let data: Data
+
+    init(data: Data) {
+        self.data = data
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        guard let data = configuration.file.regularFileContents else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        self.data = data
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
+    }
+}
+
 /// Backup and restore: export every setting to a file, and import one from any Life Dashboard app.
 struct BackupRestoreScreen: View {
     @EnvironmentObject private var pairing: PairingCoordinator
@@ -193,7 +216,7 @@ struct BackupRestoreScreen: View {
             case .success(.plain(let backup)):
                 importStep = .preview(backup)
             case .failure(let error):
-                alertMessage = SettingsBackupSection.message(for: error)
+                alertMessage = BackupRestoreScreen.message(for: error)
             }
         }
     }
@@ -211,6 +234,34 @@ struct BackupRestoreScreen: View {
         status = text
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         AccessibilityNotification.Announcement(text).post()
+    }
+
+    fileprivate static func message(for error: Error) -> String {
+        switch error {
+        case SettingsBackupError.notASettingsFile(let path?):
+            return String(localized: "Not a valid settings file (\(path))")
+        case SettingsBackupError.notASettingsFile(nil), SettingsBackupCryptoError.notAnEnvelope:
+            return String(localized: "Not a valid settings file")
+        case SettingsBackupCryptoError.wrongPassword:
+            return String(localized: "Wrong password, or the file is damaged")
+        case SettingsBackupCryptoError.unsupported:
+            return String(localized: "This file needs a newer version of the app")
+        default:
+            return String(localized: "Could not read that file")
+        }
+    }
+}
+
+/// What the import sheet opens with: a password prompt for an encrypted file, or the preview.
+enum ImportStep: Identifiable {
+    case unlock(Data)
+    case preview(ConfigBackup)
+
+    var id: String {
+        switch self {
+        case .unlock: return "unlock"
+        case .preview: return "preview"
+        }
     }
 }
 
@@ -300,7 +351,7 @@ private struct ImportSheet: View {
                 self.password = ""
                 backup = file
             case .failure(let error):
-                let message = SettingsBackupSection.message(for: error)
+                let message = BackupRestoreScreen.message(for: error)
                 errorMessage = message
                 AccessibilityNotification.Announcement(message).post()
             }
@@ -317,7 +368,7 @@ private struct ImportSheet: View {
             previewForm(plan, file: file)
         case .failure(let error):
             LDScreen(background: LDTheme.sheet) {
-                LDNote(Text(verbatim: SettingsBackupSection.message(for: error)), color: LDTheme.warning, top: 16)
+                LDNote(Text(verbatim: BackupRestoreScreen.message(for: error)), color: LDTheme.warning, top: 16)
             }
             .navigationTitle("Import settings?")
             .toolbar {

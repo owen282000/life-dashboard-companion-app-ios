@@ -1,5 +1,27 @@
 import SwiftUI
 
+/// What the setup and the gate in ContentView share, and the essentials What to send offers too.
+enum OnboardingView {
+    enum Step: Int, CaseIterable {
+        case welcome, destination, types, access, done
+    }
+
+    enum TypeChoice {
+        case essentials, all, later
+    }
+
+    /// The types a new user most often wants: activity, sleep, heart and weight.
+    static let essentials: Set<HealthDataType> = [
+        .steps, .distance, .activeCalories, .sleep, .heartRate, .restingHeartRate, .weight, .exercise
+    ]
+
+    /// A fresh install has nowhere to send to and no type on. Anything else is an upgrade or a
+    /// restored backup, which never sees the setup.
+    static func isFreshInstall(webhookUrls: [String], mqttHost: String, enabledTypes: Set<HealthDataType>) -> Bool {
+        webhookUrls.isEmpty && mqttHost.trimmingCharacters(in: .whitespaces).isEmpty && enabledTypes.isEmpty
+    }
+}
+
 /// The first-run setup, boards On1 to On5: what the app does, where the data goes, which types,
 /// Apple Health access with a first sync that shows it works, and a summary. Only a fresh install
 /// sees it; every step can be skipped, and it writes only the settings Home writes too. ContentView
@@ -357,7 +379,7 @@ struct OnboardingFlowView: View {
 
     // MARK: - Parts
 
-    /// The tones of the old ResultLine in the A2b colours: the boards' danger is amber, not red.
+    /// The boards' danger is amber, not red.
     private func resultColor(_ tone: StatusTone) -> Color {
         switch tone {
         case .success: return LDTheme.accentTextSoft

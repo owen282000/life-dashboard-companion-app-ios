@@ -50,6 +50,15 @@ struct LDScreen<Content: View, Pinned: View, Footer: View>: View {
             .scrollDismissesKeyboard(.interactively)
             .screenshotScrollAnchor()
         }
+        // The number pad has no return key of its own to leave a field with.
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+            }
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // In a stack: an EmptyView on its own takes the whole height here, which leaves the
             // viewport 0 high, and `pinned` would no longer pin.
@@ -76,6 +85,23 @@ extension LDScreen where Footer == EmptyView {
 extension LDScreen where Pinned == EmptyView {
     init(background: Color = LDTheme.ground, @ViewBuilder content: () -> Content, @ViewBuilder footer: () -> Footer) {
         self.init(background: background, content: content, pinned: { EmptyView() }, footer: footer)
+    }
+}
+
+private extension View {
+    /// For screenshots of long pages in Debug builds: -ld.scroll 0.5 starts a scroll view
+    /// halfway, 1 at its end.
+    @ViewBuilder
+    func screenshotScrollAnchor() -> some View {
+        #if DEBUG
+        if let position = UserDefaults.standard.object(forKey: "ld.scroll") as? String, let value = Double(position) {
+            defaultScrollAnchor(UnitPoint(x: 0.5, y: value))
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
     }
 }
 
@@ -1401,6 +1427,27 @@ struct LDTwoColumnLayout: Layout {
 }
 
 // MARK: - Sheets
+
+extension View {
+    /// The share sheet for a file, open while `url` holds one.
+    func shareSheet(for url: Binding<URL?>) -> some View {
+        sheet(isPresented: Binding(get: { url.wrappedValue != nil }, set: { if !$0 { url.wrappedValue = nil } })) {
+            if let file = url.wrappedValue {
+                ShareSheet(activityItems: [file])
+            }
+        }
+    }
+}
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
 
 private struct LDSheetToolbar: ViewModifier {
     let cancel: LocalizedStringKey
