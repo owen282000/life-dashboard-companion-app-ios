@@ -53,11 +53,11 @@ A sheet has its own NavigationStack but no route table: it cannot push an `LDRou
 | Name | What it does |
 | --- | --- |
 | `LDCard(bottom:) { }` | Rows on a tile surface, with dividers between them. `if` and `ForEach` are counted per row. |
-| `LDRow("Name", subtitle:, value:, valueColor:, showsChevron:)` | 50 high, 62 with a subtitle. Draws only: add `.ldLink(to:)` or `.ldButton { }`. `showsChevron: false` is the plain row. |
+| `LDRow("Name", subtitle:, value:, valueColor:, showsChevron:)` | 50 high, 62 with a subtitle. Draws only: add `.ldLink(to:)` or `.ldButton { }`. `showsChevron: false` is the plain row. `LDRow("Name", subtitle:) { trailing }` has a control or a spinner at the end instead. |
 | `LDToggleRow("Name", subtitle:, isOn:)` | System Toggle in the accent. |
-| `LDFieldRow("Label", text:, prompt:, mono:, isSecure:) { trailing }` | Small label over an editable value. `trailing` is optional, for a reveal button. Keyboard modifiers go on the outside. |
+| `LDFieldRow("Label", text:, prompt:, verbatimPrompt:, mono:, isSecure:) { trailing }` | Small label over an editable value. `prompt` is text to translate, `verbatimPrompt` an example such as an address or a number. `trailing` is optional, for a reveal button. Keyboard modifiers go on the outside. |
 | `LDFieldRow("Label", value: Text(...))` | The same look, read only. |
-| `LDDestinationRow(Text, status: Text, statusColor:)` | A destination on Home. Full width, draws only. |
+| `LDDestinationRow(Text, status: Text, statusColor:)` | A destination on Home. Full width, draws only. Name and status stack when they do not fit side by side. |
 | `LDOption("Title", subtitle:, isSelected:, mark: .radio or .check) { }` | A card to pick, a real button. |
 | `LDChevron` | The row chevron. It follows the reading direction. |
 
@@ -65,12 +65,12 @@ A sheet has its own NavigationStack but no route table: it cannot push an `LDRou
 
 | Name | What it does |
 | --- | --- |
-| `LDSegmented(selection:, segments: [LDSegment(value, "Title")])` | The segmented control. |
+| `LDSegmented(selection:, segments: [LDSegment(value, "Title")], label:)` | The segmented control. `label` is what VoiceOver calls the group. |
 | `LDChips { LDChip("Essentials", isSelected:) { } }` | Chips that wrap. `LDChip.removable(Text) { }` has an x, `width: 44` is a day chip. |
-| `LDButton("Title", kind:, size:, fullWidth:, inset:) { }` | `kind` is `.primary`, `.ghost` or `.danger`, `size` is `.regular`, `.medium` or `.small`. Or `route:` instead of an action. |
+| `LDButton("Title", kind:, size:, fullWidth:, inset:, isBusy:) { }` | `kind` is `.primary`, `.ghost` or `.danger`, `size` is `.regular`, `.medium` or `.small`. `isBusy` adds a spinner and disables it. Or `route:` instead of an action. |
 | `LDButtonStyle(kind, size:, fullWidth:)` | The same look for your own Link or ShareLink. |
 | `LDTextButton("Title") { }` | Text as a button, as Add destination. |
-| `LDPressStyle` (`.buttonStyle(.ldPress)`) | Dims on press, for your own Link around a row. |
+| `LDPressStyle` (`.buttonStyle(.ldPress)`) | Dims on press and when disabled, for your own Link around a row. |
 | `ldButton { }`, `ldLink(to:)` | Make a row, tile or destination row tappable. |
 | `ldSheetToolbar(cancel:, confirm:, canConfirm:, onCancel:, onConfirm:)` | Cancel and Save in a sheet, both close it. `cancel: "Done"` when there is nothing to save. |
 
@@ -79,8 +79,8 @@ A sheet has its own NavigationStack but no route table: it cannot push an `LDRou
 | Name | What it does |
 | --- | --- |
 | `LDBanner("Title", message:) { LDBannerAction("Fix") { } }` | The warning card, actions optional. |
-| `LDKeyValueList([LDKeyValue("Key", Text(...), color:)])` | Labels and Space Mono values on a card. |
-| `LDCodeBlock(text:, color:)` | Text as it is in Space Mono, long lines scroll sideways. |
+| `LDKeyValueList([LDKeyValue("Key", Text(...), color:)])` | Labels and Space Mono values on a card. The labels share the width of the longest; at accessibility sizes the value goes under its label. |
+| `LDCodeBlock(text:, color:, wraps:, selectable:)` | Text as it is in Space Mono, long lines scroll sideways or wrap. A payload takes `selectable: false`: its Copy button is what keeps it on this iPhone. |
 | `LDProgressBar(value:)` | The 8 high bar of a backfill. Give it an `accessibilityLabel`. |
 | `LDTile("Title", subtitle:, systemImage:)` | Draws only, add `.ldLink(to:)` or `.ldButton { }`. Names of the symbols are in `LDSymbol`. |
 | `LDTileGrid { }` | Two columns, equal height per row. Goes in `pinned`. |

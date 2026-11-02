@@ -4,9 +4,10 @@
 #
 # The simulator has no Health data, so the app gets example settings and a week of example
 # log entries instead (homeassistant.local, nothing real), and -ld.demoSteps fills the steps
-# sparkline. The Debug launch arguments -ld.tab, -ld.about, -ld.expand and -ld.scroll open
-# each page; -ld.expand takes YES for every row or a list such as "webhook,mqtt". The pairing
-# sheet needs one tap on iOS's "Open in Life Dashboard?" prompt: the script sends Return to the
+# sparkline, with -ld.demoSleep, -ld.demoRest and -ld.demoWeight for the rest of the Today
+# panel. The Debug launch arguments -ld.tab, -ld.about, -ld.route and -ld.scroll open each page;
+# -ld.route takes a name from LDDebugRoute, -ld.holds "refresh,power,quiet" shows what holds a
+# sync on the Health tab. The pairing sheet needs one tap on iOS's "Open in Life Dashboard?" prompt: the script sends Return to the
 # Simulator app, which needs Accessibility access for the terminal (System Settings > Privacy &
 # Security). Without a Simulator app it keeps the pairing screenshot that is there.
 #
@@ -108,7 +109,10 @@ shot() { # file, launch arguments
     local file=$1; shift
     xcrun simctl terminate "$UDID" "$ID" 2>/dev/null || true
     xcrun simctl launch "$UDID" "$ID" -AppleLanguages "(en)" -AppleLocale en_GB \
-        -ld.demoSteps "5200,7100,9800,8400,6300,10900,7600" "$@" >/dev/null
+        -ld.demoSteps "5200,7100,9800,8400,6300,10900,7600" \
+        -ld.demoSleep "412,388,455,431,402,467,441" \
+        -ld.demoRest "58,57,59,56,58,57,56" \
+        -ld.demoWeight "78.4,78.3,78.5,78.2,78.1,78.2,78.0" "$@" >/dev/null
     sleep 6
     xcrun simctl io "$UDID" screenshot --type=png "$WORK/raw/$file" >/dev/null 2>&1
     # Now and then the first frame is still black: a black PNG is tiny, so take it again.
@@ -118,8 +122,8 @@ shot() { # file, launch arguments
     fi
 }
 shot apple-health.png
-shot sync-schedule.png -ld.expand schedule -ld.scroll 0.3
-shot mqtt.png -ld.expand webhook,mqtt -ld.scroll 0.36
+shot sync-schedule.png -ld.route whenToSend
+shot mqtt.png -ld.route mqttDestination
 shot logs.png -ld.tab 1
 shot about.png -ld.about YES
 

@@ -175,15 +175,100 @@ final class LDNavigator: ObservableObject {
     }
 
     #if DEBUG
-    /// For screenshots of every page: -ld.tab 1 opens Logs, -ld.about YES opens About.
+    /// For screenshots of every page: -ld.tab 1 opens Logs, -ld.about YES opens About, -ld.route
+    /// opens any route or sheet by name (`LDDebugRoute`).
     func applyDebugArguments() {
         let arguments = UserDefaults.standard
         selectedTab = arguments.integer(forKey: "ld.tab")
-        settling?.cancel()
-        tabDirection = .none
         if arguments.bool(forKey: "ld.about") {
             push(.about)
         }
+        let logs = PreferencesManager.shared.getWebhookLogs(filterType: nil)
+        let urls = PreferencesManager.shared.healthWebhookUrls
+        switch arguments.string(forKey: "ld.route").flatMap({ LDDebugRoute.named($0, logs: logs, webhookUrls: urls) }) {
+        case .push(let route):
+            if case .logDetail = route { selectedTab = Self.logsTab }
+            push(route)
+        case .sheet(let route):
+            present(route)
+        case nil:
+            break
+        }
+        settling?.cancel()
+        tabDirection = .none
     }
     #endif
 }
+
+#if DEBUG
+/// What `-ld.route <name>` opens. The scanner and the pairing sheet hang on ContentView: see
+/// `PairingCoordinator.applyDebugRoute`.
+enum LDDebugRoute: Equatable {
+    case push(LDRoute)
+    case sheet(LDSheetRoute)
+
+    /// Every name but the ones that need a row of the log or a listed address.
+    static let plain: [String: LDDebugRoute] = {
+        var routes: [String: LDDebugRoute] = [
+            "whatToSend": .push(.whatToSend),
+            "dataResolution": .push(.dataResolution),
+            "backfillRun": .push(.backfillRun),
+            "whenToSend": .push(.whenToSend),
+            "more": .push(.more),
+            "advanced": .push(.advanced),
+            "notifications": .push(.notifications),
+            "exportData": .push(.exportData),
+            "backupRestore": .push(.backupRestore),
+            "about": .push(.about),
+            "aboutHelp": .push(.aboutHelp),
+            "aboutSupport": .push(.aboutSupport),
+            "aboutPrivacy": .push(.aboutPrivacy),
+            "aboutOpenSource": .push(.aboutOpenSource),
+            "aboutNerdStats": .push(.aboutNerdStats),
+            "addDestination": .sheet(.addDestination),
+            "webhookNew": .sheet(.webhookDestination(address: nil)),
+            "mqttDestination": .sheet(.mqttDestination),
+            "backfill": .sheet(.backfill),
+            "payloadPreview": .sheet(.payloadPreview),
+            "shortcutsHelp": .sheet(.shortcutsHelp),
+        ]
+        for category in LDTypeCategory.allCases {
+            routes["typeCategory.\(category.rawValue)"] = .push(.typeCategory(category))
+        }
+        return routes
+    }()
+
+    /// `logDetail` is the newest row, `logDetail.failed` and `logDetail.ok` the newest of that kind;
+    /// `webhookDestination` is the first listed address.
+    static func named(_ name: String, logs: [WebhookLog], webhookUrls: [String]) -> LDDebugRoute? {
+        switch name {
+        case "logDetail":
+            return logs.first.map { .push(.logDetail(id: $0.id)) }
+        case "logDetail.failed":
+            return logs.first { !$0.success }.map { .push(.logDetail(id: $0.id)) }
+        case "logDetail.ok":
+            return logs.first(where: \.success).map { .push(.logDetail(id: $0.id)) }
+        case "webhookDestination":
+            return webhookUrls.first.map { .sheet(.webhookDestination(address: $0)) }
+        default:
+            return plain[name]
+        }
+    }
+}
+
+extension PairingCoordinator {
+    /// -ld.route scanner opens the scanner, -ld.route pairing the sheet with an example code.
+    func applyDebugRoute() {
+        switch UserDefaults.standard.string(forKey: "ld.route") {
+        case "scanner":
+            startScan()
+        case "pairing":
+            if let url = URL(string: "lifedashboard://pair#v=1&url=http%3A%2F%2Fhomeassistant.local%3A8123%2Fapi%2Fwebhook%2F3f9c2a7e51b84d06a1e2c9d8b7f4e5a1&secret=0123456789abcdef&name=Home%20Assistant") {
+                open(url)
+            }
+        default:
+            break
+        }
+    }
+}
+#endif

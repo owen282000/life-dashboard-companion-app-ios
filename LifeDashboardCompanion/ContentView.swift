@@ -108,6 +108,7 @@ struct ContentView: View {
         .onAppear {
             #if DEBUG
             navigator.applyDebugArguments()
+            pairing.applyDebugRoute()
             #endif
         }
     }

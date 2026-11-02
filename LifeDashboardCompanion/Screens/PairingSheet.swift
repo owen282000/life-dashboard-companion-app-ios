@@ -82,6 +82,17 @@ struct PairingSheet: View {
         let prefs = PreferencesManager.shared
         _change = State(initialValue: PairingApply.preview(link, current: prefs.healthDestinations))
         _enabledTypes = State(initialValue: prefs.healthEnabledDataTypes.count)
+        #if DEBUG
+        // For screenshots: -ld.pairPhase opens the result, without writing or sending anything.
+        switch UserDefaults.standard.string(forKey: "ld.pairPhase") {
+        case "checking": _phase = State(initialValue: .checking)
+        case "confirmed": _phase = State(initialValue: .done(.confirmed))
+        case "unconfirmed": _phase = State(initialValue: .done(.deliveredUnconfirmed))
+        case "refused": _phase = State(initialValue: .done(.refused))
+        case "failed": _phase = State(initialValue: .done(.failed("HTTP 502")))
+        default: break
+        }
+        #endif
     }
 
     var body: some View {
