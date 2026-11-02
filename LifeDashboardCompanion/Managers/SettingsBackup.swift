@@ -455,7 +455,7 @@ enum ImportNote: Equatable, Sendable {
         case .brokerCredentialsCleared:
             return String(localized: "The MQTT username and password are cleared, because the broker is different.")
         case .baseTopicTranslated(let topic):
-            return String(localized: "MQTT topic becomes \(topic), so this iPhone and the Android phone do not share sensors.")
+            return String(localized: "MQTT topic becomes \(topic), so this iPhone and the other phone do not share sensors.")
         case .unavailableTypes(let count):
             return String(localized: "\(count) data types in this file are not available on iPhone.")
         case .intervalAdjusted(let minutes):

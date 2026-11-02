@@ -4,7 +4,6 @@ import UIKit
 /// The other Life Dashboard parts this page points to, next to the links in `AboutLinks`.
 private enum AboutFamilyLinks {
     static let stack = URL(string: "https://owen282000.com/life-dashboard/grafana/")!
-    static let android = URL(string: "https://play.google.com/store/apps/details?id=com.owen282000.lifedashboard")!
 }
 
 struct AboutHomeScreen: View {
@@ -129,7 +128,7 @@ struct AboutHomeScreen: View {
         }
         .padding(.top, 18)
 
-        LDNote("No account and no cloud. Also on Android.")
+        LDNote("No account and no cloud.")
     }
 
     // MARK: - Variant B
@@ -167,11 +166,9 @@ struct AboutHomeScreen: View {
         .buttonStyle(.ldPress)
         .ldStaggerRise(1)
 
-        Link(destination: AboutFamilyLinks.android) {
-            LDDestinationRow(Text("Android app"), status: Text(verbatim: "Google Play"))
-        }
-        .buttonStyle(.ldPress)
-        .ldStaggerRise(2)
+        LDDestinationRow(Text("Your own server"), status: Text("Webhook or MQTT"))
+            .ldButton { navigator.present(.addDestination) }
+            .ldStaggerRise(2)
     }
 
     // MARK: - Home Assistant

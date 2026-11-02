@@ -217,7 +217,7 @@ struct OnboardingFlowView: View {
                 .ldStaggerRise(0)
             LDOption(
                 "All types",
-                subtitle: Text("Everything this app can read"),
+                subtitle: Text("Everything this app can read, except cycle tracking"),
                 isSelected: typeChoice == .all
             ) { choose(.all) }
                 .ldStaggerRise(1)
@@ -227,6 +227,10 @@ struct OnboardingFlowView: View {
                 isSelected: typeChoice == .later
             ) { choose(.later) }
                 .ldStaggerRise(2)
+            // The same All types as What to send: sensitive types go on knowingly, one by one.
+            if typeChoice == .all {
+                LDNote("Cycle tracking stays off until you switch it on.", top: 0, size: 13)
+            }
         }
         // The essentials are the answer for most, so they are picked already; Choose later stays.
         .onAppear {
@@ -380,7 +384,7 @@ struct OnboardingFlowView: View {
         typeChoice = choice
         switch choice {
         case .essentials: prefs.healthEnabledDataTypes = OnboardingView.essentials
-        case .all: prefs.healthEnabledDataTypes = Set(HealthDataType.allCases)
+        case .all: prefs.healthEnabledDataTypes = LDTypeCategory.typesOutsideCycle
         case .later: prefs.healthEnabledDataTypes = []
         }
         firstSync = nil

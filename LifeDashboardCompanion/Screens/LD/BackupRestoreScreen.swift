@@ -2,8 +2,7 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
-/// Backup and restore: export every setting to a file, and import one from this app or the
-/// Android app.
+/// Backup and restore: export every setting to a file, and import one from any Life Dashboard app.
 struct BackupRestoreScreen: View {
     @EnvironmentObject private var pairing: PairingCoordinator
 
@@ -397,12 +396,12 @@ private struct ImportSheet: View {
         guard let date = plan.exportedAt else {
             return fromIPhone
                 ? String(localized: "Exported by the iPhone app\(version).")
-                : String(localized: "Exported by the Android app\(version).")
+                : String(localized: "Exported by another Life Dashboard app\(version).")
         }
         let when = date.formatted(date: .abbreviated, time: .shortened)
         return fromIPhone
             ? String(localized: "Exported \(when) by the iPhone app\(version).")
-            : String(localized: "Exported \(when) by the Android app\(version).")
+            : String(localized: "Exported \(when) by another Life Dashboard app\(version).")
     }
 
     private func apply(_ file: ConfigBackup) {
