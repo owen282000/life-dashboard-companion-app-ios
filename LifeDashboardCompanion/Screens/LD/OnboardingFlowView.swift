@@ -155,7 +155,7 @@ struct OnboardingFlowView: View {
                     .padding(.vertical, 12)
                     .padding(.horizontal, 14)
             }
-            LDFieldRow("Webhook URL", text: $webhookUrl, prompt: "https://...") {
+            LDFieldRow("Webhook URL", text: $webhookUrl, verbatimPrompt: "https://...") {
                 LDButton("Add", kind: .ghost, size: .small, fullWidth: false) {
                     _ = addWebhook()
                 }
@@ -168,17 +168,14 @@ struct OnboardingFlowView: View {
             .onSubmit { _ = addWebhook() }
 
             // The Home screen's Test ping, so a wrong address shows before any data is due.
-            LDRow("Test ping", showsChevron: false)
-                .overlay(alignment: .trailing) {
-                    if isPinging {
-                        ProgressView()
-                            .tint(LDTheme.muted)
-                            .padding(.trailing, 14)
-                    }
+            LDRow("Test ping") {
+                if isPinging {
+                    ProgressView()
+                        .tint(LDTheme.muted)
                 }
-                .ldButton(action: sendTestPing)
-                .disabled(prefs.healthWebhookUrls.isEmpty || isPinging)
-                .opacity(prefs.healthWebhookUrls.isEmpty ? 0.45 : 1)
+            }
+            .ldButton(action: sendTestPing)
+            .disabled(prefs.healthWebhookUrls.isEmpty || isPinging)
         }
     }
 
@@ -193,7 +190,7 @@ struct OnboardingFlowView: View {
             .ldButton { setMqttField(!showsMqttField) }
 
             if showsMqttField {
-                LDFieldRow("Broker host, e.g. 192.168.1.10", text: $mqttHost, prompt: "192.168.1.10") {
+                LDFieldRow("Broker host, e.g. 192.168.1.10", text: $mqttHost, verbatimPrompt: "192.168.1.10") {
                     LDButton("Use", kind: .ghost, size: .small, fullWidth: false) {
                         _ = useMqttHost()
                     }

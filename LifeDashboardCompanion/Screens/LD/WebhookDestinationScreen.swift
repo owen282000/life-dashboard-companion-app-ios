@@ -114,7 +114,7 @@ struct WebhookDestinationScreen: View {
         LDSectionLabel("Address")
         LDCard {
             if isNew {
-                LDFieldRow("URL", text: $destination.url, prompt: WebhookAddress.prompt)
+                LDFieldRow("URL", text: $destination.url, verbatimPrompt: WebhookAddress.example)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .keyboardType(.URL)
@@ -211,7 +211,6 @@ struct WebhookDestinationScreen: View {
                 LDRow("Add", showsChevron: false)
                     .ldButton(action: addHeader)
                     .disabled(!canAdd)
-                    .opacity(canAdd ? 1 : 0.45)
             } else {
                 LDRow("Add a header", showsChevron: false)
                     .ldButton {
@@ -260,8 +259,7 @@ struct WebhookDestinationScreen: View {
     @ViewBuilder
     private var actions: some View {
         LDGap(12)
-        LDButton(isTesting ? Text("Sending...") : Text("Send test"), kind: .ghost, action: sendTest)
-            .disabled(isTesting)
+        LDButton(isTesting ? Text("Sending...") : Text("Send test"), kind: .ghost, isBusy: isTesting, action: sendTest)
         if hasUnsavedChanges {
             LDNote("The test uses what is saved. Save first to test your changes.", size: 13)
         }

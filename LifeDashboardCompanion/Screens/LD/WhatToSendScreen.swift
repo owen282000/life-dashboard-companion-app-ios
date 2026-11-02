@@ -98,7 +98,6 @@ struct WhatToSendScreen: View {
             LDRow("Preview payload")
                 .ldButton { navigator.present(.payloadPreview) }
                 .disabled(enabled.isEmpty)
-                .opacity(enabled.isEmpty ? 0.45 : 1)
         }
     }
 

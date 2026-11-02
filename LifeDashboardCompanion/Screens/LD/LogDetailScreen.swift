@@ -94,21 +94,10 @@ struct LogDetailScreen: View {
         return items
     }
 
-    /// Wraps instead of LDCodeBlock's sideways scroll: a stored payload is compact JSON, one line of
-    /// up to 12,000 characters. Not selectable, because Copy is what keeps it on this iPhone.
     private func payloadBlock(_ preview: PayloadPreview) -> some View {
-        Text(verbatim: preview.text)
-            .font(LDType.monoValue)
-            .foregroundStyle(LDTheme.inactive)
+        LDCodeBlock(text: preview.text, wraps: true, selectable: false)
+            .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text("Payload, \(preview.totalCount.formatted()) characters"))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
-            .background(LDTheme.tile, in: RoundedRectangle(cornerRadius: LDTheme.cardRadius, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: LDTheme.cardRadius, style: .continuous)
-                    .strokeBorder(LDTheme.tileBorder, lineWidth: 1)
-            }
-            .padding(.horizontal, LDTheme.cardInset)
     }
 
     @ViewBuilder

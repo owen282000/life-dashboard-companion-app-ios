@@ -39,19 +39,18 @@ struct ExportDataScreen: View {
     }
 
     private func exportRow(_ title: LocalizedStringKey, format: ExportManager.HealthExportFormat) -> some View {
-        LDRow(title, showsChevron: false)
-            .overlay(alignment: .trailing) {
-                if exporting == format {
-                    ProgressView()
-                        .padding(.trailing, 14)
-                }
+        LDRow(title) {
+            if exporting == format {
+                ProgressView()
             }
-            .ldButton { export(format) }
-            .disabled(!canExport)
-            .opacity(canExport || exporting == format ? 1 : 0.45)
+        }
+        .ldButton { export(format) }
+        // The row at work stays bright, with its spinner.
+        .disabled(!canExport && exporting != format)
     }
 
     private func export(_ format: ExportManager.HealthExportFormat) {
+        guard exporting == nil else { return }
         exporting = format
         failure = nil
         Task {

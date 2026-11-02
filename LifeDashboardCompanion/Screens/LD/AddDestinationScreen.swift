@@ -21,7 +21,7 @@ struct AddDestinationScreen: View {
 
             LDSectionLabel("Your own server")
             LDCard {
-                LDFieldRow("Webhook URL", text: $address, prompt: WebhookAddress.prompt)
+                LDFieldRow("Webhook URL", text: $address, verbatimPrompt: WebhookAddress.example)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .keyboardType(.URL)
@@ -72,10 +72,7 @@ struct AddDestinationScreen: View {
 /// An address typed by hand: what a pairing code's address has to be, and what iOS would refuse on
 /// every request anyway.
 enum WebhookAddress {
-    // Not a word to translate, so it goes in through a String and stays out of the catalog. The
-    // backslash keeps Markdown in a LocalizedStringKey from turning it into a blue link.
-    private static let example = "https\\://your-webhook.com/health"
-    static let prompt = LocalizedStringKey(example)
+    static let example = "https://your-webhook.com/health"
 
     enum Problem: Equatable {
         case notAnAddress

@@ -120,7 +120,6 @@ private struct BackfillChooseSheet: View {
         )
         .ldButton { selected = days }
         .disabled(unknown)
-        .opacity(unknown ? 0.45 : 1)
         .accessibilityAddTraits(isChosen ? .isSelected : [])
     }
 

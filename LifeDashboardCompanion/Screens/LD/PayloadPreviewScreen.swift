@@ -50,7 +50,7 @@ struct PayloadPreviewScreen: View {
                 .tint(LDTheme.accent)
                 .frame(maxWidth: .infinity, minHeight: 120)
         } else if let preview {
-            LDCodeBlock(text: preview.text)
+            LDCodeBlock(text: preview.text, wraps: true, selectable: false)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Text("Payload, \(preview.totalCount.formatted()) characters"))
             if preview.cutForDisplay {

@@ -18,9 +18,6 @@ struct MqttDestinationScreen: View {
     @State private var isPasswordRevealed = false
     @State private var showRemoveConfirm = false
 
-    // Not words to translate, so they go in through a String and stay out of the catalog.
-    private static let hostExample = "192.168.1.10"
-
     init() {
         let prefs = PreferencesManager.shared
         _isEnabled = State(initialValue: prefs.mqttEnabled)
@@ -66,7 +63,7 @@ struct MqttDestinationScreen: View {
         LDCard {
             LDToggleRow("Enable MQTT publishing", isOn: $isEnabled)
 
-            LDFieldRow("Broker host", text: $host, prompt: LocalizedStringKey(Self.hostExample))
+            LDFieldRow("Broker host", text: $host, verbatimPrompt: "192.168.1.10")
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .keyboardType(.URL)

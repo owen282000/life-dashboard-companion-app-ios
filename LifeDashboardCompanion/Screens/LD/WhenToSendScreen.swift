@@ -30,9 +30,7 @@ struct WhenToSendScreen: View {
             LDSegmented(selection: $prefs.healthSyncSchedule.mode, segments: [
                 LDSegment(SyncMode.interval, "Every X minutes"),
                 LDSegment(SyncMode.times, "Fixed times"),
-            ])
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel("Mode")
+            ], label: "Mode")
 
             switch schedule.mode {
             case .interval: intervalSection
@@ -84,7 +82,7 @@ struct WhenToSendScreen: View {
     @ViewBuilder private var intervalSection: some View {
         LDSectionLabel("Sync Interval")
         LDCard {
-            LDFieldRow("Minutes between syncs", text: $intervalText, prompt: "60")
+            LDFieldRow("Minutes between syncs", text: $intervalText, verbatimPrompt: "60")
                 .keyboardType(.numberPad)
                 .onChange(of: intervalText) { _, text in
                     if let minutes = Int(text), minutes >= SyncSchedule.minIntervalMinutes {

@@ -51,7 +51,11 @@ struct LDScreen<Content: View, Pinned: View, Footer: View>: View {
             .screenshotScrollAnchor()
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            footer
+            // In a stack: an EmptyView on its own takes the whole height here, which leaves the
+            // viewport 0 high, and `pinned` would no longer pin.
+            VStack(spacing: 0) {
+                footer
+            }
         }
         .background(background.ignoresSafeArea())
     }
@@ -239,10 +243,21 @@ struct LDChevron: View {
 // MARK: - Press
 
 /// Dims on press and leaves the colours alone: the style for anything tappable that draws itself.
+/// A disabled one is dimmed too, as LDButton is.
 struct LDPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
+        LDPressBody(configuration: configuration)
+    }
+}
+
+private struct LDPressBody: View {
+    let configuration: ButtonStyleConfiguration
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
         configuration.label
-            .opacity(configuration.isPressed ? 0.6 : 1)
+            .opacity(configuration.isPressed ? 0.6 : isEnabled ? 1 : 0.45)
     }
 }
 
@@ -314,13 +329,16 @@ private extension View {
 
 /// A row in a card: name, optional subtitle, optional value and a chevron. It draws only; make it
 /// tappable with `.ldLink(to:)`, `.ldButton {}`, or put it in your own Link with `.buttonStyle(.ldPress)`.
-/// With `showsChevron: false` it is the boards' plain row.
+/// With `showsChevron: false` it is the boards' plain row. `trailing` holds a control or a spinner,
+/// in place of the value and the chevron.
 struct LDRow: View {
     private let title: Text
     private let subtitle: Text?
     private let value: Text?
     private let valueColor: Color
     private let showsChevron: Bool
+    // A stored view, not a generic: AboutLinkRow and others keep an LDRow in a property.
+    private let trailing: AnyView?
 
     init(
         _ title: LocalizedStringKey,
@@ -344,6 +362,20 @@ struct LDRow: View {
         self.value = value
         self.valueColor = valueColor
         self.showsChevron = showsChevron
+        self.trailing = nil
+    }
+
+    init<Trailing: View>(
+        _ title: LocalizedStringKey,
+        subtitle: Text? = nil,
+        @ViewBuilder trailing: () -> Trailing
+    ) {
+        self.title = Text(title)
+        self.subtitle = subtitle
+        self.value = nil
+        self.valueColor = LDTheme.muted
+        self.showsChevron = false
+        self.trailing = AnyView(trailing())
     }
 
     var body: some View {
@@ -368,6 +400,9 @@ struct LDRow: View {
                     .foregroundStyle(valueColor)
                     .multilineTextAlignment(.trailing)
             }
+            if let trailing {
+                trailing
+            }
             if showsChevron {
                 LDChevron()
             }
@@ -377,7 +412,8 @@ struct LDRow: View {
         .padding(.trailing, 12)
         .frame(minHeight: subtitle == nil ? 50 : 62)
         .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
+        // A control in `trailing` has to stay reachable on its own.
+        .accessibilityElement(children: trailing == nil ? .combine : .contain)
     }
 }
 
@@ -421,12 +457,14 @@ struct LDToggleRow: View {
 
 /// A small label over an editable value, Space Mono by default. `trailing` holds a control such as
 /// a reveal button. Keyboard modifiers (`.keyboardType`, `.textInputAutocapitalization`) go on the
-/// row from outside. `init(_:value:)` shows a value that cannot be edited.
+/// row from outside. `init(_:value:)` shows a value that cannot be edited. `prompt` is text to
+/// translate; `verbatimPrompt` is an example such as an address or a number, which stays out of
+/// the String Catalog and out of Markdown.
 struct LDFieldRow<Trailing: View>: View {
     private let label: LocalizedStringKey
     private let text: Binding<String>?
     private let value: Text?
-    private let prompt: LocalizedStringKey?
+    private let promptText: Text?
     private let mono: Bool
     private let isSecure: Bool
     private let trailing: Trailing
@@ -435,6 +473,7 @@ struct LDFieldRow<Trailing: View>: View {
         _ label: LocalizedStringKey,
         text: Binding<String>,
         prompt: LocalizedStringKey? = nil,
+        verbatimPrompt: String? = nil,
         mono: Bool = true,
         isSecure: Bool = false,
         @ViewBuilder trailing: () -> Trailing
@@ -442,7 +481,8 @@ struct LDFieldRow<Trailing: View>: View {
         self.label = label
         self.text = text
         self.value = nil
-        self.prompt = prompt
+        self.promptText = (verbatimPrompt.map { Text(verbatim: $0) } ?? prompt.map { Text($0) })?
+            .foregroundColor(LDTheme.muted)
         self.mono = mono
         self.isSecure = isSecure
         self.trailing = trailing()
@@ -450,10 +490,6 @@ struct LDFieldRow<Trailing: View>: View {
 
     private var font: Font {
         mono ? LDType.monoField : LDType.value
-    }
-
-    private var promptText: Text? {
-        prompt.map { Text($0).foregroundColor(LDTheme.muted) }
     }
 
     var body: some View {
@@ -493,17 +529,18 @@ extension LDFieldRow where Trailing == EmptyView {
         _ label: LocalizedStringKey,
         text: Binding<String>,
         prompt: LocalizedStringKey? = nil,
+        verbatimPrompt: String? = nil,
         mono: Bool = true,
         isSecure: Bool = false
     ) {
-        self.init(label, text: text, prompt: prompt, mono: mono, isSecure: isSecure) { EmptyView() }
+        self.init(label, text: text, prompt: prompt, verbatimPrompt: verbatimPrompt, mono: mono, isSecure: isSecure) { EmptyView() }
     }
 
     init(_ label: LocalizedStringKey, value: Text, mono: Bool = true) {
         self.label = label
         self.text = nil
         self.value = value
-        self.prompt = nil
+        self.promptText = nil
         self.mono = mono
         self.isSecure = false
         self.trailing = EmptyView()
@@ -511,7 +548,8 @@ extension LDFieldRow where Trailing == EmptyView {
 }
 
 /// A destination on Home: name, status in the soft accent (or `statusColor` for a problem) and a
-/// chevron, full width. It draws only, like LDRow.
+/// chevron, full width. It draws only, like LDRow. Name and status go under each other when they do
+/// not fit side by side, so a large text size never breaks a word in two.
 struct LDDestinationRow: View {
     private let name: Text
     private let status: Text
@@ -525,21 +563,42 @@ struct LDDestinationRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            name
-                .font(LDType.destination)
-                .foregroundStyle(LDTheme.text)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) {
+                    styledName
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: 0)
+                    styledStatus
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    styledName
+                    styledStatus
+                }
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            status
-                .font(LDType.destinationStatus)
-                .foregroundStyle(statusColor)
-                .multilineTextAlignment(.trailing)
+            }
             LDChevron()
         }
+        .padding(.vertical, 4)
         .padding(.horizontal, LDTheme.textInset)
         .frame(minHeight: 46)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+    }
+
+    private var styledName: some View {
+        name
+            .font(LDType.destination)
+            .foregroundStyle(LDTheme.text)
+    }
+
+    private var styledStatus: some View {
+        status
+            .font(LDType.destinationStatus)
+            .foregroundStyle(statusColor)
     }
 }
 
@@ -565,10 +624,13 @@ struct LDSegment<Value: Hashable> {
 struct LDSegmented<Value: Hashable>: View {
     @Binding private var selection: Value
     private let segments: [LDSegment<Value>]
+    private let label: LocalizedStringKey?
 
-    init(selection: Binding<Value>, segments: [LDSegment<Value>]) {
+    /// `label` is what VoiceOver calls the group: the boards have no visible title on some.
+    init(selection: Binding<Value>, segments: [LDSegment<Value>], label: LocalizedStringKey? = nil) {
         _selection = selection
         self.segments = segments
+        self.label = label
     }
 
     var body: some View {
@@ -599,6 +661,8 @@ struct LDSegmented<Value: Hashable>: View {
         .padding(.vertical, 1)
         .ldSurface(radius: 12)
         .padding(.horizontal, LDTheme.cardInset)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(label.map { Text($0) } ?? Text(verbatim: ""))
     }
 }
 
@@ -812,7 +876,8 @@ private struct LDButtonBody: View {
 }
 
 /// A capsule button with the boards' side margin of 14 when it is full width. Pass `inset: 0` in a
-/// footer. Give it a `route` instead of an action to push that route.
+/// footer. Give it a `route` instead of an action to push that route. `isBusy` shows a spinner next
+/// to the title and disables it, for as long as the work runs.
 struct LDButton: View {
     private enum Target {
         case action(() -> Void)
@@ -824,6 +889,7 @@ struct LDButton: View {
     private let size: LDButtonSize
     private let fullWidth: Bool
     private let inset: CGFloat
+    private let isBusy: Bool
     private let target: Target
 
     init(
@@ -832,9 +898,10 @@ struct LDButton: View {
         size: LDButtonSize = .regular,
         fullWidth: Bool = true,
         inset: CGFloat? = nil,
+        isBusy: Bool = false,
         action: @escaping () -> Void
     ) {
-        self.init(title: Text(title), kind: kind, size: size, fullWidth: fullWidth, inset: inset, target: .action(action))
+        self.init(title: Text(title), kind: kind, size: size, fullWidth: fullWidth, inset: inset, isBusy: isBusy, target: .action(action))
     }
 
     init(
@@ -843,9 +910,10 @@ struct LDButton: View {
         size: LDButtonSize = .regular,
         fullWidth: Bool = true,
         inset: CGFloat? = nil,
+        isBusy: Bool = false,
         action: @escaping () -> Void
     ) {
-        self.init(title: title, kind: kind, size: size, fullWidth: fullWidth, inset: inset, target: .action(action))
+        self.init(title: title, kind: kind, size: size, fullWidth: fullWidth, inset: inset, isBusy: isBusy, target: .action(action))
     }
 
     init(
@@ -856,15 +924,16 @@ struct LDButton: View {
         inset: CGFloat? = nil,
         route: LDRoute
     ) {
-        self.init(title: Text(title), kind: kind, size: size, fullWidth: fullWidth, inset: inset, target: .route(route))
+        self.init(title: Text(title), kind: kind, size: size, fullWidth: fullWidth, inset: inset, isBusy: false, target: .route(route))
     }
 
-    private init(title: Text, kind: LDButtonKind, size: LDButtonSize, fullWidth: Bool, inset: CGFloat?, target: Target) {
+    private init(title: Text, kind: LDButtonKind, size: LDButtonSize, fullWidth: Bool, inset: CGFloat?, isBusy: Bool, target: Target) {
         self.title = title
         self.kind = kind
         self.size = size
         self.fullWidth = fullWidth
         self.inset = inset ?? (fullWidth ? LDTheme.cardInset : 0)
+        self.isBusy = isBusy
         self.target = target
     }
 
@@ -872,13 +941,25 @@ struct LDButton: View {
         Group {
             switch target {
             case .action(let action):
-                Button(action: action) { title }
+                Button(action: action) { label }
             case .route(let route):
-                NavigationLink(value: route) { title }
+                NavigationLink(value: route) { label }
             }
         }
         .buttonStyle(LDButtonStyle(kind, size: size, fullWidth: fullWidth))
+        .disabled(isBusy)
         .padding(.horizontal, inset)
+    }
+
+    private var label: some View {
+        HStack(spacing: 8) {
+            if isBusy {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(kind == .primary ? LDTheme.onAccent : LDTheme.text)
+            }
+            title
+        }
     }
 }
 
@@ -997,31 +1078,62 @@ struct LDKeyValue {
     }
 }
 
-/// Labels on the left, values in Space Mono on the right, on a card.
+/// Labels on the left, values in Space Mono on the right, on a card. A grid gives every label the
+/// width of the longest, so none breaks in the middle of a word. At the accessibility text sizes
+/// the value goes under its label.
 struct LDKeyValueList: View {
     let items: [LDKeyValue]
 
-    @ScaledMetric(relativeTo: .footnote) private var keyWidth: CGFloat = 88
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     init(_ items: [LDKeyValue]) {
         self.items = items
     }
 
     var body: some View {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                stacked
+            } else {
+                columns
+            }
+        }
+        .ldSurface(radius: LDTheme.cardRadius)
+        .padding(.top, 4)
+        .padding(.horizontal, LDTheme.cardInset)
+    }
+
+    private var columns: some View {
+        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 8, verticalSpacing: 0) {
+            ForEach(items.indices, id: \.self) { index in
+                GridRow {
+                    keyText(items[index])
+                        .padding(.vertical, 7)
+                        .padding(.leading, 14)
+                        .accessibilityHidden(true)
+                    valueText(items[index])
+                        .padding(.vertical, 7)
+                        .padding(.trailing, 14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        // A grid row has no element of its own to combine the two in.
+                        .accessibilityLabel(Text(items[index].key))
+                        .accessibilityValue(items[index].value)
+                }
+                if index < items.count - 1 {
+                    LDDivider()
+                }
+            }
+        }
+    }
+
+    private var stacked: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(items.indices, id: \.self) { index in
-                let item = items[index]
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(item.key)
-                        .font(LDType.rowSubtitle)
-                        .foregroundStyle(LDTheme.muted)
-                        .frame(width: keyWidth, alignment: .leading)
-                    item.value
-                        .font(LDType.monoValue)
-                        .foregroundStyle(item.color)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    keyText(items[index])
+                    valueText(items[index])
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 7)
                 .padding(.horizontal, 14)
                 .accessibilityElement(children: .combine)
@@ -1030,28 +1142,61 @@ struct LDKeyValueList: View {
                 }
             }
         }
-        .ldSurface(radius: LDTheme.cardRadius)
-        .padding(.top, 4)
-        .padding(.horizontal, LDTheme.cardInset)
+    }
+
+    private func keyText(_ item: LDKeyValue) -> some View {
+        Text(item.key)
+            .font(LDType.rowSubtitle)
+            .foregroundStyle(LDTheme.muted)
+    }
+
+    private func valueText(_ item: LDKeyValue) -> some View {
+        item.value
+            .font(LDType.monoValue)
+            .foregroundStyle(item.color)
+            .textSelection(.enabled)
     }
 }
 
-/// Text as it is, in Space Mono on a card. Long lines scroll sideways.
+/// Text as it is, in Space Mono on a card. Long lines scroll sideways, or wrap with `wraps`: a
+/// stored payload is compact JSON, one line of up to 12,000 characters. `selectable: false` is for
+/// a payload, where a Copy button is what keeps it on this iPhone: a text selection goes through
+/// the general pasteboard, which is shared with other devices.
 struct LDCodeBlock: View {
     let text: String
     var color: Color = LDTheme.inactive
+    var wraps = false
+    var selectable = true
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            Text(verbatim: text)
-                .font(LDType.monoValue)
-                .foregroundStyle(color)
-                .textSelection(.enabled)
-                .padding(14)
+        Group {
+            if wraps {
+                code
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    code
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .ldSurface(radius: LDTheme.cardRadius)
         .padding(.horizontal, LDTheme.cardInset)
+    }
+
+    @ViewBuilder
+    private var code: some View {
+        let plain = Text(verbatim: text)
+            .font(LDType.monoValue)
+            .foregroundStyle(color)
+        if selectable {
+            plain
+                .textSelection(.enabled)
+                .padding(14)
+        } else {
+            plain
+                .padding(14)
+        }
     }
 }
 

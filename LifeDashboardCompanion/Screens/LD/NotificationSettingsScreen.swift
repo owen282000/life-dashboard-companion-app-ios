@@ -26,9 +26,7 @@ struct NotificationSettingsScreen: View {
                     LDSegment(3, title: Text(verbatim: "3")),
                     LDSegment(5, title: Text(verbatim: "5")),
                     LDSegment(10, title: Text(verbatim: "10")),
-                ])
-                .accessibilityElement(children: .contain)
-                .accessibilityLabel("Failure threshold")
+                ], label: "Failure threshold")
                 .ldStaggerRise(1)
                 LDNote("You also hear about it when not every destination gets your data, and when data was lost.", top: 10, size: 13)
             }

@@ -66,8 +66,6 @@ struct HomeScreen: View {
             LDTileGrid {
                 moreTile
             }
-        } footer: {
-            HomeNoFooter()
         }
     }
 
@@ -108,8 +106,6 @@ struct HomeScreen: View {
                     .ldLink(to: .notifications)
                 moreTile
             }
-        } footer: {
-            HomeNoFooter()
         }
     }
 
@@ -178,8 +174,8 @@ struct HomeScreen: View {
                 Spacer(minLength: 8)
                 // With nothing selected there is nothing to sync, so the board has no button.
                 if state != .nothingSelected {
-                    LDButton(isSyncing ? Text("Syncing...") : Text("Sync now"), size: .small, fullWidth: false, action: syncNow)
-                        .disabled(!prefs.healthSyncConfigured || isSyncing || backfill.isRunning)
+                    LDButton(isSyncing ? Text("Syncing...") : Text("Sync now"), size: .small, fullWidth: false, isBusy: isSyncing, action: syncNow)
+                        .disabled(!prefs.healthSyncConfigured || backfill.isRunning)
                 }
             }
             .padding(.top, 4)
@@ -524,14 +520,6 @@ private extension SyncOutcome {
         case .failure, .warning: return LDTheme.warning
         case .info: return LDTheme.secondary
         }
-    }
-}
-
-/// Stands in for LDScreen's default footer. An EmptyView in its safeAreaInset takes up the whole
-/// height, so the screen's viewport is 0 high and the tiles do not pin to the bottom.
-private struct HomeNoFooter: View {
-    var body: some View {
-        Color.clear.frame(height: 0)
     }
 }
 

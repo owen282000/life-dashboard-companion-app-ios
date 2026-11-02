@@ -41,15 +41,8 @@ struct BackupRestoreScreen: View {
             LDGap(10)
             // The picker and the save dialog hang on separate views: SwiftUI shows only one of
             // two on the same view.
-            LDButton("Export settings", action: prepareExport)
-                .overlay(alignment: .trailing) {
-                    if isWorking {
-                        ProgressView()
-                            .tint(LDTheme.onAccent)
-                            .padding(.trailing, 32)
-                    }
-                }
-                .disabled(isWorking || (includeSecrets && !passwordIsValid))
+            LDButton("Export settings", isBusy: isWorking, action: prepareExport)
+                .disabled(includeSecrets && !passwordIsValid)
                 .accessibilityHint("Saves your settings as a file")
                 .fileExporter(
                     isPresented: $showExporter,

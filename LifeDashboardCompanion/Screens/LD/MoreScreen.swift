@@ -33,9 +33,7 @@ struct MoreScreen: View {
                 LDSegment(AppTheme.system, "System"),
                 LDSegment(AppTheme.light, "Light"),
                 LDSegment(AppTheme.dark, "Dark"),
-            ])
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel("Appearance")
+            ], label: "Appearance")
             .ldStaggerRise(2)
             LDGap(14)
             LDCard {
