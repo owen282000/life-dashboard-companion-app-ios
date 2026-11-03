@@ -28,7 +28,7 @@ struct PairingScannerView: View {
                 LDGap(90)
                 viewfinder
                 if let message {
-                    LDNote(message, color: LDTheme.text, top: 28)
+                    LDNote(Text(message), color: LDTheme.text, top: 28)
                 }
                 LDGap(20)
                 if state == .denied, let url = URL(string: UIApplication.openSettingsURLString) {
@@ -49,6 +49,7 @@ struct PairingScannerView: View {
             }
         }
         .task { await prepare() }
+        .onChange(of: state) { announceMessage() }
         .onDisappear { controller.stop() }
     }
 
@@ -77,19 +78,25 @@ struct PairingScannerView: View {
         .accessibilityHidden(true)
     }
 
-    private var message: Text? {
+    private var message: LocalizedStringResource? {
         switch state {
         case .asking:
             return nil
         case .running:
-            return Text(hint)
+            return hint
         case .denied, .restricted:
-            return Text("Camera access is needed to scan a code. You can also paste the address and the secret by hand.")
+            return "Camera access is needed to scan a code. You can also paste the address and the secret by hand."
         case .unavailable:
-            return Text("This device has no camera. Paste the address and the secret by hand instead.")
+            return "This device has no camera. Paste the address and the secret by hand instead."
         case .failed:
-            return Text("The camera could not be started.")
+            return "The camera could not be started."
         }
+    }
+
+    /// The line under the viewfinder changes while VoiceOver is on something else, such as Close.
+    private func announceMessage() {
+        guard let message else { return }
+        AccessibilityNotification.Announcement(String(localized: message)).post()
     }
 
     /// Asks once, on opening. A refusal gets an explanation and a way to Settings, because iOS
@@ -130,8 +137,10 @@ struct PairingScannerView: View {
             onScanned(link)
         case .invalid(let problem):
             hint = problem.message
+            announceMessage()
         case .notAPairingLink:
             hint = "That is not a Life Dashboard pairing code."
+            announceMessage()
         }
     }
 }

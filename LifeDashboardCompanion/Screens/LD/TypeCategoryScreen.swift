@@ -240,11 +240,12 @@ private struct NotAvailableNames: View {
 private struct NotAvailableYetCard: View {
     let names: [LocalizedStringResource]
     @State private var isOpen = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         LDCard {
             Button {
-                withAnimation(.easeOut(duration: 0.2)) { isOpen.toggle() }
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { isOpen.toggle() }
             } label: {
                 HStack(spacing: 8) {
                     Text("Not available yet")

@@ -713,6 +713,8 @@ struct LDFieldRow<Trailing: View>: View {
                 Text(label)
                     .font(LDType.rowSubtitle)
                     .foregroundStyle(LDTheme.muted)
+                    // The field below carries this label itself; VoiceOver would say it twice.
+                    .accessibilityHidden(text != nil)
                 if let text {
                     // A field keeps its prompt on the side of the language, whatever the direction it
                     // is given. An example address is code too, so on a right-to-left screen it is drawn here.
@@ -727,6 +729,8 @@ struct LDFieldRow<Trailing: View>: View {
                     .font(font)
                     .foregroundStyle(LDTheme.text)
                     .tint(LDTheme.accent)
+                    // With a prompt of its own a field no longer takes its name from the title above.
+                    .accessibilityLabel(Text(label))
                     .overlay(alignment: .leading) {
                         if let drawnPrompt, text.wrappedValue.isEmpty {
                             Text(verbatim: drawnPrompt)
@@ -752,6 +756,8 @@ struct LDFieldRow<Trailing: View>: View {
         .padding(.vertical, 8)
         .padding(.horizontal, 14)
         .frame(minHeight: 60)
+        // A value that cannot be edited reads with its label; a field and a reveal button stay apart.
+        .accessibilityElement(children: text == nil ? .combine : .contain)
     }
 }
 

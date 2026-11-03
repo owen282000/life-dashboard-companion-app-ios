@@ -87,22 +87,25 @@ struct SyncStatusView: View {
 
             Spacer(minLength: 2)
 
-            Text(entry.recordsToday.formatted())
-                .font(.custom("SpaceGrotesk-Bold", size: 34, relativeTo: .largeTitle))
-                .tracking(-0.5)
-                .monospacedDigit()
-                .minimumScaleFactor(0.5)
-                .lineLimit(1)
-                .foregroundStyle(WidgetTheme.text)
-                // Dimmed from a tap on Sync Now until the sync reloads the widget.
-                .invalidatableContent()
-            // Picked here because the number above is styled on its own and a plural form must
-            // contain it. Right for English, Dutch and German, where only 1 is singular.
-            Text(entry.recordsToday == 1 ? "record today" : "records today")
-                .font(.custom("SpaceGrotesk-Medium", size: 13, relativeTo: .caption))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .foregroundStyle(WidgetTheme.muted)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(entry.recordsToday.formatted())
+                    .font(.custom("SpaceGrotesk-Bold", size: 34, relativeTo: .largeTitle))
+                    .tracking(-0.5)
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                    .foregroundStyle(WidgetTheme.text)
+                    // Dimmed from a tap on Sync Now until the sync reloads the widget.
+                    .invalidatableContent()
+                // Picked here because the number above is styled on its own and a plural form must
+                // contain it. Right for English, Dutch and German, where only 1 is singular.
+                Text(entry.recordsToday == 1 ? "record today" : "records today")
+                    .font(.custom("SpaceGrotesk-Medium", size: 13, relativeTo: .caption))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .foregroundStyle(WidgetTheme.muted)
+            }
+            .accessibilityElement(children: .combine)
 
             Spacer(minLength: 2)
 

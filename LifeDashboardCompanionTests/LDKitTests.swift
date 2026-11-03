@@ -224,6 +224,23 @@ final class LDKitTests: XCTestCase {
         XCTAssertEqual(widths([50], in: 340), [[340]])
     }
 
+    /// VoiceOver hears how a delivery went before anything else, also on a row that only shows a code.
+    func testALogRowSaysHowItWentFirst() {
+        let failed = WebhookLog(
+            url: "https://example.com/hook",
+            statusCode: 502,
+            success: false,
+            errorMessage: "HTTP 502",
+            recordCount: 3,
+            logType: .healthConnect
+        )
+        XCTAssertTrue(failed.ldSpokenRow.hasPrefix(String(localized: "Failed") + ", 502, example.com, "), failed.ldSpokenRow)
+        XCTAssertFalse(failed.ldSpokenRow.contains("·"))
+
+        let delivered = WebhookLog(url: "https://example.com/hook", statusCode: 200, success: true, recordCount: 3, logType: .healthConnect)
+        XCTAssertTrue(delivered.ldSpokenRow.hasPrefix(String(localized: "Delivered") + ", 200, example.com, "), delivered.ldSpokenRow)
+    }
+
     @MainActor
     func testAPairingLinkClearsWhatIsOpenOverHealth() {
         let navigator = LDNavigator()

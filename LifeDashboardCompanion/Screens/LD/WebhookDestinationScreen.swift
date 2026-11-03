@@ -348,6 +348,7 @@ private struct DestinationHeaderRow: View {
     @State private var isValueShown = false
     @State private var isOpen = false
     @State private var dragged: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var isInvalid: Bool {
         SettingsValidation.firstInvalidHeader([name: value]) != nil
@@ -401,7 +402,7 @@ private struct DestinationHeaderRow: View {
                     dragged = abs(drag.translation.width)
                 }
                 .onEnded { _ in
-                    withAnimation(.easeOut(duration: 0.2)) {
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
                         if dragged > Self.deleteWidth / 2 { isOpen.toggle() }
                         dragged = 0
                     }

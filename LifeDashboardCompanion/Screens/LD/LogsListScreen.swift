@@ -353,8 +353,8 @@ extension WebhookLog {
         }
     }
 
-    /// The row's second line: type, count and size, and the word when it was not a plain delivery.
-    var ldSummary: String {
+    /// Type, count and size.
+    private var ldFacts: [String] {
         let type = ldTypeLabel
         var parts: [String]
         if let count = recordCount, count > 0 {
@@ -363,8 +363,26 @@ extension WebhookLog {
             parts = [type]
         }
         if let size = ldPayloadSize { parts.append(size) }
+        return parts
+    }
+
+    /// The row's second line: type, count and size, and the word when it was not a plain delivery.
+    var ldSummary: String {
+        var parts = ldFacts
         if !success || isMqtt { parts.append(ldOutcome) }
         return parts.joined(separator: " · ")
+    }
+
+    /// The row as VoiceOver reads it: how it went first, so a failure is heard before the rest. The
+    /// dots of the summary are commas here, and the seconds are left out.
+    var ldSpokenRow: String {
+        var parts = [ldOutcome]
+        if let statusCode { parts.append("\(statusCode)") }
+        parts.append(ldDestination)
+        parts.append(timestamp.formatted(date: .omitted, time: .shortened))
+        parts += ldFacts.joined(separator: " · ").components(separatedBy: " · ")
+        if let reason = ldFailureLine { parts.append(reason) }
+        return parts.joined(separator: ", ")
     }
 
     /// The reason under a failed row. An MQTT row has the error as iOS reported it.
@@ -427,7 +445,8 @@ private struct LogDeliveryRow: View {
             LDHairline()
         }
         .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: log.ldSpokenRow))
     }
 
     private var titleLine: some View {

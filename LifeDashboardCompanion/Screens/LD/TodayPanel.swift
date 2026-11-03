@@ -80,8 +80,9 @@ struct TodayPanel: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityValue(stat.trend)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(stat.spokenName)
+        .accessibilityValue(stat.spokenValue)
         .ldLink(to: .whatToSend)
         .ldStaggerRise(firstIndex + index)
     }
@@ -97,8 +98,9 @@ struct TodayPanel: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityValue(stat.trend)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(stat.spokenName)
+        .accessibilityValue(stat.spokenValue)
         .ldLink(to: .whatToSend)
         .ldStaggerRise(firstIndex)
     }
@@ -152,6 +154,22 @@ private extension TodayStat {
         case .weight:
             return value.formatted(.number.precision(.fractionLength(1)))
         }
+    }
+
+    /// What the figure is. The caption is no name for VoiceOver: "kg" says nothing without the panel.
+    var spokenName: Text {
+        switch kind {
+        case .steps: return Text(HealthDataType.steps.displayName)
+        case .sleep: return Text(HealthDataType.sleep.displayName)
+        case .restingHeartRate: return Text(HealthDataType.restingHeartRate.displayName)
+        case .weight: return Text(HealthDataType.weight.displayName)
+        }
+    }
+
+    var spokenValue: Text {
+        let figure = Text(verbatim: formattedLatest)
+        let withUnit = kind == .weight ? figure + Text(verbatim: " ") + caption : figure
+        return withUnit + Text(verbatim: ", ") + trend
     }
 
     /// The line in words, which VoiceOver cannot read off the drawing.

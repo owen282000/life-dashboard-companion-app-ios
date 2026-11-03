@@ -76,6 +76,8 @@ struct PairedResultView: View {
             LDButton("Done", kind: isDone && !showsPickTypes ? .primary : .ghost, action: onDone)
                 .disabled(outcome == nil)
         }
+        // The heading says how it went: VoiceOver goes there when the answer is in.
+        .onChange(of: outcome) { AccessibilityNotification.ScreenChanged().post() }
     }
 
     private func outcomeText(_ outcome: PairingPingOutcome) -> Text {

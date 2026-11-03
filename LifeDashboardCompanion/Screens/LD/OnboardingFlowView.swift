@@ -79,6 +79,8 @@ struct OnboardingFlowView: View {
             }
             .onChange(of: step) {
                 scroll.scrollTo(Self.topAnchor, anchor: .top)
+                // Back at the top of the new step: VoiceOver would stay on the button that was tapped.
+                AccessibilityNotification.ScreenChanged().post()
             }
         }
     }

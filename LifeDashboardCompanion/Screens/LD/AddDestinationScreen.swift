@@ -121,6 +121,7 @@ struct DestinationFieldError: View {
             message
         } icon: {
             Image(systemName: "exclamationmark.circle")
+                .accessibilityHidden(true)
         }
         .font(LDType.rowSubtitle)
         .foregroundStyle(LDTheme.warning)
