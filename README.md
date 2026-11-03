@@ -38,7 +38,7 @@
 <p align="center">
   <picture>
     <source media="(max-width: 600px)" srcset="docs/readme-hero-phone.png">
-    <img src="docs/readme-hero.png" alt="The app's Health tab on an iPhone, with 214 records today and the last sync at 9:38, next to the Home Assistant cards it feeds: today's steps, distance, heart rate and last sleep, and charts of steps per week and heart rate per day" width="900">
+    <img src="docs/readme-hero.png" alt="The app's Health tab on an iPhone: your data is arriving, Home Assistant, a webhook and an MQTT broker each delivered 3 minutes ago, today's steps, sleep, resting heart rate and weight with a week of sparklines, and the tiles What to send, When to send, Notifications and More. Next to it the Home Assistant cards it feeds: today's steps, distance, heart rate and last sleep, and charts of steps per week and heart rate per day" width="900">
   </picture>
 </p>
 

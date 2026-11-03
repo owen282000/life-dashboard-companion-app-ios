@@ -253,7 +253,7 @@ const TEXT = {
 const T = TEXT[LANG];
 
 // Rows and cards in the captures, from measure.swift through rects.js: dests, the destinations
-// on Home; essentials and rows, the pill and first categories of What to send; logrows, a delivery,
+// on Home; essentials and rows, the pill and the rows of How it goes out on What to send; logrows, a delivery,
 // an MQTT publish and the backfill; scan, the button; signing, the HMAC secret with its note;
 // payload, the JSON; split and splitY, the line that splits; privacy and source, the About tiles.
 const R = MEASURED[LANG];
@@ -335,8 +335,8 @@ if (VARIANT) {
 // 2. Home Assistant: one QR code.
 items.push(caption(2, T.ha));
 items.push(phone(RAW + "paired.png", 2, -70, 950, 860, 3, -8));
-items.push(float(`<img src="${HA}pairing-qr.png" style="display:block;width:540px;height:540px">`, 2, 700, 1650, 544, { label: "Home Assistant", rotate: -4, z: 6 }));
-items.push(float(crop(RAW + "setup-destination.png", 1320, R.scan, 1040), 2, 150, 2400, 1040, { rotate: 2, z: 7, radius: 200, bare: true }));
+items.push(float(`<img src="${HA}pairing-qr.png" style="display:block;width:540px;height:540px">`, 2, 700, 1740, 544, { label: "Home Assistant", rotate: -4, z: 6 }));
+items.push(float(crop(RAW + "setup-destination.png", 1320, R.scan, 1040), 2, 150, 2470, 1040, { rotate: 2, z: 7, radius: 200, bare: true }));
 
 // 3. For builders: the payload and its signature.
 items.push(caption(3, T.hook));
@@ -348,9 +348,9 @@ items.push(`<div class="code" style="left:${sx(3, 40, 1020)}px;top:2430px;width:
 // 4. What to send.
 items.push(caption(4, T.what));
 items.push(phone(RAW + "what.png", 4, 110, 950, 880, -4, 7));
-const pillWidth = Math.round(R.essentials[2] * 1.8);
+const pillWidth = Math.min(600, Math.round(R.essentials[2] * 1.8));
 items.push(float(crop(RAW + "what.png", 1320, R.essentials, pillWidth), 4, 1280 - pillWidth, 1300, pillWidth, { rotate: 5, z: 6, radius: 200, bare: true }));
-items.push(float(crop(RAW + "what.png", 1320, R.rows, 820), 4, 460, 2020, 820, { rotate: -3, z: 6 }));
+items.push(float(crop(RAW + "what.png", 1320, R.rows, 1000), 4, 280, Math.min(2365, Math.round(938 + R.rows[1] * 0.617)), 1000, { rotate: -3, z: 6 }));
 
 // 5. The proof.
 items.push(caption(5, T.logs));

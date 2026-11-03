@@ -100,7 +100,10 @@ for language in languages {
     let signing = [30, signingCard.top - 70, 1260, afterSigning.top - 100 - (signingCard.top - 70)]
 
     let payloadTop = delivery.cards(x: inCard, from: 500).last!.top
-    let payload = [44, payloadTop, 1232, min(800, 2410 - payloadTop)]
+    // Up to the last gap between two lines of the JSON, so no line is cut through.
+    var payloadEnd = payloadTop + min(800, 2410 - payloadTop)
+    while (60..<1260).contains(where: { x in let (r, g, b) = delivery.rgb(x, payloadEnd); return max(r, g, b) > 110 }) { payloadEnd -= 1 }
+    let payload = [44, payloadTop, 1232, payloadEnd - payloadTop]
 
     // The pill: in its left padding for the height, then along a row above its label for the
     // width, plus what the round ends take off in both.
@@ -112,9 +115,10 @@ for language in languages {
     while right < 1319, what.isAccent(right + 1, pillRow) { right += 1 }
     let essentials = [left - 8, pillRun.top - 12, right - left + 17, pillRun.bottom - pillRun.top + 25]
 
-    let categories = what.cards(x: inCard, from: pillRun.bottom)[0]
-    let rowsEnd = categories.dividers.first { $0 > categories.top + 400 } ?? categories.top + 460
-    let rows = [44, categories.top - 2, 1232, rowsEnd - categories.top + 4]
+    // How it goes out, the card under the categories: Data resolution and Send history.
+    let goesOut = what.cards(x: inCard, from: pillRun.bottom)[1]
+    let rowsEnd = goesOut.dividers.filter { $0 > goesOut.top + 60 }.dropFirst().first ?? goesOut.top + 300
+    let rows = [44, goesOut.top - 2, 1232, rowsEnd - goesOut.top + 2]
 
     let lines = logs.hairlines(from: 600)
     let logRows = [0, lines[1], 1320, lines[4] - lines[1]]

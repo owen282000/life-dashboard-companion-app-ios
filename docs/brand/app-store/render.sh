@@ -70,6 +70,7 @@ if [ "${1:-}" = header ]; then
     shot "$OUT/search-$lang-3840x2560.png" 3840 2560 "file://$PWD/$DIR/header.html?size=3840x2560&lang=$lang"
   done
   for f in "$OUT"/header-*.png "$OUT"/search-*.png; do
+    finish "$f"
     sips --embedProfile "$SRGB" "$f" >/dev/null
   done
   exit 0
