@@ -38,23 +38,32 @@ LifeDashboardCompanion/Models/AppDiagnostic.swift | HTTP %arg: more than %arg re
 LifeDashboardCompanion/Models/AppDiagnostic.swift | HTTP %arg: Google asked for a sign-in, so nothing reached the script. Deploy the Apps Script web app with "Who has access" set to Anyone. | diagnostic | stored form, display() translates it
 LifeDashboardCompanion/Models/AppDiagnostic.swift | Custom header "%arg" is not valid, so nothing was sent. Remove it under Webhook and add it again. | diagnostic | stored form, display() translates it
 
-key:Localizable | %lld set up | no-plural | "3 ingesteld", "3 eingerichtet": the participle does not change with the count
-key:Localizable | %lld configured | no-plural | the participle does not change with the count
 key:Localizable | %lld of %lld selected | no-plural | the participle does not change with the count
 key:Localizable | %lld bucketed | no-plural | "3 gebundeld", "3 gebündelt": the participle does not change with the count
-key:Localizable | All %lld types the app can read | no-plural | always all 28 types
 key:Localizable | Step %lld of %lld | no-plural | a position, not an amount
 key:Localizable | Every %lld min | no-plural | abbreviated unit
 key:Localizable | Sync interval set to %lld min, the nearest this app allows. | no-plural | abbreviated unit
 key:Localizable | Min %lld minutes | no-plural | never below 15
-key:Localizable | Steps, last %lld days | no-plural | always 7
 key:Localizable | Unknown error after %lld attempts | no-plural | always WebhookRetryPolicy.maxAttempts, 3
 key:Localizable | HTTP %lld: more than %lld redirects, the last to %@. Enter the final address as the webhook URL. | no-plural | always WebhookRedirect.maxRedirects, 5
 key:Localizable | Delivery failed after %lld of %lld windows. Resume continues from there. | no-plural | a backfill has at least 10 windows (30 days in 3-day chunks)
 key:Localizable | Stopped after %lld of %lld windows: HealthKit did not return %@. | no-plural | a backfill has at least 10 windows (30 days in 3-day chunks)
 key:Localizable | Delivered to %lld of %lld destinations, see Logs. | no-plural | shown only when some but not all webhooks took a sync, so the total is at least 2
+key:Localizable | %lld of %lld | no-plural | a position in a list, the noun is on the row
+key:Localizable | %lld of %lld selected. | no-plural | the participle does not change with the count
+key:Localizable | %lld of %lld types | no-plural | never below the total of 28 types
+key:Localizable | %lld of %lld types. | no-plural | never below the total of 28 types
+key:Localizable | %lld pending | no-plural | a status next to the outbox, the word does not change with the count
+key:Localizable | Backfilling %lld of %lld. | no-plural | a position in a backfill, not an amount
+key:Localizable | %lld failed, %lld delivered. | no-plural | two counts in one status line, the participles do not change with the count
+key:Localizable | Delivered %@, %lld records. | no-plural | shown only with more than one record; 0 and 1 have their own text
+LifeDashboardCompanion/Screens/LD/HomeScreen.swift | Home Assistant | brand | product name of a destination
+LifeDashboardCompanion/Screens/LD/AboutHomeScreen.swift | Home Assistant | brand | product name
+LifeDashboardCompanion/Screens/LD/AboutHomeScreen.swift | Life Dashboard Stack | brand | product name
+LifeDashboardCompanion/Screens/LD/AboutSupportScreen.swift | App Store | brand | product name
+LifeDashboardCompanion/Screens/PairingSheet.swift | HTTP 502 | debug-name | a Debug screenshot state, the real text comes from the response
+LifeDashboardCompanion/Screens/LD/LogDetailScreen.swift | MQTT %arg | brand | protocol name in front of the translated outcome
 key:Localizable | Life Dashboard | brand | the app's name
-key:Localizable | Companion | brand | second line of the app's name on the About page
 key:Localizable | MQTT | brand | protocol name
 key:Localizable | TLS | brand | protocol name
 key:InfoPlist | CFBundleDisplayName | brand | the app's name under its icon

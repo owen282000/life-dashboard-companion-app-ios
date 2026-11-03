@@ -314,7 +314,7 @@ struct OnboardingFlowView: View {
                 color: destinationNames.isEmpty ? LDTheme.muted : LDTheme.text
             ),
             LDKeyValue(
-                "Data types",
+                "Data Types",
                 dataTypesSummary,
                 color: prefs.healthEnabledDataTypes.isEmpty ? LDTheme.muted : LDTheme.text
             )

@@ -39,10 +39,10 @@ enum LDTypeCategory: String, CaseIterable, Hashable {
         }
     }
 
-    /// What Apple Health has and the app does not read yet. English for now, and no promise: a name
-    /// leaves this list when its type is built. Clinical records and fixed traits such as blood
-    /// type are left out on purpose.
-    var notAvailableYet: [String] {
+    /// What Apple Health has and the app does not read yet, without a promise: a name leaves this
+    /// list when its type is built. Clinical records and fixed traits such as blood type are left
+    /// out on purpose.
+    var notAvailableYet: [LocalizedStringResource] {
         switch self {
         case .activity:
             return [
@@ -179,10 +179,10 @@ struct TypeCategoryScreen: View {
 /// The types of a category that the app cannot send yet: names only, nothing to switch, so it does
 /// not read as a broken control.
 private struct NotAvailableYetCard: View {
-    let names: [String]
+    let names: [LocalizedStringResource]
     @State private var isOpen: Bool
 
-    init(names: [String], startsOpen: Bool) {
+    init(names: [LocalizedStringResource], startsOpen: Bool) {
         self.names = names
         _isOpen = State(initialValue: startsOpen)
     }
@@ -212,7 +212,7 @@ private struct NotAvailableYetCard: View {
             .buttonStyle(.ldPress)
             .accessibilityValue(isOpen ? Text("Expanded") : Text("Collapsed"))
             if isOpen {
-                Text(verbatim: names.joined(separator: ", "))
+                Text(verbatim: names.map { String(localized: $0) }.formatted(.list(type: .and, width: .narrow)))
                     .font(LDType.rowSubtitle)
                     .foregroundStyle(LDTheme.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)

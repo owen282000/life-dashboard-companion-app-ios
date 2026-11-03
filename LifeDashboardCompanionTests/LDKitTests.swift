@@ -171,7 +171,7 @@ final class LDKitTests: XCTestCase {
     }
 
     func testNotAvailableYetNamesAreUniqueAndNeverATypeTheAppSends() {
-        let names = LDTypeCategory.allCases.flatMap(\.notAvailableYet)
+        let names = LDTypeCategory.allCases.flatMap(\.notAvailableYet).map { String(localized: $0) }
         XCTAssertEqual(names.count, Set(names).count)
         let built = Set(HealthDataType.allCases.map { String(localized: $0.displayName) })
         XCTAssertTrue(built.isDisjoint(with: names))

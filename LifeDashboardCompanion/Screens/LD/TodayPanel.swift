@@ -133,9 +133,9 @@ private extension TodayStat {
 
     var caption: Text {
         switch kind {
-        case .steps: return Text("steps")
-        case .sleep: return Text("sleep")
-        case .restingHeartRate: return Text("rest bpm")
+        case .steps: return Text("Steps")
+        case .sleep: return Text("Sleep")
+        case .restingHeartRate: return Text("Rest bpm")
         case .weight: return TodayStatKind.weighsInPounds ? Text("lb") : Text("kg")
         }
     }
