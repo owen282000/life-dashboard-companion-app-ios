@@ -1724,6 +1724,7 @@ private struct LDSheetToolbar: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .ldSheetBarBackground()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -1746,6 +1747,17 @@ private struct LDSheetToolbar: ViewModifier {
 }
 
 extension View {
+    /// Scrolled, the bar before iOS 26 takes the ground colour of ContentView's appearance, which
+    /// shows as a band on a sheet. iOS 26 has its own edge effect there.
+    @ViewBuilder
+    func ldSheetBarBackground() -> some View {
+        if #available(iOS 26, *) {
+            self
+        } else {
+            toolbarBackground(LDTheme.sheet, for: .navigationBar)
+        }
+    }
+
     /// The toolbar of a sheet: Cancel on the left, by default, and an optional Save on the right.
     /// Both close the sheet after running their closure. Pass `cancel: "Done"` for a sheet with
     /// nothing to save.

@@ -109,6 +109,7 @@ struct PairingSheet: View {
             }
             .navigationTitle(phase == .confirm ? "Pairing" : "Paired")
             .navigationBarTitleDisplayMode(.inline)
+            .ldSheetBarBackground()
             .toolbar { toolbar }
         }
         .presentationDragIndicator(.visible)

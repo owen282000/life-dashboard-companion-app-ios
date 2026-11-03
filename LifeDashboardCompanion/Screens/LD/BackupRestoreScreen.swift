@@ -296,6 +296,7 @@ private struct ImportSheet: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            .ldSheetBarBackground()
         }
         .tint(LDTheme.accentText)
         .presentationDragIndicator(.visible)
