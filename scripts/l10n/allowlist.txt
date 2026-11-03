@@ -63,7 +63,6 @@ LifeDashboardCompanion/Screens/LD/AboutHomeScreen.swift | Life Dashboard Stack |
 LifeDashboardCompanion/Screens/LD/AboutSupportScreen.swift | App Store | brand | product name
 LifeDashboardCompanion/Screens/PairingSheet.swift | HTTP 502 | debug-name | a Debug screenshot state, the real text comes from the response
 LifeDashboardCompanion/Screens/LD/LogDetailScreen.swift | MQTT %arg | brand | protocol name in front of the translated outcome
-key:Localizable | Life Dashboard | brand | the app's name
 key:Localizable | MQTT | brand | protocol name
 key:Localizable | TLS | brand | protocol name
 key:InfoPlist | CFBundleDisplayName | brand | the app's name under its icon

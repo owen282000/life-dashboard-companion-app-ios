@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1A2B3C4D5E6F70811111111 /* SpaceGrotesk-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 499AC8A287F020BEB1312EF1 /* SpaceGrotesk-Medium.ttf */; };
+		A1A2B3C4D5E6F70822222222 /* SpaceGrotesk-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 3E0E5A57542D3B38CD42A729 /* SpaceGrotesk-Bold.ttf */; };
+		A1A2B3C4D5E6F70833333333 /* SpaceMono-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1A2167251D8C4EC3A4C953D6 /* SpaceMono-Regular.ttf */; };
+		A1A2B3C4D5E6F70844444444 /* SpaceGrotesk-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = C4D944198A8CDAD22A45F5B0 /* SpaceGrotesk-OFL.txt */; };
+		A1A2B3C4D5E6F70855555555 /* SpaceMono-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = C0F46531AB51650E7C288455 /* SpaceMono-OFL.txt */; };
 		38E2BCA9B43557369DE7D0DE /* LDTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE56999CB424D97B8DDA080 /* LDTheme.swift */; };
 		AD4B959A1B5814AAD1F91AC9 /* LDType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17DC9B431A04405A49CB553B /* LDType.swift */; };
 		E82811BAEAA3D4374D0F30E7 /* LDPulse.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFE11735D750C6DDD58086AD /* LDPulse.swift */; };
@@ -727,6 +732,11 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1A2B3C4D5E6F70811111111 /* SpaceGrotesk-Medium.ttf in Resources */,
+				A1A2B3C4D5E6F70822222222 /* SpaceGrotesk-Bold.ttf in Resources */,
+				A1A2B3C4D5E6F70833333333 /* SpaceMono-Regular.ttf in Resources */,
+				A1A2B3C4D5E6F70844444444 /* SpaceGrotesk-OFL.txt in Resources */,
+				A1A2B3C4D5E6F70855555555 /* SpaceMono-OFL.txt in Resources */,
 				E2C932B92E95D465DA6DC064 /* Localizable.xcstrings in Resources */,
 				043E0BDA2A86B051129E7703 /* PrivacyInfo.xcprivacy in Resources */,
 			);

@@ -167,7 +167,8 @@ struct AboutHomeScreen: View {
                     .foregroundStyle(LDTheme.accentTextSoft)
                     .monospacedDigit()
             } else {
-                Text("Life Dashboard Companion, version \(version). Made by Owen Vogelaar.")
+                // The isolates keep the version one left-to-right run inside a right-to-left sentence.
+                Text("Life Dashboard Companion, version \("\u{2066}\(version)\u{2069}"). Made by Owen Vogelaar.")
                     .font(LDType.noteSmall)
                     .foregroundStyle(LDTheme.muted)
                     .lineSpacing(LDType.lineSpacing(size: 13, lineHeight: 18))
