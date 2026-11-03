@@ -360,6 +360,11 @@ private struct DestinationHeaderRow: View {
         return parts.count == 2 ? "\(parts[0]) ••••" : "••••"
     }
 
+    private var spokenName: Text {
+        guard isInvalid else { return Text(verbatim: name) }
+        return Text(verbatim: "\(name), ") + Text("Not a valid header, so nothing is sent. Remove it and add it again.")
+    }
+
     private var revealed: CGFloat {
         min(Self.deleteWidth, isOpen ? Self.deleteWidth - dragged : dragged)
     }
@@ -374,6 +379,9 @@ private struct DestinationHeaderRow: View {
             showsChevron: false
         )
         .ldButton { isValueShown.toggle() }
+        // VoiceOver would read the mask out dot by dot.
+        .accessibilityValue(isValueShown ? Text(verbatim: value) : Text("Hidden"))
+        .accessibilityLabel(spokenName)
         .accessibilityHint(Text("Shows or hides the value"))
         .accessibilityAction(named: Text("Delete"), onDelete)
         .padding(.trailing, max(0, revealed))

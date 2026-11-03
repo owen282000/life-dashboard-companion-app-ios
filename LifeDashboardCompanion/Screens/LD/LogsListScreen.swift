@@ -123,6 +123,7 @@ struct LogsListScreen: View {
             }
             .buttonStyle(.ldPress)
             .accessibilityElement(children: .combine)
+            .accessibilityValue(showsHistory ? Text("Expanded") : Text("Collapsed"))
             .accessibilityHint(showsHistory ? Text("Hides the details") : Text("Shows the details"))
 
             if showsHistory {
