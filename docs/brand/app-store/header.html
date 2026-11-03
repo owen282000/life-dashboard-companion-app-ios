@@ -2,7 +2,7 @@
 <!--
   Source for the App Store product page header and the search results asset, in the
   panorama's style (panorama.html): the same ground, grid, heartbeat line, phones and cards.
-  The size comes from the query string; render.sh renders all three:
+  The size comes from the query string; render.sh renders all three into store-assets/:
 
     header.html?size=5244x2950   header-5244x2950.png  header, 16:9 (can double as search asset)
     header.html?size=3840x1646   header-3840x1646.png  header, wide
@@ -15,7 +15,7 @@
   every edge, and the headline stays legible with the header about 600 px wide and the search
   asset about 350 px wide.
 
-  Phone screens are real captures from raw/ (scripts/store-screenshots.sh). No prices, URLs,
+  Phone screens are real captures from store-assets/raw/ (scripts/store-screenshots.sh). No prices, URLs,
   copyright signs, other platforms or stores, competitor names, Apple logos or recognitions.
 -->
 <html>
@@ -122,7 +122,7 @@
 const [W, H] = (new URLSearchParams(location.search).get("size") || "5244x2950").split("x").map(Number);
 const D = 2950, DW = Math.round(W * D / H), s = H / D;
 const LANG = new URLSearchParams(location.search).get("lang") || "en";
-const RAW = LANG === "en" ? "raw/" : `raw/${LANG}/`, HA = "ha/";
+const STORE = "../../../store-assets/", RAW = LANG === "en" ? STORE + "raw/" : `${STORE}raw/${LANG}/`, HA = "ha/";
 // The words per language; nl and de follow docs/localization.md ("je", "du").
 const T = {
   en: { wide: "Health data to<br>Home Assistant<br><em>or your own server</em>", sub: "No account, no cloud in between.", head: "Your health data,<br><em>on your own server</em>", signed: "Signed" },

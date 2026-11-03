@@ -1,5 +1,5 @@
 #!/bin/bash
-# Captures the app screens for the App Store screenshots in docs/brand/app-store/raw/, at the
+# Captures the app screens for the App Store screenshots in store-assets/raw/ (not in git), at the
 # native size of a 6.9 inch iPhone (iPhone 17 Pro Max, 1320x2868), uncropped: the panorama in
 # docs/brand/app-store/panorama.html puts them in device frames.
 #
@@ -12,8 +12,8 @@
 # comes from the real clock, so a fixed time would not match. Run it during the day: the log
 # has the morning's rows in the right order from about 8:30.
 #
-# LANG_CODE picks the language: en (the default, British English) writes to raw/, the others to
-# raw/<code>/ for their store pages. Units and dates follow the locale; the example data is the
+# LANG_CODE picks the language: en (the default, British English) writes to store-assets/raw/, the
+# others to store-assets/raw/<code>/ for their store pages. Units and dates follow the locale; the example data is the
 # same in every language. Arabic uses ar_AE: Gregorian dates and Western digits, the same digits
 # as the literal ones in its sentences.
 #
@@ -41,7 +41,7 @@ case "$LANG_CODE" in
 esac
 # The status bar follows the clock of the locale, as the times inside the app do.
 case "$LANG_CODE" in ar|hi) CLOCK=%-I:%M ;; *) CLOCK=%H:%M ;; esac
-OUT=docs/brand/app-store/raw
+OUT=store-assets/raw
 [ "$LANG_CODE" = en ] || OUT=$OUT/$LANG_CODE
 WORK=build/store-shots
 mkdir -p "$OUT" "$WORK"

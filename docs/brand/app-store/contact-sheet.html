@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- The six rendered panels side by side, for a quick review. render.sh renders it to
-     contact-sheet.png (English) and contact-sheet-<lang>.png at 2196x797. -->
+     store-assets/contact-sheet.png (English) and contact-sheet-<lang>.png at 2196x797. -->
 <html>
 <head>
 <meta charset="utf-8">
@@ -18,7 +18,7 @@
 </div>
 <script>
 const lang = new URLSearchParams(location.search).get("lang") || "en";
-document.querySelectorAll("img").forEach((img, n) => { img.src = `${lang}-${n + 1}.png`; });
+document.querySelectorAll("img").forEach((img, n) => { img.src = `../../../store-assets/${lang}-${n + 1}.png`; });
 </script>
 </body>
 </html>

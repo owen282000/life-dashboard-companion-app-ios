@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <!--
   Source for the App Store screenshots: one wide panorama of six panels, 7920x2868, that
-  render.sh renders whole (panorama-en.png) and per panel (en-1.png to en-6.png, 1320x2868, and
-  1206x2622 in 6.3/). ?lang= picks the language, from raw/<lang>/; English is the default.
+  render.sh renders into store-assets/, which is not in git, whole (panorama-en.png) and per
+  panel (en-1.png to en-6.png, 1320x2868, and 1206x2622 in 6.3/). ?lang= picks the language,
+  from store-assets/raw/<lang>/; English is the default.
   ?panel=1 to ?panel=6 shows one panel. ?variant=a swaps panel 1 for the Home Assistant lead,
   the alternative first screenshot of the Product Page Optimization test (en, nl, de, in
   variant-a/).
@@ -18,7 +19,7 @@
   before installing: what goes out and whether it arrived. 6 closes on whose data it is.
   ?variant=a is the first panel led by Home Assistant, for the test against the broad lead.
 
-  Every phone screen is a real capture of the app in the simulator (raw/, from
+  Every phone screen is a real capture of the app in the simulator (store-assets/raw/, from
   scripts/store-screenshots.sh), at its native size. The floating cards are enlarged crops of
   those captures or of the Life Dashboard integration's example dashboard (ha/dashboard.png),
   labelled as Home Assistant, and only its health cards, since an iPhone sends no screen time.
@@ -140,7 +141,7 @@ const LANG = LANGS.includes(params.get("lang")) ? params.get("lang") : "en";
 const VARIANT = params.get("variant") === "a" && ["en", "nl", "de"].includes(LANG);
 const RTL = LANG === "ar";
 document.documentElement.lang = LANG;
-const W = 1320, H = 2868, RAW = LANG === "en" ? "raw/" : `raw/${LANG}/`, HA = "ha/";
+const W = 1320, H = 2868, STORE = "../../../store-assets/", RAW = LANG === "en" ? STORE + "raw/" : `${STORE}raw/${LANG}/`, HA = "ha/";
 
 // Every word on the panels, per language: [headline line, accent line, subline]. Dutch says
 // "je", German "du", French "vous", as in the app, with the terms of docs/localization.md and
@@ -363,7 +364,7 @@ items.push(caption(6, T.about));
   items.push(`<div class="seam" style="left:${sx(6, 0, W)}px;top:${top}px">${crop(RAW + "about.png", 1320, R.split, W)}</div>`);
   items.push(float(crop(RAW + "about.png", 1320, R.privacy, 570), 6, 60, 1760, 570, { rotate: -3, radius: 56, bare: true }));
   items.push(float(crop(RAW + "about.png", 1320, R.source, 570), 6, 690, 1760, 570, { rotate: 3, radius: 56, bare: true }));
-  items.push(`<div class="sign" style="${RTL ? `left:${sx(6, 84, 800)}px;width:800px` : `left:${sx(6, 84)}px`};top:2400px;direction:ltr;${RTL ? "justify-content:flex-end" : ""}"><img src="icon.png" alt=""><b>Life Dashboard</b></div>`);
+  items.push(`<div class="sign" style="${RTL ? `left:${sx(6, 84, 800)}px;width:800px` : `left:${sx(6, 84)}px`};top:2400px;direction:ltr;${RTL ? "justify-content:flex-end" : ""}"><img src="${STORE}icon.png" alt=""><b>Life Dashboard</b></div>`);
 }
 
 document.getElementById("items").innerHTML = items.join("");

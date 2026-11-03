@@ -1,7 +1,8 @@
 #!/bin/sh
-# Renders the App Store screenshots from panorama.html with headless Chrome. Run from the
-# repository root, after scripts/store-screenshots.sh has filled raw/ and raw/<lang>/.
-# measure.swift first finds the rows the panels crop, per language (rects.js).
+# Renders the App Store screenshots from panorama.html with headless Chrome into store-assets/,
+# which is not in git. Run from the repository root, after scripts/store-screenshots.sh has filled
+# store-assets/raw/ and store-assets/raw/<lang>/. measure.swift first finds the rows the panels
+# crop, per language (rects.js).
 #
 #   docs/brand/app-store/render.sh               every language
 #   docs/brand/app-store/render.sh nl de         only these
@@ -18,15 +19,13 @@
 #   search-3840x2560.png  the search results asset, header.html in 3:2
 #   header-nl-*.png, header-de-*.png, search-nl-*.png, search-de-*.png  the same in Dutch and German
 #
-# Only what is uploaded or reviewed goes into git: the 6.9 inch panels, the contact sheets, the
-# header and search images and the raw captures. The panoramas (about 10 MB each) and the 6.3
-# inch panels are made here for a look and stay local (.gitignore); App Store Connect scales the
-# 6.9 inch panels down for smaller iPhones itself. With oxipng installed (brew install oxipng),
-# every new or changed PNG that git keeps is recompressed without loss and without changing its
-# colour type.
+# All of them land in store-assets/, with the same names. Only the sources are in git. App Store
+# Connect scales the 6.9 inch panels down for smaller iPhones itself; the panoramas and the 6.3
+# inch panels are for a look.
 set -e
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 DIR=docs/brand/app-store
+OUT=store-assets
 SRC="file://$PWD/$DIR/panorama.html"
 SRGB="/System/Library/ColorSync/Profiles/sRGB Profile.icc"
 
@@ -37,7 +36,7 @@ shot() { # out width height url
 }
 
 WORK=build/store-render
-mkdir -p "$WORK"
+mkdir -p "$WORK" "$OUT"
 cat > "$WORK/flatten.swift" <<'SWIFT'
 import AppKit
 let path = CommandLine.arguments[1]
@@ -61,16 +60,16 @@ panel() { # out dir6.3 url
 
 if [ "${1:-}" = header ]; then
   for size in 5244x2950 3840x1646; do
-    shot "$DIR/header-$size.png" "${size%x*}" "${size#*x}" "file://$PWD/$DIR/header.html?size=$size"
+    shot "$OUT/header-$size.png" "${size%x*}" "${size#*x}" "file://$PWD/$DIR/header.html?size=$size"
     for lang in nl de; do
-      shot "$DIR/header-$lang-$size.png" "${size%x*}" "${size#*x}" "file://$PWD/$DIR/header.html?size=$size&lang=$lang"
+      shot "$OUT/header-$lang-$size.png" "${size%x*}" "${size#*x}" "file://$PWD/$DIR/header.html?size=$size&lang=$lang"
     done
   done
-  shot "$DIR/search-3840x2560.png" 3840 2560 "file://$PWD/$DIR/header.html?size=3840x2560"
+  shot "$OUT/search-3840x2560.png" 3840 2560 "file://$PWD/$DIR/header.html?size=3840x2560"
   for lang in nl de; do
-    shot "$DIR/search-$lang-3840x2560.png" 3840 2560 "file://$PWD/$DIR/header.html?size=3840x2560&lang=$lang"
+    shot "$OUT/search-$lang-3840x2560.png" 3840 2560 "file://$PWD/$DIR/header.html?size=3840x2560&lang=$lang"
   done
-  for f in "$DIR"/header-*.png "$DIR"/search-*.png; do
+  for f in "$OUT"/header-*.png "$OUT"/search-*.png; do
     sips --embedProfile "$SRGB" "$f" >/dev/null
   done
   exit 0
@@ -80,36 +79,24 @@ swift "$DIR/measure.swift"
 [ $# -gt 0 ] || set -- en nl de fr es it pt-BR ja ar hi zh-Hans
 for lang in "$@"; do
   if [ "$lang" = en ]; then sheet=contact-sheet.png; else sheet=contact-sheet-$lang.png; fi
-  shot "$DIR/panorama-$lang.png" 7920 2868 "$SRC?lang=$lang"
+  shot "$OUT/panorama-$lang.png" 7920 2868 "$SRC?lang=$lang"
   for n in 1 2 3 4 5 6; do
-    panel "$DIR/$lang-$n.png" "$DIR/6.3" "$SRC?lang=$lang&panel=$n"
+    panel "$OUT/$lang-$n.png" "$OUT/6.3" "$SRC?lang=$lang&panel=$n"
   done
   case "$lang" in
     en|nl|de)
-      mkdir -p "$DIR/variant-a"
-      panel "$DIR/variant-a/$lang-1.png" "$DIR/variant-a/6.3" "$SRC?lang=$lang&panel=1&variant=a"
+      mkdir -p "$OUT/variant-a"
+      panel "$OUT/variant-a/$lang-1.png" "$OUT/variant-a/6.3" "$SRC?lang=$lang&panel=1&variant=a"
       ;;
   esac
-  shot "$DIR/$sheet" 2196 797 "file://$PWD/$DIR/contact-sheet.html?lang=$lang"
+  shot "$OUT/$sheet" 2196 797 "file://$PWD/$DIR/contact-sheet.html?lang=$lang"
 done
 
 # Tagged as sRGB, which is what Chrome rendered them in.
-for f in "$DIR"/*-[1-6].png "$DIR"/6.3/*-[1-6].png "$DIR"/variant-a/*.png "$DIR"/variant-a/6.3/*.png; do
+for f in "$OUT"/*-[1-6].png "$OUT"/6.3/*-[1-6].png "$OUT"/variant-a/*.png "$OUT"/variant-a/6.3/*.png; do
   sips --embedProfile "$SRGB" "$f" >/dev/null
 done
 
-# Smaller files in git, the same pixels: lossless, RGB stays RGB, and the sRGB profile stays.
-# Only files that are new or differ from git, so an unchanged render never shows as a change.
-if command -v oxipng >/dev/null; then
-  for f in "$DIR"/*-[1-6].png "$DIR"/contact-sheet*.png "$DIR"/variant-a/*.png "$DIR"/raw/*.png "$DIR"/raw/*/*.png; do
-    if ! git ls-files --error-unmatch "$f" >/dev/null 2>&1 || ! git diff --quiet HEAD -- "$f"; then
-      oxipng -q -o 4 --nx --strip safe "$f"
-    fi
-  done
-else
-  echo "oxipng not found: the PNGs stay as Chrome wrote them (brew install oxipng)" >&2
-fi
-
 # The App Store refuses screenshots with an alpha channel: every one must say "no".
-sips -g pixelWidth -g pixelHeight -g hasAlpha "$DIR"/*-[1-6].png "$DIR"/6.3/*-[1-6].png "$DIR"/variant-a/*.png "$DIR"/variant-a/6.3/*.png \
+sips -g pixelWidth -g pixelHeight -g hasAlpha "$OUT"/*-[1-6].png "$OUT"/6.3/*-[1-6].png "$OUT"/variant-a/*.png "$OUT"/variant-a/6.3/*.png \
   | grep -E 'pixel|hasAlpha' | paste - - - | sort | uniq -c

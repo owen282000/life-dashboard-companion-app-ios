@@ -1,4 +1,4 @@
-// Written by measure.swift from the captures in raw/: [x, y, w, h] in capture pixels.
+// Written by measure.swift from the captures in store-assets/raw/: [x, y, w, h] in capture pixels.
 const MEASURED = {
   "en": { dests: [30, 626, 1260, 400], scan: [42, 787, 1236, 148], signing: [30, 1028, 1260, 548], payload: [44, 1442, 1232, 800], essentials: [60, 619, 289, 132], rows: [44, 869, 1232, 454], logrows: [0, 969, 1320, 522], splitY: 961, split: [0, 701, 1320, 560], privacy: [43, 2275, 604, 300], source: [673, 2275, 604, 300] },
   "nl": { dests: [30, 626, 1260, 400], scan: [42, 787, 1236, 148], signing: [30, 1028, 1260, 605], payload: [44, 1442, 1232, 800], essentials: [60, 619, 253, 132], rows: [44, 869, 1232, 454], logrows: [0, 969, 1320, 522], splitY: 961, split: [0, 701, 1320, 560], privacy: [43, 2275, 604, 300], source: [673, 2275, 604, 300] },

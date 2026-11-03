@@ -6,7 +6,8 @@
   the heartbeat line, a phone frame and floating cards. Drawn at twice the size it is shown
   at: 900 px wide on a desktop, and the ?phone version for screens up to 600 px wide.
 
-  The phone shows a capture from docs/brand/app-store/raw/ (scripts/store-screenshots.sh).
+  The phone shows a capture from store-assets/raw/, which is not in git: run
+  scripts/store-screenshots.sh first.
   The Home Assistant cards are the Life Dashboard integration's example dashboard
   (docs/brand/app-store/ha/, from life-dashboard-ha): health cards only, since an
   iPhone sends no screen time. Render from the repository root:
@@ -92,7 +93,7 @@ const phoneLayout = location.search.includes("phone");
 const [W, H] = phoneLayout ? [1000, 1700] : [1800, 1000];
 document.documentElement.style.width = document.body.style.width = W + "px";
 document.documentElement.style.height = document.body.style.height = H + "px";
-const RAW = "app-store/raw/", HA = "app-store/ha/";
+const RAW = "../../store-assets/raw/", HA = "app-store/ha/";
 
 function phone(src, x, y, w, transform = "", z = 2) {
   const band = Math.round(w * 0.016), bezel = Math.round(w * 0.022);

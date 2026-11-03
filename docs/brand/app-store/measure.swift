@@ -1,9 +1,10 @@
-// Finds the rows and cards panorama.html crops in the captures of raw/ and writes them to
-// rects.js. A heading that wraps moves everything under it, per language and per screen, and
+// Finds the rows and cards panorama.html crops in the captures of store-assets/raw/ and writes
+// them to rects.js. A heading that wraps moves everything under it, per language and per screen, and
 // Arabic mirrors. Run by render.sh from the repository root: swift docs/brand/app-store/measure.swift
 import AppKit
 
 let dir = "docs/brand/app-store"
+let captures = "store-assets/raw"
 let languages = ["en", "nl", "de", "fr", "es", "it", "pt-BR", "ja", "ar", "hi", "zh-Hans"]
 
 struct Image {
@@ -77,9 +78,9 @@ struct Image {
     }
 }
 
-var out = "// Written by measure.swift from the captures in raw/: [x, y, w, h] in capture pixels.\nconst MEASURED = {\n"
+var out = "// Written by measure.swift from the captures in store-assets/raw/: [x, y, w, h] in capture pixels.\nconst MEASURED = {\n"
 for language in languages {
-    let raw = language == "en" ? "\(dir)/raw" : "\(dir)/raw/\(language)"
+    let raw = language == "en" ? captures : "\(captures)/\(language)"
     guard let home = Image("\(raw)/health.png"), let scan = Image("\(raw)/setup-destination.png"),
           let hook = Image("\(raw)/webhook.png"), let delivery = Image("\(raw)/delivery.png"),
           let what = Image("\(raw)/what.png"), let logs = Image("\(raw)/logs.png"),

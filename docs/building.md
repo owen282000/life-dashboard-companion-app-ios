@@ -103,7 +103,7 @@ The pairing sheet opens through its Debug route, so the scripts need no tap on a
 - `app-icon.html` - the heartbeat mark on its dark ground, flat, the source of the app icon's layers
 - `readme-icon.html` - the README icon: `app-icon.png`, the Liquid Glass icon exported from `AppIcon.icon` with `ictool`, on a transparent background
 - `readme-hero.html` - the README's first image, the app next to the Home Assistant cards it feeds, in a desktop and a phone version
-- `app-store/` - the App Store screenshots, header and search asset: `scripts/store-screenshots.sh` takes the screens, `app-store/render.sh` renders them
+- `app-store/` - the sources of the App Store screenshots, header and search asset: `scripts/store-screenshots.sh` takes the screens, `app-store/render.sh` renders them. Both write to `store-assets/` at the repository root, which is in `.gitignore`: the store images are generated and do not go into git. Only `app-store/ha/`, the Home Assistant images the art uses as input, is tracked. `readme-hero.html` needs the captures in `store-assets/raw/` too. The README's own screenshots stay in `docs/screenshots/`
 
 The app icon is the Icon Composer document `LifeDashboardCompanion/AppIcon.icon`: the background fill and the Liquid Glass settings in `icon.json`, and the mark as SVG layers in `Assets/`, which `docs/brand/app-icon-layers.swift` writes from the points in `app-icon.html`. iOS 26 and later draw it in Liquid Glass, with its dark, clear and tinted versions; Xcode flattens it into the icon for iOS 17 and 18. Open it in Icon Composer (Xcode > Open Developer Tool) to preview or tune the glass; `app-icon.html` says how to export a preview with `ictool`.
 
