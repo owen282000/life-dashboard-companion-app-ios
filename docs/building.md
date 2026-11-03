@@ -93,7 +93,7 @@ It builds the app, installs it on a simulator of its own (`ld-screenshots`, an i
 | `-ld.demoSteps 5200,7100,...` | example daily step totals for the Today panel, since the simulator has none; `-ld.demoSleep`, `-ld.demoRest` and `-ld.demoWeight` do the same for the other three figures |
 | `-ld.ask NO` | no Health sheet: the Health tab does not ask for access by itself (the script sets it as a default) |
 
-The pairing sheet needs a tap on iOS's "Open in Life Dashboard?" prompt, which the script sends as Return to the Simulator app; without a Simulator app it keeps the pairing screenshot that is there. The screenshots are dark, in English with 24-hour times, without the status bar, and 1080 pixels wide, like the Android app's. The simulator has no Health data, so the numbers on them are examples. Look at every one at full size before you commit it.
+The pairing sheet opens through its Debug route, so the scripts need no tap on a prompt. The screenshots are dark, in English with 24-hour times, without the status bar, and 1080 pixels wide, like the Android app's. The simulator has no Health data, so the numbers on them are examples. Look at every one at full size before you commit it.
 
 ## Brand images
 
