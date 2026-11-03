@@ -18,7 +18,7 @@ struct WhatToSendScreen: View {
     @EnvironmentObject private var navigator: LDNavigator
 
     @State private var accessRequest: HKAuthorizationRequestStatus?
-    @State private var confirmNone = false
+    @State private var showsCustomHint = false
 
     var body: some View {
         let enabled = prefs.healthEnabledDataTypes
@@ -44,12 +44,6 @@ struct WhatToSendScreen: View {
         .navigationTitle("What to send")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: enabled) { await refreshAccessRequest() }
-        .confirmationDialog("Stop sending all types?", isPresented: $confirmNone, titleVisibility: .visible) {
-            Button("Turn off all types", role: .destructive) { apply([]) }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Nothing is sent until you pick types again.")
-        }
         #if DEBUG
         .onAppear { LDTypeCategory.assertCoversEveryType() }
         #endif
@@ -62,14 +56,30 @@ struct WhatToSendScreen: View {
         let everything = Set(HealthDataType.allCases)
         LDChips {
             LDChip("Essentials", isSelected: enabled == OnboardingView.essentials) {
-                apply(OnboardingView.essentials)
+                applyPreset(OnboardingView.essentials)
             }
             LDChip("All types", isSelected: enabled == everything) {
-                apply(everything)
+                applyPreset(everything)
             }
-            LDChip("None", isSelected: enabled.isEmpty) {
-                if !enabled.isEmpty { confirmNone = true }
+            LDChip("Custom", isSelected: !WhatToSendSelection.isPreset(enabled)) {
+                guard WhatToSendSelection.isPreset(enabled) else { return }
+                if let custom = prefs.healthCustomDataTypes {
+                    apply(custom)
+                } else {
+                    showsCustomHint = true
+                }
             }
+        }
+        if showsCustomHint && WhatToSendSelection.isPreset(enabled) {
+            LDNote("Switch types on or off by category. Your choice stays here.", size: 13)
+        }
+    }
+
+    private func applyPreset(_ types: Set<HealthDataType>) {
+        showsCustomHint = false
+        Task {
+            await WhatToSendSelection.applyPreset(types, prefs: prefs)
+            await refreshAccessRequest()
         }
     }
 

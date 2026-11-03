@@ -170,6 +170,14 @@ final class LDKitTests: XCTestCase {
         }
     }
 
+    @MainActor
+    func testOnlyTheTwoPresetsCountAsAPreset() {
+        XCTAssertTrue(WhatToSendSelection.isPreset(OnboardingView.essentials))
+        XCTAssertTrue(WhatToSendSelection.isPreset(Set(HealthDataType.allCases)))
+        XCTAssertFalse(WhatToSendSelection.isPreset([]))
+        XCTAssertFalse(WhatToSendSelection.isPreset(OnboardingView.essentials.union([.hydration])))
+    }
+
     func testNotAvailableYetNamesAreUniqueAndNeverATypeTheAppSends() {
         let names = LDTypeCategory.allCases.flatMap(\.notAvailableYet).map { String(localized: $0) }
         XCTAssertEqual(names.count, Set(names).count)

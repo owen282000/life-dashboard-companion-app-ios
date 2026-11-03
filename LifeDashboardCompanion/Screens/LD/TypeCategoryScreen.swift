@@ -128,7 +128,20 @@ enum WhatToSendSelection {
         )
     }
 
-    /// A preset: iOS is asked once, for the types it brings in.
+    /// The presets of What to send. Anything else is someone's own choice.
+    static func isPreset(_ types: Set<HealthDataType>) -> Bool {
+        types == OnboardingView.essentials || types == Set(HealthDataType.allCases)
+    }
+
+    /// A preset replaces the selection, so a choice made by hand is kept to come back to.
+    static func applyPreset(_ types: Set<HealthDataType>, prefs: PreferencesManager) async {
+        if !isPreset(prefs.healthEnabledDataTypes) {
+            prefs.healthCustomDataTypes = prefs.healthEnabledDataTypes
+        }
+        await apply(types, prefs: prefs)
+    }
+
+    /// A preset or a saved choice: iOS is asked once, for the types it brings in.
     static func apply(_ types: Set<HealthDataType>, prefs: PreferencesManager) async {
         let added = types.subtracting(prefs.healthEnabledDataTypes)
         prefs.healthEnabledDataTypes = types

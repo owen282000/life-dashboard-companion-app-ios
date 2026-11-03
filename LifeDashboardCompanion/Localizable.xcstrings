@@ -17181,6 +17181,70 @@
         }
       }
     },
+    "Custom" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مخصص"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigene Auswahl"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personalizado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personnalisé"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "कस्टम"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personalizzato"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カスタム"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigen keuze"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personalizado"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义"
+          }
+        }
+      }
+    },
     "Custom header \"%@\" is not valid, so nothing was sent. Remove it under Webhook and add it again." : {
       "localizations" : {
         "ar" : {
@@ -35202,70 +35266,6 @@
         }
       }
     },
-    "Nothing is sent until you pick types again." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "لن يُرسل شيء إلى أن تختار الأنواع مجددًا."
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Es wird nichts gesendet, bis du wieder Typen auswählst."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se envía nada hasta que vuelvas a elegir tipos."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rien n’est envoyé tant que vous ne choisissez pas de nouveau des types."
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "जब तक आप फिर से टाइप नहीं चुनते, कुछ नहीं भेजा जाएगा।"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Non viene inviato nulla finché non scegli di nuovo i tipi."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "タイプを選び直すまで、何も送信されません。"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Er wordt niets verstuurd tot je weer types kiest."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nada é enviado até você escolher tipos de novo."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在你重新选择类型之前，不会发送任何内容。"
-          }
-        }
-      }
-    },
     "Nothing sent yet." : {
       "localizations" : {
         "ar" : {
@@ -45908,70 +45908,6 @@
         }
       }
     },
-    "Stop sending all types?" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "هل تريد إيقاف إرسال كل الأنواع؟"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keine Typen mehr senden?"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "¿Dejar de enviar todos los tipos?"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Arrêter d’envoyer tous les types ?"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "सभी टाइप भेजना बंद करें?"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Interrompere l'invio di tutti i tipi?"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "すべてのタイプの送信を停止しますか？"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Geen types meer versturen?"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Parar de enviar todos os tipos?"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "要停止发送所有类型吗？"
-          }
-        }
-      }
-    },
     "Stopped" : {
       "localizations" : {
         "ar" : {
@@ -46486,6 +46422,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "开启心率或步数等类型后，即可选择其精度。"
+          }
+        }
+      }
+    },
+    "Switch types on or off by category. Your choice stays here." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "شغّل الأنواع أو أوقفها حسب الفئة. يبقى اختيارك محفوظًا هنا."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schalte Typen pro Kategorie ein oder aus. Deine Auswahl bleibt hier gespeichert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activa o desactiva tipos por categoría. Tu elección se queda guardada aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activez ou désactivez des types par catégorie. Votre choix reste enregistré ici."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "श्रेणी के अनुसार टाइप चालू या बंद करें। आपकी पसंद यहाँ सहेजी रहती है।"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva o disattiva i tipi per categoria. La tua scelta resta salvata qui."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カテゴリごとにタイプをオンまたはオフにします。選択内容はここに保存されます。"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zet types aan of uit per categorie. Je keuze blijft hier bewaard."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ative ou desative tipos por categoria. Sua escolha fica salva aqui."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按类别开启或关闭类型。你的选择会保存在这里。"
           }
         }
       }
@@ -51939,70 +51939,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重试"
-          }
-        }
-      }
-    },
-    "Turn off all types" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إيقاف كل الأنواع"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle Typen ausschalten"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desactivar todos los tipos"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Désactiver tous les types"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "सभी टाइप बंद करें"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Disattiva tutti i tipi"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "すべてのタイプをオフ"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle types uitzetten"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desativar todos os tipos"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "关闭所有类型"
           }
         }
       }
