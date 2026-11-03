@@ -17,7 +17,7 @@ struct AddDestinationScreen: View {
             LDButton("Scan a pairing code") {
                 navigator.dismissSheet { pairing.startScan() }
             }
-            LDNote("For Home Assistant or the Life Dashboard Stack.")
+            LDNote("For any receiver that shows one, such as Home Assistant, the Life Dashboard Stack or your own server.")
 
             LDSectionLabel("Your own server")
             LDCard {

@@ -10,6 +10,11 @@ struct AboutOpenSourceScreen: View {
                 AboutLinkRow("View on GitHub", url: AboutLinks.repository)
                 AboutLinkRow("Licence", value: Text(verbatim: "MIT"), url: AboutLinks.licence)
                 AboutLinkRow("Website", url: AboutLinks.website)
+                AboutLinkRow(
+                    "Connect your own receiver",
+                    subtitle: Text("Let your users pair by scanning one QR code"),
+                    url: AboutLinks.pairingGuide
+                )
             }
             .ldStaggerRise()
         }

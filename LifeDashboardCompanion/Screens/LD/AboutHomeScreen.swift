@@ -9,6 +9,8 @@ enum AboutLinks {
     static let documentation = URL(string: repository.absoluteString + "#readme")!
     static let changelog = repository.appending(path: "blob/main/CHANGELOG.md")
     static let newIssue = repository.appending(path: "issues/new")
+    /// How anyone adds a pairing code to their own receiver.
+    static let pairingGuide = URL(string: "https://owen282000.com/life-dashboard/health-data-qr-pairing/")!
     /// A new issue with its title started, from What to send.
     static let missingType = URL(string: newIssue.absoluteString + "?title=Missing%20type:%20")!
     static let licence = repository.appending(path: "blob/main/LICENSE")
@@ -111,7 +113,7 @@ struct AboutHomeScreen: View {
             Button {
                 navigator.present(.addDestination)
             } label: {
-                AboutFanRow(title: Text("Your own server"), status: Text("Webhook or MQTT"))
+                AboutFanRow(title: Text("Your own server"), status: Text("Pairing code, webhook or MQTT"))
             }
             .buttonStyle(.ldPress)
             .ldStaggerRise(2)

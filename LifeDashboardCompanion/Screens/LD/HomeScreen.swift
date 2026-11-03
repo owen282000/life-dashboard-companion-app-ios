@@ -125,7 +125,7 @@ struct HomeScreen: View {
             LDButton("Scan a pairing code") { pairing.startScan() }
             LDGap(10)
             LDButton("Use your own server", kind: .ghost) { navigator.present(.addDestination) }
-            LDNote("A pairing code comes from Home Assistant or the Life Dashboard Stack.")
+            LDNote("Any receiver can show a pairing code, such as Home Assistant, the Life Dashboard Stack or your own server.")
         }
     }
 

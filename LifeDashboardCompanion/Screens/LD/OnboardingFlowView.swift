@@ -142,7 +142,7 @@ struct OnboardingFlowView: View {
             LDButton("Scan a pairing code") {
                 pairing.startScan()
             }
-            LDNote("For Home Assistant or the Life Dashboard Stack.", size: 13)
+            LDNote("For any receiver that shows one, such as Home Assistant, the Life Dashboard Stack or your own server.", size: 13)
             if !prefs.healthUrlsWithoutHeaders.isEmpty {
                 LDNote("Paired", color: LDTheme.accentTextSoft, top: 4, size: 13)
             }
