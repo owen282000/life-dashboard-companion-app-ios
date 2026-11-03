@@ -143,7 +143,7 @@ struct LDFooterBar<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        HStack(spacing: 8) {
+        LDFooterLayout(spacing: 8) {
             content
         }
         .padding(.top, 10)
@@ -157,7 +157,187 @@ struct LDFooterBar<Content: View>: View {
     }
 }
 
+/// The buttons of LDFooterBar: equal widths while every label fits on one line that way, otherwise
+/// in proportion to their labels, otherwise on more lines that each fill the width. So a label only
+/// wraps when it is wider than the whole bar, in any language and at any text size.
+struct LDFooterLayout: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let ideal = idealWidths(subviews)
+        let natural = ideal.reduce(0, +) + spacing * CGFloat(max(0, ideal.count - 1))
+        let width = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? natural
+        let lines = Self.lines(ideal: ideal, width: width, spacing: spacing)
+        let height = lines.reduce(0) { $0 + lineHeight($1, subviews) } + spacing * CGFloat(max(0, lines.count - 1))
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var top = bounds.minY
+        for line in Self.lines(ideal: idealWidths(subviews), width: bounds.width, spacing: spacing) {
+            let height = lineHeight(line, subviews)
+            var leading = bounds.minX
+            for (index, width) in line {
+                subviews[index].place(
+                    at: CGPoint(x: leading, y: top),
+                    proposal: ProposedViewSize(width: width, height: height)
+                )
+                leading += width + spacing
+            }
+            top += height + spacing
+        }
+    }
+
+    private func idealWidths(_ subviews: Subviews) -> [CGFloat] {
+        subviews.map { ceil($0.sizeThatFits(.unspecified).width) }
+    }
+
+    private func lineHeight(_ line: [(index: Int, width: CGFloat)], _ subviews: Subviews) -> CGFloat {
+        line.map { subviews[$0.index].sizeThatFits(ProposedViewSize(width: $0.width, height: nil)).height }.max() ?? 0
+    }
+
+    /// Which button goes on which line, at what width. Apart from the layout so a test can hold it.
+    static func lines(ideal: [CGFloat], width: CGFloat, spacing: CGFloat) -> [[(index: Int, width: CGFloat)]] {
+        var lines: [[(index: Int, width: CGFloat)]] = []
+        var start = 0
+        while start < ideal.count {
+            var end = start + 1
+            var used = ideal[start]
+            while end < ideal.count, used + spacing + ideal[end] <= width {
+                used += spacing + ideal[end]
+                end += 1
+            }
+            let count = CGFloat(end - start)
+            let room = width - spacing * (count - 1)
+            let equal = room / count
+            let isEqual = ideal[start..<end].allSatisfy { $0 <= equal }
+            let share = (room - ideal[start..<end].reduce(0, +)) / count
+            lines.append((start..<end).map { (index: $0, width: isEqual ? equal : ideal[$0] + share) })
+            start = end
+        }
+        return lines
+    }
+}
+
 // MARK: - Text
+
+extension View {
+    /// For what is code whatever the language: JSON, addresses, topics, header names. It reads left
+    /// to right against the left edge, also on a screen that runs right to left.
+    func ldCode() -> some View {
+        multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .environment(\.layoutDirection, .leftToRight)
+    }
+}
+
+extension String {
+    /// For a Text with " · " in it: the dot stays with the word before it when the line wraps. Where
+    /// a word and its dot can be wider than the line, as in a narrow column at the largest text
+    /// sizes, use LDSeparatedText.
+    var ldKeepingSeparators: String {
+        replacingOccurrences(of: " · ", with: "\u{00A0}· ")
+    }
+}
+
+/// Text with " · " between its parts, in the font and colour around it. A dot only stands between
+/// two parts on the same line, so no line starts or ends with one, in any language or at any text size.
+struct LDSeparatedText: View {
+    private let parts: [String]
+
+    // Padding, not spaces around the dot: spaces shift it towards the word before it in Arabic.
+    @ScaledMetric(relativeTo: .footnote) private var dotPadding: CGFloat = 7
+
+    init(_ text: String) {
+        parts = text.components(separatedBy: " · ")
+    }
+
+    var body: some View {
+        LDSeparatedLayout {
+            ForEach(parts.indices, id: \.self) { index in
+                if index > 0 {
+                    Text(verbatim: "·")
+                        .padding(.horizontal, dotPadding)
+                        .accessibilityHidden(true)
+                }
+                Text(verbatim: parts[index])
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// The subviews of LDSeparatedText: part, dot, part, dot, part.
+struct LDSeparatedLayout: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? .infinity
+        let parts = partWidths(subviews, width: width)
+        let lines = Self.lines(parts: parts, dot: dotWidth(subviews), width: width)
+        var size = CGSize.zero
+        for line in lines {
+            let used = line.reduce(0) { $0 + parts[$1] } + dotWidth(subviews) * CGFloat(line.count - 1)
+            size.width = max(size.width, used)
+            size.height += lineHeight(line, parts, subviews)
+        }
+        return size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let parts = partWidths(subviews, width: bounds.width)
+        let dot = dotWidth(subviews)
+        // A dot at a line break has no place: it goes out of sight.
+        for index in subviews.indices where index % 2 == 1 {
+            subviews[index].place(at: CGPoint(x: bounds.minX - 10_000, y: bounds.minY), proposal: .unspecified)
+        }
+        var top = bounds.minY
+        for line in Self.lines(parts: parts, dot: dot, width: bounds.width) {
+            var leading = bounds.minX
+            for part in line {
+                if part != line[0] {
+                    subviews[part * 2 - 1].place(at: CGPoint(x: leading, y: top), proposal: .unspecified)
+                    leading += dot
+                }
+                subviews[part * 2].place(
+                    at: CGPoint(x: leading, y: top),
+                    proposal: ProposedViewSize(width: parts[part], height: nil)
+                )
+                leading += parts[part]
+            }
+            top += lineHeight(line, parts, subviews)
+        }
+    }
+
+    /// A part wider than the line gets the line, and wraps inside it.
+    private func partWidths(_ subviews: Subviews, width: CGFloat) -> [CGFloat] {
+        stride(from: 0, to: subviews.count, by: 2).map {
+            min(width, ceil(subviews[$0].sizeThatFits(.unspecified).width))
+        }
+    }
+
+    private func dotWidth(_ subviews: Subviews) -> CGFloat {
+        subviews.count > 1 ? ceil(subviews[1].sizeThatFits(.unspecified).width) : 0
+    }
+
+    private func lineHeight(_ line: [Int], _ parts: [CGFloat], _ subviews: Subviews) -> CGFloat {
+        line.map { subviews[$0 * 2].sizeThatFits(ProposedViewSize(width: parts[$0], height: nil)).height }.max() ?? 0
+    }
+
+    /// Which part goes on which line. Apart from the layout so a test can hold it.
+    static func lines(parts: [CGFloat], dot: CGFloat, width: CGFloat) -> [[Int]] {
+        var lines: [[Int]] = []
+        var used: CGFloat = 0
+        for (index, part) in parts.enumerated() {
+            if let last = lines.indices.last, used + dot + part <= width {
+                lines[last].append(index)
+                used += dot + part
+            } else {
+                lines.append([index])
+                used = part
+            }
+        }
+        return lines
+    }
+}
 
 /// The large heading: 30/34 bold. Its natural line height is 38, so 2 points are taken off above
 /// and below to keep the first baseline where the board has it. Further lines are 4 points taller.
@@ -493,8 +673,13 @@ struct LDFieldRow<Trailing: View>: View {
     private let promptText: Text?
     private let mono: Bool
     private let isSecure: Bool
+    private let isCode: Bool
+    private let codePrompt: String?
     private let trailing: Trailing
 
+    @Environment(\.layoutDirection) private var layoutDirection
+
+    /// `isCode: false` is for a field that takes words or a plain number, which follow the language.
     init(
         _ label: LocalizedStringKey,
         text: Binding<String>,
@@ -502,6 +687,7 @@ struct LDFieldRow<Trailing: View>: View {
         verbatimPrompt: String? = nil,
         mono: Bool = true,
         isSecure: Bool = false,
+        isCode: Bool = true,
         @ViewBuilder trailing: () -> Trailing
     ) {
         self.label = label
@@ -512,6 +698,8 @@ struct LDFieldRow<Trailing: View>: View {
             .foregroundColor(LDTheme.muted)
         self.mono = mono
         self.isSecure = isSecure
+        self.isCode = isCode
+        self.codePrompt = isCode ? verbatimPrompt : nil
         self.trailing = trailing()
     }
 
@@ -526,20 +714,36 @@ struct LDFieldRow<Trailing: View>: View {
                     .font(LDType.rowSubtitle)
                     .foregroundStyle(LDTheme.muted)
                 if let text {
+                    // A field keeps its prompt on the side of the language, whatever the direction it
+                    // is given. An example address is code too, so on a right-to-left screen it is drawn here.
+                    let drawnPrompt = layoutDirection == .rightToLeft ? codePrompt : nil
                     Group {
                         if isSecure {
-                            SecureField(label, text: text, prompt: promptText)
+                            SecureField(label, text: text, prompt: drawnPrompt == nil ? promptText : Text(verbatim: ""))
                         } else {
-                            TextField(label, text: text, prompt: promptText)
+                            TextField(label, text: text, prompt: drawnPrompt == nil ? promptText : Text(verbatim: ""))
                         }
                     }
                     .font(font)
                     .foregroundStyle(LDTheme.text)
                     .tint(LDTheme.accent)
+                    .overlay(alignment: .leading) {
+                        if let drawnPrompt, text.wrappedValue.isEmpty {
+                            Text(verbatim: drawnPrompt)
+                                .font(font)
+                                .foregroundStyle(LDTheme.muted)
+                                .lineLimit(1)
+                                .allowsHitTesting(false)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .accessibilityHint(drawnPrompt != nil && text.wrappedValue.isEmpty ? Text(verbatim: drawnPrompt ?? "") : Text(verbatim: ""))
+                    .environment(\.layoutDirection, isCode ? .leftToRight : layoutDirection)
                 } else if let value {
                     value
                         .font(font)
                         .foregroundStyle(LDTheme.text)
+                        .ldCode()
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -558,9 +762,10 @@ extension LDFieldRow where Trailing == EmptyView {
         prompt: LocalizedStringKey? = nil,
         verbatimPrompt: String? = nil,
         mono: Bool = true,
-        isSecure: Bool = false
+        isSecure: Bool = false,
+        isCode: Bool = true
     ) {
-        self.init(label, text: text, prompt: prompt, verbatimPrompt: verbatimPrompt, mono: mono, isSecure: isSecure) { EmptyView() }
+        self.init(label, text: text, prompt: prompt, verbatimPrompt: verbatimPrompt, mono: mono, isSecure: isSecure, isCode: isCode) { EmptyView() }
     }
 
     init(_ label: LocalizedStringKey, value: Text, mono: Bool = true) {
@@ -570,6 +775,8 @@ extension LDFieldRow where Trailing == EmptyView {
         self.promptText = nil
         self.mono = mono
         self.isSecure = false
+        self.isCode = true
+        self.codePrompt = nil
         self.trailing = EmptyView()
     }
 }
@@ -1101,11 +1308,14 @@ struct LDKeyValue {
     let key: LocalizedStringKey
     let value: Text
     var color: Color = LDTheme.text
+    /// An address or an identifier, not words: see `ldCode()`.
+    var isCode = false
 
-    init(_ key: LocalizedStringKey, _ value: Text, color: Color = LDTheme.text) {
+    init(_ key: LocalizedStringKey, _ value: Text, color: Color = LDTheme.text, isCode: Bool = false) {
         self.key = key
         self.value = value
         self.color = color
+        self.isCode = isCode
     }
 }
 
@@ -1181,18 +1391,24 @@ struct LDKeyValueList: View {
             .foregroundStyle(LDTheme.muted)
     }
 
+    @ViewBuilder
     private func valueText(_ item: LDKeyValue) -> some View {
-        item.value
+        let value = item.value
             .font(LDType.monoValue)
             .foregroundStyle(item.color)
             .textSelection(.enabled)
+        if item.isCode {
+            value.ldCode()
+        } else {
+            value
+        }
     }
 }
 
 /// Text as it is, in Space Mono on a card. Long lines scroll sideways, or wrap with `wraps`: a
 /// stored payload is compact JSON, one line of up to 12,000 characters. `selectable: false` is for
 /// a payload, where a Copy button is what keeps it on this iPhone: a text selection goes through
-/// the general pasteboard, which is shared with other devices.
+/// the general pasteboard, which is shared with other devices. Left to right in every language.
 struct LDCodeBlock: View {
     let text: String
     var color: Color = LDTheme.inactive
@@ -1211,6 +1427,8 @@ struct LDCodeBlock: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .multilineTextAlignment(.leading)
+        .environment(\.layoutDirection, .leftToRight)
         .ldSurface(radius: LDTheme.cardRadius)
         .padding(.horizontal, LDTheme.cardInset)
     }

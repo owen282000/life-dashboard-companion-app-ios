@@ -132,7 +132,7 @@ struct PairingSheet: View {
             Text(verbatim: link.host)
                 .font(LDType.monoField)
                 .foregroundStyle(LDTheme.accentTextSoft)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .ldCode()
                 .padding(.top, 4)
                 .padding(.horizontal, LDTheme.textInset)
             Text(verbatim: link.url)
@@ -140,7 +140,7 @@ struct PairingSheet: View {
                 .foregroundStyle(LDTheme.muted)
                 .lineLimit(1)
                 .truncationMode(.middle)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .ldCode()
                 .padding(.top, 2)
                 .padding(.horizontal, LDTheme.textInset)
 
@@ -279,22 +279,33 @@ struct PairingSheet: View {
 private struct PairingChangeLine: View {
     let line: PairingSheet.Line
 
+    // A column as wide as the widest of these symbols: Label takes each symbol's own width, so the
+    // lines would start at different places.
+    @ScaledMetric(relativeTo: .subheadline) private var iconWidth: CGFloat = 22
+
+    private func content(icon iconColor: Color, text textColor: Color) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: line.icon)
+                .foregroundStyle(iconColor)
+                .frame(width: iconWidth)
+                .accessibilityHidden(true)
+            Text(line.text)
+                .foregroundStyle(textColor)
+                .multilineTextAlignment(.leading)
+        }
+        .font(LDType.note)
+    }
+
     var body: some View {
         switch line.tone {
         case .plain, .muted:
-            Label { Text(line.text) } icon: { Image(systemName: line.icon) }
-                .font(LDType.note)
-                .foregroundStyle(line.tone == .plain ? LDTheme.text : LDTheme.secondary)
+            let color = line.tone == .plain ? LDTheme.text : LDTheme.secondary
+            content(icon: color, text: color)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 8)
                 .padding(.horizontal, LDTheme.textInset)
         case .warning:
-            Label {
-                Text(line.text).foregroundStyle(LDTheme.warningBody)
-            } icon: {
-                Image(systemName: line.icon).foregroundStyle(LDTheme.warning)
-            }
-            .font(LDType.note)
+            content(icon: LDTheme.warning, text: LDTheme.warningBody)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 12)
             .padding(.horizontal, 14)

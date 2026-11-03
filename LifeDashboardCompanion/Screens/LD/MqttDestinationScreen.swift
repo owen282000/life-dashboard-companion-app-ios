@@ -93,7 +93,7 @@ struct MqttDestinationScreen: View {
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
 
-            LDFieldRow("Phone name", text: $phoneName, prompt: "Optional")
+            LDFieldRow("Phone name", text: $phoneName, prompt: "Optional", isCode: false)
                 .autocorrectionDisabled()
         }
     }

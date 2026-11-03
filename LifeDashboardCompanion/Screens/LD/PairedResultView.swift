@@ -42,7 +42,7 @@ struct PairedResultView: View {
             Text(verbatim: link.host)
                 .font(LDType.monoField)
                 .foregroundStyle(LDTheme.text)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .ldCode()
                 .padding(.horizontal, LDTheme.textInset)
             if let outcome {
                 LDNote(outcomeText(outcome), color: isDone ? LDTheme.accentTextSoft : LDTheme.warning, top: 4)

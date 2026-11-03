@@ -36,7 +36,7 @@ A sheet has its own NavigationStack but no route table: it cannot push an `LDRou
 | Name | What it does |
 | --- | --- |
 | `LDScreen(background:content:pinned:footer:)` | The ground and the scrolling. `pinned` sits at the bottom while all fits and scrolls along when it does not. `footer` stays fixed below. `pinned`, `footer` and `background` are optional. In a sheet pass `background: LDTheme.sheet`. A Spacer in `content` does nothing: use `pinned`. |
-| `LDFooterBar { }` | The buttons in a `footer`, with the hairline above. Give its buttons `inset: 0`. |
+| `LDFooterBar { }` | The buttons in a `footer`, with the hairline above. Give its buttons `inset: 0`. Equal widths while the labels fit, otherwise by label, otherwise on more lines, so a label does not wrap in a long language. |
 | `LDGap(12)` | Fixed space between blocks. |
 | `LDDivider`, `LDHairline` | The two line colours. `LDCard` draws its own dividers. |
 
@@ -79,8 +79,10 @@ A sheet has its own NavigationStack but no route table: it cannot push an `LDRou
 | Name | What it does |
 | --- | --- |
 | `LDBanner("Title", message:) { LDBannerAction("Fix") { } }` | The warning card, actions optional. |
-| `LDKeyValueList([LDKeyValue("Key", Text(...), color:)])` | Labels and Space Mono values on a card. The labels share the width of the longest; at accessibility sizes the value goes under its label. |
+| `LDKeyValueList([LDKeyValue("Key", Text(...), color:, isCode:)])` | Labels and Space Mono values on a card. The labels share the width of the longest; at accessibility sizes the value goes under its label. `isCode` for an address or identifier. |
 | `LDCodeBlock(text:, color:, wraps:, selectable:)` | Text as it is in Space Mono, long lines scroll sideways or wrap. A payload takes `selectable: false`: its Copy button is what keeps it on this iPhone. |
+| `.ldCode()` | For code outside a code block: JSON, addresses, topics. Left to right against the left edge in every language. `LDFieldRow` does this itself unless you pass `isCode: false`. |
+| `LDSeparatedText("a · b")` | A line with " · " in it that can wrap: a dot only stands between two parts on one line, so no line starts with it. For a `Text` that must stay one, `"a · b".ldKeepingSeparators` keeps the dot with the word before it. |
 | `LDProgressBar(value:)` | The 8 high bar of a backfill. Give it an `accessibilityLabel`. |
 | `LDTile("Title", subtitle:, systemImage:)` | Draws only, add `.ldLink(to:)` or `.ldButton { }`. Names of the symbols are in `LDSymbol`. |
 | `LDTileGrid { }` | Two columns, equal height per row. Goes in `pinned`. |

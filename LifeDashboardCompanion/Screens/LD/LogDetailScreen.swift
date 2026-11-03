@@ -71,7 +71,7 @@ struct LogDetailScreen: View {
         let problem = log.success ? LDTheme.text : LDTheme.warningText
         var items = [
             LDKeyValue("Time", Text(verbatim: log.timestamp.formatted(.dateTime.month(.abbreviated).day().hour().minute().second()))),
-            LDKeyValue("URL", Text(verbatim: log.url))
+            LDKeyValue("URL", Text(verbatim: log.url), isCode: true)
         ]
         if let statusCode = log.statusCode {
             items.append(LDKeyValue("Status", Text(verbatim: "\(statusCode)"), color: problem))
@@ -86,7 +86,7 @@ struct LogDetailScreen: View {
             items.append(LDKeyValue(log.isMqtt ? "Sensors" : "Records", Text(verbatim: "\(recordCount)")))
         }
         if let dataType = log.dataType {
-            items.append(LDKeyValue("Type", Text(verbatim: dataType)))
+            items.append(LDKeyValue("Type", Text(verbatim: dataType), isCode: true))
         }
         if let size = log.ldPayloadSize {
             items.append(LDKeyValue("Payload size", Text(verbatim: size)))

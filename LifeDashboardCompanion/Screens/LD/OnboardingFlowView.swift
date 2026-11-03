@@ -174,6 +174,7 @@ struct OnboardingFlowView: View {
                     .foregroundStyle(LDTheme.text)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                    .ldCode()
                     .padding(.vertical, 12)
                     .padding(.horizontal, 14)
             }

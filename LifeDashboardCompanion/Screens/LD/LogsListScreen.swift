@@ -69,7 +69,7 @@ struct LogsListScreen: View {
 
     private var subLine: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(verbatim: stateLine)
+            LDSeparatedText(stateLine)
             if !logs.isEmpty {
                 if let lastSuccess = stats.lastSuccess {
                     Text("Last success: \(lastSuccess.formatted(logDateFormat))")
@@ -137,10 +137,10 @@ struct LogsListScreen: View {
                 if let since = stats.since {
                     Text("Since \(since.formatted(logDateFormat))")
                 }
-                Text(verbatim: String(localized: "Deliveries") + " \(stats.deliveries.formatted()) · "
+                LDSeparatedText(String(localized: "Deliveries") + " \(stats.deliveries.formatted()) · "
                     + String(localized: "Records") + " \(stats.records.formatted())")
                 if stats.mqttDeliveries > 0 {
-                    Text("Webhook \(stats.webhookSucceeded) / \(stats.webhookDeliveries) · MQTT \(stats.mqttSucceeded) / \(stats.mqttDeliveries)")
+                    LDSeparatedText(String(localized: "Webhook \(stats.webhookSucceeded) / \(stats.webhookDeliveries) · MQTT \(stats.mqttSucceeded) / \(stats.mqttDeliveries)"))
                 }
             }
             .font(LDType.mono(12))
@@ -249,6 +249,8 @@ struct LogsListScreen: View {
             Text("Export")
                 .font(LDType.sans(LDButtonSize.small.fontSize, .medium, relativeTo: .subheadline))
                 .foregroundStyle(LDTheme.text)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 4)
                 .frame(maxWidth: .infinity, minHeight: LDButtonSize.small.height)
                 .overlay {
                     Capsule().strokeBorder(LDTheme.ghostBorder, lineWidth: 1)
@@ -399,7 +401,7 @@ private struct LogDeliveryRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 titleLine
-                Text(verbatim: log.ldSummary)
+                LDSeparatedText(log.ldSummary)
                     .font(LDType.mono(12))
                     .foregroundStyle(log.ldIsFailure ? LDTheme.warningText : LDTheme.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)

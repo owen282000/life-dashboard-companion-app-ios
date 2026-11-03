@@ -9,8 +9,9 @@ All notable changes to this project are documented in this file. The format is b
 - The app in French, Spanish, Italian, Portuguese (Brazil), Japanese, Arabic, Hindi and Simplified
   Chinese, so it speaks eleven languages, like the Android app. Each uses the names the Health app
   and iOS itself use in that language, and the same words as the Android app. Arabic runs right to
-  left. The translation check in CI now asks for every language, with the plural forms each one has.
-- What to send names the Apple Health types the app can't send yet, per category, and asks which one you want next.
+  left, with code and addresses left to right. The translation check in CI now asks for every
+  language, with the plural forms each one has.
+- What to send names the Apple Health types the app can't send yet, per category and on a page of their own for symptoms and for sound, daylight and habits, and asks which one you want next.
 - A guide under About for anyone who wants to add a pairing code to their own receiver.
 
 ### Changed

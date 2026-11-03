@@ -199,6 +199,31 @@ final class LDKitTests: XCTestCase {
         XCTAssertEqual(LDNotAvailableGroup.nameCount, LDNotAvailableGroup.allCases.map(\.names.count).reduce(0, +))
     }
 
+    /// A dot only goes between two parts on one line, so a part that does not fit starts the next
+    /// line without one, also when a single part is as wide as the line.
+    func testSeparatedTextBreaksBetweenPartsWithoutADot() {
+        XCTAssertEqual(LDSeparatedLayout.lines(parts: [80, 60, 40], dot: 20, width: 300), [[0, 1, 2]])
+        XCTAssertEqual(LDSeparatedLayout.lines(parts: [80, 60, 40], dot: 20, width: 219), [[0, 1], [2]])
+        XCTAssertEqual(LDSeparatedLayout.lines(parts: [80, 60, 40], dot: 20, width: 159), [[0], [1, 2]])
+        XCTAssertEqual(LDSeparatedLayout.lines(parts: [80, 60, 40], dot: 20, width: 100), [[0], [1], [2]])
+        XCTAssertEqual(LDSeparatedLayout.lines(parts: [100, 40], dot: 20, width: 100), [[0], [1]])
+        XCTAssertEqual(LDSeparatedLayout.lines(parts: [50], dot: 0, width: 100), [[0]])
+        XCTAssertEqual("a · b".ldKeepingSeparators, "a\u{00A0}· b")
+    }
+
+    /// Equal while it fits, by label when it does not, on more lines at the largest text sizes.
+    func testFooterButtonsKeepTheirLabelOnOneLine() {
+        func widths(_ ideal: [CGFloat], in width: CGFloat) -> [[CGFloat]] {
+            LDFooterLayout.lines(ideal: ideal, width: width, spacing: 8).map { $0.map(\.width) }
+        }
+        XCTAssertEqual(widths([100, 80, 70], in: 340), [[108, 108, 108]])
+        XCTAssertEqual(widths([136, 111, 82], in: 345), [[136, 111, 82]])
+        XCTAssertEqual(widths([136, 111, 82], in: 351), [[138, 113, 84]])
+        XCTAssertEqual(widths([200, 120, 100], in: 340), [[206, 126], [340]])
+        XCTAssertEqual(widths([400, 400], in: 340), [[340], [340]])
+        XCTAssertEqual(widths([50], in: 340), [[340]])
+    }
+
     @MainActor
     func testAPairingLinkClearsWhatIsOpenOverHealth() {
         let navigator = LDNavigator()

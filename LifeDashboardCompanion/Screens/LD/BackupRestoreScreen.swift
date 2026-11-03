@@ -403,7 +403,7 @@ private struct ImportSheet: View {
                 LDRow("Data Types", value: Text(verbatim: "\(result.healthEnabledDataTypes.count)"), showsChevron: false)
                 LDRow(
                     "Sync Schedule",
-                    value: Text(verbatim: result.healthSyncSchedule.isNeverRunning ? String(localized: "Never syncs") : result.healthSyncSchedule.summary),
+                    value: Text(verbatim: result.healthSyncSchedule.isNeverRunning ? String(localized: "Never syncs") : result.healthSyncSchedule.summary.ldKeepingSeparators),
                     showsChevron: false
                 )
                 LDRow("MQTT", value: Text(verbatim: mqttSummary(result)), showsChevron: false)

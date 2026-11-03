@@ -82,7 +82,7 @@ struct WhenToSendScreen: View {
     @ViewBuilder private var intervalSection: some View {
         LDSectionLabel("Sync Interval")
         LDCard {
-            LDFieldRow("Minutes between syncs", text: $intervalText, verbatimPrompt: "60")
+            LDFieldRow("Minutes between syncs", text: $intervalText, verbatimPrompt: "60", isCode: false)
                 .keyboardType(.numberPad)
                 .onChange(of: intervalText) { _, text in
                     if let minutes = Int(text), minutes >= SyncSchedule.minIntervalMinutes {

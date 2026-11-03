@@ -304,7 +304,7 @@ struct HomeScreen: View {
                         mqtt: prefs.mqttConfigured,
                         now: context.date,
                         timeZone: .autoupdatingCurrent
-                    )),
+                    ).ldKeepingSeparators),
                     color: LDTheme.muted,
                     top: 12,
                     size: 13
