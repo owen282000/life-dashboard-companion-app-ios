@@ -170,6 +170,16 @@ final class LDKitTests: XCTestCase {
         }
     }
 
+    func testNotAvailableYetNamesAreUniqueAndNeverATypeTheAppSends() {
+        let names = LDTypeCategory.allCases.flatMap(\.notAvailableYet)
+        XCTAssertEqual(names.count, Set(names).count)
+        let built = Set(HealthDataType.allCases.map { String(localized: $0.displayName) })
+        XCTAssertTrue(built.isDisjoint(with: names))
+        for category in LDTypeCategory.allCases where category.types.isEmpty {
+            XCTAssertFalse(category.notAvailableYet.isEmpty, "\(category) would be an empty page")
+        }
+    }
+
     @MainActor
     func testAPairingLinkClearsWhatIsOpenOverHealth() {
         let navigator = LDNavigator()

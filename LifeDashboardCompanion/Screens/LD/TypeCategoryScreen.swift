@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The groups of What to send. Every HealthDataType sits in exactly one.
 enum LDTypeCategory: String, CaseIterable, Hashable {
-    case activity, body, heartAndVitals, sleepAndMind, foodAndDrink, cycleTracking
+    case activity, body, heartAndVitals, sleepAndMind, foodAndDrink, cycleTracking, symptoms, soundAndHabits
 
     var title: LocalizedStringKey {
         switch self {
@@ -12,6 +12,8 @@ enum LDTypeCategory: String, CaseIterable, Hashable {
         case .sleepAndMind: return "Sleep and mind"
         case .foodAndDrink: return "Food and drink"
         case .cycleTracking: return "Cycle tracking"
+        case .symptoms: return "Symptoms"
+        case .soundAndHabits: return "Sound, daylight and habits"
         }
     }
 
@@ -32,6 +34,64 @@ enum LDTypeCategory: String, CaseIterable, Hashable {
             return [.hydration, .nutrition]
         case .cycleTracking:
             return [.menstruation, .intermenstrualBleeding, .ovulationTest, .cervicalMucus, .sexualActivity]
+        case .symptoms, .soundAndHabits:
+            return []
+        }
+    }
+
+    /// What Apple Health has and the app does not read yet. English for now, and no promise: a name
+    /// leaves this list when its type is built. Clinical records and fixed traits such as blood
+    /// type are left out on purpose.
+    var notAvailableYet: [String] {
+        switch self {
+        case .activity:
+            return [
+                "Activity Rings", "Exercise Minutes", "Move Minutes", "Stand Minutes", "Stand Hours",
+                "Flights Climbed", "Wheelchair Pushes", "Swimming Strokes", "Nike Fuel", "Physical Effort",
+                "Workout Effort", "Estimated Workout Effort", "Underwater Depth", "Water Temperature",
+                "Walking Speed", "Walking Step Length", "Walking Asymmetry", "Double Support Time",
+                "Walking Heart Rate", "Stair Ascent Speed", "Stair Descent Speed", "Six-Minute Walk",
+                "Walking Steadiness", "Walking Steadiness Events", "Running Speed", "Running Power",
+                "Running Stride Length", "Ground Contact Time", "Vertical Oscillation", "Cycling Speed",
+                "Cycling Power", "Cycling Cadence", "Functional Threshold Power",
+                "Cross-Country Skiing Speed", "Paddle Sports Speed", "Rowing Speed"
+            ]
+        case .body:
+            return ["Body Mass Index", "Waist Circumference"]
+        case .heartAndVitals:
+            return [
+                "ECG", "AFib Burden", "Heart Rate Recovery", "Heart Rate Variability (RMSSD)",
+                "High Heart Rate Events", "Low Heart Rate Events", "Irregular Rhythm Events",
+                "Low Cardio Fitness Events", "Hypertension Events", "Perfusion Index", "Medication",
+                "Insulin Delivery", "Blood Alcohol", "Forced Expiratory Volume", "Forced Vital Capacity",
+                "Peak Expiratory Flow", "Inhaler Usage", "Number of Falls", "Electrodermal Activity"
+            ]
+        case .sleepAndMind:
+            return ["State of Mind", "Wrist Temperature During Sleep", "Breathing Disturbances", "Sleep Apnea Events"]
+        case .foodAndDrink:
+            return ["Alcoholic Drinks"]
+        case .cycleTracking:
+            return [
+                "Contraceptives", "Lactation", "Pregnancy", "Pregnancy Tests", "Progesterone Tests",
+                "Infrequent Cycles", "Irregular Cycles", "Prolonged Periods", "Bleeding After Pregnancy",
+                "Bleeding During Pregnancy", "Bleeding After Menopause", "Menopausal State"
+            ]
+        case .symptoms:
+            return [
+                "Abdominal Cramps", "Acne", "Appetite Changes", "Bladder Incontinence", "Bloating",
+                "Breast Pain", "Chest Tightness or Pain", "Chills", "Constipation", "Coughing", "Diarrhea",
+                "Dizziness", "Dry Skin", "Fainting", "Fatigue", "Fever", "Body and Muscle Ache", "Hair Loss",
+                "Headache", "Heartburn", "Hot Flashes", "Loss of Smell", "Loss of Taste", "Lower Back Pain",
+                "Memory Lapse", "Mood Changes", "Nausea", "Night Sweats", "Pelvic Pain",
+                "Rapid or Fluttering Heartbeat", "Runny Nose", "Shortness of Breath", "Sinus Congestion",
+                "Skipped Heartbeat", "Sleep Changes", "Sore Throat", "Vaginal Dryness", "Vomiting", "Wheezing"
+            ]
+        case .soundAndHabits:
+            return [
+                "Time in Daylight", "UV Exposure", "Environmental Sound Levels", "Headphone Audio Levels",
+                "Environmental Sound Reduction", "Loud Environment Events", "Loud Headphone Events",
+                "Hearing Tests", "Handwashing", "Toothbrushing"
+            ]
         }
     }
 
@@ -95,18 +155,70 @@ struct TypeCategoryScreen: View {
             LDHeading(category.title)
             if category == .cycleTracking {
                 LDNote("This only goes to your own destinations.", top: 4)
-            } else {
-                LDNote(Text("\(types.filter(prefs.healthEnabledDataTypes.contains).count) of \(types.count) selected"), top: 4)
+            } else if !types.isEmpty {
+                LDNote(Text("\(types.filter(prefs.healthEnabledDataTypes.contains).count) of \(types.count) selected."), top: 4)
             }
             LDGap(12)
-            LDCard {
-                ForEach(types) { type in
-                    LDToggleRow(Text(type.displayName), isOn: WhatToSendSelection.binding(for: type, prefs: prefs))
+            if !types.isEmpty {
+                LDCard {
+                    ForEach(types) { type in
+                        LDToggleRow(Text(type.displayName), isOn: WhatToSendSelection.binding(for: type, prefs: prefs))
+                    }
                 }
+                .ldStaggerRise(0)
+                LDGap(10)
             }
-            .ldStaggerRise(0)
+            NotAvailableYetCard(names: category.notAvailableYet, startsOpen: types.isEmpty)
+                .ldStaggerRise(1)
         }
         .navigationTitle("What to send")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// The types of a category that the app cannot send yet: names only, nothing to switch, so it does
+/// not read as a broken control.
+private struct NotAvailableYetCard: View {
+    let names: [String]
+    @State private var isOpen: Bool
+
+    init(names: [String], startsOpen: Bool) {
+        self.names = names
+        _isOpen = State(initialValue: startsOpen)
+    }
+
+    var body: some View {
+        LDCard {
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) { isOpen.toggle() }
+            } label: {
+                HStack(spacing: 8) {
+                    Text("Not available yet")
+                        .font(LDType.row)
+                        .foregroundStyle(LDTheme.text)
+                    Spacer(minLength: 0)
+                    Text(verbatim: names.count.formatted())
+                        .font(LDType.row)
+                        .foregroundStyle(LDTheme.muted)
+                    Image(systemName: isOpen ? "chevron.up" : "chevron.down")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(LDTheme.muted)
+                        .accessibilityHidden(true)
+                }
+                .padding(.horizontal, 14)
+                .frame(minHeight: 50)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.ldPress)
+            .accessibilityValue(isOpen ? Text("Expanded") : Text("Collapsed"))
+            if isOpen {
+                Text(verbatim: names.joined(separator: ", "))
+                    .font(LDType.rowSubtitle)
+                    .foregroundStyle(LDTheme.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+            }
+        }
     }
 }

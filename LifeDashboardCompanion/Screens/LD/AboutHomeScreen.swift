@@ -9,6 +9,8 @@ enum AboutLinks {
     static let documentation = URL(string: repository.absoluteString + "#readme")!
     static let changelog = repository.appending(path: "blob/main/CHANGELOG.md")
     static let newIssue = repository.appending(path: "issues/new")
+    /// A new issue with its title started, from What to send.
+    static let missingType = URL(string: newIssue.absoluteString + "?title=Missing%20type:%20")!
     static let licence = repository.appending(path: "blob/main/LICENSE")
     static let privacy = URL(string: "https://owen282000.github.io/life-dashboard-companion/ios/privacy/")!
     /// The project's website: the setup guides and the other Life Dashboard parts.
