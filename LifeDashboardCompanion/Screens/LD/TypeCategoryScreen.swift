@@ -35,11 +35,6 @@ enum LDTypeCategory: String, CaseIterable, Hashable {
         }
     }
 
-    /// What All types switches on: cycle tracking stays off until someone switches it on.
-    static var typesOutsideCycle: Set<HealthDataType> {
-        Set(HealthDataType.allCases).subtracting(cycleTracking.types)
-    }
-
     #if DEBUG
     /// A type added to HealthDataType without a category could not be switched on anywhere.
     static func assertCoversEveryType() {
@@ -99,7 +94,7 @@ struct TypeCategoryScreen: View {
         LDScreen {
             LDHeading(category.title)
             if category == .cycleTracking {
-                LDNote("This stays off until you switch it on. It only goes to your own destinations.", top: 4)
+                LDNote("This only goes to your own destinations.", top: 4)
             } else {
                 LDNote(Text("\(types.filter(prefs.healthEnabledDataTypes.contains).count) of \(types.count) selected"), top: 4)
             }

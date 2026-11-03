@@ -32,18 +32,6 @@ private enum AboutFamilyLinks {
 }
 
 struct AboutHomeScreen: View {
-    private enum Variant: String {
-        case a, b
-    }
-
-    // TEMPORARY: two designs side by side so Owen can compare them on his iPhone. Both stay
-    // compiled in Release, so their strings stay in the catalog. Remove the loser and this switch.
-    #if DEBUG
-    @AppStorage("ld.aboutVariant") private var variant = Variant.a
-    #else
-    private let variant = Variant.a
-    #endif
-
     private let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
 
     @ObservedObject private var prefs = PreferencesManager.shared
@@ -64,10 +52,7 @@ struct AboutHomeScreen: View {
 
     var body: some View {
         LDScreen {
-            switch variant {
-            case .a: variantA
-            case .b: variantB
-            }
+            fan
             versionLine
         } pinned: {
             LDTileGrid {
@@ -83,19 +68,6 @@ struct AboutHomeScreen: View {
         }
         .navigationTitle("About")
         .navigationBarTitleDisplayMode(.inline)
-        #if DEBUG
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    variant = variant == .a ? .b : .a
-                } label: {
-                    Text(verbatim: "A/B: \(variant.rawValue.uppercased())")
-                        .font(LDType.mono(13, bold: true))
-                }
-                .accessibilityLabel(Text(verbatim: "Temporary switch, About variant \(variant.rawValue.uppercased())"))
-            }
-        }
-        #endif
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { stopBeating() }
         }
@@ -111,10 +83,10 @@ struct AboutHomeScreen: View {
         }
     }
 
-    // MARK: - Variant A
+    // MARK: - The line that splits
 
     @ViewBuilder
-    private var variantA: some View {
+    private var fan: some View {
         LDHeading("Your data goes where you send it.")
 
         AboutFanRows {
@@ -154,46 +126,6 @@ struct AboutHomeScreen: View {
         .padding(.top, 18)
 
         LDNote("No account and no cloud.")
-    }
-
-    // MARK: - Variant B
-
-    @ViewBuilder
-    private var variantB: some View {
-        AboutVariantBHeading()
-
-        PulseLine()
-            .overlay {
-                if isBeating {
-                    GeometryReader { box in
-                        // The dot of the line, at (232, 42) in its 390 wide box.
-                        AboutBeatingHeart(scale: heartScale)
-                            .position(x: box.size.width * 232 / 390, y: box.size.width * 42 / 390)
-                    }
-                    // PulseLine mirrors itself in a right-to-left language, so the heart follows.
-                    .environment(\.layoutDirection, .leftToRight)
-                    .flipsForRightToLeftLayoutDirection(true)
-                    .allowsHitTesting(false)
-                    .transition(.opacity)
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture { handleHeartTap() }
-            .accessibilityHidden(true)
-
-        LDDestinationRow(Text(verbatim: "Home Assistant"), status: homeAssistantStatus, statusColor: homeAssistantStatusColor)
-            .ldButton(action: openHomeAssistant)
-            .ldStaggerRise(0)
-
-        Link(destination: AboutFamilyLinks.stack) {
-            LDDestinationRow(Text(verbatim: "Life Dashboard Stack"), status: Text("Grafana, AI"))
-        }
-        .buttonStyle(.ldPress)
-        .ldStaggerRise(1)
-
-        LDDestinationRow(Text("Your own server"), status: Text("Webhook or MQTT"))
-            .ldButton { navigator.present(.addDestination) }
-            .ldStaggerRise(2)
     }
 
     // MARK: - Home Assistant
@@ -319,31 +251,6 @@ struct AboutLinkRow: View {
     var body: some View {
         Link(destination: url) { row }
             .buttonStyle(.ldPress)
-    }
-}
-
-// MARK: - Variant B heading
-
-/// 46/50 on the board, tighter than the font's natural line height, so the lines overlap by the
-/// difference. Three texts rather than one with line breaks, which `lineSpacing` cannot tighten.
-private struct AboutVariantBHeading: View {
-    @ScaledMetric(relativeTo: .largeTitle) private var overlap: CGFloat = 46 * 1.276 - 50
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: -overlap) {
-            Text("No account.")
-            Text("No cloud.")
-            Text("No trackers.")
-        }
-        .font(LDType.sans(46, .bold, relativeTo: .largeTitle))
-        .tracking(-1.2)
-        .foregroundStyle(LDTheme.text)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 8 - overlap / 2)
-        .padding(.bottom, -overlap / 2)
-        .padding(.horizontal, LDTheme.textInset)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isHeader)
     }
 }
 

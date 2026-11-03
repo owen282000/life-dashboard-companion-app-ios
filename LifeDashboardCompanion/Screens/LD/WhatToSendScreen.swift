@@ -59,21 +59,17 @@ struct WhatToSendScreen: View {
 
     @ViewBuilder
     private func presets(_ enabled: Set<HealthDataType>) -> some View {
-        let allOn = LDTypeCategory.typesOutsideCycle.isSubset(of: enabled)
+        let everything = Set(HealthDataType.allCases)
         LDChips {
             LDChip("Essentials", isSelected: enabled == OnboardingView.essentials) {
                 apply(OnboardingView.essentials)
             }
-            LDChip("All types", isSelected: allOn) {
-                apply(enabled.union(LDTypeCategory.typesOutsideCycle))
+            LDChip("All types", isSelected: enabled == everything) {
+                apply(everything)
             }
             LDChip("None", isSelected: enabled.isEmpty) {
                 if !enabled.isEmpty { confirmNone = true }
             }
-        }
-        // All types leaves cycle tracking alone, so the count stays below the total.
-        if allOn && enabled.isDisjoint(with: LDTypeCategory.cycleTracking.types) {
-            LDNote("Cycle tracking stays off until you switch it on.", size: 13)
         }
     }
 

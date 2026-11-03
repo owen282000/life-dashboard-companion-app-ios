@@ -170,12 +170,6 @@ final class LDKitTests: XCTestCase {
         }
     }
 
-    func testAllTypesLeavesCycleTrackingOff() {
-        let all = LDTypeCategory.typesOutsideCycle
-        XCTAssertTrue(all.isDisjoint(with: LDTypeCategory.cycleTracking.types))
-        XCTAssertEqual(all.count + LDTypeCategory.cycleTracking.types.count, HealthDataType.allCases.count)
-    }
-
     @MainActor
     func testAPairingLinkClearsWhatIsOpenOverHealth() {
         let navigator = LDNavigator()
