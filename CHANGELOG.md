@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-11-04
+
 ### Added
 
 - The app in French, Spanish, Italian, Portuguese (Brazil), Japanese, Arabic, Hindi and Simplified
@@ -407,7 +409,8 @@ All notable changes to this project are documented in this file. The format is b
 - Offline queue with retries and exponential backoff
 - Webhook logs with CSV/JSON export and payload preview
 
-[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.10.1...HEAD
+[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.11.0...HEAD
+[1.11.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.10.1...1.11.0
 [1.10.1]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.10.0...1.10.1
 [1.10.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.9.0...1.10.0
 [1.9.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.8.0...1.9.0
