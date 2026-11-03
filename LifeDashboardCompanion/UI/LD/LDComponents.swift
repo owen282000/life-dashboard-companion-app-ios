@@ -1374,7 +1374,7 @@ struct LDTile: View {
         .multilineTextAlignment(.leading)
         .padding(.vertical, 13)
         .padding(.horizontal, 14)
-        .frame(maxWidth: .infinity, minHeight: 118, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 100, maxHeight: .infinity, alignment: .topLeading)
         .ldSurface(radius: LDTheme.tileRadius)
         .contentShape(RoundedRectangle(cornerRadius: LDTheme.tileRadius, style: .continuous))
         .accessibilityElement(children: .combine)

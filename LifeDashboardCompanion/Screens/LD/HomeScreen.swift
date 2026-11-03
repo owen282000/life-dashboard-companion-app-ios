@@ -174,7 +174,7 @@ struct HomeScreen: View {
                 Spacer(minLength: 8)
                 // With nothing selected there is nothing to sync, so the board has no button.
                 if state != .nothingSelected {
-                    LDButton(isSyncing ? Text("Syncing...") : Text("Sync now"), size: .small, fullWidth: false, isBusy: isSyncing, action: syncNow)
+                    LDButton(isSyncing ? Text("Syncing...") : Text("Sync Now"), size: .small, fullWidth: false, isBusy: isSyncing, action: syncNow)
                         .disabled(!prefs.healthSyncConfigured || backfill.isRunning)
                 }
             }
