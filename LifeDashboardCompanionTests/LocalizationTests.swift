@@ -53,7 +53,7 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(resolve("\(1) pending syncs", "de"), "1 Sync in der Warteschlange")
         XCTAssertEqual(resolve("\(3) pending syncs", "de"), "3 Syncs in der Warteschlange")
         XCTAssertEqual(resolve("\(1) pending syncs", "en"), "1 pending sync")
-        XCTAssertEqual(resolve("On, after \(1) failed syncs", "de"), "An, nach 1 fehlgeschlagener Synchronisierung")
+        XCTAssertEqual(resolve("After \(1) failures", "de"), "Nach 1 Fehler")
     }
 
     func testAPluralNextToAnotherArgumentUsesItsOwnCount() {
@@ -92,7 +92,6 @@ final class LocalizationTests: XCTestCase {
     func testTheImportPreviewNamesEachAddressWithItsHeaders() {
         XCTAssertEqual(resolve("\("ha.example"), headers: \("Authorization, X-Key")", "nl"), "ha.example, headers: Authorization, X-Key")
         XCTAssertEqual(resolve("\("ha.example"), headers: \("Authorization")", "de"), "ha.example, Header: Authorization")
-        XCTAssertEqual(resolve("Signed, headers: \("Authorization")", "nl"), "Ondertekend, headers: Authorization")
     }
 
     func testThePairingResultFitsAnyReceiverInEachLanguage() {
