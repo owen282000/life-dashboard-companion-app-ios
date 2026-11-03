@@ -7,9 +7,7 @@
 # sparkline, with -ld.demoSleep, -ld.demoRest and -ld.demoWeight for the rest of the Today
 # panel. The Debug launch arguments -ld.tab, -ld.about, -ld.route and -ld.scroll open each page;
 # -ld.route takes a name from LDDebugRoute, -ld.holds "refresh,power,quiet" shows what holds a
-# sync on the Health tab. The pairing sheet needs one tap on iOS's "Open in Life Dashboard?" prompt: the script sends Return to the
-# Simulator app, which needs Accessibility access for the terminal (System Settings > Privacy &
-# Security). Without a Simulator app it keeps the pairing screenshot that is there.
+# sync on the Health tab. -ld.route pairing opens the pairing sheet with an example code.
 #
 #   scripts/screenshots.sh
 set -euo pipefail
@@ -80,11 +78,13 @@ now = datetime.datetime.now().astimezone().replace(second=0, microsecond=0)
 ref = datetime.datetime(2001, 1, 1, tzinfo=datetime.timezone.utc)
 hook = "http://homeassistant.local:8123/api/webhook/life_dashboard"
 rows = []
+def payload(records):
+    return json.dumps({"source": "healthkit_ios", "records": [{"type": "STEPS", "value": 412}] * records})
 def row(t, success=True, url=hook, code=200, records=12, dest="WEBHOOK", error=None):
     entry = {"id": str(uuid.uuid4()), "timestamp": (t - ref).total_seconds(), "url": url,
              "statusCode": code, "success": success, "errorMessage": error,
              "dataType": "health_connect", "recordCount": records,
-             "rawPayload": '{"source":"healthkit_ios"}', "logType": "HEALTH_CONNECT",
+             "rawPayload": payload(records), "logType": "HEALTH_CONNECT",
              "destination": dest}
     rows.append({k: v for k, v in entry.items() if v is not None})
 counts = [38, 21, 64, 17, 45, 29, 52, 33, 19, 41, 27, 58, 24, 36, 47, 22, 31, 55, 26, 43]
@@ -126,19 +126,7 @@ shot sync-schedule.png -ld.route whenToSend
 shot mqtt.png -ld.route mqttDestination
 shot logs.png -ld.tab 1
 shot about.png -ld.about YES
-
-if open -a Simulator 2>/dev/null; then
-    shot pairing-base.png
-    xcrun simctl openurl "$UDID" "lifedashboard://pair#v=1&url=http%3A%2F%2Fhomeassistant.local%3A8123%2Fapi%2Fwebhook%2F3f9c2a7e51b84d06a1e2c9d8b7f4e5a1&secret=0123456789abcdef&name=Home%20Assistant"
-    sleep 3
-    osascript -e 'tell application "Simulator" to activate' -e 'delay 1' \
-        -e 'tell application "System Events" to keystroke return' || echo "Tap Open in the Simulator"
-    sleep 4
-    xcrun simctl io "$UDID" screenshot --type=png "$WORK/raw/home-assistant.png" >/dev/null 2>&1
-    rm "$WORK/raw/pairing-base.png"
-else
-    echo "No Simulator app: kept $OUT/home-assistant.png as it is"
-fi
+shot home-assistant.png -ld.route pairing
 
 # Crop the status bar and scale to 1080 pixels wide, like the Android app's screenshots.
 cat > "$WORK/crop.swift" <<'SWIFT'
