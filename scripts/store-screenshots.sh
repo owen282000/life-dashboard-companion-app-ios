@@ -146,7 +146,7 @@ def payload(records, t):
         return {**fields, "source": "iPhone", "uuid": str(uuid.uuid5(uuid.NAMESPACE_DNS, stamp + str(fields))).upper()}
     steps = [rec(count=212 + n * 37 % 300, start_time=stamp, end_time=stamp) for n in range(max(records - 3, 0))]
     return json.dumps({"source": "healthkit_ios", "timestamp": stamp, "timezone": "Europe/Amsterdam",
-                       "app_version": "1.12.0", "sequence": 1842,
+                       "app_version": "1.11.0", "sequence": 1842,
                        "resting_heart_rate": [rec(bpm=58, time=stamp)], "heart_rate": [rec(bpm=71, time=stamp)],
                        "weight": [rec(kilograms=82.4, time=stamp)], "steps": steps}, separators=(",", ":"))
 def row(t, success=True, url=hook, code=200, records=12, dest="WEBHOOK", data="health_connect", raw=None):
