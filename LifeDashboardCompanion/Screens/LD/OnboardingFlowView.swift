@@ -60,6 +60,8 @@ struct OnboardingFlowView: View {
         #if DEBUG
         // For screenshots: -ld.step 2 opens the third step.
         _step = State(initialValue: Step(rawValue: UserDefaults.standard.integer(forKey: "ld.step")) ?? .welcome)
+        // -ld.allTypes YES shows that step with All types picked, and its note.
+        if UserDefaults.standard.bool(forKey: "ld.allTypes") { _typeChoice = State(initialValue: .all) }
         #endif
     }
 
