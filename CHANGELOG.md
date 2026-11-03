@@ -23,6 +23,7 @@ All notable changes to this project are documented in this file. The format is b
 - A pairing code is for any receiver that shows one, not only Home Assistant and the Life Dashboard stack.
 - MQTT changes apply when you tap Save, and removing a destination asks first.
 - The widget has the new look, with an amber line when the last sync failed.
+- The light appearance has its own deeper green and warm amber, and every text and line in it is measured for contrast. VoiceOver names every field and control and reads a log row or a figure as one sentence, and at the largest text sizes nothing breaks in the middle of a word.
 
 ## [1.10.1] - 2026-10-28
 

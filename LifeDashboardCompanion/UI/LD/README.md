@@ -6,7 +6,7 @@ The A2b look for the iOS redesign. Screens live in `Screens/LD/`, the kit here. 
 
 - Every block carries its own outer margin, as on the boards. Stack blocks directly in `LDScreen`, without extra padding or spacing.
 - Labels take a string literal, which lands in the String Catalog. Runtime data and most secondary text take a `Text`: `Text("Grant")`, or `Text(verbatim: host)` for data.
-- Colours come from `LDTheme`, fonts from `LDType`. Never a literal, so the Appearance setting keeps working.
+- Colours come from `LDTheme`, fonts from `LDType`. Never a literal, so the Appearance setting keeps working. Dark is the boards' look; light is the same tokens on a pale ground. `UIParityTests` measures every pair: 4.5:1 for text, 3:1 for the line, icons and fills.
 
 ## Going somewhere
 
@@ -53,7 +53,7 @@ A sheet has its own NavigationStack but no route table: it cannot push an `LDRou
 | Name | What it does |
 | --- | --- |
 | `LDCard(bottom:) { }` | Rows on a tile surface, with dividers between them. `if` and `ForEach` are counted per row. |
-| `LDRow("Name", subtitle:, value:, valueColor:, showsChevron:)` | 50 high, 62 with a subtitle. Draws only: add `.ldLink(to:)` or `.ldButton { }`. `showsChevron: false` is the plain row. `LDRow("Name", subtitle:) { trailing }` has a control or a spinner at the end instead. |
+| `LDRow("Name", subtitle:, value:, valueColor:, showsChevron:)` | 50 high, 62 with a subtitle. Draws only: add `.ldLink(to:)` or `.ldButton { }`. `showsChevron: false` is the plain row. `LDRow("Name", subtitle:) { trailing }` has a control or a spinner at the end instead. At the accessibility text sizes the value goes under the name. |
 | `LDToggleRow("Name", subtitle:, isOn:)` | System Toggle in the accent. |
 | `LDFieldRow("Label", text:, prompt:, verbatimPrompt:, mono:, isSecure:) { trailing }` | Small label over an editable value. `prompt` is text to translate, `verbatimPrompt` an example such as an address or a number. `trailing` is optional, for a reveal button. Keyboard modifiers go on the outside. |
 | `LDFieldRow("Label", value: Text(...))` | The same look, read only. |
@@ -65,7 +65,7 @@ A sheet has its own NavigationStack but no route table: it cannot push an `LDRou
 
 | Name | What it does |
 | --- | --- |
-| `LDSegmented(selection:, segments: [LDSegment(value, "Title")], label:)` | The segmented control. `label` is what VoiceOver calls the group. |
+| `LDSegmented(selection:, segments: [LDSegment(value, "Title")], label:)` | The segmented control. `label` is what VoiceOver calls the group. At the accessibility text sizes the segments stack when a word would break. |
 | `LDChips { LDChip("Essentials", isSelected:) { } }` | Chips that wrap. `LDChip.removable(Text) { }` has an x, `width: 44` is a day chip. |
 | `LDButton("Title", kind:, size:, fullWidth:, inset:, isBusy:) { }` | `kind` is `.primary`, `.ghost` or `.danger`, `size` is `.regular`, `.medium` or `.small`. `isBusy` adds a spinner and disables it. Or `route:` instead of an action. |
 | `LDButtonStyle(kind, size:, fullWidth:)` | The same look for your own Link or ShareLink. |
@@ -85,7 +85,7 @@ A sheet has its own NavigationStack but no route table: it cannot push an `LDRou
 | `LDSeparatedText("a · b")` | A line with " · " in it that can wrap: a dot only stands between two parts on one line, so no line starts with it. For a `Text` that must stay one, `"a · b".ldKeepingSeparators` keeps the dot with the word before it. |
 | `LDProgressBar(value:)` | The 8 high bar of a backfill. Give it an `accessibilityLabel`. |
 | `LDTile("Title", subtitle:, systemImage:)` | Draws only, add `.ldLink(to:)` or `.ldButton { }`. Names of the symbols are in `LDSymbol`. |
-| `LDTileGrid { }` | Two columns, equal height per row. Goes in `pinned`. |
+| `LDTileGrid { }` | Two columns, equal height per row, one column at the accessibility text sizes. Goes in `pinned`. |
 
 ## Line and motion
 
