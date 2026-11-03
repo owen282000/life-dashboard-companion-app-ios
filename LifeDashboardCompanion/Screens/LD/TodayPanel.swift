@@ -146,7 +146,8 @@ private extension TodayStat {
             return Int(value.rounded()).formatted()
         case .sleep:
             let minutes = Int(value.rounded())
-            let rest = String(format: "%02d", minutes % 60)
+            // Formatted, so an Arabic phone gets both parts in the same digits.
+            let rest = (minutes % 60).formatted(.number.precision(.integerLength(2)))
             return String(localized: "\(minutes / 60)h \(rest)")
         case .weight:
             return value.formatted(.number.precision(.fractionLength(1)))

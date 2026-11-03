@@ -57,9 +57,12 @@ struct PairedResultView: View {
                 .padding(.top, 4)
                 .padding(.horizontal, LDTheme.textInset)
             }
-            LDNote(enabledTypes > 0
-                   ? "Tap Sync Now to send your data."
-                   : "Next, switch on the data types you want to send.")
+            // Not while it failed: the next step is then Try again.
+            if outcome == nil || isDone {
+                LDNote(enabledTypes > 0
+                       ? "Tap Sync Now to send your data."
+                       : "Next, switch on the data types you want to send.")
+            }
 
             LDGap(16)
             if outcome != nil && !isDone {

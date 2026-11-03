@@ -507,7 +507,8 @@ struct LDFieldRow<Trailing: View>: View {
         self.label = label
         self.text = text
         self.value = nil
-        self.promptText = (verbatimPrompt.map { Text(verbatim: $0) } ?? prompt.map { Text($0) })?
+        // Empty rather than nil, or the field repeats the label above it as its placeholder.
+        self.promptText = (verbatimPrompt.map { Text(verbatim: $0) } ?? prompt.map { Text($0) } ?? Text(verbatim: ""))
             .foregroundColor(LDTheme.muted)
         self.mono = mono
         self.isSecure = isSecure
@@ -600,7 +601,11 @@ struct LDDestinationRow: View {
                         .fixedSize(horizontal: true, vertical: false)
                 }
                 VStack(alignment: .leading, spacing: 2) {
+                    // One line, smaller if it must: a host name has nowhere to break but mid-word.
                     styledName
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                        .truncationMode(.middle)
                     styledStatus
                 }
                 .multilineTextAlignment(.leading)

@@ -130,6 +130,11 @@ private extension View {
     /// the app. The title stays for VoiceOver, and the slide comes with the switch of tabs.
     func ldTabRoot(title: LocalizedStringKey) -> some View {
         ldTabEnter()
+            // With no bar there is no edge effect either: scrolled rows would run through the
+            // status bar. The empty inset puts the ground behind it, nothing more.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                Color.clear.frame(height: 0).background(LDTheme.ground)
+            }
             .navigationTitle(title)
             .toolbar(.hidden, for: .navigationBar)
             .toolbarRole(.editor)
