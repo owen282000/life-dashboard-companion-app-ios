@@ -315,8 +315,8 @@ private struct AboutFanShape: Shape {
 
         let scale = rect.width / Self.boardWidth
         let middle = rect.midY
-        func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: rect.minX + x * scale, y: middle + (y - Self.boardMiddle) * scale)
+        func point(_ across: CGFloat, _ down: CGFloat) -> CGPoint {
+            CGPoint(x: rect.minX + across * scale, y: middle + (down - Self.boardMiddle) * scale)
         }
         func dot(_ center: CGPoint, radius: CGFloat) -> Path {
             let radius = radius * scale * local
@@ -329,8 +329,8 @@ private struct AboutFanShape: Shape {
             // the hub's centre line, the way the big heartbeat line does.
             var line = Path()
             line.move(to: point(0, 96))
-            for (x, y) in [(36, 96), (44, 76), (56, 120), (66, 90), (71, 96), (104, 96)] as [(CGFloat, CGFloat)] {
-                line.addLine(to: point(x, y))
+            for (across, down) in [(36, 96), (44, 76), (56, 120), (66, 90), (71, 96), (104, 96)] as [(CGFloat, CGFloat)] {
+                line.addLine(to: point(across, down))
             }
             return stroked(line.trimmedPath(from: 0, to: local), width: 4)
         case .hub:

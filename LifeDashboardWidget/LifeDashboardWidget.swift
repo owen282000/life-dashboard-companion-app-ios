@@ -50,13 +50,13 @@ private enum WidgetTheme {
 private struct WidgetPulse: Shape {
     func path(in rect: CGRect) -> Path {
         let scale = rect.width / 240
-        func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: rect.minX + x * scale, y: rect.midY + (y - 42) * scale)
+        func point(_ across: CGFloat, _ down: CGFloat) -> CGPoint {
+            CGPoint(x: rect.minX + across * scale, y: rect.midY + (down - 42) * scale)
         }
         var line = Path()
         line.move(to: point(0, 42))
-        for (x, y) in [(136, 42), (147, 16), (164, 68), (179, 30), (186, 42), (226, 42)] as [(CGFloat, CGFloat)] {
-            line.addLine(to: point(x, y))
+        for (across, down) in [(136, 42), (147, 16), (164, 68), (179, 30), (186, 42), (226, 42)] as [(CGFloat, CGFloat)] {
+            line.addLine(to: point(across, down))
         }
         return line
     }

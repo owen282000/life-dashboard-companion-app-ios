@@ -233,7 +233,7 @@ enum LDDebugRoute: Equatable {
             "mqttDestination": .sheet(.mqttDestination),
             "backfill": .sheet(.backfill),
             "payloadPreview": .sheet(.payloadPreview),
-            "shortcutsHelp": .sheet(.shortcutsHelp),
+            "shortcutsHelp": .sheet(.shortcutsHelp)
         ]
         for category in LDTypeCategory.allCases {
             routes["typeCategory.\(category.rawValue)"] = .push(.typeCategory(category))

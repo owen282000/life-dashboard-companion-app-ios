@@ -169,11 +169,9 @@ struct PairingSheet: View {
     }
 
     fileprivate struct Line {
-        enum Tone { case plain, muted, warning }
-
         let text: LocalizedStringResource
         let icon: String
-        let tone: Tone
+        let tone: PairingLineTone
     }
 
     private var changeLines: [Line] {
@@ -320,3 +318,5 @@ private struct PairingChangeLine: View {
         }
     }
 }
+
+private enum PairingLineTone { case plain, muted, warning }

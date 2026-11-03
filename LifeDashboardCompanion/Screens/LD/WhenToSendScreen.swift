@@ -29,7 +29,7 @@ struct WhenToSendScreen: View {
             LDGap(14)
             LDSegmented(selection: $prefs.healthSyncSchedule.mode, segments: [
                 LDSegment(SyncMode.interval, "Every X minutes"),
-                LDSegment(SyncMode.times, "Fixed times"),
+                LDSegment(SyncMode.times, "Fixed times")
             ], label: "Mode")
 
             switch schedule.mode {

@@ -32,7 +32,7 @@ struct MoreScreen: View {
             LDSegmented(selection: $prefs.appTheme, segments: [
                 LDSegment(AppTheme.system, "System"),
                 LDSegment(AppTheme.light, "Light"),
-                LDSegment(AppTheme.dark, "Dark"),
+                LDSegment(AppTheme.dark, "Dark")
             ], label: "Appearance")
             .ldStaggerRise(2)
             LDGap(14)

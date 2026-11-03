@@ -79,7 +79,7 @@ final class LDKitTests: XCTestCase {
             (.aboutSupport, "AboutSupportScreen"),
             (.aboutPrivacy, "AboutPrivacyScreen"),
             (.aboutOpenSource, "AboutOpenSourceScreen"),
-            (.aboutNerdStats, "AboutNerdStatsScreen"),
+            (.aboutNerdStats, "AboutNerdStatsScreen")
         ]
         for (route, screen) in routes {
             listed(route)
@@ -93,7 +93,7 @@ final class LDKitTests: XCTestCase {
             (.mqttDestination, "MqttDestinationScreen"),
             (.backfill, "BackfillScreen"),
             (.payloadPreview, "PayloadPreviewScreen"),
-            (.shortcutsHelp, "ShortcutsHelpScreen"),
+            (.shortcutsHelp, "ShortcutsHelpScreen")
         ]
         for (sheet, screen) in sheets {
             listed(sheet)
@@ -108,12 +108,12 @@ final class LDKitTests: XCTestCase {
         for route: LDRoute in [
             .whatToSend, .notAvailableYet, .dataResolution, .backfillRun, .whenToSend, .more, .advanced, .notifications,
             .exportData, .backupRestore, .about, .aboutHelp, .aboutSupport, .aboutPrivacy,
-            .aboutOpenSource, .aboutNerdStats,
+            .aboutOpenSource, .aboutNerdStats
         ] + LDTypeCategory.allCases.map(LDRoute.typeCategory) {
             XCTAssertTrue(plain.values.contains(.push(route)), "\(route)")
         }
         for sheet: LDSheetRoute in [
-            .addDestination, .webhookDestination(address: nil), .mqttDestination, .backfill, .payloadPreview, .shortcutsHelp,
+            .addDestination, .webhookDestination(address: nil), .mqttDestination, .backfill, .payloadPreview, .shortcutsHelp
         ] {
             XCTAssertTrue(plain.values.contains(.sheet(sheet)), "\(sheet)")
         }
