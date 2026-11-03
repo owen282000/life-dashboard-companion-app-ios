@@ -2,7 +2,7 @@ import UIKit
 import XCTest
 @testable import LifeDashboardCompanion
 
-/// The Health tab's Export: the preview payload as CSV or JSON, in the temporary directory.
+/// Export data under More: the preview payload as CSV or JSON, in the temporary directory.
 final class HealthExportTests: XCTestCase {
 
     private let payload: [String: Any] = [

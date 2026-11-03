@@ -70,7 +70,7 @@ final class ExportManager {
         var errorDescription: String? { AppDiagnostic.serializeFailed.localized }
     }
 
-    /// The Health tab's Export: the preview payload (what View shows) as a file in the temporary
+    /// Export data under More: the preview payload as a file in the temporary
     /// directory, which is not backed up, for the share sheet. Only the newest export is kept
     /// there, since each one holds health data. Off the main actor: a week of heart rate is a
     /// few megabytes of text.

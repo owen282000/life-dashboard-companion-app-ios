@@ -799,7 +799,7 @@ enum SettingsImport {
     }
 
     /// Why the file's broker cannot be used, or nil. An empty host is a file without a broker;
-    /// any other host must be one the Health tab would take, and the port 1 to 65535.
+    /// any other host must be one the MQTT sheet would take, and the port 1 to 65535.
     private static func unusableBroker(_ broker: BrokerConfig) -> ImportNote? {
         if let host = broker.host?.trimmingCharacters(in: .whitespaces), !host.isEmpty,
            SettingsValidation.brokerHostProblem(host) != nil {

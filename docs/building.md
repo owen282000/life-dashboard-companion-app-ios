@@ -21,7 +21,9 @@ The app has no third-party dependencies, and should stay that way.
 |---|---|
 | `LifeDashboardCompanion/Managers/` | Sync, HealthKit reads, webhook and MQTT delivery, background tasks, schedule, backfill, settings backup |
 | `LifeDashboardCompanion/Models/` | Data types, log entries, pairing links, sync results |
-| `LifeDashboardCompanion/Screens/` | SwiftUI screens and the design kit |
+| `LifeDashboardCompanion/Screens/` | SwiftUI screens: the pages in `LD/`, and next to them the pairing scanner and sheet |
+| `LifeDashboardCompanion/UI/LD/` | The design kit and the routes (`LDRoute.swift`), described in its [README](../LifeDashboardCompanion/UI/LD/README.md) |
+| `LifeDashboardCompanion/Fonts/` | Space Grotesk and Space Mono, with their licences |
 | `LifeDashboardWidget/` | The home screen widget |
 | `LifeDashboardCompanionTests/` | Unit tests |
 | `docs/` | Documentation, screenshots and the brand sources |
@@ -83,13 +85,12 @@ It builds the app, installs it on a simulator of its own (`ld-screenshots`, an i
 | `-ld.about YES` | About |
 | `-ld.nerd YES` | About with Nerd Stats |
 | `-ld.privacy YES` | the privacy policy |
-| `-ld.expand YES` | every row on the Health tab |
-| `-ld.expand schedule,mqtt` | only those rows: `types`, `schedule`, `webhook`, `mqtt`, `advanced`, `resolution`, `notifications` |
-| `-ld.destination 0` | the sheet of the first webhook address, with its secret and headers |
-| `-ld.backfill YES` | the list of backfill lengths |
+| `-ld.route whenToSend` | any page or sheet, by its name in `LDDebugRoute` in `UI/LD/LDRoute.swift`; `scanner` and `pairing` open the scanner and the pairing sheet |
+| `-ld.pairPhase confirmed` | the pairing sheet at its result: `checking`, `confirmed`, `unconfirmed`, `refused` or `failed` |
+| `-ld.holds refresh,power,quiet` | what holds a sync on the Health tab: the Background App Refresh card, the Low Power Mode line, and nothing delivered for days |
 | `-ld.scroll 0.5` | a long page, scrolled to that fraction |
 | `-ld.step 1` | a step of the first-run setup |
-| `-ld.demoSteps 5200,7100,...` | example daily step totals for the steps sparkline, since the simulator has none |
+| `-ld.demoSteps 5200,7100,...` | example daily step totals for the Today panel, since the simulator has none; `-ld.demoSleep`, `-ld.demoRest` and `-ld.demoWeight` do the same for the other three figures |
 | `-ld.ask NO` | no Health sheet: the Health tab does not ask for access by itself (the script sets it as a default) |
 
 The pairing sheet needs a tap on iOS's "Open in Life Dashboard?" prompt, which the script sends as Return to the Simulator app; without a Simulator app it keeps the pairing screenshot that is there. The screenshots are dark, in English with 24-hour times, without the status bar, and 1080 pixels wide, like the Android app's. The simulator has no Health data, so the numbers on them are examples. Look at every one at full size before you commit it.

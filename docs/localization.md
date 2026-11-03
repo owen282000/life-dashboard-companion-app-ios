@@ -64,8 +64,8 @@ entry that matches nothing fails the check too, so the list only shrinks by itse
   translation can put them where its grammar wants them: `"Exported \(date) by the iPhone app."`,
   not `"Exported \(date) by \(app)."`.
 - A count is interpolated into its sentence and the key varies by plural: `"\(count) records
-  sent"`. Two keys chosen by `count == 1` only where the number is styled on its own (the widget,
-  the dashboard); that is right for English, Dutch and German, not for every language.
+  sent"`. Two keys chosen by `count == 1` only where the number is styled on its own (the
+  widget); that is right for English, Dutch and German, not for every language.
 - Data is shown with `Text(verbatim:)`: URLs, hosts, JSON, status codes.
 - No localized literal inside `#if DEBUG`: define it outside and use it inside.
 - The app group shared with the widget holds dates and counts, never a sentence; the widget has

@@ -1,6 +1,6 @@
 # Settings backup and restore
 
-Export your configuration to a file and import it again, on this iPhone, another iPhone, or in the Android app. Find it under **About > Backup & restore**.
+Export your configuration to a file and import it again, on this iPhone, another iPhone, or in the Android app. Find it under **More > Backup and restore**.
 
 ## When you need it
 
@@ -15,7 +15,7 @@ Moving from one iPhone to another usually needs nothing from this app: the setti
 | The webhook URLs that get no custom headers (the ones QR pairing added) | |
 | HMAC signing secret (with secrets) | The pending queue, and the latest MQTT sensor values |
 | Sync schedule: interval or fixed times, days and quiet hours | HealthKit permissions |
-| The data-type toggles, and whether payloads carry daily totals | The last MQTT status line |
+| The data-type switches, your own choice under **Custom**, and whether payloads carry daily totals | The last MQTT status line |
 | The data resolution per type | The samples of data resolution windows still filling |
 | MQTT broker, port, TLS, switch, base topic and phone name | The client certificate (mTLS) |
 | MQTT username and password (with secrets) | |
@@ -23,14 +23,14 @@ Moving from one iPhone to another usually needs nothing from this app: the setti
 
 Sync progress is left out on purpose, as on Android: the anchors describe how far this install has read from HealthKit, and restoring them on another phone would make it skip everything written before them. HealthKit permissions are granted by iOS, so the app asks for them again after an import.
 
-The client certificate is left out as well, as on Android. Its private key stays in this iPhone's Keychain and is never exported, and its name alone means nothing on another phone. Unlike the other secrets it also stays behind with an encrypted iPhone backup and with Quick Start, because the app stores it for this device only. On the new iPhone, import the `.p12` file again under **Advanced** on the Health tab; until then, the webhook log says the certificate is unavailable and no webhook is sent.
+The client certificate is left out as well, as on Android. Its private key stays in this iPhone's Keychain and is never exported, and its name alone means nothing on another phone. Unlike the other secrets it also stays behind with an encrypted iPhone backup and with Quick Start, because the app stores it for this device only. On the new iPhone, import the `.p12` file again under **More > Advanced**; until then, the webhook log says the certificate is unavailable and no webhook is sent.
 
 ## Exporting
 
-1. Open **About > Backup & restore > Export**
-2. Choose whether to **include secrets** (on by default)
+1. Open **More > Backup and restore**
+2. Choose whether to **Include secrets** (on by default)
 3. With secrets, enter a password twice, at least 8 characters
-4. Pick where to save the file: iCloud Drive, On My iPhone, or any other location in Files
+4. Tap **Export settings** and pick where to save the file: iCloud Drive, On My iPhone, or any other location in Files
 
 **With secrets** the file is encrypted with AES-256-GCM under a key derived from your password (PBKDF2-HMAC-SHA256, 210,000 iterations), exactly as the Android app does it, and saved as `life-dashboard-config.encrypted.json`. There is no recovery if you lose the password.
 
@@ -40,7 +40,7 @@ The file goes straight to the place you pick; the app keeps no copy of it. To se
 
 ## Importing
 
-1. Open **About > Backup & restore > Import**
+1. Open **More > Backup and restore** and tap **Choose a backup file**
 2. Pick the file
 3. Enter the password when the file is encrypted
 4. Check the preview: the webhook servers, the MQTT broker, the number of data types, whether the file carries secrets, and what is kept, cleared or skipped
@@ -123,13 +123,14 @@ The same JSON as the Android app, with `"platform": "ios"` added so the importer
 ```
 
 - `theme` is the app's appearance, `system`, `light` or `dark`, the same key as the Android app, so the choice moves between the two apps in either direction. A file without it, from before 1.8.0, or with a value this version does not know, leaves the choice as it is.
-- Custom headers and the broker host are checked by the same rules as the Health tab: a header name made of the characters HTTP allows, a value of plain ASCII characters and tabs (no line break, control character or letter such as é, as on Android), a broker host that is a host name or an IP address.
-- A header that breaks them is left out and the rest of the file is imported, as the Android app does. The preview names each header left out, never its value; add it again under **Health > Webhook**. When none of the file's headers can be sent, the file counts as one without headers, so the iPhone keeps its own.
-- A broker host that breaks them, or a port outside 1 to 65535, leaves the file's broker out, all of it: the iPhone keeps its own host, port, TLS setting and credentials, so credentials from the file never go to the iPhone's broker. The preview says whether the host or the port was the problem, and the rest of the file is imported, as the Android app does. Without a broker on the iPhone, the file does not switch MQTT on either; enter a broker under **Health > MQTT**.
+- Custom headers and the broker host are checked by the same rules as the destination sheets: a header name made of the characters HTTP allows, a value of plain ASCII characters and tabs (no line break, control character or letter such as é, as on Android), a broker host that is a host name or an IP address.
+- A header that breaks them is left out and the rest of the file is imported, as the Android app does. The preview names each header left out, never its value; add it again on that destination's sheet. When none of the file's headers can be sent, the file counts as one without headers, so the iPhone keeps its own.
+- A broker host that breaks them, or a port outside 1 to 65535, leaves the file's broker out, all of it: the iPhone keeps its own host, port, TLS setting and credentials, so credentials from the file never go to the iPhone's broker. The preview says whether the host or the port was the problem, and the rest of the file is imported, as the Android app does. Without a broker on the iPhone, the file does not switch MQTT on either; enter a broker on the MQTT sheet, under **Add destination**.
 - The iPhone's one MQTT broker is Android's shared broker. From an Android file whose health section uses its own broker, that broker is taken instead, host and credentials together.
-- Cycle tracking is one toggle on iPhone and two record types on Android, so it is written as `MENSTRUATION_FLOW` and `MENSTRUATION_PERIOD` and read back from either.
+- Menstruation is one switch on iPhone and two record types on Android, so it is written as `MENSTRUATION_FLOW` and `MENSTRUATION_PERIOD` and read back from either.
 - `allow_http_webhooks` is for Android: it is true when one of the URLs uses plain HTTP, so Android does not block the same local webhook. The iPhone ignores it and lets iOS decide.
 - `failure_notifications_enabled` is iPhone-only for now, under the name Android uses for the same setting.
+- `custom_data_types` is the choice that **Custom** under **What to send** brings back, written once you have one. A file without it leaves the iPhone's as it is.
 - `series_resolutions` lists the types not at every record, as Android writes it. An empty object sets every type back to every record; a file without the key leaves the resolutions alone.
 - With secrets, the file is Android's encrypted envelope around this JSON (`type`, `version`, `kdf`, `iterations`, `salt`, `iv`, `ciphertext`), with the salt and IV random per export.
 

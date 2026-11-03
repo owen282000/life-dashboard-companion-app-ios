@@ -127,7 +127,7 @@ final class SettingsValidationTests: XCTestCase {
         return try SettingsImport.plan(file, current: prefs.backupSnapshot())
     }
 
-    /// A file carries the Health tab's rules too: a header iOS would drop is left out with a
+    /// A file carries the destination sheets' rules too: a header iOS would drop is left out with a
     /// note, as on Android, and the rest of the file applies.
     func testTheImportLeavesOutHeadersTheHealthTabRefuses() throws {
         let headers = [#""Bad Header":"a""#, #""X-Token":"a\u0001b""#, #""X-Token":"a\u2028b""#, #""X-Token":"\u00e9""#]
@@ -140,7 +140,7 @@ final class SettingsValidationTests: XCTestCase {
         }
     }
 
-    /// A broker host the Health tab refuses is left out with a note, and the iPhone's stays.
+    /// A broker host the MQTT sheet refuses is left out with a note, and the iPhone's stays.
     func testTheImportLeavesOutBrokerHostsTheHealthTabRefuses() throws {
         for host in ["my broker", "192.168.1", "broker.local:1883"] {
             let planned = try plan(#"{"version":1,"mqtt":{"shared":{"host":""# + host + #""}}}"#)
