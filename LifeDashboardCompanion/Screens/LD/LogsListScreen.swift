@@ -427,7 +427,7 @@ private struct LogDeliveryRow: View {
                     Text(verbatim: reason)
                         .font(LDType.mono(12))
                         .foregroundStyle(LDTheme.warningText)
-                        .lineLimit(2)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -458,7 +458,8 @@ private struct LogDeliveryRow: View {
             Text(verbatim: log.ldDestination)
                 .font(LDType.sans(15, .bold, relativeTo: .subheadline))
                 .foregroundStyle(LDTheme.text)
-                .lineLimit(1)
+                // A host cut down to "hom...ocal" says nothing: at these sizes it may wrap.
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                 .truncationMode(.middle)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text(verbatim: log.timestamp.formatted(.dateTime.hour().minute().second()))
@@ -492,6 +493,8 @@ private struct LogDayHeader: View {
 private struct LogFailureGroupLine: View {
     let failure: SyncStats.Failure
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     private var source: String {
         switch failure.source {
         case SyncStats.readFailureSource: return String(localized: "Apple Health")
@@ -507,11 +510,15 @@ private struct LogFailureGroupLine: View {
     var body: some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                // As LogDeliveryRow: under each other at the accessibility text sizes.
+                let layout = dynamicTypeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+                    : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+                layout {
                     Text(verbatim: source)
                         .font(LDType.sans(14, .bold, relativeTo: .subheadline))
                         .foregroundStyle(LDTheme.text)
-                        .lineLimit(1)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                         .truncationMode(.middle)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Text(verbatim: failure.latest.formatted(logDateFormat))
@@ -523,7 +530,7 @@ private struct LogFailureGroupLine: View {
                 Text(verbatim: message)
                     .font(LDType.mono(12))
                     .foregroundStyle(LDTheme.warningText)
-                    .lineLimit(2)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             LDChevron()

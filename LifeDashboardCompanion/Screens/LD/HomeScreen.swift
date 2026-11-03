@@ -26,6 +26,7 @@ struct HomeScreen: View {
     @Environment(\.requestReview) private var requestReview
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         Group {
@@ -169,9 +170,15 @@ struct HomeScreen: View {
                     }
                 }
             }
-            HStack(spacing: 8) {
+            // Under each other at the accessibility text sizes, where "destination" would break in two.
+            let layout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                : AnyLayout(HStackLayout(spacing: 8))
+            layout {
                 LDTextButton("Add destination") { navigator.present(.addDestination) }
-                Spacer(minLength: 8)
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Spacer(minLength: 8)
+                }
                 // With nothing selected there is nothing to sync, so the board has no button.
                 if state != .nothingSelected {
                     LDButton(isSyncing ? Text("Syncing...") : Text("Sync Now"), size: .small, fullWidth: false, isBusy: isSyncing, action: syncNow)

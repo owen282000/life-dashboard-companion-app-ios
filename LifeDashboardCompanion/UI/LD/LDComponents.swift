@@ -546,6 +546,8 @@ struct LDRow: View {
     // A stored view, not a generic: AboutLinkRow and others keep an LDRow in a property.
     private let trailing: AnyView?
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     init(
         _ title: LocalizedStringKey,
         subtitle: Text? = nil,
@@ -596,11 +598,17 @@ struct LDRow: View {
                         .foregroundStyle(LDTheme.muted)
                         .lineSpacing(LDType.lineSpacing(size: 13, lineHeight: 18))
                 }
+                // Under the name at the accessibility text sizes: side by side, both break mid-word.
+                if let value, dynamicTypeSize.isAccessibilitySize {
+                    value
+                        .font(LDType.value)
+                        .foregroundStyle(valueColor)
+                }
             }
             .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            if let value {
+            if let value, !dynamicTypeSize.isAccessibilitySize {
                 value
                     .font(LDType.value)
                     .foregroundStyle(valueColor)
@@ -870,6 +878,8 @@ struct LDSegmented<Value: Hashable>: View {
     private let segments: [LDSegment<Value>]
     private let label: LocalizedStringKey?
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     /// `label` is what VoiceOver calls the group: the boards have no visible title on some.
     init(selection: Binding<Value>, segments: [LDSegment<Value>], label: LocalizedStringKey? = nil) {
         _selection = selection
@@ -878,27 +888,15 @@ struct LDSegmented<Value: Hashable>: View {
     }
 
     var body: some View {
-        HStack(spacing: 2) {
-            ForEach(segments, id: \.value) { segment in
-                let selected = segment.value == selection
-                Button {
-                    selection = segment.value
-                } label: {
-                    segment.title
-                        .font(LDType.sans(14, selected ? .bold : .medium, relativeTo: .subheadline))
-                        .foregroundStyle(selected ? LDTheme.onAccent : LDTheme.text)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 4)
-                        .frame(maxWidth: .infinity, minHeight: 38)
-                        .background(
-                            selected ? LDTheme.accent : Color.clear,
-                            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        )
-                        .padding(.vertical, 3)
-                        .contentShape(Rectangle())
+        Group {
+            // Under each other at the accessibility text sizes when side by side a word would break.
+            if dynamicTypeSize.isAccessibilitySize {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 2) { buttons }
+                    VStack(spacing: 2) { buttons }
                 }
-                .buttonStyle(.ldPress)
-                .accessibilityAddTraits(selected ? .isSelected : [])
+            } else {
+                HStack(spacing: 2) { buttons }
             }
         }
         .padding(.horizontal, 3)
@@ -907,6 +905,30 @@ struct LDSegmented<Value: Hashable>: View {
         .padding(.horizontal, LDTheme.cardInset)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(label.map { Text($0) } ?? Text(verbatim: ""))
+    }
+
+    private var buttons: some View {
+        ForEach(segments, id: \.value) { segment in
+            let selected = segment.value == selection
+            Button {
+                selection = segment.value
+            } label: {
+                segment.title
+                    .font(LDType.sans(14, selected ? .bold : .medium, relativeTo: .subheadline))
+                    .foregroundStyle(selected ? LDTheme.onAccent : LDTheme.text)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 4)
+                    .frame(maxWidth: .infinity, minHeight: 38)
+                    .background(
+                        selected ? LDTheme.accent : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    )
+                    .padding(.vertical, 3)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.ldPress)
+            .accessibilityAddTraits(selected ? .isSelected : [])
+        }
     }
 }
 
@@ -996,12 +1018,18 @@ struct LDFlowLayout: Layout {
         )
     }
 
+    /// A chip wider than the row gets the row, and wraps inside it.
+    private func fitted(_ subview: LayoutSubview, width: CGFloat) -> CGSize {
+        let ideal = subview.sizeThatFits(.unspecified)
+        return ideal.width <= width ? ideal : subview.sizeThatFits(ProposedViewSize(width: width, height: nil))
+    }
+
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         var top = bounds.minY
         for row in arrange(subviews, width: bounds.width) {
             var leading = bounds.minX
             for index in row.indices {
-                let size = subviews[index].sizeThatFits(.unspecified)
+                let size = fitted(subviews[index], width: bounds.width)
                 subviews[index].place(
                     at: CGPoint(x: leading, y: top + (row.height - size.height) / 2),
                     proposal: ProposedViewSize(size)
@@ -1022,7 +1050,7 @@ struct LDFlowLayout: Layout {
         var rows: [Row] = []
         var row = Row()
         for index in subviews.indices {
-            let size = subviews[index].sizeThatFits(.unspecified)
+            let size = fitted(subviews[index], width: width)
             let added = row.indices.isEmpty ? size.width : row.width + spacing + size.width
             if added > width, !row.indices.isEmpty {
                 rows.append(row)
@@ -1609,9 +1637,16 @@ struct LDTile: View {
 struct LDTileGrid<Content: View>: View {
     @ViewBuilder let content: Content
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
-        LDTwoColumnLayout(spacing: 8) {
-            content
+        Group {
+            // One column at the accessibility text sizes: "Notifications" is wider than half a phone.
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(spacing: 8) { content }
+            } else {
+                LDTwoColumnLayout(spacing: 8) { content }
+            }
         }
         .padding(.top, 16)
         .padding(.horizontal, LDTheme.cardInset)
