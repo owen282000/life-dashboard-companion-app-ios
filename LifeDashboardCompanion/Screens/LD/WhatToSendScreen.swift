@@ -96,9 +96,11 @@ struct WhatToSendScreen: View {
         LDCard {
             ForEach(LDTypeCategory.allCases, id: \.self) { category in
                 let types = category.types
-                LDRow(category.title, value: types.isEmpty ? Text("Not available yet") : Text("\(types.filter(enabled.contains).count) of \(types.count)"))
+                LDRow(category.title, value: Text("\(types.filter(enabled.contains).count) of \(types.count)"))
                     .ldLink(to: .typeCategory(category))
             }
+            LDRow("Not available yet", value: Text(verbatim: LDNotAvailableGroup.nameCount.formatted()))
+                .ldLink(to: .notAvailableYet)
             AboutLinkRow("Missing a type?", subtitle: Text("Tell us which one you want next"), url: AboutLinks.missingType)
         }
     }

@@ -6,6 +6,7 @@ enum LDRoute: Hashable {
     // What to send
     case whatToSend
     case typeCategory(LDTypeCategory)
+    case notAvailableYet
     case dataResolution
     case backfillRun
     // When to send
@@ -40,6 +41,7 @@ enum LDRoute: Hashable {
         switch self {
         case .whatToSend: WhatToSendScreen()
         case .typeCategory(let category): TypeCategoryScreen(category: category)
+        case .notAvailableYet: NotAvailableYetScreen()
         case .dataResolution: DataResolutionScreen()
         case .backfillRun: BackfillScreen(stage: .running)
         case .whenToSend: WhenToSendScreen()
@@ -211,6 +213,7 @@ enum LDDebugRoute: Equatable {
     static let plain: [String: LDDebugRoute] = {
         var routes: [String: LDDebugRoute] = [
             "whatToSend": .push(.whatToSend),
+            "notAvailableYet": .push(.notAvailableYet),
             "dataResolution": .push(.dataResolution),
             "backfillRun": .push(.backfillRun),
             "whenToSend": .push(.whenToSend),

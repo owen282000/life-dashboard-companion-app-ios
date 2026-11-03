@@ -46,7 +46,7 @@ final class LDKitTests: XCTestCase {
     /// Adding a case to LDRoute stops the build here, until the case is in the table below too.
     private func listed(_ route: LDRoute) {
         switch route {
-        case .whatToSend, .typeCategory, .dataResolution, .backfillRun, .whenToSend, .more, .advanced,
+        case .whatToSend, .typeCategory, .notAvailableYet, .dataResolution, .backfillRun, .whenToSend, .more, .advanced,
              .notifications, .exportData, .backupRestore, .logDetail, .about, .aboutHelp, .aboutSupport,
              .aboutPrivacy, .aboutOpenSource, .aboutNerdStats:
             break
@@ -64,6 +64,7 @@ final class LDKitTests: XCTestCase {
     func testEveryRouteOpensItsOwnScreen() {
         let routes: [(LDRoute, String)] = LDTypeCategory.allCases.map { (.typeCategory($0), "TypeCategoryScreen") } + [
             (.whatToSend, "WhatToSendScreen"),
+            (.notAvailableYet, "NotAvailableYetScreen"),
             (.dataResolution, "DataResolutionScreen"),
             (.backfillRun, "BackfillScreen"),
             (.whenToSend, "WhenToSendScreen"),
@@ -105,7 +106,7 @@ final class LDKitTests: XCTestCase {
     func testTheDebugRouteNamesReachEveryRoute() {
         let plain = LDDebugRoute.plain
         for route: LDRoute in [
-            .whatToSend, .dataResolution, .backfillRun, .whenToSend, .more, .advanced, .notifications,
+            .whatToSend, .notAvailableYet, .dataResolution, .backfillRun, .whenToSend, .more, .advanced, .notifications,
             .exportData, .backupRestore, .about, .aboutHelp, .aboutSupport, .aboutPrivacy,
             .aboutOpenSource, .aboutNerdStats,
         ] + LDTypeCategory.allCases.map(LDRoute.typeCategory) {
@@ -179,13 +180,23 @@ final class LDKitTests: XCTestCase {
     }
 
     func testNotAvailableYetNamesAreUniqueAndNeverATypeTheAppSends() {
-        let names = LDTypeCategory.allCases.flatMap(\.notAvailableYet).map { String(localized: $0) }
+        let names = (LDTypeCategory.allCases.flatMap(\.notAvailableYet) + LDNotAvailableGroup.allCases.flatMap(\.names))
+            .map { String(localized: $0) }
         XCTAssertEqual(names.count, Set(names).count)
         let built = Set(HealthDataType.allCases.map { String(localized: $0.displayName) })
         XCTAssertTrue(built.isDisjoint(with: names))
-        for category in LDTypeCategory.allCases where category.types.isEmpty {
-            XCTAssertFalse(category.notAvailableYet.isEmpty, "\(category) would be an empty page")
+    }
+
+    /// A category without a single type reads as a promise, which App Review can refuse. Those
+    /// names go on the Not available yet page, under a group.
+    func testEveryCategoryHasTypesAndEveryGroupHasNames() {
+        for category in LDTypeCategory.allCases {
+            XCTAssertFalse(category.types.isEmpty, "\(category) would be a category without a type")
         }
+        for group in LDNotAvailableGroup.allCases {
+            XCTAssertFalse(group.names.isEmpty, "\(group) would be an empty section")
+        }
+        XCTAssertEqual(LDNotAvailableGroup.nameCount, LDNotAvailableGroup.allCases.map(\.names.count).reduce(0, +))
     }
 
     @MainActor

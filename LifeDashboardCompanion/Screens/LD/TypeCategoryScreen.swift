@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The groups of What to send. Every HealthDataType sits in exactly one.
 enum LDTypeCategory: String, CaseIterable, Hashable {
-    case activity, body, heartAndVitals, sleepAndMind, foodAndDrink, cycleTracking, symptoms, soundAndHabits
+    case activity, body, heartAndVitals, sleepAndMind, foodAndDrink, cycleTracking
 
     var title: LocalizedStringKey {
         switch self {
@@ -12,8 +12,6 @@ enum LDTypeCategory: String, CaseIterable, Hashable {
         case .sleepAndMind: return "Sleep and mind"
         case .foodAndDrink: return "Food and drink"
         case .cycleTracking: return "Cycle tracking"
-        case .symptoms: return "Symptoms"
-        case .soundAndHabits: return "Sound, daylight and habits"
         }
     }
 
@@ -34,8 +32,6 @@ enum LDTypeCategory: String, CaseIterable, Hashable {
             return [.hydration, .nutrition]
         case .cycleTracking:
             return [.menstruation, .intermenstrualBleeding, .ovulationTest, .cervicalMucus, .sexualActivity]
-        case .symptoms, .soundAndHabits:
-            return []
         }
     }
 
@@ -76,6 +72,37 @@ enum LDTypeCategory: String, CaseIterable, Hashable {
                 "Infrequent Cycles", "Irregular Cycles", "Prolonged Periods", "Bleeding After Pregnancy",
                 "Bleeding During Pregnancy", "Bleeding After Menopause", "Menopausal State"
             ]
+        }
+    }
+
+    #if DEBUG
+    /// A type added to HealthDataType without a category could not be switched on anywhere.
+    static func assertCoversEveryType() {
+        let listed = allCases.flatMap(\.types)
+        assert(
+            listed.count == Set(listed).count && Set(listed) == Set(HealthDataType.allCases),
+            "Every HealthDataType must sit in exactly one LDTypeCategory"
+        )
+    }
+    #endif
+}
+
+/// What Apple Health has in groups the app has no type in at all. They are not categories, since
+/// there is nothing to switch on: one page names them, Not available yet.
+enum LDNotAvailableGroup: CaseIterable, Hashable {
+    case symptoms, soundAndHabits
+
+    static var nameCount: Int { allCases.flatMap(\.names).count }
+
+    var title: LocalizedStringKey {
+        switch self {
+        case .symptoms: return "Symptoms"
+        case .soundAndHabits: return "Sound, daylight and habits"
+        }
+    }
+
+    var names: [LocalizedStringResource] {
+        switch self {
         case .symptoms:
             return [
                 "Abdominal Cramps", "Acne", "Appetite Changes", "Bladder Incontinence", "Bloating",
@@ -94,17 +121,6 @@ enum LDTypeCategory: String, CaseIterable, Hashable {
             ]
         }
     }
-
-    #if DEBUG
-    /// A type added to HealthDataType without a category could not be switched on anywhere.
-    static func assertCoversEveryType() {
-        let listed = allCases.flatMap(\.types)
-        assert(
-            listed.count == Set(listed).count && Set(listed) == Set(HealthDataType.allCases),
-            "Every HealthDataType must sit in exactly one LDTypeCategory"
-        )
-    }
-    #endif
 }
 
 /// Switching types on and off, for every page of What to send.
@@ -168,20 +184,18 @@ struct TypeCategoryScreen: View {
             LDHeading(category.title)
             if category == .cycleTracking {
                 LDNote("This only goes to your own destinations.", top: 4)
-            } else if !types.isEmpty {
+            } else {
                 LDNote(Text("\(types.filter(prefs.healthEnabledDataTypes.contains).count) of \(types.count) selected."), top: 4)
             }
             LDGap(12)
-            if !types.isEmpty {
-                LDCard {
-                    ForEach(types) { type in
-                        LDToggleRow(Text(type.displayName), isOn: WhatToSendSelection.binding(for: type, prefs: prefs))
-                    }
+            LDCard {
+                ForEach(types) { type in
+                    LDToggleRow(Text(type.displayName), isOn: WhatToSendSelection.binding(for: type, prefs: prefs))
                 }
-                .ldStaggerRise(0)
-                LDGap(10)
             }
-            NotAvailableYetCard(names: category.notAvailableYet, startsOpen: types.isEmpty)
+            .ldStaggerRise(0)
+            LDGap(10)
+            NotAvailableYetCard(names: category.notAvailableYet)
                 .ldStaggerRise(1)
         }
         .navigationTitle("What to send")
@@ -189,16 +203,43 @@ struct TypeCategoryScreen: View {
     }
 }
 
-/// The types of a category that the app cannot send yet: names only, nothing to switch, so it does
-/// not read as a broken control.
+/// The page behind the last row of By category: groups with names only, nothing to switch.
+struct NotAvailableYetScreen: View {
+    var body: some View {
+        LDScreen {
+            LDHeading("Not available yet")
+            ForEach(Array(LDNotAvailableGroup.allCases.enumerated()), id: \.element) { index, group in
+                LDSectionLabel(group.title)
+                LDCard {
+                    NotAvailableNames(names: group.names)
+                }
+                .ldStaggerRise(index)
+            }
+        }
+        .navigationTitle("What to send")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// The names of what the app cannot send yet, as a sentence: nothing to switch, so it does not read
+/// as a broken control.
+private struct NotAvailableNames: View {
+    let names: [LocalizedStringResource]
+
+    var body: some View {
+        Text(verbatim: names.map { String(localized: $0) }.formatted(.list(type: .and, width: .narrow)))
+            .font(LDType.rowSubtitle)
+            .foregroundStyle(LDTheme.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+    }
+}
+
+/// The types of a category that the app cannot send yet, folded.
 private struct NotAvailableYetCard: View {
     let names: [LocalizedStringResource]
-    @State private var isOpen: Bool
-
-    init(names: [LocalizedStringResource], startsOpen: Bool) {
-        self.names = names
-        _isOpen = State(initialValue: startsOpen)
-    }
+    @State private var isOpen = false
 
     var body: some View {
         LDCard {
@@ -225,12 +266,7 @@ private struct NotAvailableYetCard: View {
             .buttonStyle(.ldPress)
             .accessibilityValue(isOpen ? Text("Expanded") : Text("Collapsed"))
             if isOpen {
-                Text(verbatim: names.map { String(localized: $0) }.formatted(.list(type: .and, width: .narrow)))
-                    .font(LDType.rowSubtitle)
-                    .foregroundStyle(LDTheme.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
+                NotAvailableNames(names: names)
             }
         }
     }

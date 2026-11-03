@@ -21,7 +21,7 @@ These are the Apple Health types that have a counterpart in the Android app, und
 
 One data type can read several Apple Health types: Nutrition reads 38, Distance one per activity. Together the 28 read 74 Apple Health types, or 70 on iOS 17, which has fewer distance types.
 
-Every category also has a **Not available yet** list, with what Apple Health has and the app does not read. **Symptoms** and **Sound, daylight and habits** only have that list. **Missing a type?** starts an issue to name the one you want.
+Every category also has a **Not available yet** list, with what Apple Health has and the app does not read. A page of its own, **Not available yet**, names what has no category because the app has no type in it: **Symptoms** and **Sound, daylight and habits**, names only, nothing to switch. **Missing a type?** starts an issue to name the one you want.
 
 - **Essentials, All types and Custom** - **Essentials** is steps, distance, active calories, sleep, heart rate, resting heart rate, weight and exercise sessions. **All types** switches on every type, cycle tracking included. Any other selection is **Custom**. A preset never loses your own choice: **Custom** brings it back, and it travels with the settings backup
 - **Incremental sync** - each sync sends the records added since the last one, per type, from HealthKit's own change tracking, also when they are dated in the past. **Sync Now** sends what is new too, as in the Android app, in up to 8 rounds while a type is catching up past its limit, and publishes the newest value of every type to MQTT. **Backfill** sends history
