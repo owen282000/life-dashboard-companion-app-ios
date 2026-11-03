@@ -18,9 +18,8 @@ Thanks for your interest in improving Life Dashboard Companion for iOS!
     -destination 'platform=iOS Simulator,name=iPhone 16 Pro' -testLanguage en -testRegion US
   ```
 
-- **UI text comes in English, Dutch and German.** Write English literals the String Catalogs
-  can pick up, never concatenate a sentence from pieces, and add the Dutch and German in the
-  same commit: `scripts/l10n.sh sync` lists what is missing, `scripts/l10n.sh check` fails the
+- **UI text comes in eleven languages.** Write English literals the String Catalogs can pick
+  up, never concatenate a sentence from pieces, and add every translation in the same commit: `scripts/l10n.sh sync` lists what is missing, `scripts/l10n.sh check` fails the
   way CI does. The rules and the glossary are in [docs/localization.md](docs/localization.md).
 
 - **Payload compatibility matters.** The JSON payload format is shared with the [Android companion app](https://github.com/owen282000/life-dashboard-companion-app); both apps feed the same backends. Changes to payload keys or value formats need a very good reason and matching documentation in [docs/webhook.md](docs/webhook.md).

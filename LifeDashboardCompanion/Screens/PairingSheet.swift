@@ -62,7 +62,9 @@ struct PairingSheet: View {
     let link: PairingLink
 
     @ObservedObject private var prefs = PreferencesManager.shared
+    @EnvironmentObject private var navigator: LDNavigator
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("onboarding_completed") private var onboardingCompleted = false
 
     private enum Phase: Equatable {
         case confirm
@@ -80,91 +82,112 @@ struct PairingSheet: View {
         let prefs = PreferencesManager.shared
         _change = State(initialValue: PairingApply.preview(link, current: prefs.healthDestinations))
         _enabledTypes = State(initialValue: prefs.healthEnabledDataTypes.count)
+        #if DEBUG
+        // For screenshots: -ld.pairPhase opens the result, without writing or sending anything.
+        switch UserDefaults.standard.string(forKey: "ld.pairPhase") {
+        case "checking": _phase = State(initialValue: .checking)
+        case "confirmed": _phase = State(initialValue: .done(.confirmed))
+        case "unconfirmed": _phase = State(initialValue: .done(.deliveredUnconfirmed))
+        case "refused": _phase = State(initialValue: .done(.refused))
+        case "failed": _phase = State(initialValue: .done(.failed("HTTP 502")))
+        default: break
+        }
+        #endif
     }
 
     var body: some View {
         NavigationStack {
-            Form {
-                if phase == .confirm {
+            Group {
+                switch phase {
+                case .confirm:
                     confirmContent
-                } else {
-                    resultContent
+                case .checking:
+                    result(nil)
+                case .done(let outcome):
+                    result(outcome)
                 }
             }
             .navigationTitle(phase == .confirm ? "Pairing" : "Paired")
             .navigationBarTitleDisplayMode(.inline)
+            .ldSheetBarBackground()
             .toolbar { toolbar }
         }
+        .presentationDragIndicator(.visible)
+        .presentationBackground(LDTheme.sheet)
         .interactiveDismissDisabled(phase == .checking)
     }
 
     // MARK: - Confirm
 
-    @ViewBuilder
     private var confirmContent: some View {
-        Section {
-            // The name is whatever the link says, so it reads as a claim, never as a title.
+        LDScreen(background: LDTheme.sheet) {
+            // A question without the link's name in it: the name reads as a claim, never as a title.
+            LDHeading("Pair with this receiver?")
             Group {
                 if let name = link.name {
-                    Text("\(name) wants to receive your data at:")
+                    LDNote(Text("\(name) wants to receive your data at:"), top: 10)
                 } else {
-                    Text("A receiver wants your data at:")
+                    LDNote("A receiver wants your data at:", top: 10)
                 }
             }
-                .font(.subheadline)
-            Text(link.host)
-                .font(.system(.title3, design: .monospaced))
-            Text(link.url)
-                .font(.system(.caption, design: .monospaced))
-                .foregroundColor(.secondary)
+            Text(verbatim: link.host)
+                .font(LDType.monoField)
+                .foregroundStyle(LDTheme.accentTextSoft)
+                .ldCode()
+                .padding(.top, 4)
+                .padding(.horizontal, LDTheme.textInset)
+            Text(verbatim: link.url)
+                .font(LDType.monoValue)
+                .foregroundStyle(LDTheme.muted)
                 .lineLimit(1)
                 .truncationMode(.middle)
-        }
+                .ldCode()
+                .padding(.top, 2)
+                .padding(.horizontal, LDTheme.textInset)
 
-        Section {
+            LDGap(6)
             // Two lines can share an icon, so they are told apart by their place.
             ForEach(Array(changeLines.enumerated()), id: \.offset) { _, line in
-                Label { Text(line.text) } icon: { Image(systemName: line.icon) }
-                    .font(.subheadline)
-                    .foregroundColor(line.color)
+                PairingChangeLine(line: line)
             }
-        }
 
-        Section {
             Group {
                 if enabledTypes > 0 {
-                    Text("\(enabledTypes) data types are switched on and go here from the next sync.")
+                    LDNote(Text("\(enabledTypes) data types are switched on and go here from the next sync."), top: 14)
                 } else {
-                    Text("No data types are switched on yet, so nothing is sent until you pick some.")
+                    LDNote("No data types are switched on yet, so nothing is sent until you pick some.", top: 14)
                 }
             }
-                .font(.subheadline)
-            Text("Pairing only fills in the address and the secret. Which data types are sent, and when, stays your choice on the Health tab.")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            LDNote("Pairing only fills in the address and the secret. Which data types are sent, and when, stays your choice on the Health tab.", size: 13)
+
+            LDGap(16)
+            LDButton("Pair", action: pair)
+                .disabled(link.reach == .blockedByATS)
+            LDGap(8)
+            LDButton("Cancel", kind: .ghost) { dismiss() }
         }
     }
 
-    private struct Line {
+    fileprivate struct Line {
         let text: LocalizedStringResource
         let icon: String
-        let color: Color
+        let tone: PairingLineTone
     }
 
     private var changeLines: [Line] {
         var lines: [Line] = []
         if change.changesNothing {
-            lines.append(Line(text: "Already paired. Nothing changes.", icon: "checkmark.circle", color: .secondary))
+            lines.append(Line(text: "Already paired. Nothing changes.", icon: "checkmark.circle", tone: .muted))
         } else if change.addsUrl {
-            lines.append(Line(text: "Adds this address to your webhook URLs.", icon: "plus.circle", color: .primary))
+            lines.append(Line(text: "Adds this address to your webhook URLs.", icon: "plus.circle", tone: .plain))
         }
         if change.replacesSecret {
-            lines.append(Line(text: "Replaces the signing secret of this address.", icon: "key", color: .primary))
+            lines.append(Line(text: "Replaces the signing secret of this address.", icon: "key", tone: .plain))
         }
         // Since 1.10.0 every address has its own secret and headers, so a second receiver no
         // longer changes what the first one gets.
         if change.otherUrls > 0 && !change.changesNothing {
-            lines.append(Line(text: "Your other addresses keep their own signing secret and headers.", icon: "checkmark.shield", color: .secondary))
+            lines.append(Line(text: "Your other addresses keep their own signing secret and headers.", icon: "checkmark.shield", tone: .muted))
         }
         switch link.reach {
         case .secure:
@@ -172,76 +195,36 @@ struct PairingSheet: View {
         case .homeNetwork:
             lines.append(Line(
                 text: "Plain HTTP, allowed for an address on your own network. Your data is not encrypted on the way, and it only arrives while the phone is at home or on a VPN.",
-                icon: "house", color: .secondary))
+                icon: "house", tone: .muted))
         case .publicPlainHttp:
             lines.append(Line(
                 text: "This address is on the internet without encryption. Anyone along the way can read your health data. Use an https address.",
-                icon: "exclamationmark.triangle", color: .orange))
+                icon: "exclamationmark.triangle", tone: .warning))
         case .blockedByATS:
             lines.append(Line(
                 text: link.looksLikeHomeAssistant
                     ? "iOS only allows plain HTTP to IP addresses and .local names. In Home Assistant, use Reconfigure on the integration with the IP address or an https address, and scan the new code."
                     : "iOS only allows plain HTTP to IP addresses and .local names. Make a new pairing code on the receiver with the IP address or an https address, and scan that.",
-                icon: "xmark.octagon", color: .red))
+                icon: "xmark.octagon", tone: .warning))
         }
         return lines
     }
 
     // MARK: - Result
 
-    @ViewBuilder
-    private var resultContent: some View {
-        Section {
-            Text(link.host)
-                .font(.system(.body, design: .monospaced))
-            switch phase {
-            case .done(let outcome):
-                let done = outcome.isDone(at: link)
-                Label { outcomeText(outcome) } icon: { Image(systemName: done ? "checkmark.circle.fill" : "exclamationmark.circle") }
-                    .foregroundColor(done ? .green : .orange)
-                    .font(.subheadline)
-                if !done {
-                    Button("Try again") { Task { await check() } }
-                }
-            default:
-                HStack {
-                    ProgressView()
-                    Text("Checking the connection...")
-                        .font(.subheadline)
-                }
-            }
-        }
-        Section {
-            Text(enabledTypes > 0
-                 ? "Tap Sync Now to send your data."
-                 : "Next, switch on the data types you want to send.")
-                .font(.subheadline)
-        }
-    }
-
-    private func outcomeText(_ outcome: PairingPingOutcome) -> Text {
-        switch outcome {
-        case .confirmed:
-            // The name is the link's claim, cleaned and capped by PairingLinks, as on the confirm
-            // screen. Home Assistant's own links are named "Home Assistant".
-            if let name = link.name {
-                return Text("\(name) confirmed the pairing.")
-            }
-            return Text("The receiver confirmed the pairing.")
-        case .deliveredUnconfirmed:
-            // Only Home Assistant answers 200 to a webhook it no longer knows; anywhere else a
-            // plain 2xx is all the receiver says.
-            return link.looksLikeHomeAssistant
-                ? Text("Delivered, but the Life Dashboard integration did not answer. Check that the entry for this phone still exists.")
-                : Text("Delivered: the receiver accepted the test ping.")
-        case .refused:
-            return Text("Test ping failed: the receiver refused the signature. Scan the code again.")
-        case .failed(let reason):
-            let shown = AppDiagnostic.display(reason)
-            return link.reach == .homeNetwork
-                ? Text("Test ping failed: \(shown). If iOS asked about the local network, allow it in Settings > Privacy & Security > Local Network.")
-                : Text("Test ping failed: \(shown)")
-        }
+    private func result(_ outcome: PairingPingOutcome?) -> some View {
+        PairedResultView(
+            link: link,
+            outcome: outcome,
+            enabledTypes: enabledTypes,
+            canPickTypes: onboardingCompleted,
+            onTryAgain: { Task { await check() } },
+            onPickTypes: {
+                dismiss()
+                navigator.dismissSheet { navigator.push(.whatToSend) }
+            },
+            onDone: { dismiss() }
+        )
     }
 
     // MARK: - Actions
@@ -260,15 +243,6 @@ struct PairingSheet: View {
         if phase == .confirm {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
-            }
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Pair") { pair() }
-                    .disabled(link.reach == .blockedByATS)
-            }
-        } else {
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Done") { dismiss() }
-                    .disabled(phase == .checking)
             }
         }
     }
@@ -299,3 +273,50 @@ struct PairingSheet: View {
         phase = .done(outcome)
     }
 }
+
+/// One line of what pairing would change. What the user has to act on gets the warning card.
+private struct PairingChangeLine: View {
+    let line: PairingSheet.Line
+
+    // A column as wide as the widest of these symbols: Label takes each symbol's own width, so the
+    // lines would start at different places.
+    @ScaledMetric(relativeTo: .subheadline) private var iconWidth: CGFloat = 22
+
+    private func content(icon iconColor: Color, text textColor: Color) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: line.icon)
+                .foregroundStyle(iconColor)
+                .frame(width: iconWidth)
+                .accessibilityHidden(true)
+            Text(line.text)
+                .foregroundStyle(textColor)
+                .multilineTextAlignment(.leading)
+        }
+        .font(LDType.note)
+    }
+
+    var body: some View {
+        switch line.tone {
+        case .plain, .muted:
+            let color = line.tone == .plain ? LDTheme.text : LDTheme.secondary
+            content(icon: color, text: color)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 8)
+                .padding(.horizontal, LDTheme.textInset)
+        case .warning:
+            content(icon: LDTheme.warning, text: LDTheme.warningBody)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 14)
+            .background(LDTheme.warningSurface, in: RoundedRectangle(cornerRadius: LDTheme.cardRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: LDTheme.cardRadius, style: .continuous)
+                    .strokeBorder(LDTheme.warningBorder, lineWidth: 1)
+            }
+            .padding(.top, 10)
+            .padding(.horizontal, LDTheme.cardInset)
+        }
+    }
+}
+
+private enum PairingLineTone { case plain, muted, warning }

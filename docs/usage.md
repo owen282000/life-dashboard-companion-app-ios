@@ -35,18 +35,30 @@ To update, pull the repository and run it again from Xcode. Your settings stay.
 
 ## First run
 
-A fresh install opens a short setup: what the app does, where the data should go (the Home Assistant pairing scanner, which is recommended, a webhook URL, with a **Test ping** to check it, or an MQTT broker), which data types to start with (the essentials, all 28, or none yet), and Apple Health access. Every step can be skipped, and everything it sets can be changed later on the Health tab.
+A fresh install opens a short setup: what the app does, where the data should go (**Scan a pairing code** for any receiver that shows one, a webhook URL with a **Test ping** to check it, or an MQTT broker), which data types to start with (**Essentials**, **All types** or **Choose later**), and Apple Health access. Every step can be skipped, and everything it sets can be changed later from the Health tab.
+
+The Health tab shows your destinations, **Add destination**, **Sync Now** and **Today**, above four tiles: **What to send**, **When to send**, **Notifications** and **More**. **More** holds **Advanced**, **Notifications**, **Export data**, **Backup and restore**, **Appearance** and **About**.
 
 After the setup:
 
-1. **Grant Apple Health access.** When a type is on that iOS has not asked about yet, the green Apple Health banner shows **Grant**. iOS never tells an app whether you allowed reading, so a type you declined simply sends nothing; change it in the Health app under your profile, Apps, Life Dashboard.
-2. **Tap a webhook address** for its own headers (optional), such as an auth token or API key, and its own **HMAC Signing Secret** if that receiver checks signatures. Every address has its own, so two receivers never get each other's key.
-3. **Set the sync schedule**: an interval (at least 15 minutes) or fixed times, with optional weekdays and quiet hours. On iOS a fixed time means "not before"; see [Sync scheduling](features.md#sync-scheduling).
-4. **Tap View** to see the last 7 days as a payload, then **Sync Now** to send what is new. A type's first sync sends its last 7 days.
+1. **Grant Apple Health access.** Switching a type on asks iOS for it. When a type is on that iOS has not asked about yet, the **Apple Health access** row under **What to send** shows **Grant**. iOS never tells an app whether you allowed reading, so a type you declined simply sends nothing; change it in the Health app under your profile, Apps, Life Dashboard.
+2. **Tap a destination** on the Health tab for its own **Custom Headers** (optional), such as an auth token or API key, and its own **HMAC Signing Secret** if that receiver checks signatures, then tap **Save**. Every address has its own, so two receivers never get each other's key.
+3. **Set the schedule** under **When to send**: **Every X minutes** (at least 15) or **Fixed times**, with optional days and quiet hours. On iOS a fixed time means "not before"; see [Sync scheduling](features.md#sync-scheduling).
+4. **Check and send.** **Preview payload** under **What to send** shows the last 7 days as a payload, and **Sync Now** on the Health tab sends what is new. A type's first sync sends its last 7 days.
 
-**Test ping** checks that your server accepts a POST before you wait for real data. iOS asks once for access to the local network the first time the app talks to an address on it; allow it, or nothing reaches a server at home.
+**Send test** on a destination's sheet checks that your server accepts a POST before you wait for real data. It uses what is saved, so tap **Save** first. **Send test** on the Logs tab does the same for all your webhooks. iOS asks once for access to the local network the first time the app talks to an address on it; allow it, or nothing reaches a server at home.
 
-Moving from another phone, Android or iPhone? Import your settings under **About > Backup & restore** instead of typing everything again; see [settings-backup.md](settings-backup.md).
+Moving from another phone, Android or iPhone? Import your settings under **More > Backup and restore** instead of typing everything again; see [settings-backup.md](settings-backup.md).
+
+### Choosing what to send
+
+**What to send** has three starting points:
+
+- **Essentials**: steps, distance, active calories, sleep, heart rate, resting heart rate, weight and exercise sessions.
+- **All types**: every type the app can read, cycle tracking included.
+- **Custom**: your own choice. Switch types on or off under **By category**, and any selection that is not one of the two above counts as Custom.
+
+A preset never loses your own choice: tapping **Essentials** or **All types** keeps it, and **Custom** brings it back. iOS asks once for the types a preset brings in. The same page has **Data resolution**, **Send history**, **Preview payload** and **Apple Health access**.
 
 ## Phone to Home Assistant
 
@@ -57,37 +69,39 @@ Two routes, and neither needs YAML. The **Life Dashboard integration** is the re
 You need the integration 0.7.1 or newer; earlier versions do not accept the iPhone app. Installing it is the same as for the Android app, and the Android app's [usage.md](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/usage.md#with-the-integration) walks through it: add the repository to HACS, download **Life Dashboard**, restart Home Assistant, and add the integration under Settings > Devices & services, with a name for the phone. Then:
 
 1. **Scan the code** the dialog shows with **Scan a pairing code** in the app, and tap **Pair**. [Pairing by QR code](#pairing-by-qr-code) has the details.
-2. **Grant and sync.** Switch on the types you want and tap **Sync Now**. The iPhone appears under Settings > Devices & services > Life Dashboard with a sensor for each type it sent. For the past, tap **Backfill** on the Health tab.
+2. **Grant and sync.** Under **What to send**, switch on the types you want, then tap **Sync Now** on the Health tab. The iPhone appears under Settings > Devices & services > Life Dashboard with a sensor for each type it sent. For the past, tap **Send history** under **What to send**.
 
 An Android phone and an iPhone can each be paired with the same integration, each as a device of its own.
 
 ### Pairing by QR code
 
-The integration shows a QR code when you add it, and again under its Reconfigure. In the app, tap **Scan a pairing code**: in the setup, or on the Webhook card of the Health tab, where it is the QR button next to the address field. iOS asks for the camera the first time.
+Any receiver that shows a pairing code can be paired this way: the Life Dashboard integration, the Life Dashboard Stack or a server of your own. To add a code to your own receiver, read [Let your users connect health data with one QR code](https://owen282000.com/life-dashboard/health-data-qr-pairing/).
 
-A sheet then shows what the receiver calls itself, the address, whether it is new, whether that address's signing secret is replaced (your other addresses keep their own), and what iOS will do with a plain `http://` address. Nothing is saved until you tap **Pair**, and a code only ever fills in the address and the secret: what is synced, and when, stays your choice on the Health tab. After pairing, the app sends one test ping and the sheet says how it went: confirmed, when the receiver answers the way the integration does, or delivered, when it simply accepted the ping, which is all most other receivers do. For a Home Assistant address a ping that is delivered but not confirmed can mean the entry for this phone was deleted, since Home Assistant also accepts a webhook it no longer knows, and the sheet says so.
+The integration shows a QR code when you add it, and again under its Reconfigure. In the app, tap **Scan a pairing code**: in the setup, on the Health tab while there is no destination yet, or under **Add destination**. iOS asks for the camera the first time.
 
-Pairing sets the secret of the address it pairs, and only that one: a second receiver never changes the secret the first one checks. An address added by pairing starts without headers, since a code can come from anyone and an API key typed for another receiver must never follow it. Tap the address to add headers for it.
+A sheet then shows what the receiver calls itself, the address, whether it is new, whether that address's signing secret is replaced (your other addresses keep their own), and what iOS will do with a plain `http://` address. Nothing is saved until you tap **Pair**, and a code only ever fills in the address and the secret: what is synced, and when, stays your choice under **What to send** and **When to send**. After pairing, the app sends one test ping and the sheet says how it went: confirmed, when the receiver answers the way the integration does, or delivered, when it simply accepted the ping, which is all most other receivers do. For a Home Assistant address a ping that is delivered but not confirmed can mean the entry for this phone was deleted, since Home Assistant also accepts a webhook it no longer knows, and the sheet says so.
+
+Pairing sets the secret of the address it pairs, and only that one: a second receiver never changes the secret the first one checks. An address added by pairing starts without headers, since a code can come from anyone and an API key typed for another receiver must never follow it. Tap the destination on the Health tab to add headers for it.
 
 iOS decides in advance which plain `http://` addresses an app may use: an IP address, a `.local` name like `homeassistant.local`, or a name without a dot. A name like `ha.lan` over `http://` cannot be paired; the sheet says so. Use the IP address, or an `https://` address, in the integration's Reconfigure.
 
 ### MQTT
 
 1. In Home Assistant, install the **Mosquitto broker** add-on and add the **MQTT** integration if it is not there yet, and create a user for the app.
-2. In the app, open the Health tab, expand **MQTT**, switch on **Enable MQTT publishing** and fill in the broker host, port 1883, and that username and password. For a broker reached over the internet, switch on **TLS** (usually port 8883).
+2. In the app, tap **Add destination** on the Health tab, or **Use your own server** while there is no destination yet, then **MQTT broker**. Switch on **Enable MQTT publishing**, fill in the **Broker host**, **Port** 1883, and that username and password, and tap **Save**. For a broker reached over the internet, switch on **TLS** (usually port 8883).
 3. Tap **Sync Now**. A broker alone is enough, and from then on every sync publishes, the automatic ones included. A device named **Life Dashboard Companion (iOS)** appears under Settings > Devices & services > MQTT, with a sensor for every synced type that has a value.
 
-Two iPhones on one broker: give each a **Phone name** at the bottom of the MQTT card, and each becomes a device of its own, with the name in its device, ids and topics. The Android app and the iPhone already use different devices and topics, so they need no name for each other. Leave it empty on a single iPhone: then nothing changes. After a rename, the next sync removes the old device's sensors from the broker.
+Two iPhones on one broker: give each a **Phone name** in its MQTT sheet, and each becomes a device of its own, with the name in its device, ids and topics. The Android app and the iPhone already use different devices and topics, so they need no name for each other. Leave it empty on a single iPhone: then nothing changes. After a rename, the next sync removes the old device's sensors from the broker.
 
-Steps, distance and calories are today's totals, the other sensors hold the latest record of their type; [features.md](features.md#home-assistant-and-mqtt) lists them. MQTT has no retry queue: the app keeps the newest value of each sensor and publishes them all with every sync that has something new, and again after a publish that failed or a change of broker or phone name, also when nothing new came in. It gets no deleted records or backfill. If you add a webhook URL later, it gets what is new from then on; **Backfill** sends what came before. Values are published retained, so they survive a Home Assistant restart. The Logs tab shows every publish, with the broker's answer when it fails.
+Steps, distance and calories are today's totals, the other sensors hold the latest record of their type; [features.md](features.md#home-assistant-and-mqtt) lists them. MQTT has no retry queue: the app keeps the newest value of each sensor and publishes them all with every sync that has something new, and again after a publish that failed or a change of broker or phone name, also when nothing new came in. It gets no deleted records or backfill. If you add a webhook URL later, it gets what is new from then on; **Send history** sends what came before. Values are published retained, so they survive a Home Assistant restart. The Logs tab shows every publish, with the broker's answer when it fails.
 
 ## A server that requires a client certificate
 
 For a Home Assistant or other receiver behind a reverse proxy that asks for a client certificate (mTLS):
 
 1. Export the certificate together with its private key as a `.p12` file (PKCS #12) with a password, and save it to Files, through AirDrop or iCloud Drive for example. With OpenSSL: `openssl pkcs12 -export -inkey client.key -in client.crt -certfile ca.crt -out client.p12`.
-2. On the Health tab, expand **Advanced**, tap **Import** next to **Client certificate (mTLS)**, pick the file and enter its password.
-3. Tap **Test ping**.
+2. Under **More > Advanced**, tap **Import .p12** below **Client certificate (mTLS)**, pick the file and enter its password.
+3. Tap **Send test** on that destination's sheet.
 
 The row shows the certificate's name and its expiry date, with a warning from a month before it expires. Every webhook whose server asks for a certificate gets this one, background syncs, the test ping and the pairing check included; MQTT is unaffected. The certificate and its key are kept in this iPhone's Keychain, the password is not kept at all. **Replace** imports another file, **Remove** deletes the certificate from the iPhone. The `.p12` file in Files can go once it is imported.
 
@@ -113,7 +127,7 @@ iOS decides when an app runs in the background, and syncs can come later than th
 - The iPhone was locked: Health data cannot be read then, and the sync waits for the unlock
 - Quiet hours, or a day that is off in the weekday filter
 
-The Health screen shows a card while Background App Refresh is off and a line while Low Power Mode is on, and says since when nothing was delivered once that is longer than the schedule explains; with failure notifications on, a notification says the same. The line under **Sync Now** says why automatic syncs are waiting, and the Logs tab shows when syncs actually ran. For a sync at an exact time, use a Shortcuts automation with **Sync Health Data**; **Need an exact time?** under Sync Schedule explains how.
+The Health tab shows a card while Background App Refresh is off and a line while Low Power Mode is on, and says since when nothing was delivered once that is longer than the schedule explains; with failure notifications on, a notification says the same. A line on the same tab says why automatic syncs are waiting, and the Logs tab shows when syncs actually ran. For a sync at an exact time, use a Shortcuts automation with **Sync Health Data**; **Need an exact time?** under **When to send** explains how.
 
 ### "Your iPhone is locked"
 
@@ -123,13 +137,13 @@ A sync or backfill that starts while the iPhone is locked cannot read Apple Heal
 
 - Allow **Local Network** for Life Dashboard (Settings > Privacy & Security > Local Network)
 - A plain `http://` address must be an IP address, a `.local` name or a name without a dot; see [Pairing by QR code](#pairing-by-qr-code)
-- **Test ping** and the Logs tab show the error the server or iOS gave
+- **Send test** says whether it arrived, and the Logs tab shows the error the server or iOS gave
 
 ### "Client certificate is unavailable"
 
-The app has a client certificate on record, but this iPhone's Keychain does not hold it. That happens on an iPhone set up from a backup of another one, or with Quick Start: the settings come along, the certificate never leaves the iPhone it was imported on. No webhook is sent until you import the `.p12` file again under **Advanced**, or **Remove** the certificate when the server no longer requires one.
+The app has a client certificate on record, but this iPhone's Keychain does not hold it. That happens on an iPhone set up from a backup of another one, or with Quick Start: the settings come along, the certificate never leaves the iPhone it was imported on. No webhook is sent until you import the `.p12` file again under **More > Advanced**, or **Remove** the certificate when the server no longer requires one.
 
-When the certificate is there and the server still refuses the connection, the server does not trust the authority that issued it, or it has expired; the expiry date is under **Advanced**. nginx answers HTTP 400 with "No required SSL certificate was sent" when no certificate arrived at all.
+When the certificate is there and the server still refuses the connection, the server does not trust the authority that issued it, or it has expired; the expiry date is under **More > Advanced**. nginx answers HTTP 400 with "No required SSL certificate was sent" when no certificate arrived at all.
 
 ### MQTT sensors do not update
 

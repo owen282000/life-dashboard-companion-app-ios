@@ -23,69 +23,80 @@ struct PairingScannerView: View {
     static let defaultHint: LocalizedStringResource = "Fill the frame with the pairing code your receiver shows, such as Home Assistant or the Life Dashboard Stack. Closer is better."
 
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-
-            switch state {
-            case .asking:
-                ProgressView().tint(.white)
-            case .running:
-                QRCameraPreview(controller: controller)
-                    .ignoresSafeArea()
-                // The outline asks for a close code: one that fills most of the frame reads,
-                // one in a corner of it does not.
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.white.opacity(0.85), lineWidth: 2)
-                    .aspectRatio(1, contentMode: .fit)
-                    .padding(.horizontal, 40)
-                    .allowsHitTesting(false)
-                VStack(spacing: 12) {
-                    Spacer()
-                    Text(hint)
-                        .font(.callout)
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(Color.black.opacity(0.6))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    Button("Close", action: onClose)
-                        .foregroundColor(.white)
+        NavigationStack {
+            LDScreen {
+                LDGap(90)
+                viewfinder
+                if let message {
+                    LDNote(Text(message), color: LDTheme.text, top: 28)
                 }
-                .padding(24)
-            case .denied:
-                explanation(
-                    "Camera access is needed to scan a code. You can also paste the address and the secret by hand.",
-                    showSettings: true
-                )
-            case .restricted:
-                explanation("Camera access is needed to scan a code. You can also paste the address and the secret by hand.")
-            case .unavailable:
-                explanation("This device has no camera. Paste the address and the secret by hand instead.")
-            case .failed:
-                explanation("The camera could not be started.")
+                LDGap(20)
+                if state == .denied, let url = URL(string: UIApplication.openSettingsURLString) {
+                    LDButton("Open Settings") { UIApplication.shared.open(url) }
+                    LDGap(8)
+                }
+                LDButton("Close", kind: .ghost, action: onClose)
+            }
+            .navigationTitle("Scan")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(action: onClose) {
+                        Image(systemName: "chevron.backward")
+                    }
+                    .accessibilityLabel(Text("Back"))
+                }
             }
         }
         .task { await prepare() }
+        .onChange(of: state) { announceMessage() }
         .onDisappear { controller.stop() }
     }
 
-    private func explanation(_ message: LocalizedStringKey, showSettings: Bool = false) -> some View {
-        VStack(spacing: 16) {
-            Image(systemName: "qrcode.viewfinder")
-                .font(.system(size: 48))
-                .foregroundColor(.white.opacity(0.7))
-            Text(message)
-                .foregroundColor(.white)
-                .multilineTextAlignment(.center)
-            if showSettings, let url = URL(string: UIApplication.openSettingsURLString) {
-                Button("Open Settings") { UIApplication.shared.open(url) }
-                    .buttonStyle(PrimaryButtonStyle())
+    /// The outline asks for a close code: one that fills most of the frame reads, one in a corner
+    /// of it does not. The camera shows only inside it, so the text below stays on the ground.
+    private var viewfinder: some View {
+        let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+        return ZStack {
+            switch state {
+            case .asking:
+                ProgressView().tint(LDTheme.accent)
+            case .running:
+                QRCameraPreview(controller: controller)
+            case .denied, .restricted, .unavailable, .failed:
+                Image(systemName: "qrcode.viewfinder")
+                    .font(.system(size: 48))
+                    .foregroundStyle(LDTheme.muted)
             }
-            Button("Close", action: onClose)
-                .foregroundColor(.white)
         }
-        .padding(32)
+        .frame(width: 270, height: 270)
+        .clipShape(shape)
+        .overlay {
+            shape.strokeBorder(state == .running || state == .asking ? LDTheme.accent : LDTheme.ghostBorder, lineWidth: 3)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityHidden(true)
+    }
+
+    private var message: LocalizedStringResource? {
+        switch state {
+        case .asking:
+            return nil
+        case .running:
+            return hint
+        case .denied, .restricted:
+            return "Camera access is needed to scan a code. You can also paste the address and the secret by hand."
+        case .unavailable:
+            return "This device has no camera. Paste the address and the secret by hand instead."
+        case .failed:
+            return "The camera could not be started."
+        }
+    }
+
+    /// The line under the viewfinder changes while VoiceOver is on something else, such as Close.
+    private func announceMessage() {
+        guard let message else { return }
+        AccessibilityNotification.Announcement(String(localized: message)).post()
     }
 
     /// Asks once, on opening. A refusal gets an explanation and a way to Settings, because iOS
@@ -126,8 +137,10 @@ struct PairingScannerView: View {
             onScanned(link)
         case .invalid(let problem):
             hint = problem.message
+            announceMessage()
         case .notAPairingLink:
             hint = "That is not a Life Dashboard pairing code."
+            announceMessage()
         }
     }
 }

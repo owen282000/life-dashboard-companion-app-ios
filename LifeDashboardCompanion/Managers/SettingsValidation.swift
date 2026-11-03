@@ -61,7 +61,7 @@ enum SettingsValidation {
         }
     }
 
-    /// What is wrong with a header typed on the Health tab, or nil when it can be added.
+    /// What is wrong with a header typed on a destination sheet, or nil when it can be added.
     /// `existing` are the headers already there; one with the same name is replaced, so it
     /// does not count against the limit.
     static func headerProblem(name: String, value: String, existing: [String: String] = [:]) -> HeaderProblem? {

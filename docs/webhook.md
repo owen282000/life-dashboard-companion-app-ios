@@ -128,7 +128,7 @@ When an iPhone and a Watch both record steps, Apple Health holds each stretch tw
 
 There is one entry per local day in the phone's time zone, for today and the two days before, and only for enabled types. A field is left out for a day without data rather than sent as 0. A payload that only names deletions carries none. `distance_meters` adds up every distance, as the `distance` records do. Where it differs from Android: `total_calories` is resting plus active energy and is only sent on days with resting energy. An iPhone without an Apple Watch usually records none.
 
-Use `daily_totals` for day totals and the raw records for detail. The setting **Daily totals in payload** switches it off.
+Use `daily_totals` for day totals and the raw records for detail. The setting **Daily totals in payload** under **More > Advanced** switches it off.
 
 ## Deletions
 
@@ -155,7 +155,7 @@ Where this differs from Android:
 
 ## Data resolution
 
-Under **Data Resolution** on the Health tab, each dense type can be sent as one value per window of 1, 5 or 15 minutes, or per hour, instead of every record, as in the Android app. Heart rate, heart rate variability, oxygen saturation and respiratory rate are averaged, with `min` and `max`; steps, distance, active calories and total calories are summed into `total`. Every type starts at every record, so nothing changes for a receiver until you choose otherwise.
+Under **What to send > Data resolution**, each dense type can be sent as one value per window of 1, 5 or 15 minutes, or per hour, instead of every record, as in the Android app. Heart rate, heart rate variability, oxygen saturation and respiratory rate are averaged, with `min` and `max`; steps, distance, active calories and total calories are summed into `total`. Every type starts at every record, so nothing changes for a receiver until you choose otherwise.
 
 The shape is the Android app's, described with the merge rules on its page under [Data resolution](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/webhook.md#data-resolution): a bucketed series replaces its records under the same key, every bucket has `bucket_start`, `bucket_end` and `sample_count` and never the record's own field, windows are aligned to the clock in UTC, and `_resolutions` names the window per series:
 
@@ -176,7 +176,7 @@ The shape is the Android app's, described with the merge rules on its page under
 When the windows go out:
 
 - **The automatic syncs and the Sync Health Data action** send a window once it has closed, whole, as the Android app does. The samples of a window still filling stay on the iPhone, encrypted and out of iCloud backups, and are saved together with how far the sync has read, so a sync that iOS cuts off sends a window neither twice nor without them. A type still catching up past its cap per sync, or not read in a sync, keeps its windows open until its next read. A sync whose new records all fall in windows still filling posts no records; deletions that are waiting still go out on their own.
-- **Sync Now** is an incremental sync like the automatic ones, so it sends a window once as well. When it runs several payloads in a row for a type still catching up, a window cut by where one payload stops is held for the next. **View** reads the last 7 days and shows those types as the week's closed windows, without holding or storing anything.
+- **Sync Now** is an incremental sync like the automatic ones, so it sends a window once as well. When it runs several payloads in a row for a type still catching up, a window cut by where one payload stops is held for the next. **Preview payload** reads the last 7 days and shows those types as the week's closed windows, without holding or storing anything.
 - **Backfill** sends each window once, whole, with the backfill window it starts in, so a bucket can end a few minutes after that payload's `window_end`. The window cut by the start of the backfill range and the one still filling at its end are left out. Like the Android app's backfill, it sends windows a receiver may already have; the payload says `"backfill": true`.
 - **A type set back to every record** sends the samples it was holding as records, with their `uuid`s, where the Android app drops them.
 
@@ -189,7 +189,7 @@ The Life Dashboard integration reads the measured series only, and combines them
 
 ## Backfill
 
-**Backfill** on the Health tab sends 30 or 90 days, 6 months, 1, 2 or 5 years, or all history from the oldest record (nothing before 2000), in 3-day windows, oldest first, with the Android app's fields: `backfill`, `window_start`, `window_end` and `window_complete`. The records are the ones a sync sends, `uuid` included, so the overlap deduplicates. `daily_totals` in a backfill payload covers every whole day of its window. Each sleep session and menstruation period goes out once, in the window it ends or starts in.
+**Backfill**, **Send history** under **What to send**, sends 30 or 90 days, 6 months, 1, 2 or 5 years, or all history from the oldest record (nothing before 2000), in 3-day windows, oldest first, with the Android app's fields: `backfill`, `window_start`, `window_end` and `window_complete`. The records are the ones a sync sends, `uuid` included, so the overlap deduplicates. `daily_totals` in a backfill payload covers every whole day of its window. Each sleep session and menstruation period goes out once, in the window it ends or starts in.
 
 `window_complete` is always `false` on iOS. HealthKit does not tell an app that it may not read a type, so the app cannot vouch that a window is complete.
 
@@ -217,7 +217,7 @@ Every sync payload goes into a queue on the phone before it is posted, and leave
 
 iOS allows plain `http://` only to the home network: an IP address, a `.local` name or a name without a dot. Use `https://` for anything else.
 
-With an HMAC signing secret set for an address (tap the address under Webhook), every POST to that address carries:
+With an HMAC signing secret set for an address (tap the destination on the Health tab), every POST to that address carries:
 
 ```
 X-Signature: sha256=<hex of HMAC-SHA256(secret, raw request body)>

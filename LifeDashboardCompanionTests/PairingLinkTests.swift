@@ -315,7 +315,7 @@ final class PairingLinkTests: XCTestCase {
     }
 }
 
-/// The pairing check, the Health tab and the setup send one request.
+/// The pairing check, Send test and the setup send one request.
 final class TestPingTests: XCTestCase {
     func testTheTestPingIsTheSameRequestEverywhere() throws {
         let body = try XCTUnwrap(TestPing.body())

@@ -35,6 +35,7 @@ final class SettingsBackupTests: XCTestCase {
             .steps, .heartRate, .menstruation, .vo2Max, .basalBodyTemperature,
             .intermenstrualBleeding, .ovulationTest, .cervicalMucus, .sexualActivity
         ],
+        healthCustomDataTypes: [.steps, .hydration],
         includeDailyTotals: false,
         seriesResolutions: [.heartRate: .oneMinute, .steps: .hourly],
         failureNotificationsEnabled: false,

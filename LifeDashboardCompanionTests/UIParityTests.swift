@@ -89,6 +89,62 @@ final class UIParityTests: XCTestCase {
         }
     }
 
+    // MARK: - The redesign's palette
+
+    private let ldSurfaces: [(String, BrandTone)] = [("ground", LDTone.ground), ("tile", LDTone.tile), ("sheet", LDTone.sheet)]
+
+    /// Every text tone on every surface it is drawn on, in the light look and the dark one.
+    func testRedesignTextReadsInBothAppearances() {
+        let tones: [(String, BrandTone)] = [
+            ("text", LDTone.text), ("muted", LDTone.muted), ("secondary", LDTone.secondary), ("inactive", LDTone.inactive),
+            ("accentText", LDTone.accentText), ("accentTextSoft", LDTone.accentTextSoft),
+            ("warning", LDTone.warning), ("warningText", LDTone.warningText)
+        ]
+        for (name, tone) in tones {
+            for (surfaceName, surface) in ldSurfaces {
+                XCTAssertGreaterThanOrEqual(contrast(tone.light, surface.light), 4.5, "\(name) on \(surfaceName), light")
+                XCTAssertGreaterThanOrEqual(contrast(tone.dark, surface.dark), 4.5, "\(name) on \(surfaceName), dark")
+            }
+        }
+        // A failed log row and the warning card: what they draw on their amber surface.
+        for tone in [LDTone.text, LDTone.muted, LDTone.secondary, LDTone.warning, LDTone.warningText, LDTone.warningBody] {
+            XCTAssertGreaterThanOrEqual(contrast(tone.light, LDTone.warningSurface.light), 4.5)
+            XCTAssertGreaterThanOrEqual(contrast(tone.dark, LDTone.warningSurface.dark), 4.5)
+        }
+        XCTAssertGreaterThanOrEqual(contrast(LDTone.onAccent.light, LDTone.accent.light), 4.5)
+        XCTAssertGreaterThanOrEqual(contrast(LDTone.onAccent.dark, LDTone.accent.dark), 4.5)
+    }
+
+    /// Line, icons and fills: 3:1 against what is behind them. The outer arc and the flat line's own
+    /// arc only echo the line, so they may stay under it.
+    func testRedesignGraphicsStandOutInTheLightLook() {
+        let graphics: [(String, BrandTone)] = [
+            ("accent", LDTone.accent), ("icon", LDTone.icon), ("warning", LDTone.warning),
+            ("warningDim", LDTone.warningDim), ("flatLine", LDTone.flatLine), ("optionOff", LDTone.optionOff)
+        ]
+        for (name, tone) in graphics {
+            for (surfaceName, surface) in ldSurfaces {
+                XCTAssertGreaterThanOrEqual(contrast(tone.light, surface.light), 3, "\(name) on \(surfaceName)")
+            }
+        }
+        XCTAssertGreaterThanOrEqual(contrast(LDTone.accent.light, LDTone.progressTrack.light), 3)
+    }
+
+    /// The dark look is the design: these values come from the boards, and a light fix leaves them.
+    func testTheDarkLookKeepsTheBoardsValues() {
+        let board: [(BrandTone, UInt32)] = [
+            (LDTone.ground, 0x0A0F0D), (LDTone.text, 0xEEF4F0), (LDTone.accent, 0x30B77E), (LDTone.accentDim, 0x1F7A55),
+            (LDTone.accentText, 0x6FE0AE), (LDTone.accentTextSoft, 0x8FDDB8), (LDTone.onAccent, 0x06130D), (LDTone.icon, 0x4FD19A),
+            (LDTone.muted, 0xA7B5AE), (LDTone.secondary, 0xB9C4BE), (LDTone.inactive, 0xC7D2CC), (LDTone.tile, 0x141C18),
+            (LDTone.tileBorder, 0x27332D), (LDTone.divider, 0x222C27), (LDTone.hairline, 0x1E2A25), (LDTone.ghostBorder, 0x33423B),
+            (LDTone.warning, 0xF7C56C), (LDTone.warningText, 0xF7DFAE), (LDTone.warningSurface, 0x1D1A10),
+            (LDTone.warningBorder, 0x5A4620), (LDTone.flatLine, 0x3B5A4C), (LDTone.flatDim, 0x26382F), (LDTone.sheet, 0x0E1512)
+        ]
+        for (tone, value) in board {
+            XCTAssertEqual(tone.dark, value)
+        }
+    }
+
     // MARK: - Accent colour
 
     /// The asset catalog's AccentColor tints every system control, so it must be the ink.

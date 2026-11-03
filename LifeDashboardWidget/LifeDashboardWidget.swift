@@ -36,75 +36,117 @@ struct SyncStatusProvider: TimelineProvider {
     }
 }
 
-/// The Android app's widget: the state of the last sync, the records delivered today and when.
+/// The app's dark ground and accents, here because the widget cannot use the app's theme.
+private enum WidgetTheme {
+    static let ground = Color(red: 0x0A / 255, green: 0x0F / 255, blue: 0x0D / 255)
+    static let text = Color(red: 0xEE / 255, green: 0xF4 / 255, blue: 0xF0 / 255)
+    static let muted = Color(red: 0xA7 / 255, green: 0xB5 / 255, blue: 0xAE / 255)
+    static let accent = Color(red: 0x30 / 255, green: 0xB7 / 255, blue: 0x7E / 255)
+    static let onAccent = Color(red: 0x06 / 255, green: 0x13 / 255, blue: 0x0D / 255)
+    static let warning = Color(red: 0xF7 / 255, green: 0xC5 / 255, blue: 0x6C / 255)
+}
+
+/// The heartbeat line of the app and its logo, ending in a dot.
+private struct WidgetPulse: Shape {
+    func path(in rect: CGRect) -> Path {
+        let scale = rect.width / 240
+        func point(_ across: CGFloat, _ down: CGFloat) -> CGPoint {
+            CGPoint(x: rect.minX + across * scale, y: rect.midY + (down - 42) * scale)
+        }
+        var line = Path()
+        line.move(to: point(0, 42))
+        for (across, down) in [(136, 42), (147, 16), (164, 68), (179, 30), (186, 42), (226, 42)] as [(CGFloat, CGFloat)] {
+            line.addLine(to: point(across, down))
+        }
+        return line
+    }
+}
+
+/// The state of the last sync, the records delivered today and when.
 struct SyncStatusView: View {
     let entry: SyncEntry
 
+    private var stateColor: Color { entry.success ? WidgetTheme.accent : WidgetTheme.warning }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 5) {
-                // A symbol as well as a colour, so the state does not rest on colour alone.
-                Image(systemName: entry.success ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .font(.caption2)
-                    .foregroundStyle(entry.success ? Brand.success : Brand.error)
-                    .widgetAccentable()
-                    .accessibilityLabel(entry.success ? Text("Last sync succeeded") : Text("Last sync failed"))
-                Text("Life Dashboard")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: 6) {
+                ZStack(alignment: .trailing) {
+                    WidgetPulse()
+                        .stroke(stateColor, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                    Circle()
+                        .fill(stateColor)
+                        .frame(width: 8, height: 8)
+                }
+                .frame(height: 24)
+                .widgetAccentable()
+                .flipsForRightToLeftLayoutDirection(true)
+                .accessibilityHidden(true)
                 SyncNowButton()
             }
 
-            Spacer()
+            Spacer(minLength: 2)
 
-            Text(entry.recordsToday.formatted())
-                .font(.largeTitle.bold())
-                .monospacedDigit()
-                .minimumScaleFactor(0.5)
-                .lineLimit(1)
-                .widgetAccentable()
-                // Dimmed from a tap on Sync Now until the sync reloads the widget.
-                .invalidatableContent()
-            // Picked here because the number above is styled on its own and a plural form must
-            // contain it. Right for English, Dutch and German, where only 1 is singular.
-            Text(entry.recordsToday == 1 ? "record today" : "records today")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-
-            Group {
-                if let lastSync = entry.lastSync {
-                    if Calendar.current.isDateInToday(lastSync) {
-                        Text("Synced \(lastSync, style: .time)")
-                    } else {
-                        Text("Synced on \(lastSync.formatted(.dateTime.month(.abbreviated).day().hour().minute()))")
-                    }
-                } else {
-                    Text("No syncs yet")
-                }
+            VStack(alignment: .leading, spacing: 0) {
+                Text(entry.recordsToday.formatted())
+                    .font(.custom("SpaceGrotesk-Bold", size: 34, relativeTo: .largeTitle))
+                    .tracking(-0.5)
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                    .foregroundStyle(WidgetTheme.text)
+                    // Dimmed from a tap on Sync Now until the sync reloads the widget.
+                    .invalidatableContent()
+                // Picked here because the number above is styled on its own and a plural form must
+                // contain it. Right for English, Dutch and German, where only 1 is singular.
+                Text(entry.recordsToday == 1 ? "record today" : "records today")
+                    .font(.custom("SpaceGrotesk-Medium", size: 13, relativeTo: .caption))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .foregroundStyle(WidgetTheme.muted)
             }
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .invalidatableContent()
+            .accessibilityElement(children: .combine)
+
+            Spacer(minLength: 2)
+
+            HStack(spacing: 4) {
+                // A symbol as well as a colour, so the state does not rest on colour alone.
+                Image(systemName: entry.success ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(stateColor)
+                    .widgetAccentable()
+                    .accessibilityLabel(entry.success ? Text("Last sync succeeded") : Text("Last sync failed"))
+                Group {
+                    if let lastSync = entry.lastSync {
+                        if Calendar.current.isDateInToday(lastSync) {
+                            Text("Synced \(lastSync, style: .time)")
+                        } else {
+                            Text("Synced on \(lastSync.formatted(.dateTime.month(.abbreviated).day()))")
+                        }
+                    } else {
+                        Text("No syncs yet")
+                    }
+                }
+                .font(.custom("SpaceMono-Regular", size: 11, relativeTo: .caption2))
+                .foregroundStyle(WidgetTheme.muted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .invalidatableContent()
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 }
 
-/// Android's Quick Settings tile on the home screen: runs Sync Health Data in the app, which
-/// reloads the widget when the sync is done.
+/// Runs Sync Health Data in the app, which reloads the widget when the sync is done.
 struct SyncNowButton: View {
     var body: some View {
         Button(intent: SyncHealthDataIntent()) {
             Image(systemName: "arrow.triangle.2.circlepath")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(Brand.onGreen)
-                .frame(width: 28, height: 28)
-                .background(Brand.green, in: Circle())
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(WidgetTheme.onAccent)
+                .frame(width: 32, height: 32)
+                .background(WidgetTheme.accent, in: Circle())
                 .widgetAccentable()
         }
         .buttonStyle(.plain)
@@ -135,7 +177,7 @@ struct SyncStatusWidget: Widget {
             provider: SyncStatusProvider()
         ) { entry in
             SyncStatusView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(WidgetTheme.ground, for: .widget)
         }
         .configurationDisplayName("Sync Status")
         .description("Last sync result and records delivered today, with a button that syncs now.")

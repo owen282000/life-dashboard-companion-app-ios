@@ -28,6 +28,7 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
         static let healthWebhookUrls = "health_webhook_urls"
         static let healthUrlsWithoutHeaders = "health_webhook_urls_without_headers"
         static let healthEnabledDataTypes = "health_enabled_data_types"
+        static let healthCustomDataTypes = "health_custom_data_types"
         static let healthWebhookHeaders = "health_webhook_headers"
         static let healthSigningSecret = "health_signing_secret"
         static let healthDestinations = "health_destinations"
@@ -168,6 +169,17 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
             let rawValues = healthEnabledDataTypes.map { $0.rawValue }
             if let data = try? encoder.encode(rawValues) {
                 defaults.set(data, forKey: Keys.healthEnabledDataTypes)
+            }
+        }
+    }
+
+    /// What someone picked by hand, kept while a preset is on. Nil until there is such a choice.
+    @Published var healthCustomDataTypes: Set<HealthDataType>? {
+        didSet {
+            if let healthCustomDataTypes, let data = try? encoder.encode(healthCustomDataTypes.map(\.rawValue)) {
+                defaults.set(data, forKey: Keys.healthCustomDataTypes)
+            } else {
+                defaults.removeObject(forKey: Keys.healthCustomDataTypes)
             }
         }
     }
@@ -368,6 +380,13 @@ final class PreferencesManager: ObservableObject, @unchecked Sendable {
             self.healthEnabledDataTypes = Set(rawValues.compactMap { HealthDataType(rawValue: $0) })
         } else {
             self.healthEnabledDataTypes = []
+        }
+
+        if let data = defaults.data(forKey: Keys.healthCustomDataTypes),
+           let rawValues = try? JSONDecoder().decode([String].self, from: data) {
+            self.healthCustomDataTypes = Set(rawValues.compactMap { HealthDataType(rawValue: $0) })
+        } else {
+            self.healthCustomDataTypes = nil
         }
 
         // Secrets live in the Keychain; migrate any values older versions kept in UserDefaults.

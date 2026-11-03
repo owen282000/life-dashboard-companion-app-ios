@@ -38,7 +38,7 @@
 <p align="center">
   <picture>
     <source media="(max-width: 600px)" srcset="docs/readme-hero-phone.png">
-    <img src="docs/readme-hero.png" alt="The app's Health tab on an iPhone, with 214 records today and the last sync at 9:38, next to the Home Assistant cards it feeds: today's steps, distance, heart rate and last sleep, and charts of steps per week and heart rate per day" width="900">
+    <img src="docs/readme-hero.png" alt="The app's Health tab on an iPhone: your data is arriving, Home Assistant, a webhook and an MQTT broker each delivered 3 minutes ago, today's steps, sleep, resting heart rate and weight with a week of sparklines, and the tiles What to send, When to send, Notifications and More. Next to it the Home Assistant cards it feeds: today's steps, distance, heart rate and last sleep, and charts of steps per week and heart rate per day" width="900">
   </picture>
 </p>
 
@@ -53,12 +53,12 @@ Your Apple Watch, iPhone, ring or scale already writes to Apple Health. This app
 
 ## What you get
 
-- **28 Apple Health types.** Steps, sleep with stages, heart rate and HRV, weight and body composition, blood pressure, glucose, workouts, nutrition, VO2 max, cycle tracking and more. Each one is off until you switch it on.
+- **28 data types.** Steps, sleep with stages, heart rate and HRV, weight and body composition, blood pressure, glucose, workouts, nutrition, VO2 max, cycle tracking and more. Together they read 74 Apple Health types (70 on iOS 17), because nutrition alone is 38 and distance is one per activity. Each data type is off until you switch it on, by hand or with **Essentials** or **All types**.
 - **Every record, plus clean daily totals.** Every record goes out with the app or device that wrote it. Daily totals for steps, distance and calories come from Apple Health's own statistics, so a walk recorded by both iPhone and Watch counts once.
 - **All your history.** Backfill from 30 days up to 5 years, or everything Apple Health has, in one go. In Home Assistant each day lands on its own date. When you delete a record in Apple Health, the next sync tells your server.
 - **Runs in the background.** An interval or fixed times, on the days you pick, with quiet hours. iOS decides the exact moment. For an exact time, a Shortcuts automation runs **Sync Health Data**. Payloads that can't be delivered wait on the iPhone for the next sync. When iOS holds syncs back (Background App Refresh off, Low Power Mode on) or nothing arrives for days, the app says so.
 - **Widget, Control Center and Shortcuts.** See the last sync on your home screen, and sync from there, from Control Center (iOS 18 or newer) or with Siri.
-- **Eleven languages:** English, Dutch, German, French, Spanish, Italian, Portuguese (Brazil), Japanese, Arabic, Hindi and Simplified Chinese. The Android app's look, with Dynamic Type and dark mode.
+- **Eleven languages:** English, Dutch, German, French, Spanish, Italian, Portuguese (Brazil), Japanese, Arabic, Hindi and Simplified Chinese. With Dynamic Type, Reduce Motion and dark mode.
 
 ## How it works
 
@@ -103,7 +103,7 @@ Building it from source costs nothing extra if you already have an Apple Develop
 2. Run it on your iPhone. The first time, iOS asks you to switch on Developer Mode and trust your certificate.
 3. In Home Assistant (2026.3 or newer, with [HACS](https://hacs.xyz/docs/use/) installed), download the [Life Dashboard integration](https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-ha&category=integration) from HACS, restart, and add the integration. It shows a QR code. Skip this step if you use MQTT or a webhook.
 4. The app's setup asks where your data should go: scan the code, or enter your broker or webhook URL. Then pick your data types and allow Apple Health access. A first sync follows right away and shows what arrived.
-5. After that it syncs by itself; **Sync Now** sends at once. Tap **View** to preview the payload.
+5. After that it syncs by itself; **Sync Now** sends at once. **Preview payload** under **What to send** shows what goes out.
 
 To update a build of your own, pull the repository and run it from Xcode again. Your settings stay. The [setup guide](docs/usage.md) covers every step and what to do when nothing arrives.
 
@@ -141,7 +141,7 @@ This app covers the health side in depth: 28 types, every record with the app or
 
 ## Webhooks
 
-Any server that accepts a JSON POST can be a destination: n8n, Node-RED, a small script, or your own API. Each address has its own signing secret (HMAC-SHA256) and its own custom headers, so pairing a second receiver never breaks the first, and you can add a client certificate.
+Any server that accepts a JSON POST can be a destination: n8n, Node-RED, a small script, or your own API. Each address has its own signing secret (HMAC-SHA256) and its own custom headers, so pairing a second receiver never breaks the first, and you can add a client certificate. Any receiver that shows a pairing code can be paired by scanning it, your own server included: [let your users connect health data with one QR code](https://owen282000.com/life-dashboard/health-data-qr-pairing/).
 
 ```json
 {
@@ -200,6 +200,7 @@ Pull requests are welcome. The app is Swift with no third-party dependencies. [C
 
 - [HealthKit](https://developer.apple.com/documentation/healthkit) by Apple, which this app reads from, and Apple's SwiftUI, BackgroundTasks, Network, WidgetKit and App Intents frameworks. The app has no third-party dependencies.
 - The [Android app](https://github.com/owen282000/life-dashboard-companion-app), whose payload, schedule format and settings backup this app follows
+- The typefaces Space Grotesk and Space Mono, under the SIL Open Font License
 - The quantified self and self-hosting communities
 - [Claude Code](https://claude.com/claude-code), which drafted a large part of the code. Every change is reviewed and tested before it ships.
 

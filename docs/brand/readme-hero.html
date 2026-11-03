@@ -2,11 +2,12 @@
 <!--
   Source for docs/readme-hero.png and docs/readme-hero-phone.png, the first image in the
   README: the iPhone app next to what it feeds in Home Assistant, in the style of the App
-  Store screenshots (docs/brand/app-store/panorama.html): the dark green ground, the grid,
-  the heartbeat line, a phone frame and floating cards. Drawn at twice the size it is shown
+  Store screenshots (docs/brand/app-store/panorama.html): the same ground and font, the
+  heartbeat line, a phone frame and a floating card. Drawn at twice the size it is shown
   at: 900 px wide on a desktop, and the ?phone version for screens up to 600 px wide.
 
-  The phone shows a capture from docs/brand/app-store/raw/ (scripts/store-screenshots.sh).
+  The phone shows a capture from store-assets/raw/, which is not in git: run
+  scripts/store-screenshots.sh first.
   The Home Assistant cards are the Life Dashboard integration's example dashboard
   (docs/brand/app-store/ha/, from life-dashboard-ha): health cards only, since an
   iPhone sends no screen time. Render from the repository root:
@@ -14,32 +15,24 @@
     CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     SRC="file://$PWD/docs/brand/readme-hero.html"
     "$CHROME" --headless=new --screenshot=docs/readme-hero.png --window-size=1800,1000 \
-      --hide-scrollbars --force-device-scale-factor=1 --default-background-color=00000000 "$SRC"
+      --hide-scrollbars --force-device-scale-factor=1 --allow-file-access-from-files \
+      --virtual-time-budget=4000 --default-background-color=00000000 "$SRC"
     "$CHROME" --headless=new --screenshot=docs/readme-hero-phone.png --window-size=1000,1700 \
-      --hide-scrollbars --force-device-scale-factor=1 --default-background-color=00000000 "$SRC?phone"
+      --hide-scrollbars --force-device-scale-factor=1 --allow-file-access-from-files \
+      --virtual-time-budget=4000 --default-background-color=00000000 "$SRC?phone"
 -->
 <html>
 <head>
 <meta charset="utf-8">
 <style>
+  @font-face { font-family: "Space Grotesk"; font-weight: 400; src: url(../../LifeDashboardCompanion/Fonts/SpaceGrotesk-Regular.ttf); }
+  @font-face { font-family: "Space Grotesk"; font-weight: 500; src: url(../../LifeDashboardCompanion/Fonts/SpaceGrotesk-Medium.ttf); }
+  @font-face { font-family: "Space Grotesk"; font-weight: 700; src: url(../../LifeDashboardCompanion/Fonts/SpaceGrotesk-Bold.ttf); }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { overflow: hidden; background: transparent; }
   .card {
     position: absolute; inset: 0; border-radius: 40px; overflow: hidden;
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #fff;
-    background:
-      radial-gradient(700px 600px at 22% 55%, rgba(48,183,126,0.20), transparent 70%),
-      radial-gradient(900px 700px at 70% 40%, rgba(48,183,126,0.10), transparent 70%),
-      linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,0.3) 100%),
-      linear-gradient(90deg, #11221D 0%, #0E1B18 40%, #101C1C 70%, #0F1D19 100%);
-  }
-  .grid {
-    position: absolute; inset: 0;
-    background-image:
-      linear-gradient(rgba(48,183,126,0.055) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(48,183,126,0.055) 1px, transparent 1px);
-    background-size: 60px 60px;
-    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, black 50%, rgba(0,0,0,0.5) 100%);
+    font-family: "Space Grotesk", sans-serif; color: #EEF4F0; background: #0A0F0D;
   }
   svg.pulse { position: absolute; left: 0; top: 0; }
 
@@ -48,7 +41,7 @@
     position: relative; width: 100%; height: 100%; border-radius: var(--r);
     background: linear-gradient(135deg, #5A6268 0%, #2A2F33 22%, #1A1D20 50%, #2E3438 78%, #5B6369 100%);
     padding: var(--band);
-    box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 14px 34px rgba(0,0,0,0.5), 0 0 110px rgba(48,183,126,0.2);
+    box-shadow: 0 40px 80px rgba(0,0,0,0.7), 0 14px 34px rgba(0,0,0,0.6);
   }
   .phone .bezel { width: 100%; height: 100%; border-radius: calc(var(--r) - var(--band)); background: #000; padding: var(--bezel); }
   .phone .screen {
@@ -58,33 +51,27 @@
   }
   .phone .island { position: absolute; left: 50%; transform: translateX(-50%); background: #000; border-radius: 999px; }
   .phone .btn { position: absolute; width: 5px; border-radius: 3px; background: linear-gradient(90deg, #22272A, #5A6268); }
-  .phone .glare {
-    position: absolute; inset: 0; border-radius: calc(var(--r) - var(--band) - var(--bezel));
-    background: linear-gradient(115deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0) 32%);
-  }
 
   .float { position: absolute; }
   .float .frame {
     border-radius: 26px; overflow: hidden; background: #111;
-    border: 2px solid rgba(255,255,255,0.14);
-    box-shadow: 0 36px 80px rgba(0,0,0,0.6), 0 0 0 10px rgba(0,0,0,0.12);
+    border: 2px solid #27332D;
+    box-shadow: 0 36px 80px rgba(0,0,0,0.65);
   }
   .label {
     display: inline-flex; align-items: center; gap: 12px; margin-bottom: 16px;
     padding: 12px 24px; border-radius: 999px; white-space: nowrap;
-    font-size: 30px; font-weight: 700; color: #DDE7E3;
-    background: rgba(10,18,16,0.86); border: 2px solid rgba(255,255,255,0.14);
-    box-shadow: 0 14px 36px rgba(0,0,0,0.45);
+    font-size: 30px; font-weight: 500; color: #EEF4F0;
+    background: #141C18; border: 2px solid #27332D;
   }
-  .label i { width: 16px; height: 16px; border-radius: 50%; background: var(--dot, #41BDF5); display: inline-block; }
+  .label i { width: 16px; height: 16px; border-radius: 50%; background: #30B77E; display: inline-block; }
   .board { display: grid; gap: 14px; padding: 14px; background: #111; }
   .crop { background-repeat: no-repeat; border-radius: 14px; }
 </style>
 </head>
 <body>
 <div class="card">
-  <div class="grid"></div>
-  <svg class="pulse" id="pulse"><path id="beat" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <svg class="pulse" id="pulse"><path id="beat" fill="none" stroke="#30B77E" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <div id="items"></div>
 </div>
 <script>
@@ -92,7 +79,7 @@ const phoneLayout = location.search.includes("phone");
 const [W, H] = phoneLayout ? [1000, 1700] : [1800, 1000];
 document.documentElement.style.width = document.body.style.width = W + "px";
 document.documentElement.style.height = document.body.style.height = H + "px";
-const RAW = "app-store/raw/", HA = "app-store/ha/";
+const RAW = "../../store-assets/raw/", HA = "app-store/ha/";
 
 function phone(src, x, y, w, transform = "", z = 2) {
   const band = Math.round(w * 0.016), bezel = Math.round(w * 0.022);
@@ -105,7 +92,7 @@ function phone(src, x, y, w, transform = "", z = 2) {
     `<div class="btn" style="right:-4px;top:${Math.round(h * 0.3)}px;height:${Math.round(h * 0.11)}px"></div>`;
   return `<div class="phone" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;transform:${transform};z-index:${z};` +
     `--r:${r}px;--band:${band}px;--bezel:${bezel}px">${btns}<div class="body"><div class="bezel">` +
-    `<div class="screen" style="background-image:url(${src})">${island}<div class="glare"></div></div></div></div></div>`;
+    `<div class="screen" style="background-image:url(${src})">${island}</div></div></div></div>`;
 }
 // A crop of an image: rect [x, y, w, h] in its pixels, shown `width` wide.
 function crop(src, srcW, rect, width) {
@@ -134,16 +121,8 @@ function pulse(y, beats) {
   svg.setAttribute("width", W); svg.setAttribute("height", H);
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   let d = `M -10 ${y}`;
-  for (const x of beats) d += ` L ${x - 70} ${y} L ${x - 45} ${y - 80} L ${x - 10} ${y + 110} L ${x + 20} ${y - 35} L ${x + 45} ${y}`;
-  d += ` L ${W + 10} ${y}`;
-  svg.insertAdjacentHTML("afterbegin", `<defs>
-    <filter id="glow" x="-5%" y="-50%" width="110%" height="200%"><feGaussianBlur stdDeviation="7" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    <linearGradient id="fade" x1="0" x2="1" y1="0" y2="0">
-      <stop offset="0" stop-color="#30B77E" stop-opacity="0.15"/><stop offset="0.45" stop-color="#30B77E" stop-opacity="0.6"/>
-      <stop offset="1" stop-color="#30B77E" stop-opacity="0.15"/></linearGradient></defs>`);
-  const beat = document.getElementById("beat");
-  beat.setAttribute("d", d); beat.setAttribute("stroke", "url(#fade)"); beat.setAttribute("filter", "url(#glow)");
+  for (const x of beats) d += ` H ${x} l 22 -52 l 34 104 l 30 -76 l 14 24`;
+  document.getElementById("beat").setAttribute("d", d + ` H ${W + 10}`);
 }
 
 const items = [];

@@ -1,8 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var selectedTab = 0
-    @State private var about = AboutPresentation()
+    @StateObject private var navigator = LDNavigator()
     @StateObject private var pairing = PairingCoordinator()
     // UI state, not a setting, so it stays out of PreferencesManager and the settings backup.
     @AppStorage("onboarding_completed") private var onboardingCompleted = false
@@ -11,10 +10,14 @@ struct ContentView: View {
     @AppStorage("onboarding_started") private var onboardingStarted = false
     @State private var showOnboarding = false
 
+    init() {
+        LDNavigationAppearance.apply()
+    }
+
     var body: some View {
         Group {
             if showOnboarding {
-                OnboardingView {
+                OnboardingFlowView {
                     onboardingCompleted = true
                     showOnboarding = false
                 }
@@ -22,7 +25,6 @@ struct ContentView: View {
                 tabs
             }
         }
-        .environmentObject(pairing)
         .onAppear {
             guard !onboardingCompleted else { return }
             let prefs = PreferencesManager.shared
@@ -41,11 +43,11 @@ struct ContentView: View {
         // A lifedashboard:// link from the landing page, on a warm or a cold start.
         .onOpenURL { pairing.open($0) }
         .onChange(of: pairing.pending?.id) { _, id in
-            if id != nil { selectedTab = 0 }
+            if id != nil { navigator.selectedTab = LDNavigator.healthTab }
         }
-        // A pairing link lands on the Health screen itself, not on About pushed over it.
+        // A pairing link lands on the Health screen itself, not on a page pushed over it.
         .onChange(of: pairing.incoming) { _, _ in
-            about = AboutPresentation()
+            navigator.clearForPairing()
         }
         .fullScreenCover(isPresented: $pairing.scanning, onDismiss: pairing.scannerDismissed) {
             PairingScannerView(
@@ -68,46 +70,45 @@ struct ContentView: View {
         } message: { problem in
             Text(problem.message)
         }
+        // Outside the presentations above, so the cover and the sheets get them too.
+        .tint(LDTheme.accentText)
+        .environmentObject(pairing)
+        .environmentObject(navigator)
     }
 
     private var tabs: some View {
-        TabView(selection: $selectedTab) {
-            NavigationStack {
-                HealthKitScreen()
-                    .navigationTitle("Health")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .aboutButton(isPresented: $about.health)
+        TabView(selection: $navigator.selectedTab) {
+            NavigationStack(path: $navigator.healthPath) {
+                HomeScreen()
+                    .ldTabRoot(title: "Health")
             }
             .tabItem {
                 Label("Health", systemImage: "heart.fill")
             }
-            .tag(0)
+            .tag(LDNavigator.healthTab)
 
-            NavigationStack {
-                LogsScreen()
-                    .navigationTitle("Logs")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .aboutButton(isPresented: $about.logs)
+            NavigationStack(path: $navigator.logsPath) {
+                LogsListScreen()
+                    .ldTabRoot(title: "Logs")
             }
             .tabItem {
                 Label("Logs", systemImage: "clock.arrow.circlepath")
             }
-            .tag(1)
+            .tag(LDNavigator.logsTab)
         }
-        // Each tab in its own accent, as in the Android app: green for Health, blue for Logs.
-        .tint(selectedTab == 1 ? Brand.logsInk : Color.accentColor)
-        // About closes on the tab you leave: Health, Logs, About, Health, Logs shows Logs, not About.
-        .onChange(of: selectedTab) { old, _ in
-            about.leave(tab: old)
+        .environment(\.ldTabDirection, navigator.tabDirection)
+        .sheet(item: $navigator.sheet, onDismiss: navigator.sheetDismissed) { route in
+            NavigationStack {
+                route.screen
+            }
+            .tint(LDTheme.accentText)
+            .presentationDragIndicator(.visible)
+            .presentationBackground(LDTheme.sheet)
         }
         .onAppear {
             #if DEBUG
-            // For screenshots of every page: -ld.tab 1 opens Logs, -ld.about YES opens About.
-            let arguments = UserDefaults.standard
-            selectedTab = arguments.integer(forKey: "ld.tab")
-            if arguments.bool(forKey: "ld.about") {
-                if selectedTab == 1 { about.logs = true } else { about.health = true }
-            }
+            navigator.applyDebugArguments()
+            pairing.applyDebugRoute()
             #endif
         }
     }
@@ -125,22 +126,70 @@ struct AboutPresentation: Equatable {
 }
 
 private extension View {
-    /// The (i) in the navigation bar that opens About, like the action in the Android app's top bar.
-    func aboutButton(isPresented: Binding<Bool>) -> some View {
-        toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    isPresented.wrappedValue = true
-                } label: {
-                    Image(systemName: "info.circle")
-                }
-                .accessibilityLabel("About")
+    /// The root screen of a tab: no bar of its own, as on the boards, with the one route table of
+    /// the app. The title stays for VoiceOver, and the slide comes with the switch of tabs.
+    func ldTabRoot(title: LocalizedStringKey) -> some View {
+        ldTabEnter()
+            // With no bar there is no edge effect either: scrolled rows would run through the
+            // status bar. The empty inset puts the ground behind it, nothing more.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                Color.clear.frame(height: 0).background(LDTheme.ground)
             }
+            .navigationTitle(title)
+            .toolbar(.hidden, for: .navigationBar)
+            .toolbarRole(.editor)
+            .navigationDestination(for: LDRoute.self) { route in
+                // The editor role leaves only the chevron on the back button.
+                route.destination.toolbarRole(.editor)
+            }
+    }
+}
+
+/// Space Grotesk titles on the dark ground. UIKit's appearance is the only way to set the font of
+/// a SwiftUI navigation bar.
+private enum LDNavigationAppearance {
+    @MainActor private static var applied = false
+
+    @MainActor static func apply() {
+        guard !applied else { return }
+        applied = true
+
+        let text = LDTone.text.uiColor
+        let title = UIFontMetrics(forTextStyle: .headline).scaledFont(
+            for: UIFont(name: LDFontName.bold, size: 17) ?? .systemFont(ofSize: 17, weight: .bold)
+        )
+        let bold = UIFontMetrics(forTextStyle: .body).scaledFont(
+            for: UIFont(name: LDFontName.bold, size: 16) ?? .systemFont(ofSize: 16, weight: .bold)
+        )
+        let regular = UIFontMetrics(forTextStyle: .body).scaledFont(
+            for: UIFont(name: LDFontName.regular, size: 16) ?? .systemFont(ofSize: 16)
+        )
+
+        func styled(_ appearance: UINavigationBarAppearance) -> UINavigationBarAppearance {
+            appearance.titleTextAttributes = [.font: title, .foregroundColor: text]
+            appearance.largeTitleTextAttributes = [.foregroundColor: text]
+            appearance.buttonAppearance.normal.titleTextAttributes = [.font: regular]
+            appearance.doneButtonAppearance.normal.titleTextAttributes = [.font: bold]
+            return appearance
         }
-        .navigationDestination(isPresented: isPresented) {
-            AboutScreen()
-                .navigationTitle("About")
-                .navigationBarTitleDisplayMode(.inline)
+
+        // Nothing behind the bar at the top of a page. Scrolled, iOS 26 draws its own edge effect;
+        // earlier versions get the ground, or the content would run through the title.
+        let edge = UINavigationBarAppearance()
+        edge.configureWithTransparentBackground()
+        let scrolled = UINavigationBarAppearance()
+        if #available(iOS 26, *) {
+            scrolled.configureWithTransparentBackground()
+        } else {
+            scrolled.configureWithOpaqueBackground()
+            scrolled.backgroundColor = LDTone.ground.uiColor
+            scrolled.shadowColor = LDTone.hairline.uiColor
         }
+
+        let bar = UINavigationBar.appearance()
+        bar.standardAppearance = styled(scrolled)
+        bar.compactAppearance = styled(scrolled)
+        bar.scrollEdgeAppearance = styled(edge)
+        bar.compactScrollEdgeAppearance = styled(edge)
     }
 }

@@ -26,6 +26,5 @@ playground.xcworkspace
 # Python bytecode from scripts/l10n
 __pycache__/
 
-# Store renders that are made locally for a look, not uploaded (docs/brand/app-store/render.sh)
-docs/brand/app-store/panorama-*.png
-docs/brand/app-store/6.3/
+# Generated App Store images (scripts/store-screenshots.sh, docs/brand/app-store/render.sh)
+store-assets/

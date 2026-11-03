@@ -130,6 +130,8 @@ struct MqttConfig: Codable, Equatable {
 
 struct OptionsConfig: Codable, Equatable {
     var enabledDataTypes: [String]?
+    /// What someone picked by hand while a preset is on. Android ignores it.
+    var customDataTypes: [String]?
     var includeDailyTotals: Bool?
     /// Written for Android only; iOS lets App Transport Security decide.
     var allowHttpWebhooks: Bool?
@@ -149,6 +151,7 @@ struct OptionsConfig: Codable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case enabledDataTypes = "enabled_data_types"
+        case customDataTypes = "custom_data_types"
         case includeDailyTotals = "include_daily_totals"
         case allowHttpWebhooks = "allow_http_webhooks"
         case failureNotificationThreshold = "failure_notification_threshold"
@@ -185,6 +188,7 @@ struct SettingsSnapshot: Equatable, Sendable {
     var healthSigningSecret: String
     var healthSyncSchedule: SyncSchedule
     var healthEnabledDataTypes: Set<HealthDataType>
+    var healthCustomDataTypes: Set<HealthDataType>?
     var includeDailyTotals: Bool
     var seriesResolutions: [HealthDataType: SeriesResolution]
     var failureNotificationsEnabled: Bool
@@ -278,6 +282,7 @@ enum SettingsBackup {
             ),
             options: OptionsConfig(
                 enabledDataTypes: dataTypeNames(settings.healthEnabledDataTypes),
+                customDataTypes: settings.healthCustomDataTypes.map(dataTypeNames),
                 includeDailyTotals: settings.includeDailyTotals,
                 // Android blocks plain HTTP unless this is on; an iPhone setup with an http://
                 // URL (a local host, as ATS allows nothing else) would otherwise stop there.
@@ -455,7 +460,7 @@ enum ImportNote: Equatable, Sendable {
         case .brokerCredentialsCleared:
             return String(localized: "The MQTT username and password are cleared, because the broker is different.")
         case .baseTopicTranslated(let topic):
-            return String(localized: "MQTT topic becomes \(topic), so this iPhone and the Android phone do not share sensors.")
+            return String(localized: "MQTT topic becomes \(topic), so this iPhone and the other phone do not share sensors.")
         case .unavailableTypes(let count):
             return String(localized: "\(count) data types in this file are not available on iPhone.")
         case .intervalAdjusted(let minutes):
@@ -759,6 +764,9 @@ enum SettingsImport {
             result.healthEnabledDataTypes = types
             if unknown > 0 { notes.append(.unavailableTypes(unknown)) }
         }
+        if let names = options.customDataTypes {
+            result.healthCustomDataTypes = SettingsBackup.dataTypes(from: names).0
+        }
         if let include = options.includeDailyTotals { result.includeDailyTotals = include }
         if let stored = options.seriesResolutions {
             // Android's skin temperature, which iPhone does not have, is left out like an
@@ -791,7 +799,7 @@ enum SettingsImport {
     }
 
     /// Why the file's broker cannot be used, or nil. An empty host is a file without a broker;
-    /// any other host must be one the Health tab would take, and the port 1 to 65535.
+    /// any other host must be one the MQTT sheet would take, and the port 1 to 65535.
     private static func unusableBroker(_ broker: BrokerConfig) -> ImportNote? {
         if let host = broker.host?.trimmingCharacters(in: .whitespaces), !host.isEmpty,
            SettingsValidation.brokerHostProblem(host) != nil {
@@ -828,6 +836,7 @@ extension PreferencesManager {
             healthSigningSecret: healthSigningSecret,
             healthSyncSchedule: healthSyncSchedule,
             healthEnabledDataTypes: healthEnabledDataTypes,
+            healthCustomDataTypes: healthCustomDataTypes,
             includeDailyTotals: includeDailyTotals,
             seriesResolutions: seriesResolutions,
             failureNotificationsEnabled: failureNotificationsEnabled,
@@ -870,6 +879,7 @@ extension PreferencesManager {
         // Through the property that stamps the change and re-aims the background tasks.
         if new.healthSyncSchedule != old.healthSyncSchedule { healthSyncSchedule = new.healthSyncSchedule }
         if new.healthEnabledDataTypes != old.healthEnabledDataTypes { healthEnabledDataTypes = new.healthEnabledDataTypes }
+        if new.healthCustomDataTypes != old.healthCustomDataTypes { healthCustomDataTypes = new.healthCustomDataTypes }
         if new.includeDailyTotals != old.includeDailyTotals { includeDailyTotals = new.includeDailyTotals }
         if new.seriesResolutions != old.seriesResolutions { seriesResolutions = new.seriesResolutions }
         if new.failureNotificationsEnabled != old.failureNotificationsEnabled { failureNotificationsEnabled = new.failureNotificationsEnabled }

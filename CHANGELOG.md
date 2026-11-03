@@ -9,7 +9,21 @@ All notable changes to this project are documented in this file. The format is b
 - The app in French, Spanish, Italian, Portuguese (Brazil), Japanese, Arabic, Hindi and Simplified
   Chinese, so it speaks eleven languages, like the Android app. Each uses the names the Health app
   and iOS itself use in that language, and the same words as the Android app. Arabic runs right to
-  left. The translation check in CI now asks for every language, with the plural forms each one has.
+  left, with code and addresses left to right. The translation check in CI now asks for every
+  language, with the plural forms each one has.
+- What to send names the Apple Health types the app can't send yet, per category and on a page of their own for symptoms and for sound, daylight and habits, and asks which one you want next.
+- A guide under About for anyone who wants to add a pairing code to their own receiver.
+
+### Changed
+
+- A new design. The home screen shows whether your data arrives, per destination, with today's figures and a seven-day line for each, and only for what you send. The settings moved to their own screens: What to send, When to send, Notifications and More, on the same tiles everywhere. Destinations open as their own sheet.
+- About is one screen: the heartbeat line splits towards the places your data can go, with help, support, privacy and open source below it. Appearance and backup moved to More.
+- Logs is built for scanning: one row per delivery with its status code, destination and time, a filter on failures, and the details and payload one tap further. Send test, export and clear are at the bottom.
+- What to send sorts the types into categories, with Essentials, All types and Custom. Trying a preset never loses your own choice. All types now really switches on everything, including cycle tracking.
+- A pairing code is for any receiver that shows one, not only Home Assistant and the Life Dashboard stack.
+- MQTT changes apply when you tap Save, and removing a destination asks first.
+- The widget has the new look, with an amber line when the last sync failed.
+- The light appearance has its own deeper green and warm amber, and every text and line in it is measured for contrast. VoiceOver names every field and control and reads a log row or a figure as one sentence, and at the largest text sizes nothing breaks in the middle of a word.
 
 ## [1.10.1] - 2026-10-28
 
