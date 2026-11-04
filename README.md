@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-ha&category=integration"><img src="https://img.shields.io/badge/Home%20Assistant-HACS-41BDF5" alt="Home Assistant integration in HACS"></a>
+  <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-ha&category=integration"><img src="https://img.shields.io/badge/Home%20Assistant-Marketplace-41BDF5" alt="Home Assistant integration in the Marketplace"></a>
   <a href="#build-and-install"><img src="https://img.shields.io/badge/iOS-17%2B-000000" alt="iOS 17 or newer"></a>
   <a href="https://scorecard.dev/viewer/?uri=github.com/owen282000/life-dashboard-companion-app-ios"><img src="https://api.scorecard.dev/projects/github.com/owen282000/life-dashboard-companion-app-ios/badge" alt="OpenSSF Scorecard"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT license"></a>
@@ -101,7 +101,7 @@ Building it from source costs nothing extra if you already have an Apple Develop
 
 1. Clone the repository, open `LifeDashboardCompanion.xcodeproj`, and set your own team, bundle identifiers and app group. The [setup guide](docs/usage.md#build-and-install) shows where each one goes.
 2. Run it on your iPhone. The first time, iOS asks you to switch on Developer Mode and trust your certificate.
-3. In Home Assistant (2026.3 or newer, with [HACS](https://hacs.xyz/docs/use/) installed), download the [Life Dashboard integration](https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-ha&category=integration) from HACS, restart, and add the integration. It shows a QR code. Skip this step if you use MQTT or a webhook.
+3. In Home Assistant 2026.3 or newer, in **Settings > Marketplace** (HACS before Home Assistant 2026.11), install the [Life Dashboard integration](https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-ha&category=integration) and add it. On HACS, download it and restart first. The integration shows a QR code. Skip this step if you use MQTT or a webhook.
 4. The app's setup asks where your data should go: scan the code, or enter your broker or webhook URL. Then pick your data types and allow Apple Health access. A first sync follows right away and shows what arrived.
 5. After that it syncs by itself; **Sync Now** sends at once. **Preview payload** under **What to send** shows what goes out.
 
@@ -113,7 +113,7 @@ There are two ways in. Neither needs YAML.
 
 | | Life Dashboard integration | MQTT |
 |---|---|---|
-| Setup | HACS, then scan a QR code | Enter your broker |
+| Setup | Marketplace, then scan a QR code | Enter your broker |
 | Sensors | 20 of 28 types, blood pressure as two | The same |
 | History | Every day, up to a year back, through backfill | From the first sync on |
 | Workouts and mindfulness | Minutes per day | No |
@@ -122,7 +122,7 @@ There are two ways in. Neither needs YAML.
 
 Pick the integration unless you already run a broker and don't need the days before your first sync. Single meals, cycle tracking entries and workout details are events rather than values, so neither route turns them into sensors. A webhook of your own gets them in full. [Setup for both](docs/usage.md#phone-to-home-assistant) is in the guide, and [features.md](docs/features.md#home-assistant-and-mqtt) lists the MQTT sensors.
 
-[![Open the Life Dashboard integration in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-ha&category=integration)
+[![Open the Life Dashboard integration in the Marketplace](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-ha&category=integration)
 
 <details>
 <summary><b>Already use the Home Assistant companion app?</b></summary>
