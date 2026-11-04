@@ -57,7 +57,7 @@ Numbers go out with the decimals their field needs, without the float noise of a
 
 ## What iOS sends
 
-The app has 28 data types. Menstruation sends two keys, so an iPhone can send 29 of the Android app's 33 record keys, with the same fields:
+The app has 28 data types. Menstruation sends two keys, so an iPhone can send 29 of the Android app's 34 record keys, with the same fields:
 
 | Key | Fields | Read from HealthKit |
 |---|---|---|
@@ -91,10 +91,11 @@ The app has 28 data types. Menstruation sends two keys, so an iPhone can send 29
 | `cervical_mucus` | `appearance`, `sensation`, `time` | cervical mucus quality |
 | `sexual_activity` | `protection_used`, `time` | sexual activity |
 
-The four Android keys an iPhone never sends:
+The five Android keys an iPhone never sends:
 
 | Android key | Why not |
 |---|---|
+| `speed` | Not read yet |
 | `bone_mass` | Apple Health has no bone mass type |
 | `body_water_mass` | Apple Health has no body water type |
 | `skin_temperature` | Apple Health stores the absolute sleeping wrist temperature, not the change against a baseline that `delta_celsius` carries |

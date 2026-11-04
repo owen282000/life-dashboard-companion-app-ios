@@ -17,7 +17,7 @@ Reads Apple Health (HealthKit) and sends it to your webhooks, the Home Assistant
 | Food and drink | Hydration, Nutrition (per food: energy, protein, carbohydrates, fat and 34 more nutrients) |
 | Cycle tracking | Menstruation (flow, plus periods derived from it), Intermenstrual Bleeding, Ovulation Test, Cervical Mucus, Sexual Activity |
 
-These are the Apple Health types that have a counterpart in the Android app, under the Android app's payload keys. Menstruation sends both flow and periods, so the 28 switches cover 29 of the Android app's 33 types. The four that stay out (bone mass, body water mass, skin temperature and basal metabolic rate) have no Apple Health type that means the same; [webhook.md](webhook.md#what-ios-sends) says why for each.
+These are the Apple Health types that have a counterpart in the Android app, under the Android app's payload keys. Menstruation sends both flow and periods, so the 28 switches cover 29 of the Android app's 34 types. Speed isn't read yet, and the other four that stay out (bone mass, body water mass, skin temperature and basal metabolic rate) have no Apple Health type that means the same; [webhook.md](webhook.md#what-ios-sends) says why for each.
 
 One data type can read several Apple Health types: Nutrition reads 38, Distance one per activity. Together the 28 read 74 Apple Health types, or 70 on iOS 17, which has fewer distance types.
 
