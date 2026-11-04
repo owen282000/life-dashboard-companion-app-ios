@@ -4,7 +4,7 @@
 
 - An iPhone with iOS 17.0 or later
 - To build the app yourself: a Mac with Xcode 26 or later (CI builds with Xcode 26.6), and a paid Apple Developer Program membership, see [below](#apple-developer-program)
-- Home Assistant with the Life Dashboard integration 0.7.1 or newer (HACS), a webhook endpoint, or an MQTT broker
+- Home Assistant with the Life Dashboard integration 0.7.1 or newer (from the Marketplace, or HACS before Home Assistant 2026.11), a webhook endpoint, or an MQTT broker
 
 ## Build and install
 
@@ -66,7 +66,7 @@ Two routes, and neither needs YAML. The **Life Dashboard integration** is the re
 
 ### With the integration
 
-You need the integration 0.7.1 or newer; earlier versions do not accept the iPhone app. Installing it is the same as for the Android app, and the Android app's [usage.md](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/usage.md#with-the-integration) walks through it: add the repository to HACS, download **Life Dashboard**, restart Home Assistant, and add the integration under Settings > Devices & services, with a name for the phone. Then:
+You need the integration 0.7.1 or newer; earlier versions do not accept the iPhone app. Installing it is the same as for the Android app, and the Android app's [usage.md](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/usage.md#with-the-integration) walks through it: in **Settings > Marketplace** (HACS before Home Assistant 2026.11), search for **Life Dashboard** and install it, then add the integration with a name for the phone. On HACS, restart Home Assistant first, and add it under Settings > Devices & services. Then:
 
 1. **Scan the code** the dialog shows with **Scan a pairing code** in the app, and tap **Pair**. [Pairing by QR code](#pairing-by-qr-code) has the details.
 2. **Grant and sync.** Under **What to send**, switch on the types you want, then tap **Sync Now** on the Health tab. The iPhone appears under Settings > Devices & services > Life Dashboard with a sensor for each type it sent. For the past, tap **Send history** under **What to send**.
