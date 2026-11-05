@@ -1,11 +1,19 @@
 name: CodeQL
 
-# Every pull request and a weekly run on main. A push to main is the pull request that was just
-# analysed, so it is not analysed a second time. Pull requests that change only documentation are
-# analysed too: OpenSSF Scorecard counts a merged commit without a CodeQL run as unchecked.
+# Every pull request with code and a weekly run on main. A push to main is the pull request that was
+# just analysed, so it is not analysed a second time. A pull request that changes only documentation
+# is not analysed, the same paths the build skips: Swift needs a macOS runner to build, and a docs
+# change waited longer for it than it took to write. OpenSSF Scorecard counts such a merged commit
+# as unchecked; the weekly run still covers everything on main.
 on:
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/pull_request_template.md'
+      - 'LICENSE'
   schedule:
     - cron: '0 3 * * 0'
   workflow_dispatch:
