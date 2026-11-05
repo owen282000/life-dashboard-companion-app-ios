@@ -17,7 +17,7 @@
 #     Optimization test, in en, nl and de
 #   header-5244x2950.png, header-3840x1646.png  the product page header, header.html
 #   search-3840x2560.png  the search results asset, header.html in 3:2
-#   header-nl-*.png, header-de-*.png, search-nl-*.png, search-de-*.png  the same in Dutch and German
+#   header-nl-*.png, header-de-*.png, search-nl-*.png, search-de-*.png  the same in the other languages
 #
 # All of them land in store-assets/, with the same names. Only the sources are in git. App Store
 # Connect scales the 6.9 inch panels down for smaller iPhones itself; the panoramas and the 6.3
@@ -61,12 +61,12 @@ panel() { # out dir6.3 url
 if [ "${1:-}" = header ]; then
   for size in 5244x2950 3840x1646; do
     shot "$OUT/header-$size.png" "${size%x*}" "${size#*x}" "file://$PWD/$DIR/header.html?size=$size"
-    for lang in nl de; do
+    for lang in nl de fr es it pt-BR ja ar hi zh-Hans; do
       shot "$OUT/header-$lang-$size.png" "${size%x*}" "${size#*x}" "file://$PWD/$DIR/header.html?size=$size&lang=$lang"
     done
   done
   shot "$OUT/search-3840x2560.png" 3840 2560 "file://$PWD/$DIR/header.html?size=3840x2560"
-  for lang in nl de; do
+  for lang in nl de fr es it pt-BR ja ar hi zh-Hans; do
     shot "$OUT/search-$lang-3840x2560.png" 3840 2560 "file://$PWD/$DIR/header.html?size=3840x2560&lang=$lang"
   done
   for f in "$OUT"/header-*.png "$OUT"/search-*.png; do
