@@ -31,6 +31,8 @@ final class BackfillController: ObservableObject {
     private var stopReason: BackfillJob.PauseReason?
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var segmentStart = 0
+    /// The webhooks that missed a chunk of this segment while another took it.
+    private var segmentMissed: Set<String> = []
     private var segmentStartWindow = 0
     private var continuedTask: BGTask?
     private var passesInWindow = 0
@@ -97,6 +99,7 @@ final class BackfillController: ObservableObject {
         stopReason = nil
         isStopping = false
         segmentStart = start.recordsSent
+        segmentMissed = []
         segmentStartWindow = start.nextWindow
         var running = start
         running.status = .running
@@ -111,7 +114,7 @@ final class BackfillController: ObservableObject {
         let prefs = prefs
         let engine = BackfillEngine(
             reader: HealthKitBackfillReader(),
-            sink: WebhookBackfillSink(),
+            sink: WebhookBackfillSink(onMissed: { urls in await BackfillController.shared.noteMissed(urls, for: token) }),
             appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
             enabledTypes: { Array(prefs.healthEnabledDataTypes) },
             windowExtras: { window in
@@ -120,15 +123,26 @@ final class BackfillController: ObservableObject {
                 guard prefs.includeDailyTotals else { return .none }
                 let calendar = DailyTotals.calendar()
                 guard let days = DailyTotals.wholeDays(touching: window, now: Date(), calendar: calendar) else { return .none }
+                // One query at a time: the window's record reads come right after.
                 let totals = await HealthKitManager.shared.readDailyTotals(
-                    in: days, enabledTypes: prefs.healthEnabledDataTypes, calendar: calendar
+                    in: days, enabledTypes: prefs.healthEnabledDataTypes, calendar: calendar, oneAtATime: true
                 )
-                return totals.isEmpty ? .none : BackfillExtras(fields: [DailyTotals.payloadKey: totals])
+                return BackfillExtras(fields: totals.isEmpty ? [:] : [DailyTotals.payloadKey: totals], expectsTotals: true)
             },
             resolutions: { prefs.storedSeriesResolutions },
             shouldStop: { await BackfillController.shared.stopRequest(for: token) },
             onProgress: { progress in await BackfillController.shared.report(progress, for: token) },
-            onWindowDone: { job, records in await BackfillController.shared.commit(job, windowRecords: records, for: token) }
+            onWindowDone: { job, records in await BackfillController.shared.commit(job, windowRecords: records, for: token) },
+            onIncomplete: { window, types in
+                // A read problem, not a failed delivery: the window went out as Health gave it.
+                prefs.addWebhookLog(WebhookLog(
+                    url: SyncStats.readFailureSource,
+                    success: false,
+                    errorMessage: AppDiagnostic.backfillIncomplete(types.map(\.rawValue).sorted(), from: window.start),
+                    dataType: WebhookLog.readFailureDataType,
+                    logType: .healthConnect
+                ))
+            }
         )
         runTask = Task.detached(priority: .userInitiated) {
             let final = await engine.run(running)
@@ -232,15 +246,52 @@ final class BackfillController: ObservableObject {
         // tab's card, like the sync's own; any other run row is marked as the run's.
         var readFailed = false
         if case .read = final.failure { readFailed = true }
-        prefs.addWebhookLog(WebhookLog(
-            url: readFailed ? SyncStats.readFailureSource : (prefs.healthWebhookUrls.first ?? "backfill"),
-            success: final.status != .failed,
-            errorMessage: final.failure.map(BackfillController.describe),
-            dataType: readFailed ? WebhookLog.readFailureDataType : WebhookLog.backfillRunDataType,
-            recordCount: sent,
-            rawPayload: raw,
-            logType: .healthConnect
-        ))
+        if readFailed {
+            prefs.addWebhookLog(WebhookLog(
+                url: SyncStats.readFailureSource,
+                success: false,
+                errorMessage: final.failure.map(BackfillController.describe),
+                dataType: WebhookLog.readFailureDataType,
+                recordCount: sent,
+                rawPayload: raw,
+                logType: .healthConnect
+            ))
+            return
+        }
+        for row in Self.runRows(
+            urls: prefs.healthWebhookUrls, missed: segmentMissed, final: final, sent: sent, rawPayload: raw
+        ) {
+            prefs.addWebhookLog(row)
+        }
+    }
+
+    /// One run row per webhook, so each destination shows the backfill as its last delivery
+    /// and the Logs tab shows where it went. One that missed a chunk another took is not a
+    /// success: its failed chunks have their own rows, so its run row counts nowhere.
+    static func runRows(
+        urls: [String],
+        missed: Set<String>,
+        final: BackfillJob,
+        sent: Int,
+        rawPayload: String?
+    ) -> [WebhookLog] {
+        let error = final.failure.map(BackfillController.describe)
+        return (urls.isEmpty ? ["backfill"] : urls).map { url in
+            WebhookLog(
+                url: url,
+                success: final.status != .failed && !missed.contains(url),
+                errorMessage: error ?? (missed.contains(url) ? AppDiagnostic.backfillMissed : nil),
+                dataType: WebhookLog.backfillRunDataType,
+                recordCount: sent,
+                rawPayload: rawPayload,
+                logType: .healthConnect
+            )
+        }
+    }
+
+    fileprivate func noteMissed(_ urls: [String], for token: UUID) {
+        guard token == runToken, !urls.isEmpty else { return }
+        segmentMissed.formUnion(urls)
     }
 
     private func resumeIfInterrupted() {
@@ -427,16 +478,20 @@ struct HealthKitBackfillReader: BackfillReading {
 }
 
 struct WebhookBackfillSink: BackfillDelivering {
+    var onMissed: @Sendable ([String]) async -> Void = { _ in }
+
     func deliver(_ body: Data, recordCount: Int) async -> Bool {
         let prefs = PreferencesManager.shared
-        return await WebhookManager.shared.post(
+        let delivery = await WebhookManager.shared.post(
             body: body,
             urls: prefs.healthWebhookUrls,
             logType: .healthConnect,
             dataType: BackfillController.logDataType,
             recordCount: recordCount,
             logSuccess: false
-        ).delivered
+        )
+        if delivery.delivered { await onMissed(delivery.missedUrls) }
+        return delivery.delivered
     }
 }
 

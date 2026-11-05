@@ -162,7 +162,8 @@ extension HealthKitManager {
     func readDailyTotals(
         in interval: DateInterval,
         enabledTypes: Set<HealthDataType>,
-        calendar: Calendar = DailyTotals.calendar()
+        calendar: Calendar = DailyTotals.calendar(),
+        oneAtATime: Bool = false
     ) async -> [[String: Any]] {
         let metrics = DailyTotals.metrics.filter { enabledTypes.contains($0.type) }
         var units: [HKQuantityTypeIdentifier: HKUnit] = [:]
@@ -171,6 +172,24 @@ extension HealthKitManager {
         }
         guard !units.isEmpty, interval.duration > 0 else { return [] }
 
+        if oneAtATime {
+            var sums: [HKQuantityTypeIdentifier: [String: Double]?] = [:]
+            for (identifier, unit) in units {
+                var perDay = await dailySums(of: identifier, unit: unit, in: interval, calendar: calendar)
+                if let found = perDay, found.isEmpty {
+                    // Seen on an iPhone with every read allowed: the collection query answered
+                    // without a sum for weeks that had samples, and with them half an hour
+                    // later. A query per day is asked another way, so it gets a second chance.
+                    let days = await daySums(of: identifier, unit: unit, in: interval, calendar: calendar)
+                    if !days.isEmpty {
+                        dailyTotalsLogger.notice("Daily totals for \(identifier.rawValue, privacy: .public): \(days.count) days found one day at a time")
+                        perDay = days
+                    }
+                }
+                sums.updateValue(perDay, forKey: identifier)
+            }
+            return DailyTotals.entries(days: DailyTotals.days(in: interval, calendar: calendar), sums: sums, metrics: metrics)
+        }
         let sums = await withTaskGroup(of: (HKQuantityTypeIdentifier, [String: Double]?).self) { group in
             for (identifier, unit) in units {
                 group.addTask {
@@ -211,11 +230,12 @@ extension HealthKitManager {
                 if let error, HealthKitManager.isUnanswered(error) {
                     // No samples, as a denied read gives: a distance the user was never asked
                     // about leaves the others' total as it is instead of taking it down.
+                    dailyTotalsLogger.notice("Daily totals for \(identifier.rawValue, privacy: .public) not allowed: \((error as? HKError)?.code.rawValue ?? -1, privacy: .public)")
                     if once.claim() { continuation.resume(returning: [:]) }
                     return
                 }
                 guard let collection, error == nil else {
-                    dailyTotalsLogger.error("Daily totals for \(identifier.rawValue) failed: \(error?.localizedDescription ?? "no result")")
+                    dailyTotalsLogger.error("Daily totals for \(identifier.rawValue, privacy: .public) failed: \(error?.localizedDescription ?? "no result", privacy: .public)")
                     if once.claim() { continuation.resume(returning: nil) }
                     return
                 }
@@ -233,7 +253,50 @@ extension HealthKitManager {
             DispatchQueue.global().asyncAfter(deadline: .now() + DailyTotals.queryTimeout) {
                 guard once.claim() else { return }
                 healthStore.stop(query)
-                dailyTotalsLogger.error("Daily totals for \(identifier.rawValue) did not answer within \(Int(DailyTotals.queryTimeout)) s")
+                dailyTotalsLogger.error("Daily totals for \(identifier.rawValue, privacy: .public) did not answer within \(Int(DailyTotals.queryTimeout)) s")
+                continuation.resume(returning: nil)
+            }
+        }
+    }
+}
+
+extension HealthKitManager {
+    /// The sum of each day the interval touches, one HKStatisticsQuery per day; a day without a
+    /// sum, or whose query fails or runs out of time, is left out.
+    fileprivate func daySums(
+        of identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit,
+        in interval: DateInterval,
+        calendar: Calendar
+    ) async -> [String: Double] {
+        var sums: [String: Double] = [:]
+        var day = calendar.startOfDay(for: interval.start)
+        while day < interval.end {
+            guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+            let span = DateInterval(start: max(day, interval.start), end: min(next, interval.end))
+            if let sum = await daySum(of: identifier, unit: unit, in: span) {
+                sums[DailyTotals.dateString(day, calendar: calendar)] = sum
+            }
+            day = next
+        }
+        return sums
+    }
+
+    private func daySum(of identifier: HKQuantityTypeIdentifier, unit: HKUnit, in span: DateInterval) async -> Double? {
+        let once = ResumeOnce()
+        let healthStore = self.healthStore
+        return await withCheckedContinuation { continuation in
+            let query = HKStatisticsQuery(
+                quantityType: HKQuantityType(identifier),
+                quantitySamplePredicate: HKQuery.predicateForSamples(withStart: span.start, end: span.end),
+                options: .cumulativeSum
+            ) { _, statistics, _ in
+                if once.claim() { continuation.resume(returning: statistics?.sumQuantity()?.doubleValue(for: unit)) }
+            }
+            healthStore.execute(query)
+            DispatchQueue.global().asyncAfter(deadline: .now() + DailyTotals.queryTimeout) {
+                guard once.claim() else { return }
+                healthStore.stop(query)
                 continuation.resume(returning: nil)
             }
         }
