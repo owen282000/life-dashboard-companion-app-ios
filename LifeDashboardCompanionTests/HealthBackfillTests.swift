@@ -379,6 +379,14 @@ final class HealthBackfillTests: XCTestCase {
         XCTAssertEqual(asked, 1, "no distance at all is no data, not a disagreement")
     }
 
+    func testTheIncompleteWindowLineIsTranslatedWhenShown() {
+        let stored = AppDiagnostic.backfillIncomplete(["STEPS", "DISTANCE"], from: now)
+        XCTAssertTrue(stored.hasPrefix("Apple Health returned part of STEPS, DISTANCE in the backfill from "))
+        let shown = AppDiagnostic.display(stored)
+        XCTAssertNotEqual(shown, stored, "recognised, with the type names and the day written out")
+        XCTAssertFalse(shown.contains("STEPS"))
+    }
+
     func testTheCheckComparesEachTypeWithItsOwnTotal() {
         let calendar = DailyTotals.calendar()
         let window = BackfillPlan.window(0, of: job(days: 3).range)
@@ -417,7 +425,7 @@ final class HealthBackfillTests: XCTestCase {
         )
         XCTAssertEqual(rows.map(\.url), ["https://a.example/hook", "https://b.example/hook", "http://c.local:8123/hook"])
         XCTAssertEqual(rows.map(\.success), [true, false, true], "the one that missed chunks is not a success")
-        XCTAssertEqual(rows[1].errorMessage, AppDiagnostic.backfillMissed)
+        XCTAssertEqual(rows[1].errorMessage, AppDiagnostic.backfillMissed.rawValue)
         XCTAssertTrue(rows.allSatisfy { $0.dataType == WebhookLog.backfillRunDataType && $0.recordCount == 120 })
         XCTAssertEqual(rows[1].syncKind, .other, "its failed chunks already count as failed deliveries")
     }

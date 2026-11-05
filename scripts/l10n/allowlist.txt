@@ -28,6 +28,7 @@ LifeDashboardCompanion/Models/AppDiagnostic.swift | Refused for a week (HTTP %ar
 LifeDashboardCompanion/Models/AppDiagnostic.swift | Refused for a week (HTTP | diagnostic | prefix display() parses
 LifeDashboardCompanion/Models/AppDiagnostic.swift | ), dropped from the queue | diagnostic | suffix display() parses
 LifeDashboardCompanion/Models/AppDiagnostic.swift | HealthKit did not return %arg | diagnostic | stored form, display() translates it
+LifeDashboardCompanion/Models/AppDiagnostic.swift | Apple Health returned part of %arg in the backfill from %arg. Send history again for this period later. | diagnostic | stored form, display() translates it
 LifeDashboardCompanion/Models/AppDiagnostic.swift | HealthKit did not return | diagnostic | prefix display() parses
 LifeDashboardCompanion/Models/AppDiagnostic.swift | OK: %arg sensors published at %arg | diagnostic | stored MQTT status, MqttStatus translates it
 LifeDashboardCompanion/Models/AppDiagnostic.swift | Error: %arg | diagnostic | stored MQTT status, MqttStatus translates it

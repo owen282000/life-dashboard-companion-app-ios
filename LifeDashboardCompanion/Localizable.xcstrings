@@ -11299,6 +11299,70 @@
         }
       }
     },
+    "Apple Health returned part of %@ in the backfill from %@. Send history again for this period later." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أعاد تطبيق صحتي جزءًا فقط من %1$@ في الاستكمال منذ %2$@. أرسل البيانات السابقة لهذه الفترة مرة أخرى لاحقًا."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Health hat beim Nachtragen ab %2$@ nur einen Teil von %1$@ geliefert. Sende den Verlauf für diesen Zeitraum später noch einmal."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La app Salud solo devolvió parte de %1$@ al recuperar desde el %2$@. Vuelve a enviar el historial de este periodo más tarde."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Santé n’a renvoyé qu’une partie de %1$@ lors du rattrapage depuis le %2$@. Renvoyez l’historique de cette période plus tard."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$@ से बैकफ़िल में Apple स्वास्थ्य ने %1$@ का केवल एक हिस्सा लौटाया। इस अवधि का इतिहास बाद में फिर से भेजें।"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salute ha restituito solo una parte di %1$@ nel recupero dal %2$@. Invia di nuovo lo storico di questo periodo più tardi."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$@からの過去データ送信で、ヘルスケアが%1$@の一部しか返しませんでした。この期間の過去データを後でもう一度送信してください。"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Gezondheid gaf bij het aanvullen vanaf %2$@ maar een deel van %1$@ terug. Verstuur de geschiedenis van deze periode later nog een keer."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O app Saúde retornou só parte de %1$@ no histórico desde %2$@. Envie o histórico deste período de novo mais tarde."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从 %2$@ 开始补全时，Apple 健康只返回了部分%1$@。请稍后再次补全这段时间的历史数据。"
+          }
+        }
+      }
+    },
     "Apple Health, read only, for the types you switch on. Camera, only while the pairing scanner is open: frames are decoded on the iPhone and are never stored or sent. Local Network, to reach a webhook server or MQTT broker on your home network. Notifications, for failed syncs, lost payloads and syncs that stay away for days: they are shown on this iPhone and sent nowhere." : {
       "localizations" : {
         "ar" : {
@@ -31739,6 +31803,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "两次同步之间的分钟数"
+          }
+        }
+      }
+    },
+    "Missed part of this backfill; the failed chunks are listed separately" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لم يصل جزء من هذا الاستكمال؛ الأجزاء التي فشلت مدرجة على حدة"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Teil dieses Nachtrags kam nicht an; die fehlgeschlagenen Teile stehen separat"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parte de esta recuperación no llegó; los fragmentos fallidos aparecen por separado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une partie de ce rattrapage n’est pas arrivée. Les morceaux en échec sont listés à part"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "इस बैकफ़िल का एक हिस्सा नहीं पहुँचा; विफल हिस्से अलग से दिखाए गए हैं"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parte di questo recupero non è arrivata; i blocchi non riusciti sono elencati a parte"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この過去データ送信の一部が届きませんでした。失敗した分は別に表示されます"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een deel van deze aanvulling kwam niet aan; de mislukte delen staan apart"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parte deste histórico não chegou; os trechos que falharam aparecem separados"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这次补全有一部分未送达，失败的部分单独列出"
           }
         }
       }
