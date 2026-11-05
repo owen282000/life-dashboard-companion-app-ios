@@ -205,11 +205,11 @@ final class UIParityTests: XCTestCase {
 
     // MARK: - About
 
-    /// Every link goes to the iOS repository, except the privacy policy and the website, which
-    /// have pages of their own. The Android slug is a prefix of the iOS one, so the path is compared component by
+    /// Every link goes to the iOS repository, except the privacy policy, the website and the feedback
+    /// board, which have pages of their own. The Android slug is a prefix of the iOS one, so the path is compared component by
     /// component.
     func testAboutLinksPointAtTheIOSRepository() {
-        for url in AboutLinks.all where url != AboutLinks.privacy && url != AboutLinks.website {
+        for url in AboutLinks.all where url != AboutLinks.privacy && url != AboutLinks.website && url != AboutLinks.feedback {
             XCTAssertEqual(url.host, "github.com", url.absoluteString)
             XCTAssertEqual(Array(url.pathComponents.prefix(3)), ["/", "owen282000", "life-dashboard-companion-app-ios"], url.absoluteString)
         }
@@ -221,6 +221,13 @@ final class UIParityTests: XCTestCase {
         XCTAssertEqual(AboutLinks.website.scheme, "https")
         XCTAssertEqual(AboutLinks.website.host, "owen282000.com")
         XCTAssertEqual(AboutLinks.website.pathComponents, ["/", "life-dashboard", "ios"])
+    }
+
+    /// Report a problem opens the fixed address on the site, so the board can move without a new version.
+    func testTheFeedbackLinkIsTheFixedAddressOnTheSite() {
+        XCTAssertEqual(AboutLinks.feedback.scheme, "https")
+        XCTAssertEqual(AboutLinks.feedback.host, "owen282000.com")
+        XCTAssertEqual(AboutLinks.feedback.pathComponents, ["/", "life-dashboard", "feedback"])
     }
 
     /// The address App Store Connect has as the privacy policy URL, on HTTPS and for iOS.
