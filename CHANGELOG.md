@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- A backfill could leave a type out of a window without saying so: Apple Health sometimes answered
+  with nothing for steps, distance or calories while it had them, and the window went out without
+  them. Each window now checks its records against its day totals and is read again, up to three
+  times, when they disagree. A window that still disagrees goes out as read and leaves a line under
+  Logs that names the type and the period, so you can send that period again. During a backfill the
+  day totals are asked for one at a time, and a type whose totals come back empty for a whole window
+  is asked again one day at a time.
+- After a backfill only the first webhook showed it: the home screen said "No deliveries yet" for
+  the others and the Logs tab listed the run under the first address only, as if nothing else got
+  it. Every webhook now gets its own row for the run, and one that missed part of it says so.
+
 ### Changed
 
 - **Report a problem** under **About > Help** opens the feedback board, which needs no GitHub account, instead of a new GitHub issue.

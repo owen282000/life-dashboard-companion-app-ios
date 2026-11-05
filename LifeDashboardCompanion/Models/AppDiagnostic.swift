@@ -69,7 +69,17 @@ enum AppDiagnostic: String, CaseIterable {
         }
     }
 
+    /// A backfill run row for a webhook that missed chunks another one took; the failed
+    /// chunks have rows of their own.
+    static let backfillMissed = "Missed part of this backfill; the failed chunks are listed separately"
+
     // MARK: - Messages with a value
+
+    /// A backfill window whose records and day totals still disagreed after its last read (see
+    /// `BackfillCheck`): Apple Health answered with part of it, and the window went out as read.
+    static func backfillIncomplete(_ types: [String], from start: Date) -> String {
+        "Backfill from \(start.iso8601String): Apple Health returned part of \(types.joined(separator: ", ")), even after \(BackfillCheck.maxAttempts) tries. Send history again for this period later."
+    }
 
     static func http(_ status: Int) -> String { "HTTP \(status)" }
 

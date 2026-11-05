@@ -53,6 +53,11 @@ private func decoded(_ bodies: [Data]) -> [[String: Any]] {
     bodies.map { (try? JSONSerialization.jsonObject(with: $0) as? [String: Any]) ?? [:] }
 }
 
+private actor ReportedTypes {
+    private(set) var types: [[HealthDataType]] = []
+    func add(_ value: [HealthDataType]) { types.append(value) }
+}
+
 private actor Counter {
     private(set) var value = 0
     func increment() { value += 1 }
@@ -79,6 +84,7 @@ final class HealthBackfillTests: XCTestCase {
         )
         let counter = sequence
         engine.sequence = { counter.next() }
+        engine.pause = { _ in }
         return engine
     }
 
@@ -286,6 +292,134 @@ final class HealthBackfillTests: XCTestCase {
         let bodies = decoded(await sink.sent)
         XCTAssertGreaterThan(bodies.count, 1)
         XCTAssertTrue(bodies.allSatisfy { $0["daily_totals"] != nil })
+    }
+
+    // MARK: - Records and totals that disagree
+
+    /// The day after the window's first midnight: a whole day inside a three-day window.
+    private func dayInside(_ window: DateInterval) -> String {
+        let calendar = DailyTotals.calendar()
+        let day = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: window.start))!
+        return DailyTotals.dateString(day, calendar: calendar)
+    }
+
+    private func totals(_ entries: [[String: Any]]) -> BackfillExtras {
+        BackfillExtras(fields: entries.isEmpty ? [:] : ["daily_totals": entries], expectsTotals: true)
+    }
+
+    func testAWindowWhoseRecordsAndTotalsDisagreeIsReadAgain() async {
+        let reader = FakeReader()
+        let sink = FakeSink()
+        let calls = Counter()
+        let start = job(days: 3)
+        let window = BackfillPlan.window(0, of: start.range)
+        await reader.add(.steps, count: 5, from: start.rangeStart, every: 3600, prefix: "s")
+        let day = dayInside(window)
+        let incomplete = Counter()
+        var engine = engine(reader, sink, types: [.steps])
+        engine.onIncomplete = { _, _ in await incomplete.increment() }
+        // Apple Health leaves the steps out of the first answer and gives them on the second.
+        engine.windowExtras = { _ in
+            await calls.increment()
+            let first = await calls.value == 1
+            return self.totals(first ? [["date": day, "active_calories": 10]] : [["date": day, "steps": 5]])
+        }
+
+        let final = await engine.run(start)
+
+        XCTAssertEqual(final.status, .done)
+        let asked = await calls.value
+        XCTAssertEqual(asked, 2)
+        let bodies = decoded(await sink.sent)
+        XCTAssertEqual(bodies.count, 2, "the window goes out again in full")
+        XCTAssertEqual((bodies.last?["daily_totals"] as? [[String: Any]])?.first?["steps"] as? Int, 5)
+        XCTAssertEqual(final.recordsSent, 5, "a window read again counts its records once")
+        let warned = await incomplete.value
+        XCTAssertEqual(warned, 0)
+    }
+
+    func testAWindowThatStaysIncompleteGoesOutAfterThreeReadsAndIsReported() async {
+        let reader = FakeReader()
+        let sink = FakeSink()
+        let calls = Counter()
+        let start = job(days: 6)
+        await reader.add(.steps, count: 5, from: start.rangeStart, every: 3600, prefix: "s")
+        let reported = ReportedTypes()
+        var engine = engine(reader, sink, types: [.steps])
+        engine.onIncomplete = { _, types in await reported.add(types) }
+        engine.windowExtras = { _ in
+            await calls.increment()
+            return self.totals([])
+        }
+
+        let final = await engine.run(start)
+
+        XCTAssertEqual(final.status, .done)
+        XCTAssertEqual(final.nextWindow, 2, "the run goes on")
+        let asked = await calls.value
+        XCTAssertEqual(asked, BackfillCheck.maxAttempts + 1, "three reads of the first window, one of the empty second")
+        let types = await reported.types
+        XCTAssertEqual(types, [[.steps]])
+    }
+
+    func testAWindowWhoseRecordsAndTotalsAgreeIsReadOnce() async {
+        let reader = FakeReader()
+        let sink = FakeSink()
+        let calls = Counter()
+        let start = job(days: 3)
+        let day = dayInside(BackfillPlan.window(0, of: start.range))
+        await reader.add(.steps, count: 5, from: start.rangeStart, every: 3600, prefix: "s")
+        var engine = engine(reader, sink, types: [.steps, .distance])
+        engine.windowExtras = { _ in
+            await calls.increment()
+            return self.totals([["date": day, "steps": 5]])
+        }
+        _ = await engine.run(start)
+        let asked = await calls.value
+        XCTAssertEqual(asked, 1, "no distance at all is no data, not a disagreement")
+    }
+
+    func testTheCheckComparesEachTypeWithItsOwnTotal() {
+        let calendar = DailyTotals.calendar()
+        let window = BackfillPlan.window(0, of: job(days: 3).range)
+        let day = dayInside(window)
+        let edge = DailyTotals.dateString(window.start, calendar: calendar)
+        let extras = totals([["date": day, "distance_meters": 800.0], ["date": edge, "active_calories": 20.0]])
+
+        XCTAssertEqual(
+            BackfillCheck.disagreeing(rawCounts: [.distance: 0], extras: extras, window: window, calendar: calendar),
+            [.distance], "a total on a day inside the window without any record"
+        )
+        XCTAssertEqual(
+            BackfillCheck.disagreeing(rawCounts: [.activeCalories: 0], extras: extras, window: window, calendar: calendar),
+            [], "the window starts inside that day, so its records can be before the window"
+        )
+        XCTAssertEqual(
+            BackfillCheck.disagreeing(rawCounts: [.totalCalories: 40], extras: extras, window: window, calendar: calendar),
+            [], "total calories also need resting energy, so they are not compared"
+        )
+        XCTAssertEqual(
+            BackfillCheck.disagreeing(rawCounts: [.steps: 3], extras: .none, window: window, calendar: calendar),
+            [], "no totals asked for, nothing to compare"
+        )
+    }
+
+    @MainActor
+    func testARunWritesOneRowPerWebhookSoEachShowsTheBackfill() {
+        var done = job(days: 3)
+        done.status = .done
+        let rows = BackfillController.runRows(
+            urls: ["https://a.example/hook", "https://b.example/hook", "http://c.local:8123/hook"],
+            missed: ["https://b.example/hook"],
+            final: done,
+            sent: 120,
+            rawPayload: nil
+        )
+        XCTAssertEqual(rows.map(\.url), ["https://a.example/hook", "https://b.example/hook", "http://c.local:8123/hook"])
+        XCTAssertEqual(rows.map(\.success), [true, false, true], "the one that missed chunks is not a success")
+        XCTAssertEqual(rows[1].errorMessage, AppDiagnostic.backfillMissed)
+        XCTAssertTrue(rows.allSatisfy { $0.dataType == WebhookLog.backfillRunDataType && $0.recordCount == 120 })
+        XCTAssertEqual(rows[1].syncKind, .other, "its failed chunks already count as failed deliveries")
     }
 
     func testEachDeliveredWindowIsReportedForSaving() async {

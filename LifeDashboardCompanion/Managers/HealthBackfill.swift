@@ -292,7 +292,51 @@ struct BackfillProgress: Equatable, Sendable {
 /// @unchecked Sendable: JSON value types built fresh per window.
 struct BackfillExtras: @unchecked Sendable {
     let fields: [String: Any]
+    /// Whether the window asked for `daily_totals`, so a window without them is one where
+    /// Apple Health answered with nothing, not one that never asked (see `BackfillCheck`).
+    var expectsTotals = false
     static let none = BackfillExtras(fields: [:])
+}
+
+/// Whether a window's records and its day totals agree. Apple Health hides what an app may not
+/// read by answering with nothing rather than with an error, and on an iPhone with every read
+/// allowed it was seen to do that for a moment too: a backfill of all history sent its day
+/// totals without steps, nine windows without any totals, and in another run no distance or
+/// calories at all, while Health had them all. A window that disagrees with itself is read
+/// again; both empty cannot be told from a type with no data, so that stays as it is.
+enum BackfillCheck {
+    /// Reads of one window, the first included.
+    static let maxAttempts = 3
+
+    /// The types whose records and totals disagree: records without any total of the type, or
+    /// a total on a day inside the window without any record. `rawCounts` holds the types the
+    /// window read, with the records each gave. Only totals that sum the type's own records are
+    /// compared, so `total_calories`, which also needs resting energy, is left out.
+    static func disagreeing(
+        rawCounts: [HealthDataType: Int],
+        extras: BackfillExtras,
+        window: DateInterval,
+        calendar: Calendar
+    ) -> [HealthDataType] {
+        guard extras.expectsTotals else { return [] }
+        let entries = extras.fields[DailyTotals.payloadKey] as? [[String: Any]] ?? []
+        return DailyTotals.metrics.compactMap { metric -> HealthDataType? in
+            guard metric.requiredOnDay == nil, let raw = rawCounts[metric.type] else { return nil }
+            let days = entries.filter { $0[metric.field] != nil }.compactMap { $0["date"] as? String }
+            if raw > 0 && days.isEmpty { return metric.type }
+            if raw == 0 && days.contains(where: { inside($0, window: window, calendar: calendar) }) { return metric.type }
+            return nil
+        }
+    }
+
+    /// Whether the whole local day `day` lies inside the window, so its records were all read.
+    static func inside(_ day: String, window: DateInterval, calendar: Calendar) -> Bool {
+        let parts = day.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3,
+              let start = calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])),
+              let end = calendar.date(byAdding: .day, value: 1, to: start) else { return false }
+        return start >= window.start && end <= window.end
+    }
 }
 
 struct BackfillEngine: Sendable {
@@ -310,6 +354,10 @@ struct BackfillEngine: Sendable {
     var onProgress: @Sendable (BackfillProgress) async -> Void = { _ in }
     /// Called with the job once a window was delivered in full, to be saved.
     var onWindowDone: @Sendable (BackfillJob, _ windowRecords: Int) async -> Void = { _, _ in }
+    /// Called for a window whose records and totals still disagreed after its last read.
+    var onIncomplete: @Sendable (DateInterval, [HealthDataType]) async -> Void = { _, _ in }
+    /// The wait before a window is read again, by the attempt that follows.
+    var pause: @Sendable (Int) async -> Void = { attempt in try? await Task.sleep(for: .seconds(2 * (attempt - 1))) }
     var now: @Sendable () -> Date = { Date() }
     /// The next `sequence`, taken for each payload as it is built.
     var sequence: @Sendable () -> Int = { PayloadSequence.shared.next() }
@@ -330,11 +378,25 @@ struct BackfillEngine: Sendable {
         while job.nextWindow < windowCount {
             if let reason = await shouldStop() { return job.paused(reason, at: now()) }
             let window = BackfillPlan.window(job.nextWindow, of: range)
-            let outcome = await drain(window, of: job, rangeEnd: range.end, resolutions: resolutions)
+            var outcome = await drain(window, of: job, rangeEnd: range.end, resolutions: resolutions)
+            var attempt = 1
+            // Sent again in full: a receiver keeps a record once by its uuid, and a day total
+            // replaces the one before.
+            while case .delivered(_, _, let disagreeing) = outcome, !disagreeing.isEmpty, attempt < BackfillCheck.maxAttempts {
+                attempt += 1
+                Self.logger.error("Backfill window from \(window.start.iso8601String, privacy: .public): records and day totals of \(Self.names(disagreeing), privacy: .public) disagree, reading it again (\(attempt) of \(BackfillCheck.maxAttempts))")
+                await pause(attempt)
+                if let reason = await shouldStop() { return job.paused(reason, at: now()) }
+                outcome = await drain(window, of: job, rangeEnd: range.end, resolutions: resolutions)
+            }
             switch outcome {
             case .stopped(let stopped):
                 return stopped
-            case .delivered(let records, let truncated):
+            case .delivered(let records, let truncated, let disagreeing):
+                if !disagreeing.isEmpty {
+                    Self.logger.error("Backfill window from \(window.start.iso8601String, privacy: .public): \(Self.names(disagreeing), privacy: .public) still incomplete after \(BackfillCheck.maxAttempts) reads")
+                    await onIncomplete(window, disagreeing)
+                }
                 job.nextWindow += 1
                 job.recordsSent += records
                 if truncated { job.truncatedWindows += 1 }
@@ -348,8 +410,12 @@ struct BackfillEngine: Sendable {
     }
 
     private enum WindowOutcome {
-        case delivered(records: Int, truncated: Bool)
+        case delivered(records: Int, truncated: Bool, disagreeing: [HealthDataType])
         case stopped(BackfillJob)
+    }
+
+    private static func names(_ types: [HealthDataType]) -> String {
+        types.map(\.rawValue).sorted().joined(separator: ", ")
     }
 
     /// Sends one window: each pass reads the next slice of every type still draining and posts
@@ -374,6 +440,8 @@ struct BackfillEngine: Sendable {
         for type in types {
             if let read = reads[type], read.duration > 0 { cursors[type] = read.start }
         }
+        // Records per type read in this window, before the resolution buckets them.
+        var rawCounts = cursors.mapValues { _ in 0 }
         var records = 0
         var sent = 0
         var truncated = false
@@ -399,6 +467,7 @@ struct BackfillEngine: Sendable {
                     return .stopped(job.failed(.read(type: type.rawValue), at: now()))
                 }
                 chunk += slice.records
+                rawCounts[type, default: 0] += BackfillPayload.recordCount(slice.records)
                 if !slice.exact {
                     truncated = true
                     inexact.insert(type)
@@ -435,10 +504,20 @@ struct BackfillEngine: Sendable {
             }
 
             cursors = next
-            if cursors.isEmpty { return .delivered(records: records, truncated: truncated) }
+            if cursors.isEmpty {
+                return .delivered(records: records, truncated: truncated, disagreeing: check(rawCounts, extras, window))
+            }
         }
         Self.logger.error("Backfill window from \(window.start.iso8601String) needs more than \(BackfillPlan.maxPassesPerWindow) passes")
-        return .delivered(records: records, truncated: true)
+        return .delivered(records: records, truncated: true, disagreeing: check(rawCounts, extras, window))
+    }
+
+    private func check(_ rawCounts: [HealthDataType: Int], _ extras: BackfillExtras, _ window: DateInterval) -> [HealthDataType] {
+        // What each type gave, readable in a sysdiagnose: the counts say nothing about health.
+        let counts = rawCounts.map { "\($0.key.rawValue)=\($0.value)" }.sorted().joined(separator: " ")
+        let fields = Set((extras.fields[DailyTotals.payloadKey] as? [[String: Any]] ?? []).flatMap(\.keys)).subtracting(["date"]).sorted()
+        Self.logger.notice("Backfill window from \(window.start.iso8601String, privacy: .public): records \(counts, privacy: .public); totals \(fields.joined(separator: ","), privacy: .public)")
+        return BackfillCheck.disagreeing(rawCounts: rawCounts, extras: extras, window: window, calendar: DailyTotals.calendar())
     }
 
     /// One chunk with the data resolution applied, as a sync applies it. A type still draining
