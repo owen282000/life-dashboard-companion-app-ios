@@ -9,6 +9,8 @@ enum AboutLinks {
     static let documentation = URL(string: repository.absoluteString + "#readme")!
     static let changelog = repository.appending(path: "blob/main/CHANGELOG.md")
     static let newIssue = repository.appending(path: "issues/new")
+    // Needs no GitHub account, and the address stays the same if the board moves.
+    static let feedback = URL(string: "https://owen282000.com/life-dashboard/feedback/")!
     /// How anyone adds a pairing code to their own receiver.
     static let pairingGuide = URL(string: "https://owen282000.com/life-dashboard/health-data-qr-pairing/")!
     /// A new issue with its title started, from What to send.
@@ -27,7 +29,7 @@ enum AboutLinks {
     static let troubleshooting = URL(string: "https://owen282000.com/life-dashboard/troubleshooting/")!
 
     /// The links every build shows.
-    static let all = [website, repository, documentation, changelog, newIssue, licence, privacy]
+    static let all = [website, repository, documentation, changelog, newIssue, feedback, licence, privacy]
 }
 
 /// The other Life Dashboard parts this page points to, next to the links in `AboutLinks`.
