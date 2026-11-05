@@ -44,7 +44,7 @@
 
 Your Apple Watch, iPhone, ring or scale already writes to Apple Health. This app sends it to Home Assistant, an MQTT broker or a webhook you run. There is no account in between, and none of it reaches me.
 
-- Home Assistant gets up to a year of history, each day on its own date. The Home Assistant companion app's health sensors start the day you switch them on.
+- Home Assistant gets all your history, each day on its own date. The Home Assistant companion app's health sensors start the day you switch them on.
 - An iPhone and an Android phone send the same payload, so a mixed household shares one Home Assistant or one database.
 - Pay once, no subscription: the app is on the [App Store](https://apps.apple.com/app/apple-store/id6824075761?pt=128699800&ct=gh-ios-readme&mt=8) for EUR 6.99 (USD 5.99), and building it from source costs nothing extra if you already have an Apple Developer Program membership.
 - Want to ask Claude or a local model in Ollama about your own history? The [Grafana stack](https://github.com/owen282000/life-dashboard-stack#ask-your-own-ai-mcp) adds an MCP server with eight read-only tools. The app itself contains no AI.
@@ -80,7 +80,7 @@ Life Dashboard is four projects, and you only install the parts you need. Put th
 <p align="center">
   <a href="https://github.com/owen282000/life-dashboard-companion-app"><img src="docs/family/android.png" alt="Android app: Health Connect and screen time" width="400"></a>
   <picture><img src="docs/family/ios-here.png" alt="iPhone app: Apple Health (this repository)" width="400"></picture>
-  <a href="https://github.com/owen282000/life-dashboard-ha"><img src="docs/family/ha.png" alt="Home Assistant integration: sensors and a year of history" width="400"></a>
+  <a href="https://github.com/owen282000/life-dashboard-ha"><img src="docs/family/ha.png" alt="Home Assistant integration: sensors and all your history" width="400"></a>
   <a href="https://github.com/owen282000/life-dashboard-stack"><img src="docs/family/stack.png" alt="Grafana stack: Postgres and Grafana dashboards" width="400"></a>
 </p>
 
@@ -115,12 +115,12 @@ There are two ways in. Neither needs YAML.
 |---|---|---|
 | Setup | Marketplace, then scan a QR code | Enter your broker |
 | Sensors | 20 of 28 types, blood pressure as two | The same |
-| History | Every day, up to a year back, through backfill | From the first sync on |
-| Workouts and mindfulness | Minutes per day | No |
+| History | Every day, as far back as Apple Health has data, through backfill | From the first sync on |
+| Workouts and mindfulness | The last workout and each session, with the heart rate, calories and distance recorded during it, and minutes per day | No |
 | An Android phone too | Its own device next to it | Its own device and base topic |
-| Example dashboard | Included, without its screen time cards | No |
+| Example dashboard | Included; its screen time view is for Android | No |
 
-Pick the integration unless you already run a broker and don't need the days before your first sync. Single meals, cycle tracking entries and workout details are events rather than values, so neither route turns them into sensors. A webhook of your own gets them in full. [Setup for both](docs/usage.md#phone-to-home-assistant) is in the guide, and [features.md](docs/features.md#home-assistant-and-mqtt) lists the MQTT sensors.
+Pick the integration unless you already run a broker and don't need the days before your first sync. Single meals and cycle tracking entries are events rather than values, so neither route turns them into sensors; the integration does add what was recorded during a workout to its workout sensors. A webhook of your own gets them in full. [Setup for both](docs/usage.md#phone-to-home-assistant) is in the guide, and [features.md](docs/features.md#home-assistant-and-mqtt) lists the MQTT sensors.
 
 [![Open the Life Dashboard integration in the Marketplace](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-ha&category=integration)
 
@@ -133,7 +133,7 @@ Keep it. It does presence, notifications and device sensors, and this app doesn'
 
 The companion app reads Apple Health too. Its Apple Health sensors ([#5272](https://github.com/home-assistant/iOS/pull/5272), [#5638](https://github.com/home-assistant/iOS/pull/5638)) cover steps, heart rate, weight, blood pressure, sleep stages and more, each as one sensor with today's total or the newest reading. Their history in Home Assistant starts the day you switch them on, and workout details, meals and cycle tracking aren't among them.
 
-This app covers the health side in depth: 28 types, every record with the app or device that wrote it, up to a year of backfilled history with each day on its own date, and MQTT or a webhook when Home Assistant isn't the only place it should go.
+This app covers the health side in depth: 28 types, every record with the app or device that wrote it, all your history backfilled, each day on its own date, and MQTT or a webhook when Home Assistant isn't the only place it should go.
 
 </details>
 
