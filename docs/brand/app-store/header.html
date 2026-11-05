@@ -26,10 +26,15 @@
   @font-face { font-family: "Space Grotesk"; font-weight: 500; src: url(../../../LifeDashboardCompanion/Fonts/SpaceGrotesk-Medium.ttf); }
   @font-face { font-family: "Space Grotesk"; font-weight: 700; src: url(../../../LifeDashboardCompanion/Fonts/SpaceGrotesk-Bold.ttf); }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --script: sans-serif; }
+  :lang(ja) { --script: "Hiragino Sans"; }
+  :lang(zh-Hans) { --script: "PingFang SC"; }
+  :lang(ar) { --script: "SF Arabic"; }
+  :lang(hi) { --script: "Kohinoor Devanagari"; }
   html, body { overflow: hidden; background: #0A0F0D; }
   #stage {
     position: absolute; left: 0; top: 0; height: 2950px; overflow: hidden; transform-origin: 0 0;
-    font-family: "Space Grotesk", sans-serif; color: #EEF4F0; background: #0A0F0D;
+    font-family: "Space Grotesk", var(--script), sans-serif; color: #EEF4F0; background: #0A0F0D;
   }
   svg.pulse { position: absolute; left: 0; top: 0; }
 
@@ -85,12 +90,21 @@
 const [W, H] = (new URLSearchParams(location.search).get("size") || "5244x2950").split("x").map(Number);
 const D = 2950, DW = Math.round(W * D / H), s = H / D;
 const LANG = new URLSearchParams(location.search).get("lang") || "en";
+document.documentElement.lang = LANG;
 const STORE = "../../../store-assets/", RAW = LANG === "en" ? STORE + "raw/" : `${STORE}raw/${LANG}/`;
-// The words per language; nl and de follow docs/localization.md ("je", "du").
+// The words per language, in the register of docs/localization.md.
 const T = {
   en: { wide: "Health data to<br>Home Assistant<br><em>or your own server</em>", sub: "No account, no cloud in between.", head: "Your health data,<br><em>on your own server</em>", signed: "Signed" },
-  nl: { wide: "Gezondheidsdata naar<br>Home Assistant<br><em>of je eigen server</em>", sub: "Geen account, geen cloud ertussen.", head: "Je gezondheidsdata,<br><em>op je eigen server</em>", signed: "Ondertekend" },
-  de: { wide: "Gesundheitsdaten an<br>Home Assistant<br><em>oder deinen Server</em>", sub: "Kein Konto, keine Cloud dazwischen.", head: "Deine Gesundheitsdaten,<br><em>auf deinem Server</em>", signed: "Signiert", scale: 0.86 },
+  nl: { wide: "Gezondheidsdata naar<br>Home Assistant<br><em>of je eigen server</em>", sub: "Geen account, geen cloud ertussen.", head: "Je gezondheidsdata,<br><em>op je eigen server</em>", signed: "Ondertekend", wideScale: 0.86 },
+  de: { wide: "Gesundheitsdaten an<br>Home Assistant<br><em>oder deinen Server</em>", sub: "Kein Konto, keine Cloud dazwischen.", head: "Deine Gesundheitsdaten,<br><em>auf deinem Server</em>", signed: "Signiert", scale: 0.86, wideScale: 0.9 },
+  fr: { wide: "Données de santé vers<br>Home Assistant<br><em>ou votre serveur</em>", sub: "Ni compte ni cloud.", head: "Vos données de santé,<br><em>sur votre serveur</em>", signed: "Signé", scale: 0.92, wideScale: 0.86 },
+  es: { wide: "Datos de salud a<br>Home Assistant<br><em>o tu propio servidor</em>", sub: "Sin cuenta. Sin nube.", head: "Tus datos de salud,<br><em>en tu propio servidor</em>", signed: "Firmado", scale: 0.92 },
+  it: { wide: "Dati sulla salute a<br>Home Assistant<br><em>o al tuo server</em>", sub: "Nessun account. Nessun cloud.", head: "I tuoi dati sulla salute,<br><em>sul tuo server</em>", signed: "Firmato", scale: 0.86 },
+  "pt-BR": { wide: "Dados de saúde para o<br>Home Assistant<br><em>ou seu servidor</em>", sub: "Sem conta. Sem nuvem.", head: "Seus dados de saúde,<br><em>no seu próprio servidor</em>", signed: "Assinado", scale: 0.92, wideScale: 0.86 },
+  ja: { wide: "ヘルスケアデータを<br>Home Assistantや<br><em>自分のサーバーへ</em>", sub: "アカウントもクラウドも不要", head: "ヘルスケアデータを、<br><em>あなたのサーバーへ</em>", signed: "署名済み", scale: 0.9 },
+  ar: { wide: "بياناتك الصحية إلى<br>Home Assistant<br><em>أو خادمك الخاص</em>", sub: "بدون حساب. بدون سحابة.", head: "بياناتك الصحية،<br><em>على خادمك الخاص</em>", signed: "موقّع" },
+  hi: { wide: "स्वास्थ्य डेटा<br>Home Assistant या<br><em>अपने सर्वर पर</em>", sub: "न कोई खाता, न कोई क्लाउड।", head: "आपका स्वास्थ्य डेटा,<br><em>आपके अपने सर्वर पर</em>", signed: "हस्ताक्षरित" },
+  "zh-Hans": { wide: "健康数据发送到<br>Home Assistant<br><em>或你自己的服务器</em>", sub: "无需账户，也没有云服务", head: "你的健康数据，<br><em>发送到你自己的服务器</em>", signed: "已签名", scale: 0.9 },
 }[LANG];
 // The safe area: 6 percent in from every edge, in design pixels.
 const MX = Math.round(DW * 0.06), MY = Math.round(D * 0.06);
@@ -134,8 +148,8 @@ const search = DW / D < 1.6, wide = DW / D > 2;
 const items = [];
 const chips = `<div class="chips">` + ["Home Assistant", "MQTT", "Webhooks"].map(t => `<span>${t}</span>`).join("") + `</div>`;
 if (search) {
-  items.push(`<div class="text" style="left:${MX + 30}px;top:0;height:${D}px;display:flex;flex-direction:column;justify-content:center">` +
-    `<h1 style="font-size:270px">${T.wide}</h1>` +
+  items.push(`<div class="text" dir="${LANG === "ar" ? "rtl" : "ltr"}" style="left:${MX + 30}px;top:0;height:${D}px;display:flex;flex-direction:column;justify-content:center">` +
+    `<h1 style="font-size:${Math.round(270 * (T.wideScale || 1))}px">${T.wide}</h1>` +
     `<p style="font-size:104px">${T.sub}</p></div>`);
   const right = DW - MX - 40, pw = 1000;
   items.push(phone(RAW + "health.png", right - pw, 360, pw, tilt(-4, -8), 4));
@@ -146,7 +160,7 @@ if (search) {
   // 55 percent of the height and the middle half of the width, the chips sit small right
   // under it, and the phones are decoration at the sides, free to be cropped.
   const h1 = Math.round((wide ? 270 : 230) * (T.scale || 1)), sub = wide ? 68 : 62, cx = DW / 2;
-  items.push(`<div class="text center" style="left:${cx - DW * 0.25}px;width:${DW * 0.5}px;top:${Math.round(D * (wide ? 0.27 : 0.285))}px;z-index:8">` +
+  items.push(`<div class="text center" dir="${LANG === "ar" ? "rtl" : "ltr"}" style="left:${cx - DW * 0.25}px;width:${DW * 0.5}px;top:${Math.round(D * (wide ? 0.27 : 0.285))}px;z-index:8">` +
     `<h1 style="font-size:${h1}px">${T.head}</h1>` +
     `<div style="font-size:${sub}px">${chips}</div></div>`);
   const pw = 1000, side = Math.round(DW * (wide ? 0.13 : 0.06));
