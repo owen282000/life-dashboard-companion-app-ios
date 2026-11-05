@@ -280,7 +280,7 @@ final class BackfillController: ObservableObject {
             WebhookLog(
                 url: url,
                 success: final.status != .failed && !missed.contains(url),
-                errorMessage: error ?? (missed.contains(url) ? AppDiagnostic.backfillMissed : nil),
+                errorMessage: error ?? (missed.contains(url) ? AppDiagnostic.backfillMissed.rawValue : nil),
                 dataType: WebhookLog.backfillRunDataType,
                 recordCount: sent,
                 rawPayload: rawPayload,

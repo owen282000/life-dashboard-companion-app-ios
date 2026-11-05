@@ -36,6 +36,9 @@ enum AppDiagnostic: String, CaseIterable {
     case healthUnanswered = "Apple Health did not answer for any data type; the next sync tries again"
     case clientCertificateUnavailable = "Client certificate is unavailable. Import it again under Advanced."
     case clientCertificateLocked = "Client certificate cannot be read until the iPhone is unlocked"
+    /// A backfill run row for a webhook that missed chunks another one took; the failed chunks
+    /// have rows of their own.
+    case backfillMissed = "Missed part of this backfill; the failed chunks are listed separately"
 
     var localized: String {
         switch self {
@@ -66,19 +69,17 @@ enum AppDiagnostic: String, CaseIterable {
         case .healthUnanswered: return String(localized: "Apple Health did not answer for any data type; the next sync tries again")
         case .clientCertificateUnavailable: return String(localized: "Client certificate is unavailable. Import it again under Advanced.")
         case .clientCertificateLocked: return String(localized: "Client certificate cannot be read until the iPhone is unlocked")
+        case .backfillMissed: return String(localized: "Missed part of this backfill; the failed chunks are listed separately")
         }
     }
-
-    /// A backfill run row for a webhook that missed chunks another one took; the failed
-    /// chunks have rows of their own.
-    static let backfillMissed = "Missed part of this backfill; the failed chunks are listed separately"
 
     // MARK: - Messages with a value
 
     /// A backfill window whose records and day totals still disagreed after its last read (see
     /// `BackfillCheck`): Apple Health answered with part of it, and the window went out as read.
+    /// Takes the types' raw values and the window's start, so both are translated when shown.
     static func backfillIncomplete(_ types: [String], from start: Date) -> String {
-        "Backfill from \(start.iso8601String): Apple Health returned part of \(types.joined(separator: ", ")), even after \(BackfillCheck.maxAttempts) tries. Send history again for this period later."
+        "Apple Health returned part of \(types.joined(separator: ", ")) in the backfill from \(start.iso8601String). Send history again for this period later."
     }
 
     static func http(_ status: Int) -> String { "HTTP \(status)" }
@@ -144,6 +145,14 @@ enum AppDiagnostic: String, CaseIterable {
         }
         if let attempts = number(in: stored, prefix: "Unknown error after ", suffix: " attempts") {
             return String(localized: "Unknown error after \(attempts) attempts")
+        }
+        if let match = stored.wholeMatch(of: /Apple Health returned part of (.+) in the backfill from (\S+)\. Send history again for this period later\./) {
+            let names = String(match.1).components(separatedBy: ", ").map { raw in
+                HealthDataType(rawValue: raw).map { String(localized: $0.displayName) } ?? raw
+            }.formatted(.list(type: .and))
+            let start = String(match.2)
+            let day = BackfillController.parseDate(start)?.formatted(date: .abbreviated, time: .omitted) ?? start
+            return String(localized: "Apple Health returned part of \(names) in the backfill from \(day). Send history again for this period later.")
         }
         if stored.hasPrefix("HealthKit did not return ") {
             let raw = String(stored.dropFirst("HealthKit did not return ".count))
