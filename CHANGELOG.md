@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.11.1] - 2026-11-07
+
 ### Fixed
 
 - A backfill could leave a type out of a window without saying so: Apple Health sometimes answered
@@ -426,7 +428,8 @@ All notable changes to this project are documented in this file. The format is b
 - Offline queue with retries and exponential backoff
 - Webhook logs with CSV/JSON export and payload preview
 
-[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.11.0...HEAD
+[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.11.1...HEAD
+[1.11.1]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.11.0...1.11.1
 [1.11.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.10.1...1.11.0
 [1.10.1]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.10.0...1.10.1
 [1.10.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.9.0...1.10.0
