@@ -71,7 +71,7 @@ Apple Health is where your iPhone, Apple Watch and apps like Garmin Connect, Our
   </picture>
 </p>
 
-Two things from the Android app aren't here. There's no screen time, because iOS shows Screen Time data only inside a sandbox that can't send anything out. And the app doesn't write readings back into Apple Health. [What iOS does differently](docs/features.md#what-ios-does-differently) lists every difference and why.
+Two things from the Android app aren't here. There's no screen time: the app can't read the exact time per app the way the Android app does. Apple gives other apps usage only approximately, and shows the exact figures only inside its own Screen Time extensions, which can't send them out. And the app doesn't write readings back into Apple Health. [What iOS does differently](docs/features.md#what-ios-does-differently) lists every difference and why.
 
 ## Part of Life Dashboard
 
