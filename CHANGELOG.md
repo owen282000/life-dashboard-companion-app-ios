@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The app asks for a rating at a better moment. It syncs in the background and is rarely opened,
+  so the question now comes when a backfill you started has finished, or, from the second day,
+  when you open the app or sync from the screen and everything arrived, with no failed delivery
+  in the last day. It waits a moment first instead of meeting you at the door. After a prompt the
+  app waits four months and it stops after three, where it used to ask once per version.
+
 ## [1.11.1] - 2026-11-07
 
 ### Fixed

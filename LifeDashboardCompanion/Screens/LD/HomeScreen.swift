@@ -22,6 +22,8 @@ struct HomeScreen: View {
     @State private var refreshOff = false
     @State private var lowPower = false
     @State private var overdueSince: Date?
+    @State private var reviewTrigger: ReviewTrigger?
+    @State private var backfillFinished: Date?
 
     @Environment(\.requestReview) private var requestReview
     @Environment(\.scenePhase) private var scenePhase
@@ -37,20 +39,27 @@ struct HomeScreen: View {
             }
         }
         .task { await askOnceAfterUpdate() }
+        // Leaving this screen cancels the wait, so the question only comes to someone still here.
+        .task(id: reviewTrigger) { await considerReview() }
         .onAppear {
-            considerReview()
+            reviewTrigger = ReviewTrigger(momentOnOpening)
             reload()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
-                considerReview()
+                reviewTrigger = ReviewTrigger(momentOnOpening)
                 reload()
             }
         }
         // A new log row and every settings change come through here, also from a background sync.
         .onReceive(prefs.objectWillChange.debounce(for: .seconds(1), scheduler: RunLoop.main)) { _ in reload() }
-        // A backfill that just finished is a good moment of its own.
-        .onChange(of: backfill.job?.status) { _, status in if status == .done { considerReview(backfillDone: true) } }
+        // A backfill that just finished is a good moment of its own. It finishes on its own page,
+        // above this one, so it is kept for when this screen is in front again.
+        .onChange(of: backfill.job?.status) { _, status in
+            guard status == .done else { return }
+            backfillFinished = Date()
+            reviewTrigger = ReviewTrigger(.backfillDone)
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.backgroundRefreshStatusDidChangeNotification)) { _ in checkHolds() }
         .onReceive(NotificationCenter.default.publisher(for: .NSProcessInfoPowerStateDidChange).receive(on: RunLoop.main)) { _ in checkHolds() }
     }
@@ -365,7 +374,7 @@ struct HomeScreen: View {
 
     private func report(_ result: SyncOutcome) {
         outcome = result
-        if case .synced = result { considerReview() }
+        if case .synced = result { reviewTrigger = ReviewTrigger(.syncDelivered) }
         AccessibilityNotification.Announcement(result.announcement).post()
     }
 
@@ -403,29 +412,110 @@ struct HomeScreen: View {
         await healthKit.askOnceForEnabledTypes(prefs.healthEnabledDataTypes)
     }
 
-    /// Asks for an App Store rating at a good moment (P1-28): see `ReviewPrompt`. The first use
-    /// is noted here too, the first time this screen shows after the setup.
-    private func considerReview(backfillDone: Bool = false) {
+    /// Asks for an App Store rating at a good moment (P1-28, P1-43): see `ReviewPrompt`. The
+    /// screen stays as it is for a moment first, and the first use is noted here too, the first
+    /// time this screen shows after the setup.
+    private func considerReview() async {
+        guard let moment = reviewTrigger?.moment else { return }
         let defaults = UserDefaults.standard
+        if defaults.object(forKey: ReviewPrompt.firstUseKey) == nil { defaults.set(Date(), forKey: ReviewPrompt.firstUseKey) }
+        defaults.removeObject(forKey: ReviewPrompt.askedVersionKey)
+
+        try? await Task.sleep(for: .seconds(ReviewPrompt.rest))
+        guard !Task.isCancelled, Self.isInFrontAndFree else { return }
+        let read = await Task.detached(priority: .utility) {
+            (LogStore.shared.load().filter { !$0.success }.map(\.timestamp).max(), PendingSyncStore.shared.pendingCount)
+        }.value
+        guard !Task.isCancelled, Self.isInFrontAndFree else { return }
+        // Its one chance: the finished backfill counts for this visit only.
+        if moment == .backfillDone { backfillFinished = nil }
+
         let now = Date()
-        if defaults.object(forKey: ReviewPrompt.firstUseKey) == nil { defaults.set(now, forKey: ReviewPrompt.firstUseKey) }
         let status = SharedSyncStatus.read()
         let state = ReviewPrompt.State(
+            firstUse: defaults.object(forKey: ReviewPrompt.firstUseKey) as? Date,
             lastDelivered: status.lastDelivered,
             lastSyncSucceeded: status.lastSuccess,
             failureStreak: defaults.integer(forKey: "sync_failure_streak"),
             partialStreak: defaults.integer(forKey: "sync_partial_streak"),
-            pending: PendingSyncStore.shared.pendingCount
+            pending: read.1,
+            lastFailure: read.0
         )
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-        guard ReviewPrompt.shouldAsk(
-            goodMoment: backfillDone || ReviewPrompt.isGoodMoment(state, now: now),
-            firstUse: defaults.object(forKey: ReviewPrompt.firstUseKey) as? Date,
-            askedVersion: defaults.string(forKey: ReviewPrompt.askedVersionKey),
-            version: version, now: now
-        ) else { return }
-        defaults.set(version, forKey: ReviewPrompt.askedVersionKey)
+        let history = ReviewPrompt.History(
+            lastRequest: defaults.object(forKey: ReviewPrompt.lastRequestKey) as? Date,
+            lastRequestShown: defaults.bool(forKey: ReviewPrompt.lastShownKey),
+            shownCount: defaults.integer(forKey: ReviewPrompt.shownCountKey)
+        )
+        guard ReviewPrompt.shouldAsk(moment, state, history, now: now) else { return }
+
+        // Noted before Apple answers, so a second moment in the meantime does not ask again.
+        defaults.set(now, forKey: ReviewPrompt.lastRequestKey)
+        defaults.set(false, forKey: ReviewPrompt.lastShownKey)
+        let watch = ReviewPromptWatch()
         requestReview()
+        // On its own task: leaving the screen must not lose what the watch saw.
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(ReviewPrompt.watch))
+            watch.stop()
+            guard ReviewPrompt.wasShown(windowAppeared: watch.windowAppeared, leftActive: watch.leftActive) else { return }
+            defaults.set(true, forKey: ReviewPrompt.lastShownKey)
+            defaults.set(history.shownCount + 1, forKey: ReviewPrompt.shownCountKey)
+        }
+    }
+
+    private var momentOnOpening: ReviewPrompt.Moment {
+        ReviewPrompt.momentOnOpening(backfillFinished: backfillFinished, now: Date())
+    }
+
+    /// The app is active and nothing lies over the screen: no sheet, and not the Health access
+    /// page, which iOS presents inside the app. Apple's prompt never comes on top of another one.
+    private static var isInFrontAndFree: Bool {
+        guard UIApplication.shared.applicationState == .active else { return false }
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows)
+        return windows.first(where: \.isKeyWindow)?.rootViewController?.presentedViewController == nil
+    }
+}
+
+// MARK: - Asking for a rating
+
+/// One moment to consider asking at. Each is its own value, so the same moment twice waits twice.
+private struct ReviewTrigger: Equatable {
+    let moment: ReviewPrompt.Moment
+    private let id = UUID()
+
+    init(_ moment: ReviewPrompt.Moment) {
+        self.moment = moment
+    }
+}
+
+/// Looks for Apple's rating prompt after a request, which Apple does not report: a window that
+/// was not there before, or the app leaving the active state. See `ReviewPrompt.wasShown`.
+@MainActor
+private final class ReviewPromptWatch {
+    private(set) var windowAppeared = false
+    private(set) var leftActive = false
+    private var observers: [NSObjectProtocol] = []
+
+    init() {
+        let known = Set(
+            UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap(\.windows)
+                .map(ObjectIdentifier.init)
+        )
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(forName: UIWindow.didBecomeVisibleNotification, object: nil, queue: .main) { [weak self] note in
+            guard let window = note.object as? UIWindow, !known.contains(ObjectIdentifier(window)) else { return }
+            MainActor.assumeIsolated { self?.windowAppeared = true }
+        })
+        observers.append(center.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.leftActive = true }
+        })
+    }
+
+    func stop() {
+        observers.forEach(NotificationCenter.default.removeObserver)
+        observers = []
     }
 }
 

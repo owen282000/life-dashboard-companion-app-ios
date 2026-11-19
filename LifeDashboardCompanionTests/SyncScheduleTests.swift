@@ -569,38 +569,103 @@ final class SyncScheduleTests: XCTestCase {
         XCTAssertEqual(SyncHealthCheck.cause(refreshOff: false, lowPower: false), .unknown)
     }
 
-    // MARK: - Asking for a rating (P1-28)
+    // MARK: - Asking for a rating (P1-28, P1-43)
 
-    private func good(_ now: Date) -> ReviewPrompt.State {
-        ReviewPrompt.State(lastDelivered: now.addingTimeInterval(-3600), lastSyncSucceeded: true, failureStreak: 0, partialStreak: 0, pending: 0)
+    private let reviewNow = Date(timeIntervalSince1970: 1_792_000_000)
+    private let hour: TimeInterval = 3600
+    private let day: TimeInterval = 86_400
+
+    private func good() -> ReviewPrompt.State {
+        ReviewPrompt.State(
+            firstUse: reviewNow.addingTimeInterval(-30 * day), lastDelivered: reviewNow.addingTimeInterval(-hour),
+            lastSyncSucceeded: true, failureStreak: 0, partialStreak: 0, pending: 0, lastFailure: nil
+        )
     }
 
-    func testOnlyARecentCleanDeliveryIsAGoodMoment() {
-        let now = instant("2026-10-22T10:00:00Z")
-        XCTAssertTrue(ReviewPrompt.isGoodMoment(good(now), now: now))
-        var state = good(now)
-        state.lastSyncSucceeded = false
-        XCTAssertFalse(ReviewPrompt.isGoodMoment(state, now: now), "the last sync failed")
-        state = good(now); state.failureStreak = 1
-        XCTAssertFalse(ReviewPrompt.isGoodMoment(state, now: now), "syncs are failing")
-        state = good(now); state.partialStreak = 2
-        XCTAssertFalse(ReviewPrompt.isGoodMoment(state, now: now), "an address misses payloads")
-        state = good(now); state.pending = 3
-        XCTAssertFalse(ReviewPrompt.isGoodMoment(state, now: now), "payloads wait in the queue")
-        state = good(now); state.lastDelivered = now.addingTimeInterval(-2 * 86_400)
-        XCTAssertFalse(ReviewPrompt.isGoodMoment(state, now: now), "nothing delivered lately")
-        state = good(now); state.lastDelivered = nil
-        XCTAssertFalse(ReviewPrompt.isGoodMoment(state, now: now))
+    private func good(_ change: (inout ReviewPrompt.State) -> Void) -> ReviewPrompt.State {
+        var state = good()
+        change(&state)
+        return state
     }
 
-    func testAskedOncePerVersionAndNotInTheFirstDays() {
-        let now = instant("2026-10-22T10:00:00Z")
-        let longAgo = now.addingTimeInterval(-4 * 86_400)
-        XCTAssertTrue(ReviewPrompt.shouldAsk(goodMoment: true, firstUse: longAgo, askedVersion: nil, version: "1.10.0", now: now))
-        XCTAssertFalse(ReviewPrompt.shouldAsk(goodMoment: false, firstUse: longAgo, askedVersion: nil, version: "1.10.0", now: now))
-        XCTAssertFalse(ReviewPrompt.shouldAsk(goodMoment: true, firstUse: now.addingTimeInterval(-86_400), askedVersion: nil, version: "1.10.0", now: now))
-        XCTAssertFalse(ReviewPrompt.shouldAsk(goodMoment: true, firstUse: nil, askedVersion: nil, version: "1.10.0", now: now))
-        XCTAssertFalse(ReviewPrompt.shouldAsk(goodMoment: true, firstUse: longAgo, askedVersion: "1.10.0", version: "1.10.0", now: now))
-        XCTAssertTrue(ReviewPrompt.shouldAsk(goodMoment: true, firstUse: longAgo, askedVersion: "1.10.0", version: "1.11.0", now: now))
+    func testOnlyACleanDeliveryIsAGoodMoment() {
+        for moment in ReviewPrompt.Moment.allCases {
+            XCTAssertTrue(ReviewPrompt.isGoodMoment(moment, good(), now: reviewNow), "\(moment)")
+            XCTAssertFalse(ReviewPrompt.isGoodMoment(moment, good { $0.lastSyncSucceeded = false }, now: reviewNow), "the last sync failed, \(moment)")
+            XCTAssertFalse(ReviewPrompt.isGoodMoment(moment, good { $0.failureStreak = 1 }, now: reviewNow), "syncs are failing, \(moment)")
+            XCTAssertFalse(ReviewPrompt.isGoodMoment(moment, good { $0.partialStreak = 2 }, now: reviewNow), "an address misses payloads, \(moment)")
+            XCTAssertFalse(ReviewPrompt.isGoodMoment(moment, good { $0.pending = 3 }, now: reviewNow), "payloads wait in the queue, \(moment)")
+        }
+    }
+
+    func testOpeningOrSyncingNeedsARecentDeliveryAndADayOfUse() {
+        for moment in [ReviewPrompt.Moment.opened, .syncDelivered] {
+            XCTAssertTrue(ReviewPrompt.isGoodMoment(moment, good { $0.lastDelivered = reviewNow.addingTimeInterval(-day) }, now: reviewNow))
+            XCTAssertFalse(ReviewPrompt.isGoodMoment(moment, good { $0.lastDelivered = reviewNow.addingTimeInterval(-2 * day) }, now: reviewNow), "nothing delivered lately")
+            XCTAssertFalse(ReviewPrompt.isGoodMoment(moment, good { $0.lastDelivered = nil }, now: reviewNow))
+            XCTAssertTrue(ReviewPrompt.isGoodMoment(moment, good { $0.firstUse = reviewNow.addingTimeInterval(-day) }, now: reviewNow))
+            XCTAssertFalse(ReviewPrompt.isGoodMoment(moment, good { $0.firstUse = reviewNow.addingTimeInterval(-day + 1) }, now: reviewNow), "the first day")
+            XCTAssertFalse(ReviewPrompt.isGoodMoment(moment, good { $0.firstUse = nil }, now: reviewNow))
+        }
+    }
+
+    func testAFinishedBackfillCountsFromTheFirstDay() {
+        let setupDay = good {
+            $0.firstUse = reviewNow.addingTimeInterval(-hour)
+            $0.lastFailure = reviewNow.addingTimeInterval(-2 * hour)
+        }
+        XCTAssertTrue(ReviewPrompt.isGoodMoment(.backfillDone, setupDay, now: reviewNow))
+        XCTAssertFalse(ReviewPrompt.isGoodMoment(.opened, setupDay, now: reviewNow))
+        var queued = setupDay
+        queued.pending = 1
+        XCTAssertFalse(ReviewPrompt.isGoodMoment(.backfillDone, queued, now: reviewNow))
+    }
+
+    func testComingBackFromAFinishedBackfillIsStillItsMoment() {
+        XCTAssertEqual(ReviewPrompt.momentOnOpening(backfillFinished: nil, now: reviewNow), .opened)
+        XCTAssertEqual(ReviewPrompt.momentOnOpening(backfillFinished: reviewNow.addingTimeInterval(-60), now: reviewNow), .backfillDone)
+        XCTAssertEqual(ReviewPrompt.momentOnOpening(backfillFinished: reviewNow.addingTimeInterval(-hour), now: reviewNow), .backfillDone)
+        XCTAssertEqual(ReviewPrompt.momentOnOpening(backfillFinished: reviewNow.addingTimeInterval(-hour - 1), now: reviewNow), .opened)
+    }
+
+    func testTheVisitThatFixedAFailureDoesNotAsk() {
+        let justFixed = good { $0.lastFailure = reviewNow.addingTimeInterval(-2 * hour) }
+        XCTAssertFalse(ReviewPrompt.isGoodMoment(.opened, justFixed, now: reviewNow))
+        XCTAssertFalse(ReviewPrompt.isGoodMoment(.syncDelivered, justFixed, now: reviewNow))
+        XCTAssertFalse(ReviewPrompt.isGoodMoment(.opened, good { $0.lastFailure = reviewNow.addingTimeInterval(-day + 1) }, now: reviewNow))
+        XCTAssertTrue(ReviewPrompt.isGoodMoment(.opened, good { $0.lastFailure = reviewNow.addingTimeInterval(-day) }, now: reviewNow))
+    }
+
+    func testAPromptThatWasSeenRestsFourMonthsAndAnUnseenRequestTwoWeeks() {
+        XCTAssertTrue(ReviewPrompt.mayRequest(ReviewPrompt.History(), now: reviewNow), "the first request needs no wait")
+        func asked(_ daysAgo: Double, shown: Bool) -> ReviewPrompt.History {
+            ReviewPrompt.History(lastRequest: reviewNow.addingTimeInterval(-daysAgo * day), lastRequestShown: shown, shownCount: shown ? 1 : 0)
+        }
+        XCTAssertFalse(ReviewPrompt.mayRequest(asked(14, shown: true), now: reviewNow))
+        XCTAssertFalse(ReviewPrompt.mayRequest(asked(119, shown: true), now: reviewNow))
+        XCTAssertTrue(ReviewPrompt.mayRequest(asked(120, shown: true), now: reviewNow))
+        XCTAssertFalse(ReviewPrompt.mayRequest(asked(0, shown: false), now: reviewNow))
+        XCTAssertFalse(ReviewPrompt.mayRequest(asked(13, shown: false), now: reviewNow))
+        XCTAssertTrue(ReviewPrompt.mayRequest(asked(14, shown: false), now: reviewNow))
+    }
+
+    func testThreePromptsSeenIsTheEnd() {
+        let longAgo = reviewNow.addingTimeInterval(-400 * day)
+        XCTAssertTrue(ReviewPrompt.mayRequest(ReviewPrompt.History(lastRequest: longAgo, lastRequestShown: true, shownCount: 2), now: reviewNow))
+        XCTAssertFalse(ReviewPrompt.mayRequest(ReviewPrompt.History(lastRequest: longAgo, lastRequestShown: true, shownCount: 3), now: reviewNow))
+    }
+
+    func testAskingNeedsBothAGoodMomentAndARestedPrompt() {
+        XCTAssertTrue(ReviewPrompt.shouldAsk(.opened, good(), ReviewPrompt.History(), now: reviewNow))
+        XCTAssertFalse(ReviewPrompt.shouldAsk(.opened, good { $0.failureStreak = 1 }, ReviewPrompt.History(), now: reviewNow))
+        let yesterday = ReviewPrompt.History(lastRequest: reviewNow.addingTimeInterval(-day), lastRequestShown: true, shownCount: 1)
+        XCTAssertFalse(ReviewPrompt.shouldAsk(.opened, good(), yesterday, now: reviewNow))
+        XCTAssertFalse(ReviewPrompt.shouldAsk(.backfillDone, good(), yesterday, now: reviewNow))
+    }
+
+    func testAPromptShowsAsAWindowOrAsLeavingTheActiveState() {
+        XCTAssertFalse(ReviewPrompt.wasShown(windowAppeared: false, leftActive: false))
+        XCTAssertTrue(ReviewPrompt.wasShown(windowAppeared: true, leftActive: false))
+        XCTAssertTrue(ReviewPrompt.wasShown(windowAppeared: false, leftActive: true))
     }
 }
