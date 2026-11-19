@@ -262,36 +262,119 @@ enum SyncHealthCheck {
     }
 }
 
-/// When to ask for an App Store rating (P1-28). Only after something went right, never next to
-/// an error: the last sync delivered to every address, nothing is failing or waiting, or a
-/// backfill just finished. Not in the first days of use, and once per version at most; Apple
-/// shows the prompt itself at most three times a year, never in TestFlight, and decides on its
-/// own whether it appears. Pure, so it is unit tested; the Health screen asks it.
+/// When to ask for an App Store rating (P1-28, P1-43), the same rule as the Android app.
+///
+/// The app is set up once and then syncs in the background, so the few times it is on screen
+/// have to count. A moment is good only after something went right, never next to an error:
+///
+/// - `backfillDone`: a backfill the user started has just delivered their history, with nothing
+///   failing or queued. It counts from the first day, because for many people the setup is the
+///   last time they look at the app.
+/// - `opened` and `syncDelivered`: the app is in front, or a sync from the screen delivered,
+///   after at least a day of use, with a delivery to every address within the last day and no
+///   failed delivery in that day. Someone who came in to fix a problem is asked on a later
+///   visit, not in the same one.
+///
+/// Apple shows the prompt at most three times a year, never in TestFlight, and does not say
+/// whether it appeared (see `wasShown`). So a request that probably went unseen is tried again
+/// after two weeks, one that was seen only after four months, and never more than three times
+/// in all. Only Apple's own prompt asks: guideline 5.6.1 allows no prompt of our own, so there
+/// is no card for it, only Rate the app under About. Pure, so it is unit tested; the Health
+/// screen asks it.
 enum ReviewPrompt {
     static let firstUseKey = "review_first_use"
+    static let lastRequestKey = "review_last_request"
+    static let lastShownKey = "review_last_shown"
+    static let shownCountKey = "review_shown_count"
+    /// Until 1.11.1 the question came once per version; the pauses below took its place.
     static let askedVersionKey = "review_asked_version"
-    /// Three days, so the first question comes after the app has proved itself for a while.
-    static let minimumUse: TimeInterval = 3 * 24 * 3600
+
+    private static let day: TimeInterval = 24 * 3600
+    /// A day, so the app has synced on its own at least once before the first question.
+    static let minimumUse: TimeInterval = day
     /// A delivery this recent counts as the moment when the app comes to the foreground.
-    static let recentDelivery: TimeInterval = 24 * 3600
+    static let recentDelivery: TimeInterval = day
+    /// A failed delivery this recent means the visit may be about that failure.
+    static let quiet: TimeInterval = day
+    /// How long the screen stays as it is before the question comes, so it never meets someone
+    /// at the door: Apple asks not to prompt right at launch.
+    static let rest: TimeInterval = 2.5
+    /// After a prompt that was seen: the three times a year Apple allows.
+    static let pauseAfterShown: TimeInterval = 120 * day
+    /// After a request that Apple probably kept to itself.
+    static let retryAfterUnseen: TimeInterval = 14 * day
+    /// Whoever closed the prompt three times has answered.
+    static let maximumShown = 3
+    /// How long after a request the app looks for the prompt.
+    static let watch: TimeInterval = 2
+
+    enum Moment: CaseIterable {
+        case opened, syncDelivered, backfillDone
+    }
+
+    /// A backfill finishes on its own page, so the Health tab hears of it when it is in front
+    /// again: within this long that still counts as the backfill's moment.
+    static let backfillFresh: TimeInterval = 3600
+
+    /// What the Health tab coming to the front counts as.
+    static func momentOnOpening(backfillFinished: Date?, now: Date) -> Moment {
+        guard let backfillFinished, now.timeIntervalSince(backfillFinished) <= backfillFresh else { return .opened }
+        return .backfillDone
+    }
 
     struct State: Equatable {
+        /// When the Health tab first showed after the setup.
+        var firstUse: Date?
         var lastDelivered: Date?
         var lastSyncSucceeded: Bool
         var failureStreak: Int
         var partialStreak: Int
         var pending: Int
+        /// The newest failed delivery still in the log.
+        var lastFailure: Date?
     }
 
-    /// Whether the sync side is in a good moment: delivered lately, to every address, and
-    /// nothing failing or queued.
-    static func isGoodMoment(_ state: State, now: Date) -> Bool {
+    /// What was asked before.
+    struct History: Equatable {
+        /// When Apple was last asked for its prompt.
+        var lastRequest: Date?
+        /// Whether that request probably showed it.
+        var lastRequestShown = false
+        /// How many requests probably showed it.
+        var shownCount = 0
+    }
+
+    /// Nothing is failing, queued or missing an address.
+    private static func isHealthy(_ state: State) -> Bool {
+        state.lastSyncSucceeded && state.failureStreak == 0 && state.partialStreak == 0 && state.pending == 0
+    }
+
+    /// Whether `moment` is one to ask at, going by the sync side alone.
+    static func isGoodMoment(_ moment: Moment, _ state: State, now: Date) -> Bool {
+        guard isHealthy(state) else { return false }
+        if moment == .backfillDone { return true }
+        guard let firstUse = state.firstUse, now.timeIntervalSince(firstUse) >= minimumUse else { return false }
         guard let delivered = state.lastDelivered, now.timeIntervalSince(delivered) <= recentDelivery else { return false }
-        return state.lastSyncSucceeded && state.failureStreak == 0 && state.partialStreak == 0 && state.pending == 0
+        guard let failure = state.lastFailure else { return true }
+        return now.timeIntervalSince(failure) >= quiet
     }
 
-    static func shouldAsk(goodMoment: Bool, firstUse: Date?, askedVersion: String?, version: String, now: Date) -> Bool {
-        guard goodMoment, let firstUse, now.timeIntervalSince(firstUse) >= minimumUse else { return false }
-        return askedVersion != version
+    /// Whether enough time has passed since the last request, and the prompt was not seen too often.
+    static func mayRequest(_ history: History, now: Date) -> Bool {
+        guard history.shownCount < maximumShown else { return false }
+        guard let last = history.lastRequest else { return true }
+        return now.timeIntervalSince(last) >= (history.lastRequestShown ? pauseAfterShown : retryAfterUnseen)
+    }
+
+    static func shouldAsk(_ moment: Moment, _ state: State, _ history: History, now: Date) -> Bool {
+        isGoodMoment(moment, state, now: now) && mayRequest(history, now: now)
+    }
+
+    /// Whether the prompt was probably on screen. Apple does not say; its prompt comes in a
+    /// window of its own, and takes the app out of the active state while it is up. Wrong
+    /// either way costs little: a seen prompt taken for unseen is asked for again after two
+    /// weeks, and then Apple's own limit decides.
+    static func wasShown(windowAppeared: Bool, leftActive: Bool) -> Bool {
+        windowAppeared || leftActive
     }
 }
