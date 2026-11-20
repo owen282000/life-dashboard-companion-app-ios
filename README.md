@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/readme-icon.png" alt="Life Dashboard Companion icon" width="128" height="128">
+  <img src="docs/readme-icon.png" alt="Life Dashboard for iPhone icon" width="128" height="128">
 </p>
 
-<h1 align="center">Life Dashboard Companion for iOS</h1>
+<h1 align="center">Life Dashboard for iPhone</h1>
 
 <p align="center">
   <b>Apple Health from your iPhone, sent to Home Assistant, MQTT or your own server.</b><br>
@@ -11,17 +11,19 @@
 
 <p align="center">
   <a href="https://apps.apple.com/app/apple-store/id6824075761?pt=128699800&ct=gh-ios-readme&mt=8"><img src="docs/badges/app-store.png" alt="Download on the App Store" height="48"></a><br>
-  <sub>EUR 6.99 (USD 5.99) once. No subscription, no in-app purchases. Same code as this repo, or <a href="#build-it-yourself">build it yourself</a>.</sub>
+  <sub>€6.99 (US$5.99) once. No subscription, no in-app purchases. Same code as this repo, or <a href="#build-it-yourself">build it yourself</a>.</sub>
 </p>
 
 <p align="center">
   <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-ha&category=integration"><img src="https://img.shields.io/badge/Home%20Assistant-Marketplace-41BDF5" alt="Home Assistant integration in the Marketplace"></a>
-  <a href="#build-and-install"><img src="https://img.shields.io/badge/iOS-17%2B-000000" alt="iOS 17 or newer"></a>
+  <a href="#install"><img src="https://img.shields.io/badge/iOS-17%2B-000000" alt="iOS 17 or newer"></a>
   <a href="https://scorecard.dev/viewer/?uri=github.com/owen282000/life-dashboard-companion-app-ios"><img src="https://api.scorecard.dev/projects/github.com/owen282000/life-dashboard-companion-app-ios/badge" alt="OpenSSF Scorecard"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT license"></a>
 </p>
 
 <p align="center">
+  <a href="#install">Install</a>
+  &nbsp;·&nbsp;
   <a href="#build-it-yourself">Build&nbsp;it&nbsp;yourself</a>
   &nbsp;·&nbsp;
   <a href="docs/usage.md">Setup&nbsp;guide</a>
@@ -31,15 +33,18 @@
   <a href="https://owen282000.com/life-dashboard/ios/">Website</a>
 </p>
 
+<!-- life-dashboard:nav -->
 <p align="center">
-  <sub>Life Dashboard: <a href="https://github.com/owen282000/life-dashboard-companion-app">Android app</a> &nbsp;·&nbsp; <b>iPhone app</b> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-ha">Home Assistant integration</a> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-stack">Grafana stack</a> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-sleep-card">Sleep card</a> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-screen-time-card">Screen time cards</a></sub>
+  <sub>Life Dashboard: <a href="https://github.com/owen282000/life-dashboard-companion-app">Android app</a> &nbsp;·&nbsp; <b>iPhone app</b> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-ha">Home Assistant integration</a> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-stack">Grafana stack</a> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-sleep-card">Sleep card</a> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-screen-time-card">Screen time cards</a> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-year-card">Year card</a> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-activity-card">Activity card</a> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-before-bed-card">Before bed card</a></sub>
 </p>
+<!-- /life-dashboard:nav -->
 
 <p align="center">
   <picture>
     <source media="(max-width: 600px)" srcset="docs/readme-hero-phone.png">
-    <img src="docs/readme-hero.png" alt="The app's Health tab on an iPhone: your data is arriving, Home Assistant, a webhook and an MQTT broker each delivered 3 minutes ago, today's steps, sleep, resting heart rate and weight with a week of sparklines, and the tiles What to send, When to send, Notifications and More. Next to it the Home Assistant cards it feeds: today's steps, distance, heart rate and last sleep, and charts of steps per week and heart rate per day" width="900">
-  </picture>
+    <img src="docs/readme-hero.png" alt="The app's Health tab on an iPhone, with three destinations delivering and today's figures, next to the Home Assistant cards and charts it feeds" width="900">
+  </picture><br>
+  <sub>On the iPhone: Home Assistant, a webhook and an MQTT broker each delivered 3 minutes ago, with today's steps, sleep, resting heart rate and weight. In Home Assistant: steps and heart rate as sensors, and steps per week as a chart.</sub>
 </p>
 
 Your Apple Watch, iPhone, ring or scale already writes to Apple Health. This app sends that data, from every source at once, to Home Assistant, an MQTT broker or a webhook you run. There is no account in between, and none of it reaches me.
@@ -49,7 +54,7 @@ Your Apple Watch, iPhone, ring or scale already writes to Apple Health. This app
 - Deletions go out too, not only new records, so your server stays in step with Apple Health.
 - Day totals add up: steps, distance and calories are Apple Health's own figure for the day, so a walk recorded by both iPhone and Watch counts once.
 - An iPhone and an Android phone send the same payload, so a mixed household shares one Home Assistant integration or one database.
-- Pay once, no subscription: the app is on the [App Store](https://apps.apple.com/app/apple-store/id6824075761?pt=128699800&ct=gh-ios-readme&mt=8) for EUR 6.99 (USD 5.99), and building it from source costs nothing extra if you already have an Apple Developer Program membership.
+- Pay once, no subscription: the app is on the [App Store](https://apps.apple.com/app/apple-store/id6824075761?pt=128699800&ct=gh-ios-readme&mt=8) for €6.99 (US$5.99) once, or you build it from source yourself.
 - Open source (MIT): the App Store app is this code, and you can build it yourself.
 - Want to ask Claude or a local model in Ollama about your own history? The [Grafana stack](https://github.com/owen282000/life-dashboard-stack#ask-your-own-ai-mcp) adds an MCP server with eight read-only tools. The app itself contains no AI.
 
@@ -71,11 +76,11 @@ Apple Health is where your iPhone, Apple Watch and apps like Garmin Connect, Our
 <p align="center">
   <picture>
     <source media="(max-width: 600px)" srcset="docs/how-it-works-phone.png">
-    <img src="docs/how-it-works.png" alt="Diagram: Apple Watch, iPhone, Garmin, Polar, Oura, Withings and other apps write to Apple Health. Life Dashboard Companion reads Apple Health and sends it to Home Assistant, MQTT or a webhook." width="900">
+    <img src="docs/how-it-works.png" alt="Diagram: Apple Watch, iPhone, Garmin, Polar, Oura, Withings and other apps write to Apple Health. The app reads Apple Health and sends it to Home Assistant, MQTT or a webhook." width="900">
   </picture>
 </p>
 
-Two things from the Android app aren't here. There's no screen time: the app can't read the exact time per app the way the Android app does. Apple gives other apps usage only approximately, and shows the exact figures only inside its own Screen Time extensions, which can't send them out. And the app doesn't write readings back into Apple Health. [What iOS does differently](docs/features.md#what-ios-does-differently) lists every difference and why.
+Two things from the Android app aren't here. There's no screen time: the iPhone app sends none, so the Screen time cards are for Android phones. Apple shows the time per app only inside its own Screen Time extensions, which can't send anything out, so an app has nothing to read and pass on. And the app doesn't write readings back into Apple Health. [What iOS does differently](docs/features.md#what-ios-does-differently) lists every difference and why.
 
 ## Part of Life Dashboard
 
@@ -118,21 +123,42 @@ Life Dashboard is two apps, three places for the data to go and a set of cards f
 
 ## Install
 
+### What you need
+
+- An iPhone on iOS 17 or newer.
+- Home Assistant 2026.3 or newer, for the Life Dashboard integration. An MQTT broker or a webhook of your own works too, without the integration.
+- Something that writes to Apple Health: the iPhone itself, an Apple Watch, or the app of your watch, ring or scale (Garmin Connect, Oura, Withings and so on).
+
 ### From the App Store
 
-Get [Health Data for Home Assistant on the App Store](https://apps.apple.com/app/apple-store/id6824075761?pt=128699800&ct=gh-ios-readme&mt=8), for iOS 17 or newer. It's a one-time purchase of EUR 6.99 (USD 5.99), with no subscription and nothing to buy inside the app. It's the same app as this source, and you set it up the same way: continue with step 3 below.
+The app is listed on the App Store as **Health Data for Home Assistant**. It costs €6.99 (US$5.99) once, with no subscription and nothing to buy inside the app, and it is the same app as this source.
+
+1. In Home Assistant, in **Settings > Marketplace** (HACS before Home Assistant 2026.11), install the [Life Dashboard integration](https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-ha&category=integration). On HACS, download it and restart first.
+2. Add the integration under **Settings > Devices & services**. It shows a pairing QR code.
+3. Install the app from the [App Store](https://apps.apple.com/app/apple-store/id6824075761?pt=128699800&ct=gh-ios-readme&mt=8) on your iPhone, open it and scan the code when the setup asks where your data should go.
+4. Pick your data types (**Essentials** is a good start) and allow Apple Health access for them.
+5. The setup ends with a first sync. Later, **Sync Now** on the Health tab sends at once; otherwise the app syncs by itself.
+6. Tap **Send history** under **What to send** to get your past data, from 30 days up to everything Apple Health has.
+
+Every step of the setup can be skipped, so you can also install the app first and scan the code later with **Add destination**. Using MQTT or a webhook instead? Skip steps 1 and 2 and enter your broker or webhook URL in step 3.
+
+You should now see your iPhone under **Settings > Devices & services > Life Dashboard**, with a sensor for each type it sent. If it stays empty:
+
+- The type is switched off under **What to send**, or Apple Health access for it was declined. iOS never tells an app that you declined, so the type sends nothing: check the Health app under your profile, **Apps**, **Life Dashboard**.
+- The iPhone was locked. Health data can't be read while it is locked, so unlock it and tap **Sync Now**.
+- The app can't reach Home Assistant: you declined local network access, or you are away from home and the address in the code only works there. The Logs tab shows what each delivery answered.
+
+The [setup guide](docs/usage.md) covers every step, and its [troubleshooting](docs/usage.md#troubleshooting) has the rest.
 
 ### Build it yourself
 
-Building it from source costs nothing extra if you already have an Apple Developer Program membership. You need a Mac with Xcode 26 (the newest Xcode needs macOS 26.2; on macOS 15.6, Xcode 26.3 works), an iPhone on iOS 17 or newer, and a paid Apple Developer Program membership (USD 99 a year): Apple doesn't give a free Apple Account the HealthKit capability the app needs. A build signed with a membership runs for a year.
+Building it from source costs nothing extra if you already have an Apple Developer Program membership. You need a Mac with Xcode 26 (the newest Xcode needs macOS 26.2; on macOS 15.6, Xcode 26.3 works), an iPhone on iOS 17 or newer, and a paid Apple Developer Program membership (US$99 a year): Apple doesn't give a free Apple Account the HealthKit capability the app needs. A build signed with a membership runs for a year.
 
 1. Clone the repository, open `LifeDashboardCompanion.xcodeproj`, and set your own team, bundle identifiers and app group. The [setup guide](docs/usage.md#build-and-install) shows where each one goes.
 2. Run it on your iPhone. The first time, iOS asks you to switch on Developer Mode and trust your certificate.
-3. In Home Assistant 2026.3 or newer, in **Settings > Marketplace** (HACS before Home Assistant 2026.11), install the [Life Dashboard integration](https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-ha&category=integration) and add it. On HACS, download it and restart first. The integration shows a QR code. Skip this step if you use MQTT or a webhook.
-4. The app's setup asks where your data should go: scan the code, or enter your broker or webhook URL. Then pick your data types and allow Apple Health access. A first sync follows right away and shows what arrived.
-5. After that it syncs by itself; **Sync Now** sends at once. **Preview payload** under **What to send** shows what goes out.
+3. Set it up as the App Store app: follow the steps [above](#from-the-app-store), with your own build in place of the install in step 3.
 
-To update a build of your own, pull the repository and run it from Xcode again. Your settings stay. The [setup guide](docs/usage.md) covers every step and what to do when nothing arrives.
+To update a build of your own, pull the repository and run it from Xcode again. Your settings stay. **Preview payload** under **What to send** shows what goes out.
 
 ## Home Assistant
 
@@ -153,13 +179,13 @@ Pick the integration unless you already run a broker and don't need the days bef
 [![Open the Life Dashboard integration in the Marketplace](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-ha&category=integration)
 
 <details>
-<summary><b>Already use the Home Assistant companion app?</b></summary>
+<summary><b>Already use Home Assistant's Companion app?</b></summary>
 
 <br>
 
 Keep it. It does presence, notifications and device sensors, and this app doesn't try to. They work side by side.
 
-The companion app reads Apple Health too. Its Apple Health sensors ([#5272](https://github.com/home-assistant/iOS/pull/5272), [#5638](https://github.com/home-assistant/iOS/pull/5638)) cover steps, heart rate, weight, blood pressure, sleep stages and more, each as one sensor with today's total or the newest reading. Their history in Home Assistant starts the day you switch them on, and workout details, meals and cycle tracking aren't among them.
+Home Assistant's Companion app reads Apple Health too. Its Apple Health sensors ([#5272](https://github.com/home-assistant/iOS/pull/5272), [#5638](https://github.com/home-assistant/iOS/pull/5638)) cover steps, heart rate, weight, blood pressure, sleep stages and more, each as one sensor with today's total or the newest reading. Their history in Home Assistant starts the day you switch them on, and workout details, meals and cycle tracking aren't among them.
 
 This app covers the health side in depth: 28 types, every record with the app or device that wrote it, all your history backfilled, each day on its own date, and MQTT or a webhook when Home Assistant isn't the only place it should go.
 
@@ -174,7 +200,7 @@ Any server that accepts a JSON POST can be a destination: n8n, Node-RED, a small
 ```json
 {
   "timestamp": "2026-10-04T12:00:00Z",
-  "app_version": "1.6.0",
+  "app_version": "1.12.0",
   "source": "healthkit_ios",
   "sequence": 1842,
   "daily_totals": [
@@ -198,7 +224,7 @@ Any server that accepts a JSON POST can be a destination: n8n, Node-RED, a small
 
 This example is shortened. The keys, units and signing are the Android app's. Every raw record has a `uuid` to deduplicate on and a `source`, the name of the app or device that wrote it. [webhook.md](docs/webhook.md) lists what an iPhone sends and where it differs from Android. The Android app's [payload reference](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/webhook.md) documents every type and has receivers to start from, and its [JSON Schema](https://github.com/owen282000/life-dashboard-companion-app/blob/main/docs/webhook-schema.json) covers both apps.
 
-If you have no backend yet, [life-dashboard-stack](https://github.com/owen282000/life-dashboard-stack) is an example Docker Compose setup: a receiver that checks the signature, Postgres, and a Grafana dashboard. It's a one-person project offered as-is, built to be changed.
+If you have no backend yet, the [Grafana stack](https://github.com/owen282000/life-dashboard-stack) is an example Docker Compose setup: a receiver that checks the signature, Postgres, and a Grafana dashboard. It's a one-person project offered as-is, built to be changed.
 
 ## Ask your own AI
 
@@ -207,6 +233,12 @@ Want to ask an AI how your sleep changed in the weeks you walked more? The [Graf
 ## Privacy
 
 The app has no analytics, no crash reporting and no ads, and there's no Life Dashboard server. Your data goes from the iPhone to the destinations you set and nowhere else. Webhooks use HTTPS. iOS allows plain HTTP only to an IP address, a .local name or a name without a dot, meant for your own network. The app only asks Apple Health for read access, and secrets stay in the iOS Keychain. [PRIVACY.md](PRIVACY.md) lists everything the app reads, sends and keeps. iOS gives you no way to check that an App Store build matches this source. If that matters to you, build it yourself: it's free, and the app has no third-party dependencies.
+
+<!-- life-dashboard:built -->
+## How this is built
+
+Life Dashboard is a one-person project, and [Claude Code](https://claude.com/claude-code) writes a large part of the code. I decide what gets built, read every change before it is merged, and test it on my own phones and Home Assistant before a release. Automated checks run on every pull request, and the [AI policy](https://github.com/owen282000/life-dashboard-companion-app/blob/main/AI_POLICY.md) explains what the AI does and what I check.
+<!-- /life-dashboard:built -->
 
 ## Documentation
 
@@ -230,7 +262,6 @@ Pull requests are welcome. The app is Swift with no third-party dependencies. [C
 - The [Android app](https://github.com/owen282000/life-dashboard-companion-app), whose payload, schedule format and settings backup this app follows
 - The typefaces Space Grotesk and Space Mono, under the SIL Open Font License
 - The quantified self and self-hosting communities
-- [Claude Code](https://claude.com/claude-code), which drafted a large part of the code. Every change is reviewed and tested before it ships.
 
 ## Support the project
 
@@ -238,7 +269,10 @@ Stars, shares and good bug reports all help. This is a one-person project, but y
 
 MIT licensed. See [LICENSE](LICENSE).
 
+<!-- life-dashboard:footer -->
 <p align="center">
   <sub>Made by <a href="https://github.com/owen282000">Owen Vogelaar</a> for the self-hosting and quantified self crowd.</sub><br>
+  <sub>Google Play and the Google Play logo are trademarks of Google LLC.</sub><br>
   <sub>Apple, the Apple logo and App Store are trademarks of Apple Inc.</sub>
 </p>
+<!-- /life-dashboard:footer -->

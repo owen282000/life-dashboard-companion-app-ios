@@ -1,6 +1,6 @@
 # Security policy
 
-Life Dashboard Companion for iOS moves health data from your iPhone to servers you run. This page explains how to [report a security problem](#reporting-a-vulnerability) and [what is in scope](#scope).
+Life Dashboard for iPhone moves health data from your iPhone to servers you run. This page explains how to [report a security problem](#reporting-a-vulnerability) and [what is in scope](#scope).
 
 ## Supported versions
 

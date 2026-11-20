@@ -1,10 +1,10 @@
 # Privacy policy
 
-Last updated: October 22, 2026, for version 1.10.0.
+Last updated: November 20, 2026, for version 1.12.0.
 
 **In short:** the app reads the Apple Health types you switch on and sends them only to the webhooks, Home Assistant and MQTT broker you set up. There is no Life Dashboard server, no analytics, no crash reporting and no advertising in the app, and the app sends nothing to the developer. The app never writes into Apple Health.
 
-Life Dashboard Companion is a self-hosting tool. It reads health data on your iPhone and sends it only to servers you set up yourself. The developer never receives, stores or sees your health data. The app shows a summary of this policy under **About**, and the policy also has [a page of its own](https://owen282000.github.io/life-dashboard-companion/ios/privacy/).
+Life Dashboard for iPhone is a self-hosting tool. It reads health data on your iPhone and sends it only to servers you set up yourself. The developer never receives, stores or sees your health data. The app shows a summary of this policy under **About**, and the policy also has [a page of its own](https://owen282000.github.io/life-dashboard-companion/ios/privacy/).
 
 - **What the app reads** - Apple Health data, only for the types you switch on and only after you allow them in the Health access sheet. With **Backfill**, also older records for the range you pick. When you delete a record in Apple Health, the next sync reports its `uuid` so your server can remove it too.
 - **What the app writes** - nothing. The app only asks Apple Health for read access.

@@ -24,7 +24,7 @@ A receiver can let its users connect by scanning one QR code, as the Life Dashbo
 {
   "timestamp": "2026-02-05T12:00:00Z",
   "timezone": "Europe/Amsterdam",
-  "app_version": "1.3.0",
+  "app_version": "1.12.0",
   "source": "healthkit_ios",
   "sequence": 42,
   "steps": [

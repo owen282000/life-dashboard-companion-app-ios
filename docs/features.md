@@ -1,6 +1,6 @@
 # Features
 
-Everything Life Dashboard Companion for iOS does, in detail. For building and setup see [usage.md](usage.md); for the payload your server receives see [webhook.md](webhook.md).
+Everything Life Dashboard for iPhone does, in detail. For building and setup see [usage.md](usage.md); for the payload your server receives see [webhook.md](webhook.md).
 
 ## Apple Health
 

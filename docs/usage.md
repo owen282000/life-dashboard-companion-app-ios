@@ -8,7 +8,7 @@
 
 ## Build and install
 
-The app is on the [App Store](https://apps.apple.com/app/health-data-for-home-assistant/id6824075761) as a one-time purchase of EUR 6.99 (USD 5.99), with no subscription. It's the same app as this source, and you set it up the same way: install it and continue with [First run](#first-run).
+The app is listed on the [App Store](https://apps.apple.com/app/health-data-for-home-assistant/id6824075761) as Health Data for Home Assistant, for €6.99 (US$5.99) once, with no subscription. It's the same app as this source, and you set it up the same way: install it and continue with [First run](#first-run).
 
 Building it from source with Xcode costs nothing extra if you already have an Apple Developer Program membership, which HealthKit needs (see [below](#apple-developer-program)). You then run it on your own iPhone:
 
@@ -29,7 +29,7 @@ The simulator is fine for trying the screens, but it has none of your Health dat
 
 ### Apple Developer Program
 
-The app reads Apple Health, and Apple gives the HealthKit capability only to a paid Apple Developer Program membership (USD 99 a year). With a free Apple Account, Xcode refuses to sign it: "Personal development teams ... do not support the HealthKit capability". With a membership the provisioning profile runs for a year; after that, run the app from Xcode again. Settings and sync progress stay. Apple lists what each membership includes on [Choosing a Membership](https://developer.apple.com/support/compare-memberships/), and which capabilities each can use on [Supported capabilities (iOS)](https://developer.apple.com/help/account/reference/supported-capabilities-ios). The app uses HealthKit, App Groups and Background Modes.
+The app reads Apple Health, and Apple gives the HealthKit capability only to a paid Apple Developer Program membership (US$99 a year). With a free Apple Account, Xcode refuses to sign it: "Personal development teams ... do not support the HealthKit capability". With a membership the provisioning profile runs for a year; after that, run the app from Xcode again. Settings and sync progress stay. Apple lists what each membership includes on [Choosing a Membership](https://developer.apple.com/support/compare-memberships/), and which capabilities each can use on [Supported capabilities (iOS)](https://developer.apple.com/help/account/reference/supported-capabilities-ios). The app uses HealthKit, App Groups and Background Modes.
 
 To update, pull the repository and run it again from Xcode. Your settings stay.
 
