@@ -30131,130 +30131,130 @@
         }
       }
     },
-    "Life Dashboard Companion is a self-hosting tool. It reads health data on this iPhone and sends it only to servers you set up yourself. The app sends nothing to the developer, who never receives, stores or sees your health data." : {
+    "Life Dashboard is a self-hosting tool. It reads health data on this iPhone and sends it only to servers you set up yourself. The app sends nothing to the developer, who never receives, stores or sees your health data." : {
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion أداة للاستضافة الذاتية. يقرأ البيانات الصحية على هذا الـ iPhone ويرسلها فقط إلى خوادم تُعدّها بنفسك. لا يرسل التطبيق شيئًا إلى المطوّر، الذي لا يتلقى بياناتك الصحية ولا يخزّنها ولا يطّلع عليها أبدًا."
+            "value" : "Life Dashboard أداة للاستضافة الذاتية. يقرأ البيانات الصحية على هذا الـ iPhone ويرسلها فقط إلى خوادم تُعدّها بنفسك. لا يرسل التطبيق شيئًا إلى المطوّر، الذي لا يتلقى بياناتك الصحية ولا يخزّنها ولا يطّلع عليها أبدًا."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion ist ein Werkzeug zum Selbsthosten. Die App liest Gesundheitsdaten auf diesem iPhone und sendet sie nur an Server, die du selbst einrichtest. Die App sendet nichts an den Entwickler, der deine Gesundheitsdaten nie erhält, speichert oder sieht."
+            "value" : "Life Dashboard ist ein Werkzeug zum Selbsthosten. Die App liest Gesundheitsdaten auf diesem iPhone und sendet sie nur an Server, die du selbst einrichtest. Die App sendet nichts an den Entwickler, der deine Gesundheitsdaten nie erhält, speichert oder sieht."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion es una herramienta para autoalojar. Lee datos de salud en este iPhone y los envía solo a servidores que configuras tú. La app no envía nada al desarrollador, que nunca recibe, guarda ni ve tus datos de salud."
+            "value" : "Life Dashboard es una herramienta para autoalojar. Lee datos de salud en este iPhone y los envía solo a servidores que configuras tú. La app no envía nada al desarrollador, que nunca recibe, guarda ni ve tus datos de salud."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion est un outil d’auto-hébergement. Il lit les données de santé sur cet iPhone et les envoie uniquement aux serveurs que vous configurez vous-même. L’app n’envoie rien au développeur, qui ne reçoit, ne stocke ni ne voit jamais vos données de santé."
+            "value" : "Life Dashboard est un outil d’auto-hébergement. Il lit les données de santé sur cet iPhone et les envoie uniquement aux serveurs que vous configurez vous-même. L’app n’envoie rien au développeur, qui ne reçoit, ne stocke ni ne voit jamais vos données de santé."
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion सेल्फ़-होस्टिंग टूल है। यह इस iPhone पर स्वास्थ्य डेटा पढ़ता है और उसे सिर्फ़ उन सर्वर पर भेजता है जो आपने खुद सेट किए हैं। ऐप डेवलपर को कुछ नहीं भेजता, और डेवलपर को आपका स्वास्थ्य डेटा कभी नहीं मिलता, न वह उसे सेव करता है और न देखता है।"
+            "value" : "Life Dashboard सेल्फ़-होस्टिंग टूल है। यह इस iPhone पर स्वास्थ्य डेटा पढ़ता है और उसे सिर्फ़ उन सर्वर पर भेजता है जो आपने खुद सेट किए हैं। ऐप डेवलपर को कुछ नहीं भेजता, और डेवलपर को आपका स्वास्थ्य डेटा कभी नहीं मिलता, न वह उसे सेव करता है और न देखता है।"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion è uno strumento self-hosted. Legge i dati sulla salute di questo iPhone e li invia solo ai server che configuri tu. L'app non invia nulla allo sviluppatore, che non riceve, non conserva e non vede mai i tuoi dati sulla salute."
+            "value" : "Life Dashboard è uno strumento self-hosted. Legge i dati sulla salute di questo iPhone e li invia solo ai server che configuri tu. L'app non invia nulla allo sviluppatore, che non riceve, non conserva e non vede mai i tuoi dati sulla salute."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companionはセルフホスティング用のツールです。このiPhoneの健康データを読み取り、自分で用意したサーバーにだけ送信します。アプリが開発者に何かを送ることはなく、開発者があなたの健康データを受け取ったり、保存したり、見たりすることはありません。"
+            "value" : "Life Dashboardはセルフホスティング用のツールです。このiPhoneの健康データを読み取り、自分で用意したサーバーにだけ送信します。アプリが開発者に何かを送ることはなく、開発者があなたの健康データを受け取ったり、保存したり、見たりすることはありません。"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion is een tool voor self-hosting. De app leest gezondheidsdata op deze iPhone en stuurt die alleen naar servers die je zelf instelt. De app stuurt niets naar de ontwikkelaar, die je gezondheidsdata nooit ontvangt, bewaart of ziet."
+            "value" : "Life Dashboard is een tool voor self-hosting. De app leest gezondheidsdata op deze iPhone en stuurt die alleen naar servers die je zelf instelt. De app stuurt niets naar de ontwikkelaar, die je gezondheidsdata nooit ontvangt, bewaart of ziet."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O Life Dashboard Companion é uma ferramenta de auto-hospedagem. Ele lê dados de saúde neste iPhone e os envia só para servidores que você mesmo configura. O app não envia nada ao desenvolvedor, que nunca recebe, guarda nem vê seus dados de saúde."
+            "value" : "O Life Dashboard é uma ferramenta de auto-hospedagem. Ele lê dados de saúde neste iPhone e os envia só para servidores que você mesmo configura. O app não envia nada ao desenvolvedor, que nunca recebe, guarda nem vê seus dados de saúde."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion 是一款自托管工具。它读取这台 iPhone 上的健康数据，并且只发送到你自己设置的服务器。App 不会向开发者发送任何内容，开发者绝不会接收、存储或查看你的健康数据。"
+            "value" : "Life Dashboard 是一款自托管工具。它读取这台 iPhone 上的健康数据，并且只发送到你自己设置的服务器。App 不会向开发者发送任何内容，开发者绝不会接收、存储或查看你的健康数据。"
           }
         }
       }
     },
-    "Life Dashboard Companion, version %@. Made by Owen Vogelaar." : {
+    "Life Dashboard, version %@. Made by Owen Vogelaar." : {
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion، الإصدار %@. من تطوير Owen Vogelaar."
+            "value" : "Life Dashboard، الإصدار %@. من تطوير Owen Vogelaar."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion, Version %@. Erstellt von Owen Vogelaar."
+            "value" : "Life Dashboard, Version %@. Erstellt von Owen Vogelaar."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion, versión %@. Creada por Owen Vogelaar."
+            "value" : "Life Dashboard, versión %@. Creada por Owen Vogelaar."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion, version %@. Créée par Owen Vogelaar."
+            "value" : "Life Dashboard, version %@. Créée par Owen Vogelaar."
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion, वर्शन %@। Owen Vogelaar ने बनाया।"
+            "value" : "Life Dashboard, वर्शन %@। Owen Vogelaar ने बनाया।"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion, versione %@. Creata da Owen Vogelaar."
+            "value" : "Life Dashboard, versione %@. Creata da Owen Vogelaar."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion、バージョン%@。制作：Owen Vogelaar。"
+            "value" : "Life Dashboard、バージョン%@。制作：Owen Vogelaar。"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion, versie %@. Gemaakt door Owen Vogelaar."
+            "value" : "Life Dashboard, versie %@. Gemaakt door Owen Vogelaar."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion, versão %@. Feito por Owen Vogelaar."
+            "value" : "Life Dashboard, versão %@. Feito por Owen Vogelaar."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Life Dashboard Companion，版本 %@。由 Owen Vogelaar 制作。"
+            "value" : "Life Dashboard，版本 %@。由 Owen Vogelaar 制作。"
           }
         }
       }

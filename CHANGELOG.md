@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The app is called Life Dashboard everywhere now: on the About and privacy pages and in the test
+  ping, where it still said Life Dashboard Companion. The name in the App Store stays as it is,
+  and so does the name of the MQTT device in Home Assistant.
+
 ## [1.12.0] - 2026-11-19
 
 ### Changed
