@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Apple Health from your iPhone, sent to Home Assistant, MQTT or your own server.</b><br>
-  No cloud in between, no account, no tracking.
+  Every source at once, with no account in between.
 </p>
 
 <p align="center">
@@ -42,11 +42,15 @@
   </picture>
 </p>
 
-Your Apple Watch, iPhone, ring or scale already writes to Apple Health. This app sends it to Home Assistant, an MQTT broker or a webhook you run. There is no account in between, and none of it reaches me.
+Your Apple Watch, iPhone, ring or scale already writes to Apple Health. This app sends that data, from every source at once, to Home Assistant, an MQTT broker or a webhook you run. There is no account in between, and none of it reaches me.
 
-- Home Assistant gets all your history, each day on its own date. The Home Assistant companion app's health sensors start the day you switch them on.
-- An iPhone and an Android phone send the same payload, so a mixed household shares one Home Assistant or one database.
+- Apple Watch, Garmin, Oura, Withings: if it writes to Apple Health, it arrives, with no cloud login and no developer app to register per brand.
+- In Home Assistant all your history lands on the days it happened, paired with one QR code, and it stays when you change phones: the new phone can take over the old one's history.
+- Deletions go out too, not only new records, so your server stays in step with Apple Health.
+- Day totals add up: steps, distance and calories are Apple Health's own figure for the day, so a walk recorded by both iPhone and Watch counts once.
+- An iPhone and an Android phone send the same payload, so a mixed household shares one Home Assistant integration or one database.
 - Pay once, no subscription: the app is on the [App Store](https://apps.apple.com/app/apple-store/id6824075761?pt=128699800&ct=gh-ios-readme&mt=8) for EUR 6.99 (USD 5.99), and building it from source costs nothing extra if you already have an Apple Developer Program membership.
+- Open source (MIT): the App Store app is this code, and you can build it yourself.
 - Want to ask Claude or a local model in Ollama about your own history? The [Grafana stack](https://github.com/owen282000/life-dashboard-stack#ask-your-own-ai-mcp) adds an MCP server with eight read-only tools. The app itself contains no AI.
 
 <a id="why-this-app"></a>
