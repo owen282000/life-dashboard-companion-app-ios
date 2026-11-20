@@ -32,7 +32,7 @@
 </p>
 
 <p align="center">
-  <sub>Life Dashboard: <a href="https://github.com/owen282000/life-dashboard-companion-app">Android app</a> &nbsp;·&nbsp; <b>iPhone app</b> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-ha">Home Assistant integration</a> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-stack">Grafana stack</a> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-sleep-card">Sleep card</a></sub>
+  <sub>Life Dashboard: <a href="https://github.com/owen282000/life-dashboard-companion-app">Android app</a> &nbsp;·&nbsp; <b>iPhone app</b> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-ha">Home Assistant integration</a> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-stack">Grafana stack</a> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-sleep-card">Sleep card</a> &nbsp;·&nbsp; <a href="https://github.com/owen282000/life-dashboard-screen-time-card">Screen time cards</a></sub>
 </p>
 
 <p align="center">
@@ -75,7 +75,7 @@ Two things from the Android app aren't here. There's no screen time: the app can
 
 ## Part of Life Dashboard
 
-Life Dashboard is four projects and a card, and you only install the parts you need. Put the app on each phone, then pick where the data goes. Both apps send the same payload, so an Android phone and an iPhone can share one Home Assistant or one stack.
+Life Dashboard is four projects and two sets of cards, and you only install the parts you need. Put the app on each phone, then pick where the data goes. Both apps send the same payload, so an Android phone and an iPhone can share one Home Assistant or one stack.
 
 <p align="center">
   <a href="https://github.com/owen282000/life-dashboard-companion-app"><img src="docs/family/android.png" alt="Android app: Health Connect and screen time" width="400"></a>
@@ -83,6 +83,7 @@ Life Dashboard is four projects and a card, and you only install the parts you n
   <a href="https://github.com/owen282000/life-dashboard-ha"><img src="docs/family/ha.png" alt="Home Assistant integration: sensors and all your history" width="400"></a>
   <a href="https://github.com/owen282000/life-dashboard-stack"><img src="docs/family/stack.png" alt="Grafana stack: Postgres and Grafana dashboards" width="400"></a>
   <a href="https://github.com/owen282000/life-dashboard-sleep-card"><img src="docs/family/sleep-card.png" alt="Sleep card: one night, stage by stage" width="400"></a>
+  <a href="https://github.com/owen282000/life-dashboard-screen-time-card"><img src="docs/family/screen-time-card.png" alt="Screen time cards: today, the week and the family" width="400"></a>
 </p>
 
 The data can also go to an MQTT broker or a webhook of your own instead. Both apps have that built in, for n8n, Node-RED or a script.
@@ -118,6 +119,7 @@ There are two ways in. Neither needs YAML.
 | Sensors | 20 of 28 types, blood pressure as two | The same |
 | History | Every day, as far back as Apple Health has data, through backfill | From the first sync on |
 | Workouts and mindfulness | The last workout and each session, with the heart rate, calories and distance recorded during it, and minutes per day | No |
+| Sleep stages and food | Hours per sleep stage for every night, the last night's stages, and the calories, protein, carbs and fat you ate today | No |
 | An Android phone too | Its own device next to it | Its own device and base topic |
 | Example dashboard | Included; its screen time view is for Android | No |
 
