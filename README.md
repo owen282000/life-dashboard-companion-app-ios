@@ -95,7 +95,7 @@ The data can also go to an MQTT broker or a webhook of your own instead. Both ap
 
 ### From the App Store
 
-Get [Life Dashboard Companion on the App Store](https://apps.apple.com/app/apple-store/id6824075761?pt=128699800&ct=gh-ios-readme&mt=8), for iOS 17 or newer. It's a one-time purchase of EUR 6.99 (USD 5.99), with no subscription and nothing to buy inside the app. It's the same app as this source, and you set it up the same way: continue with step 3 below.
+Get [Health Data for Home Assistant on the App Store](https://apps.apple.com/app/apple-store/id6824075761?pt=128699800&ct=gh-ios-readme&mt=8), for iOS 17 or newer. It's a one-time purchase of EUR 6.99 (USD 5.99), with no subscription and nothing to buy inside the app. It's the same app as this source, and you set it up the same way: continue with step 3 below.
 
 ### Build it yourself
 
