@@ -24,9 +24,11 @@ if [ -z "$UDID" ]; then
     UDID=$(xcrun simctl create "$NAME" "iPhone 17 Pro")
 fi
 
+# Signed ad hoc, as in CI: an unsigned app gets no Keychain on the simulator, so the example
+# secret would not show.
 xcodebuild build -project LifeDashboardCompanion.xcodeproj -scheme LifeDashboardCompanion \
     -configuration Debug -destination "id=$UDID" -derivedDataPath "$WORK/dd" \
-    CODE_SIGNING_ALLOWED=NO -quiet
+    CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= -quiet
 APP="$WORK/dd/Build/Products/Debug-iphonesimulator/LifeDashboardCompanion.app"
 
 # A fresh boot: an "Open in" prompt left from the last run stays up otherwise.
@@ -35,6 +37,8 @@ xcrun simctl boot "$UDID" 2>/dev/null || true
 xcrun simctl bootstatus "$UDID" >/dev/null
 xcrun simctl terminate "$UDID" "$ID" 2>/dev/null || true
 xcrun simctl uninstall "$UDID" "$ID" 2>/dev/null || true
+# The Keychain outlives an uninstall on the simulator: start from none there too.
+xcrun simctl keychain "$UDID" reset 2>/dev/null || true
 xcrun simctl install "$UDID" "$APP"
 # The simulator keeps an app's defaults across a reinstall: start from none.
 xcrun simctl spawn "$UDID" defaults delete "$ID" 2>/dev/null || true
@@ -47,6 +51,8 @@ xcrun simctl ui "$UDID" appearance dark
 hexjson() { printf '%s' "$1" | xxd -p | tr -d '\n'; }
 write() { xcrun simctl spawn "$UDID" defaults write "$ID" "$@"; }
 write health_webhook_urls -data "$(hexjson '["http://homeassistant.local:8123/api/webhook/life_dashboard"]')"
+# Moved into the Keychain by the app at launch, as from an older version.
+write health_signing_secret "example-signing-secret-not-real"
 write health_enabled_data_types -data "$(hexjson '["STEPS","SLEEP","HEART_RATE","RESTING_HEART_RATE","HEART_RATE_VARIABILITY","WEIGHT","ACTIVE_CALORIES","DISTANCE","EXERCISE","BLOOD_PRESSURE","OXYGEN_SATURATION","RESPIRATORY_RATE"]')"
 write health_schedule_mode TIMES
 write health_schedule_times "07:30,12:00,18:00,22:00"
@@ -122,8 +128,10 @@ shot() { # file, launch arguments
     fi
 }
 shot apple-health.png
+shot sync-held.png -ld.holds refresh
 shot sync-schedule.png -ld.route whenToSend
 shot mqtt.png -ld.route mqttDestination
+shot webhook.png -ld.route webhookDestination
 shot logs.png -ld.tab 1
 shot about.png -ld.about YES
 shot home-assistant.png -ld.route pairing
