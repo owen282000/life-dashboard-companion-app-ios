@@ -4,7 +4,7 @@ import SwiftUI
 /// at `AboutLinks.privacy`, which say the same in more words. Change the three together. The
 /// texts are resources so the tests can hold them to the limits in the code.
 enum PrivacyPolicyText {
-    static let intro: LocalizedStringResource = "Life Dashboard Companion is a self-hosting tool. It reads health data on this iPhone and sends it only to servers you set up yourself. The app sends nothing to the developer, who never receives, stores or sees your health data."
+    static let intro: LocalizedStringResource = "Life Dashboard is a self-hosting tool. It reads health data on this iPhone and sends it only to servers you set up yourself. The app sends nothing to the developer, who never receives, stores or sees your health data."
     static let reads: LocalizedStringResource = "Apple Health data, only for the types you switch on and only after you allow them in the Health access sheet. With Backfill, also older records for the range you pick. When you delete a record in Apple Health, the next sync reports its id so your server can remove it too."
     static let writes: LocalizedStringResource = "Nothing. The app only asks Apple Health for read access."
     static let permissions: LocalizedStringResource = "Apple Health, read only, for the types you switch on. Camera, only while the pairing scanner is open: frames are decoded on the iPhone and are never stored or sent. Local Network, to reach a webhook server or MQTT broker on your home network. Notifications, for failed syncs, lost payloads and syncs that stay away for days: they are shown on this iPhone and sent nowhere."

@@ -22,7 +22,7 @@ enum TestPing {
     static func body() -> Data? {
         let payload: [String: Any] = [
             "test": true,
-            "message": "Test ping from Life Dashboard Companion",
+            "message": "Test ping from Life Dashboard",
             "timestamp": Date().iso8601String,
             "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
             "source": "healthkit_ios"

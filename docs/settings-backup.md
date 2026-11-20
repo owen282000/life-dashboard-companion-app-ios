@@ -77,9 +77,19 @@ The same JSON as the Android app, with `"platform": "ios"` added so the importer
 
 ```json
 {
-  "app_version" : "1.4.0",
-  "exported_at" : "2026-09-30T12:00:00Z",
+  "app_version" : "1.12.0",
+  "exported_at" : "2026-11-20T12:00:00Z",
   "health" : {
+    "destinations" : [
+      {
+        "format" : "default",
+        "headers" : {
+
+        },
+        "id" : "3f2a9c1e-5b7d-4e80-9a16-2c4d6e8f0b12",
+        "url" : "https://example.com/health"
+      }
+    ],
     "quiet_from" : "23:00",
     "quiet_to" : "07:00",
     "sync_days" : "MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY,SATURDAY,SUNDAY",
@@ -122,6 +132,7 @@ The same JSON as the Android app, with `"platform": "ios"` added so the importer
 }
 ```
 
+- This is an export without secrets. `destinations` lists every webhook address with its own `id`, `format` (always `default`, the JSON payload) and `headers`; with secrets, an entry also carries its headers and its `signing_secret`. The section's `webhook_urls` repeats the addresses for a reader from before `destinations`.
 - `theme` is the app's appearance, `system`, `light` or `dark`, the same key as the Android app, so the choice moves between the two apps in either direction. A file without it, from before 1.8.0, or with a value this version does not know, leaves the choice as it is.
 - Custom headers and the broker host are checked by the same rules as the destination sheets: a header name made of the characters HTTP allows, a value of plain ASCII characters and tabs (no line break, control character or letter such as é, as on Android), a broker host that is a host name or an IP address.
 - A header that breaks them is left out and the rest of the file is imported, as the Android app does. The preview names each header left out, never its value; add it again on that destination's sheet. When none of the file's headers can be sent, the file counts as one without headers, so the iPhone keeps its own.

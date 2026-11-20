@@ -323,7 +323,7 @@ final class TestPingTests: XCTestCase {
         XCTAssertEqual(Set(object.keys), ["test", "message", "timestamp", "app_version", "source"])
         XCTAssertEqual(object["test"] as? Bool, true)
         XCTAssertEqual(object["source"] as? String, "healthkit_ios")
-        XCTAssertEqual(object["message"] as? String, "Test ping from Life Dashboard Companion")
+        XCTAssertEqual(object["message"] as? String, "Test ping from Life Dashboard")
         XCTAssertNotNil(ISO8601DateFormatter().date(from: try XCTUnwrap(object["timestamp"] as? String)))
     }
 }
