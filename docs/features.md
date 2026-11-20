@@ -40,6 +40,8 @@ Every category also has a **Not available yet** list, with what Apple Health has
 
 ## Webhook configuration
 
+<img src="screenshots/webhook.png" alt="The sheet of one destination, homeassistant.local: when it last delivered, its URL, its own HMAC signing secret with Copy secret, its custom headers, Send test and Remove destination" width="300" align="right">
+
 - **Pairing by QR code** - any receiver that shows a code, such as the [Home Assistant integration](https://github.com/owen282000/life-dashboard-ha) (0.7.1 or newer), the [Life Dashboard Stack](https://github.com/owen282000/life-dashboard-stack) or [a server of your own](https://owen282000.com/life-dashboard/health-data-qr-pairing/). **Scan a pairing code** under **Add destination** fills in the address and the signing secret after one confirmation. See [Pairing by QR code](usage.md#pairing-by-qr-code)
 - **Multiple webhook URLs** - send to several endpoints at once; a sync counts as delivered when one of them accepted it
 - **Every address its own secret and headers** - tap a destination on the Health tab for its HMAC signing secret and its headers (auth tokens, API keys or any other HTTP header), stored in the Keychain. Generate a secret, or copy one or the headers from another address, while the field is empty. Pairing sets only the paired address's secret, so a second receiver never breaks the first. A header HTTP cannot carry (a space in the name, a line break in the value) is refused when you add it
@@ -100,6 +102,8 @@ Each of these is a chance to sync. It asks the schedule first, and syncs only wh
 Each sends only what is new. Health data cannot be read while the iPhone is locked, so a sync that iOS starts then waits for the unlock.
 
 ## Automation
+
+<img src="screenshots/sync-held.png" alt="The Health tab with an amber card under the destinations: Background App Refresh is off, background syncs can come later, with Open Settings, Help for your phone and Don't show again" width="300" align="right">
 
 - **Shortcuts and Siri** - a **Sync Health Data** action, for a Shortcuts automation at a set time, on arriving home, or by voice. It sends what is queued and what is new, to the webhooks and the MQTT broker
 - **Home screen widget** - the last sync result, records delivered today, and a status mark, so a failing background sync shows. Its button syncs now
