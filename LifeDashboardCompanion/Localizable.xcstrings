@@ -48886,6 +48886,70 @@
         }
       }
     },
+    "The answer's signature did not reach the phone on this route, as happens through Home Assistant Cloud. Update the Life Dashboard integration to 1.3.0 or newer and the app can check it." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لم يصل توقيع الرد إلى الهاتف عبر هذا المسار، كما يحدث عبر Home Assistant Cloud. حدّث تكامل Life Dashboard إلى الإصدار 1.3.0 أو أحدث ليتمكن التطبيق من التحقق منه."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Signatur der Antwort kam auf diesem Weg nicht beim Telefon an, wie es über Home Assistant Cloud passiert. Aktualisiere die Life-Dashboard-Integration auf 1.3.0 oder neuer, dann kann die App sie prüfen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La firma de la respuesta no llegó al teléfono por esta ruta, como ocurre a través de Home Assistant Cloud. Actualiza la integración Life Dashboard a la 1.3.0 o posterior y la app podrá comprobarla."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La signature de la réponse n’est pas arrivée jusqu’au téléphone par cette voie, comme c’est le cas via Home Assistant Cloud. Mettez à jour l’intégration Life Dashboard vers la version 1.3.0 ou ultérieure pour que l’app puisse la vérifier."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "इस रास्ते से जवाब का सिग्नेचर फ़ोन तक नहीं पहुंचा, जैसा Home Assistant Cloud के ज़रिए होता है। Life Dashboard इंटीग्रेशन को 1.3.0 या उससे नए वर्शन पर अपडेट करें, तब ऐप इसे जांच सकेगा।"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La firma della risposta non è arrivata al telefono su questo percorso, come succede tramite Home Assistant Cloud. Aggiorna l'integrazione Life Dashboard alla 1.3.0 o successiva e l'app potrà verificarla."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この経路では、Home Assistant Cloud経由の場合と同じく、応答の署名がスマートフォンに届きませんでした。Life Dashboard統合を1.3.0以降に更新すると、アプリで確認できるようになります。"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De handtekening van het antwoord kwam via deze route niet bij de telefoon aan, zoals via Home Assistant Cloud gebeurt. Werk de Life Dashboard-integratie bij naar 1.3.0 of nieuwer, dan kan de app hem controleren."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A assinatura da resposta não chegou ao celular por este caminho, como acontece pelo Home Assistant Cloud. Atualize a integração Life Dashboard para a 1.3.0 ou mais recente e o app poderá conferi-la."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通过这条路径，应答的签名没有到达手机，经由 Home Assistant Cloud 时就会这样。将 Life Dashboard 集成更新到 1.3.0 或更高版本后，App 就能验证它。"
+          }
+        }
+      }
+    },
     "The app itself sends nothing to the developer. Apple can share some things through App Store Connect: for the App Store version, sales reports, and crash reports and usage figures from people who chose in their iPhone's settings to share analytics with app developers; if you test a beta through TestFlight, crash reports and any feedback you send through TestFlight, with the screenshot you attach. Apart from what you write or attach yourself, none of this carries your health data, your settings or the addresses you send to." : {
       "localizations" : {
         "ar" : {

@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Pairing through Home Assistant Cloud is checked properly. The cloud passes on only the body of
+  Home Assistant's answer, not the header its signature was in, so the app could not check who
+  answered the test ping. The test ping now asks for the signature inside the answer, which the
+  Life Dashboard integration gives from 1.3.0, and the app checks it there. With an older
+  integration behind Home Assistant Cloud pairing works as before, and the sheet asks you to
+  update the integration. Nothing changes for other receivers: the test ping has one more field,
+  `writeback.answer`, which they can ignore.
+
 ### Changed
 
 - The app is called Life Dashboard everywhere now: on the About and privacy pages and in the test

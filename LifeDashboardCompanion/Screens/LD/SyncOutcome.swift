@@ -17,7 +17,9 @@ enum StatusTone {
 /// The Test ping, the same request from Logs and the first-run setup: a small JSON
 /// POST with `test` set, to every webhook URL with the custom headers, signed when a secret is
 /// set, logged with data type `test` and never queued. It counts as delivered only when every
-/// URL took it: a test is there to show the address that does not work.
+/// URL took it: a test is there to show the address that does not work. It asks the Life
+/// Dashboard integration for its answer signed inside the body, the one form the pairing check
+/// can verify through Home Assistant Cloud; any other receiver ignores the field.
 enum TestPing {
     static func body() -> Data? {
         let payload: [String: Any] = [
@@ -25,7 +27,8 @@ enum TestPing {
             "message": "Test ping from Life Dashboard",
             "timestamp": Date().iso8601String,
             "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
-            "source": "healthkit_ios"
+            "source": "healthkit_ios",
+            "writeback": ["answer": WebhookAnswer.requestedForm]
         ]
         return try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
     }

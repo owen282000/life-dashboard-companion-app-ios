@@ -46,6 +46,10 @@ struct PairedResultView: View {
                 .padding(.horizontal, LDTheme.textInset)
             if let outcome {
                 LDNote(outcomeText(outcome), color: isDone ? LDTheme.accentTextSoft : LDTheme.warning, top: 4)
+                // Only the integration has a newer version that signs inside the body.
+                if outcome == .confirmedUnsigned && link.looksLikeHomeAssistant {
+                    LDNote("The answer's signature did not reach the phone on this route, as happens through Home Assistant Cloud. Update the Life Dashboard integration to 1.3.0 or newer and the app can check it.", color: LDTheme.warning)
+                }
             } else {
                 HStack(spacing: 8) {
                     ProgressView()
@@ -82,7 +86,7 @@ struct PairedResultView: View {
 
     private func outcomeText(_ outcome: PairingPingOutcome) -> Text {
         switch outcome {
-        case .confirmed:
+        case .confirmed, .confirmedUnsigned:
             // The name is the link's claim, cleaned and capped by PairingLinks, as on the confirm
             // screen. Home Assistant's own links are named "Home Assistant".
             if let name = link.name {

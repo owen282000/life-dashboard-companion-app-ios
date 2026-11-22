@@ -236,7 +236,7 @@ actor WebhookManager {
             secret: secret,
             error: failure
         )
-        let delivered = outcome == .confirmed || outcome == .deliveredUnconfirmed
+        let delivered = outcome.delivered
         PreferencesManager.shared.addWebhookLog(WebhookLog(
             url: urlString,
             statusCode: statusCode,

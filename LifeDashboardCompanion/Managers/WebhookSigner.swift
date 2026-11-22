@@ -13,13 +13,18 @@ enum WebhookSigner {
     /// be played back as an answer.
     static let responseKeyLabel = "life-dashboard-response-v1"
 
-    /// What the X-Signature header on the integration's answer must be, over its raw bytes.
-    static func responseSignature(for body: Data, secret: String) -> String {
-        let derived = HMAC<SHA256>.authenticationCode(
+    /// The key the integration signs its answers with: HMAC(secret, label).
+    static func responseKey(secret: String) -> Data {
+        Data(HMAC<SHA256>.authenticationCode(
             for: Data(responseKeyLabel.utf8),
             using: SymmetricKey(data: Data(secret.utf8))
-        )
-        return signature(for: body, key: SymmetricKey(data: Data(derived)))
+        ))
+    }
+
+    /// What the signature of the integration's answer must be, over its raw bytes: in the
+    /// X-Signature header, or inside a signed body over the text of `answer`.
+    static func responseSignature(for body: Data, secret: String) -> String {
+        signature(for: body, key: SymmetricKey(data: responseKey(secret: secret)))
     }
 
     /// Compares two signatures without stopping at the first differing byte.

@@ -162,9 +162,55 @@ final class PairingApplyTests: XCTestCase {
         XCTAssertEqual(outcome(status: 200, body: body, header: header), .confirmed)
     }
 
-    func testAnAnswerWithoutItsHeaderStillConfirms() {
-        // Home Assistant Cloud relays only Content-Type back to the phone.
-        XCTAssertEqual(outcome(status: 200, body: answer(inReplyTo: requestSignature), header: nil), .confirmed)
+    func testAnAnswerWithoutItsHeaderStillConfirmsButSaysSo() {
+        // Home Assistant Cloud relays only Content-Type back to the phone, so an integration
+        // before 1.3.0 arrives unsigned. Pairing keeps counting it, as it did.
+        XCTAssertEqual(outcome(status: 200, body: answer(inReplyTo: requestSignature), header: nil), .confirmedUnsigned)
+    }
+
+    /// The signed body of integration 1.3.0, which is all that Home Assistant Cloud needs to pass on.
+    private func signedBody(_ answer: Data, signature: String? = nil) throws -> Data {
+        try JSONSerialization.data(withJSONObject: [
+            "life_dashboard_signed": 1,
+            "answer": String(bytes: answer, encoding: .utf8) ?? "",
+            "signature": signature ?? WebhookSigner.responseSignature(for: answer, secret: "key")
+        ])
+    }
+
+    func testASignedBodyConfirmsWithoutAnyHeader() throws {
+        let body = try signedBody(answer(inReplyTo: requestSignature))
+        XCTAssertEqual(outcome(status: 200, body: body, header: nil), .confirmed)
+    }
+
+    func testASignedBodyWithAWrongSignatureDoesNotConfirm() throws {
+        let wrong = "sha256=" + String(repeating: "0", count: 64)
+        let body = try signedBody(answer(inReplyTo: requestSignature), signature: wrong)
+        XCTAssertEqual(outcome(status: 200, body: body, header: nil), .deliveredUnconfirmed)
+        // A header that matches the body does not make up for it: the signature inside decides.
+        let header = WebhookSigner.responseSignature(for: body, secret: "key")
+        XCTAssertEqual(outcome(status: 200, body: body, header: header), .deliveredUnconfirmed)
+    }
+
+    func testASignedBodyForAnotherRequestDoesNotConfirm() throws {
+        let body = try signedBody(answer(inReplyTo: "sha256=other"))
+        XCTAssertEqual(outcome(status: 200, body: body, header: nil), .deliveredUnconfirmed)
+    }
+
+    func testAnUnsignedAnswerFromAnIntegrationThatKnowsTheSignedBodyDoesNotConfirm() {
+        // From 1.3.0 the integration signs inside the body when asked, so a plain answer
+        // without a signature is not what it sent.
+        let json = "{\"life_dashboard\":{\"version\":\"1.3.0\",\"writeback\":1,\"signed_body\":1},"
+            + "\"writeback\":{\"in_reply_to\":\"\(requestSignature)\",\"issued_at\":\"2026-09-30T10:00:00Z\",\"configured\":[]}}"
+        XCTAssertEqual(outcome(status: 200, body: Data(json.utf8), header: nil), .deliveredUnconfirmed)
+    }
+
+    func testTheStacksAnswerConfirmsAsBefore() {
+        // The Life Dashboard Stack names itself and no write-back protocol, with the header.
+        let json = "{\"life_dashboard\":{\"receiver\":\"life-dashboard-stack\",\"version\":\"1.1.2\"},"
+            + "\"writeback\":{\"in_reply_to\":\"\(requestSignature)\"}}"
+        let body = Data(json.utf8)
+        let header = WebhookSigner.responseSignature(for: body, secret: "key")
+        XCTAssertEqual(outcome(status: 200, body: body, header: header), .confirmed)
     }
 
     func testAWrongAnswerSignatureDoesNotConfirm() {
@@ -202,6 +248,7 @@ final class PairingApplyTests: XCTestCase {
 
         for receiver in [stack, ownWebhook, link, cloud] {
             XCTAssertTrue(PairingPingOutcome.confirmed.isDone(at: receiver), receiver.url)
+            XCTAssertTrue(PairingPingOutcome.confirmedUnsigned.isDone(at: receiver), receiver.url)
             XCTAssertFalse(PairingPingOutcome.refused.isDone(at: receiver), receiver.url)
             XCTAssertFalse(PairingPingOutcome.failed("HTTP 500").isDone(at: receiver), receiver.url)
         }
