@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-11-22
+
 ### Added
 
 - Pairing through Home Assistant Cloud is checked properly. The cloud passes on only the body of
@@ -459,7 +461,8 @@ All notable changes to this project are documented in this file. The format is b
 - Offline queue with retries and exponential backoff
 - Webhook logs with CSV/JSON export and payload preview
 
-[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.12.0...HEAD
+[Unreleased]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.13.0...HEAD
+[1.13.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.12.0...1.13.0
 [1.12.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.11.1...1.12.0
 [1.11.1]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.11.0...1.11.1
 [1.11.0]: https://github.com/owen282000/life-dashboard-companion-app-ios/compare/1.10.1...1.11.0
