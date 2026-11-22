@@ -10,6 +10,11 @@ All notable changes to this project are documented in this file. The format is b
   ping, where it still said Life Dashboard Companion. The name in the App Store stays as it is,
   and so does the name of the MQTT device in Home Assistant.
 
+### Fixed
+
+- In Japanese and Chinese, the MQTT broker row on the setup page said the broker was set up when
+  it was not. It now says "set up" as something to do, as in the other languages.
+
 ## [1.12.0] - 2026-11-19
 
 ### Changed

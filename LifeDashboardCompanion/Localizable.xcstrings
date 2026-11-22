@@ -43447,7 +43447,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "設定済み"
+            "value" : "設定"
           }
         },
         "nl" : {
@@ -43465,7 +43465,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已设置"
+            "value" : "设置"
           }
         }
       }
