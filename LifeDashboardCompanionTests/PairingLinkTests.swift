@@ -320,10 +320,12 @@ final class TestPingTests: XCTestCase {
     func testTheTestPingIsTheSameRequestEverywhere() throws {
         let body = try XCTUnwrap(TestPing.body())
         let object = try XCTUnwrap(try JSONSerialization.jsonObject(with: body) as? [String: Any])
-        XCTAssertEqual(Set(object.keys), ["test", "message", "timestamp", "app_version", "source"])
+        XCTAssertEqual(Set(object.keys), ["test", "message", "timestamp", "app_version", "source", "writeback"])
         XCTAssertEqual(object["test"] as? Bool, true)
         XCTAssertEqual(object["source"] as? String, "healthkit_ios")
         XCTAssertEqual(object["message"] as? String, "Test ping from Life Dashboard")
+        // Asks the integration for its answer signed inside the body, and nothing else.
+        XCTAssertEqual(object["writeback"] as? [String: String], ["answer": "body"])
         XCTAssertNotNil(ISO8601DateFormatter().date(from: try XCTUnwrap(object["timestamp"] as? String)))
     }
 }

@@ -86,7 +86,7 @@ It builds the app, installs it on a simulator of its own (`ld-screenshots`, an i
 | `-ld.nerd YES` | About with Nerd Stats |
 | `-ld.privacy YES` | the privacy policy |
 | `-ld.route whenToSend` | any page or sheet, by its name in `LDDebugRoute` in `UI/LD/LDRoute.swift`; `scanner` and `pairing` open the scanner and the pairing sheet |
-| `-ld.pairPhase confirmed` | the pairing sheet at its result: `checking`, `confirmed`, `unconfirmed`, `refused` or `failed` |
+| `-ld.pairPhase confirmed` | the pairing sheet at its result: `checking`, `confirmed`, `unsigned`, `unconfirmed`, `refused` or `failed` |
 | `-ld.holds refresh,power,quiet` | what holds a sync on the Health tab: the Background App Refresh card, the Low Power Mode line, and nothing delivered for days |
 | `-ld.scroll 0.5` | a long page, scrolled to that fraction |
 | `-ld.step 1` | a step of the first-run setup |

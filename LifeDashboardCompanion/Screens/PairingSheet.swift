@@ -87,6 +87,7 @@ struct PairingSheet: View {
         switch UserDefaults.standard.string(forKey: "ld.pairPhase") {
         case "checking": _phase = State(initialValue: .checking)
         case "confirmed": _phase = State(initialValue: .done(.confirmed))
+        case "unsigned": _phase = State(initialValue: .done(.confirmedUnsigned))
         case "unconfirmed": _phase = State(initialValue: .done(.deliveredUnconfirmed))
         case "refused": _phase = State(initialValue: .done(.refused))
         case "failed": _phase = State(initialValue: .done(.failed("HTTP 502")))

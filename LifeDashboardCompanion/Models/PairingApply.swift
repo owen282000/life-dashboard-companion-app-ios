@@ -114,6 +114,11 @@ enum PairingPingOutcome: Equatable, Sendable {
     /// The receiver answered this request the way the Home Assistant integration does, which it
     /// only does after checking the signature with its own copy of the secret.
     case confirmed
+    /// An answer to this request, but without a signature the phone could check: an integration
+    /// before 1.3.0 signs in a header, which Home Assistant Cloud does not pass on. Pairing
+    /// counted this as confirmed before the signed body existed, and still does; at a Home
+    /// Assistant address the sheet adds a line that asks to update the integration.
+    case confirmedUnsigned
     /// Something answered 2xx without that answer. For most receivers (an older stack, n8n, a
     /// webhook of your own) that is all they ever send. Home Assistant answers 200 to a webhook
     /// id it does not know, so there it is also what a deleted entry looks like.
@@ -122,9 +127,9 @@ enum PairingPingOutcome: Equatable, Sendable {
     case refused
     case failed(String)
 
-    /// The integration's answer names the request's own X-Signature in writeback.in_reply_to.
-    /// Its X-Signature header is checked when it is there; Home Assistant Cloud's relay passes
-    /// only Content-Type back, so it cannot be required.
+    /// The integration's answer is signed and names the request's own X-Signature in
+    /// writeback.in_reply_to. The signature is in the signed body the ping asks for, or in the
+    /// X-Signature header of an integration before 1.3.0.
     static func from(
         statusCode: Int?,
         body: Data,
@@ -137,25 +142,38 @@ enum PairingPingOutcome: Equatable, Sendable {
         if statusCode == 401 { return .refused }
         guard (200...299).contains(statusCode) else { return .failed(error ?? AppDiagnostic.http(statusCode)) }
 
-        guard let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
-              json["life_dashboard"] is [String: Any],
-              let writeback = json["writeback"] as? [String: Any],
-              let inReplyTo = writeback["in_reply_to"] as? String,
-              WebhookSigner.constantTimeEqual(inReplyTo, requestSignature)
-        else { return .deliveredUnconfirmed }
-
-        if let answerSignature,
-           !WebhookSigner.constantTimeEqual(answerSignature, WebhookSigner.responseSignature(for: body, secret: secret)) {
+        // Signed, in the body or in the header, and about this request: that is the proof.
+        // The write-back protocol and the answer's age are not asked for here, since a
+        // receiver such as the Life Dashboard Stack confirms without either.
+        switch WebhookAnswer.open(body: body, signatureHeader: answerSignature, secret: secret) {
+        case .signed(_, let answer):
+            guard answer?["life_dashboard"] is [String: Any], WebhookAnswer.namesRequest(answer, requestSignature) else {
+                return .deliveredUnconfirmed
+            }
+            return .confirmed
+        case .rejected(_, updateIntegration: true):
+            // No signature arrived, from a receiver that does not know the signed body. What
+            // pairing went by until now still holds: the answer names this request.
+            let answer = try? JSONSerialization.jsonObject(with: body) as? [String: Any]
+            return WebhookAnswer.namesRequest(answer, requestSignature) ? .confirmedUnsigned : .deliveredUnconfirmed
+        case .rejected:
             return .deliveredUnconfirmed
         }
-        return .confirmed
+    }
+
+    /// Whether the receiver took the ping, for the log.
+    var delivered: Bool {
+        switch self {
+        case .confirmed, .confirmedUnsigned, .deliveredUnconfirmed: return true
+        case .refused, .failed: return false
+        }
     }
 
     /// Whether the sheet shows the pairing as done. A plain 2xx is done everywhere but at Home
     /// Assistant, where it can be a deleted entry and the sheet offers Try again.
     func isDone(at link: PairingLink) -> Bool {
         switch self {
-        case .confirmed: return true
+        case .confirmed, .confirmedUnsigned: return true
         case .deliveredUnconfirmed: return !link.looksLikeHomeAssistant
         case .refused, .failed: return false
         }

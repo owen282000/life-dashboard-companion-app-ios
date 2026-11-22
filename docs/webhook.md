@@ -200,9 +200,35 @@ Backfill payloads go only to webhooks, never to MQTT or the retry queue.
 
 - `screen_time` and the Screen Time payload: see [What iOS does differently](features.md#what-ios-does-differently)
 - `_diagnostics` and `records_outside_window`
-- the writeback block and anything from the Android page's "Inbound" section: the iPhone app does not write into Apple Health
+- the writeback block of a sync and anything from the Android page's "Inbound" section: the iPhone app does not write into Apple Health. Only the test ping carries a `writeback` block, with one field; see [The test ping and the answer](#the-test-ping-and-the-answer)
 
 A receiver written for Android works unchanged, as long as it treats these as optional.
+
+## The test ping and the answer
+
+**Test ping**, **Send test** and the check after pairing send the same small request:
+
+```json
+{
+  "app_version": "1.13.0",
+  "message": "Test ping from Life Dashboard",
+  "source": "healthkit_ios",
+  "test": true,
+  "timestamp": "2026-11-22T10:00:00Z",
+  "writeback": { "answer": "body" }
+}
+```
+
+`"answer": "body"` in `writeback` is new and is the Android app's field: it asks the Life Dashboard integration, from 1.3.0, to put the signature of its answer inside the body. Any other receiver can ignore it, and a receiver that never answered with more than a status has nothing to change.
+
+The answer is only read by the check after pairing, which shows the pairing as confirmed when both of these hold:
+
+1. **The answer is signed.** Either the body is the signed form, `{"life_dashboard_signed": 1, "answer": "<the answer as text>", "signature": "sha256=<hex>"}`, and `signature` is the HMAC-SHA256 of the UTF-8 bytes of `answer`; or it is a plain JSON answer with that HMAC over the whole body in an `X-Signature` header, as the integration before 1.3.0 and the Life Dashboard Stack send it. The key is not the secret itself but HMAC-SHA256(secret, `life-dashboard-response-v1`), so a captured request can never be played back as an answer. For the signed form the signature inside decides, whatever the header says, and `life_dashboard_signed` must be 1.
+2. **It answers this request.** The answer holds a `life_dashboard` object, and its `writeback.in_reply_to` is the `X-Signature` the app put on the ping.
+
+Home Assistant Cloud passes on the status, the body and the Content-Type of an answer and no other header, which is why the signed form exists. A plain answer that names the request but arrives without any signature, from a receiver whose `life_dashboard` object has no `signed_body`, is what an integration before 1.3.0 looks like through a cloudhook: the pairing still counts, as it did before, and at a Home Assistant address the sheet asks to update the integration. A plain answer without a signature from a receiver that does announce `signed_body` does not confirm.
+
+The app holds the Android app's full check of an answer as well (a body of at most 256 KiB, the write-back protocol `life_dashboard.writeback` equal to 1, `issued_at` within 10 minutes of the iPhone's clock, at most 200 readings), tested against the same examples as the Android app and the integration: [protocol/vectors](https://github.com/owen282000/life-dashboard-ha/tree/main/protocol/vectors) in the integration's repository, copied unchanged into `LifeDashboardCompanionTests/protocol`. The iPhone app has no use for the rest of that check yet, since it writes nothing into Apple Health.
 
 ## Delivery, retries and signing
 
