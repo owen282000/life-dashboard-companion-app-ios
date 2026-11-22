@@ -36,6 +36,14 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(resolve("Sync Now", "en"), "Sync Now")
     }
 
+    /// "Set up" is the value on a row that is not set up yet, an invitation to tap. Japanese
+    /// and Chinese said "is set up" (設定済み, 已设置), the opposite; these are the Android app's words.
+    func testSetUpOnAnEmptyRowInvitesInsteadOfSayingDone() {
+        XCTAssertEqual(resolve("Set up", "ja"), "設定")
+        XCTAssertEqual(resolve("Set up", "zh-Hans"), "设置")
+        XCTAssertEqual(resolve("Set up", "nl"), "Instellen")
+    }
+
     func testEveryDataTypeHasADutchAndGermanName() {
         // Apple's own names, which are the English ones in these two cases.
         let sameAsEnglish: [String: Set<HealthDataType>] = ["nl": [.mindfulness], "de": [.menstruation]]
