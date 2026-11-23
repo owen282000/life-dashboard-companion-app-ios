@@ -128,8 +128,13 @@ iOS decides when an app runs in the background, and syncs can come later than th
 - **Background App Refresh** is off for Life Dashboard (Settings > General > Background App Refresh), or **Low Power Mode** is on, which turns it off
 - The iPhone was locked: Health data cannot be read then, and the sync waits for the unlock
 - Quiet hours, or a day that is off in the weekday filter
+- The app was swiped away in the app switcher: iOS then starts it in the background for nothing, new Health data included, until you open it again
 
-The Health tab shows a card while Background App Refresh is off and a line while Low Power Mode is on, and says since when nothing was delivered once that is longer than the schedule explains; with failure notifications on, a notification says the same. A line on the same tab says why automatic syncs are waiting, and the Logs tab shows when syncs actually ran. For a sync at an exact time, use a Shortcuts automation with **Sync Health Data**; **Need an exact time?** under **When to send** explains how.
+The Health tab shows a card while Background App Refresh is off and a line while Low Power Mode is on, and says since when nothing was delivered once that is longer than the schedule explains; with failure notifications on, a notification says the same. A line on the same tab says why automatic syncs are waiting, and the Logs tab shows when syncs actually ran.
+
+**Background chances** in the Logs tab lists every time iOS let the app sync on its own, with what woke it (new Apple Health data, a background refresh or processing task, unlocking, opening the app) and what came of it: synced, not due yet, the iPhone locked, or out of time before the sync was done. Chances that repeat, such as Apple Health waking the app every few minutes while the iPhone is locked, show as one line with a count. When the list stays empty for hours while new data comes in, iOS did not wake the app at all. The list keeps the last 50 and holds no health data.
+
+For a sync at an exact time, use a Shortcuts automation with **Sync Health Data**; **Need an exact time?** under **When to send** explains how.
 
 ### "Your iPhone is locked"
 

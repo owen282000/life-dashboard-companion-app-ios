@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **Background chances** in the Logs tab: every time iOS let the app sync on its own, what woke
+  it and what came of it, such as synced, not due yet, the iPhone locked so Health data could
+  not be read, or out of time before the sync was done. Until now a chance that sent nothing left
+  no trace, so a day without automatic syncs could not be told apart from a day iOS never woke
+  the app. Chances that repeat are one line with a count, and the list keeps the last 50.
+
 ## [1.13.0] - 2026-11-22
 
 ### Added

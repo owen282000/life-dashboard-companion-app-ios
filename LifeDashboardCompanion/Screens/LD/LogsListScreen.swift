@@ -23,6 +23,7 @@ struct LogsListScreen: View {
     @State private var logs: [WebhookLog] = []
     @State private var stats = SyncStats(logs: [])
     @State private var pendingCount = 0
+    @State private var chances: [BackgroundChance] = []
     @State private var filter = Filter.all
     @State private var showsHistory = false
     @State private var shareFileURL: URL?
@@ -40,10 +41,12 @@ struct LogsListScreen: View {
                 subLine
                 LDNote("Every delivery and MQTT publish shows up here.", top: 6)
                 LDNote(Text("The list keeps the last \(LogStore.maxLogs)."), top: 0)
+                backgroundChances
             } else {
                 LDHeading(Text("\(failedCount) failed, \(deliveredCount) delivered."))
                 subLine
                 history
+                backgroundChances
                 filters
                 LDGap(10)
                 rows
@@ -57,6 +60,7 @@ struct LogsListScreen: View {
         .confirmationDialog("Clear logs", isPresented: $showClearConfirm) {
             Button("Clear All Logs", role: .destructive) {
                 prefs.clearWebhookLogs(filterType: nil)
+                BackgroundChanceStore.shared.clear()
                 refreshLogs()
             }
             Button("Cancel", role: .cancel) {}
@@ -154,6 +158,13 @@ struct LogsListScreen: View {
             }
         }
         .padding(.bottom, 10)
+    }
+
+    @ViewBuilder
+    private var backgroundChances: some View {
+        if !chances.isEmpty {
+            BackgroundChancesSection(chances: chances)
+        }
     }
 
     private var filters: some View {
@@ -269,6 +280,7 @@ struct LogsListScreen: View {
         logs = prefs.getWebhookLogs(filterType: nil)
         stats = SyncStats(logs: logs)
         pendingCount = PendingSyncStore.shared.pendingCount
+        chances = BackgroundChanceStore.shared.load()
     }
 
     private func delete(_ log: WebhookLog) {

@@ -35,6 +35,7 @@
 		01C19D50F9D28C39FEEF62EC /* HomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94D0B6602BEA67488FB7C8A6 /* HomeScreen.swift */; };
 		13F3F93C0251796258E0384E /* LogDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53CE634E8BD8A1CC27523B8D /* LogDetailScreen.swift */; };
 		0ABE81C19035B08446D9E8F3 /* LogsListScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = C37E854E23463FD61C052079 /* LogsListScreen.swift */; };
+		39E7224DE79E4460B0A2F828 /* BackgroundChancesSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97C924443CC3DDA5A91D765A /* BackgroundChancesSection.swift */; };
 		ED591E07563D3FD0B6F7352A /* MoreScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2436A358A51559E8BE9C26C /* MoreScreen.swift */; };
 		6EF4A457EB172EE71EC673F8 /* MqttDestinationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CE3243ADC0E04046F26D258 /* MqttDestinationScreen.swift */; };
 		EB56149DFCF1DEA20D56FEFE /* NotificationSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F54ECE671DA6CC641F4ACBDA /* NotificationSettingsScreen.swift */; };
@@ -57,7 +58,9 @@
 		438D250A64A2329679F86A67 /* SpaceGrotesk-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = C4D944198A8CDAD22A45F5B0 /* SpaceGrotesk-OFL.txt */; };
 		9BDC9D809C72FED1C2ECA518 /* SpaceMono-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = C0F46531AB51650E7C288455 /* SpaceMono-OFL.txt */; };
 		748D53113F6AB7F126F98E44 /* SyncCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19ED8BFFC097743BD11F082 /* SyncCoordinatorTests.swift */; };
+		7B8C00A6A29198DB428D5E5A /* BackgroundChancesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51EFDE682D55B2104F2C6C4B /* BackgroundChancesTests.swift */; };
 		B3A21BB267D691F7A6B79947 /* SyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE9C139AF65123944A54194F /* SyncCoordinator.swift */; };
+		71E8A079B2A7E1E09D93022D /* BackgroundChances.swift in Sources */ = {isa = PBXBuildFile; fileRef = 268322C195A637B457089E32 /* BackgroundChances.swift */; };
 		A7DFF04D8CCCC1B0F82F046E /* TestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7EC97C166A63DD57CE1085A /* TestSupport.swift */; };
 		C59971F6E3A10DC254EC4F88 /* ObserverBatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63586CAA6E654362E6E26BD8 /* ObserverBatcherTests.swift */; };
 		EA1793276A33E27643284C4C /* SingleFlightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A94954C43B4B0A9258AEB89 /* SingleFlightTests.swift */; };
@@ -209,6 +212,7 @@
 		94D0B6602BEA67488FB7C8A6 /* HomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreen.swift; sourceTree = "<group>"; };
 		53CE634E8BD8A1CC27523B8D /* LogDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogDetailScreen.swift; sourceTree = "<group>"; };
 		C37E854E23463FD61C052079 /* LogsListScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogsListScreen.swift; sourceTree = "<group>"; };
+		97C924443CC3DDA5A91D765A /* BackgroundChancesSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundChancesSection.swift; sourceTree = "<group>"; };
 		F2436A358A51559E8BE9C26C /* MoreScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreScreen.swift; sourceTree = "<group>"; };
 		3CE3243ADC0E04046F26D258 /* MqttDestinationScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MqttDestinationScreen.swift; sourceTree = "<group>"; };
 		F54ECE671DA6CC641F4ACBDA /* NotificationSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsScreen.swift; sourceTree = "<group>"; };
@@ -232,7 +236,9 @@
 		C0F46531AB51650E7C288455 /* SpaceMono-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = SpaceMono-OFL.txt; sourceTree = "<group>"; };
 		7730DF8643F090A9D0F6917E /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		D19ED8BFFC097743BD11F082 /* SyncCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinatorTests.swift; sourceTree = "<group>"; };
+		51EFDE682D55B2104F2C6C4B /* BackgroundChancesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundChancesTests.swift; sourceTree = "<group>"; };
 		BE9C139AF65123944A54194F /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
+		268322C195A637B457089E32 /* BackgroundChances.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundChances.swift; sourceTree = "<group>"; };
 		E7EC97C166A63DD57CE1085A /* TestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestSupport.swift; sourceTree = "<group>"; };
 		63586CAA6E654362E6E26BD8 /* ObserverBatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObserverBatcherTests.swift; sourceTree = "<group>"; };
 		3A94954C43B4B0A9258AEB89 /* SingleFlightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleFlightTests.swift; sourceTree = "<group>"; };
@@ -413,6 +419,7 @@
 				94D0B6602BEA67488FB7C8A6 /* HomeScreen.swift */,
 				53CE634E8BD8A1CC27523B8D /* LogDetailScreen.swift */,
 				C37E854E23463FD61C052079 /* LogsListScreen.swift */,
+				97C924443CC3DDA5A91D765A /* BackgroundChancesSection.swift */,
 				F2436A358A51559E8BE9C26C /* MoreScreen.swift */,
 				3CE3243ADC0E04046F26D258 /* MqttDestinationScreen.swift */,
 				F54ECE671DA6CC641F4ACBDA /* NotificationSettingsScreen.swift */,
@@ -514,6 +521,7 @@
 				FE10A6EA3D001E3511511497 /* HealthBackfill.swift */,
 				C888638AD21A073D47F7FF06 /* DailyTotals.swift */,
 				BE9C139AF65123944A54194F /* SyncCoordinator.swift */,
+				268322C195A637B457089E32 /* BackgroundChances.swift */,
 				9471E366C4A2C6F56FEA371E /* SyncSchedule.swift */,
 				F100001E /* MenstruationPeriodBuilder.swift */,
 				F100001F /* KeychainStore.swift */,
@@ -581,6 +589,7 @@
 				0C81209D7300DA9EADC48A4C /* OutboxTests.swift */,
 				D81C9E902EF6B1BF3B0E00D6 /* HealthReadTests.swift */,
 				D19ED8BFFC097743BD11F082 /* SyncCoordinatorTests.swift */,
+				51EFDE682D55B2104F2C6C4B /* BackgroundChancesTests.swift */,
 				E7EC97C166A63DD57CE1085A /* TestSupport.swift */,
 				63586CAA6E654362E6E26BD8 /* ObserverBatcherTests.swift */,
 				3A94954C43B4B0A9258AEB89 /* SingleFlightTests.swift */,
@@ -790,6 +799,7 @@
 				01C19D50F9D28C39FEEF62EC /* HomeScreen.swift in Sources */,
 				13F3F93C0251796258E0384E /* LogDetailScreen.swift in Sources */,
 				0ABE81C19035B08446D9E8F3 /* LogsListScreen.swift in Sources */,
+				39E7224DE79E4460B0A2F828 /* BackgroundChancesSection.swift in Sources */,
 				ED591E07563D3FD0B6F7352A /* MoreScreen.swift in Sources */,
 				6EF4A457EB172EE71EC673F8 /* MqttDestinationScreen.swift in Sources */,
 				EB56149DFCF1DEA20D56FEFE /* NotificationSettingsScreen.swift in Sources */,
@@ -840,6 +850,7 @@
 				4A789195CF646BC598EE3895 /* HealthBackfill.swift in Sources */,
 				5FD4BA2492A1C35EFA84CDF9 /* DailyTotals.swift in Sources */,
 				B3A21BB267D691F7A6B79947 /* SyncCoordinator.swift in Sources */,
+				71E8A079B2A7E1E09D93022D /* BackgroundChances.swift in Sources */,
 				3926DFCA91F5E32EEA0CF958 /* SyncSchedule.swift in Sources */,
 				B100001E /* MenstruationPeriodBuilder.swift in Sources */,
 				B100001F /* KeychainStore.swift in Sources */,
@@ -894,6 +905,7 @@
 				96485F6059B429FF98E9CF1E /* OutboxTests.swift in Sources */,
 				E3082CABD48139FACFF8B7CC /* HealthReadTests.swift in Sources */,
 				748D53113F6AB7F126F98E44 /* SyncCoordinatorTests.swift in Sources */,
+				7B8C00A6A29198DB428D5E5A /* BackgroundChancesTests.swift in Sources */,
 				A7DFF04D8CCCC1B0F82F046E /* TestSupport.swift in Sources */,
 				C59971F6E3A10DC254EC4F88 /* ObserverBatcherTests.swift in Sources */,
 				EA1793276A33E27643284C4C /* SingleFlightTests.swift in Sources */,

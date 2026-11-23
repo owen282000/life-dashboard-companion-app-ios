@@ -1,6 +1,14 @@
 import XCTest
 @testable import LifeDashboardCompanion
 
+/// What the coordinator noted for one automatic chance.
+private struct NotedChance {
+    let trigger: SyncTrigger
+    let outcome: AutomaticSyncOutcome
+    let at: Date
+    let seconds: Double?
+}
+
 final class SyncCoordinatorTests: XCTestCase {
 
     /// The outside world of the coordinator: clock, lock state, settings and the sync itself.
@@ -16,6 +24,7 @@ final class SyncCoordinatorTests: XCTestCase {
         private(set) var incrementals = 0
         private(set) var syncNows = 0
         private(set) var replans: [Bool] = []
+        private(set) var records: [NotedChance] = []
         private var _events: [String] = []
         let syncLatch = Latch()
         let drainLatch = Latch()
@@ -63,6 +72,9 @@ final class SyncCoordinatorTests: XCTestCase {
         func addIncremental() { lock.withLock { incrementals += 1; _events.append("incremental") } }
         func addSyncNow() { lock.withLock { syncNows += 1; _events.append("sync now") } }
         func addReplan(_ locked: Bool) { lock.withLock { replans.append(locked) } }
+        func addRecord(_ trigger: SyncTrigger, _ outcome: AutomaticSyncOutcome, _ moment: Date, _ seconds: Double?) {
+            lock.withLock { records.append(NotedChance(trigger: trigger, outcome: outcome, at: moment, seconds: seconds)) }
+        }
         func note(_ event: String) { lock.withLock { _events.append(event) } }
 
         var environment: SyncCoordinator.Environment {
@@ -91,7 +103,8 @@ final class SyncCoordinatorTests: XCTestCase {
                     return self.result
                 },
                 replan: { self.addReplan($0) },
-                holdInForeground: { self.hold($0) }
+                holdInForeground: { self.hold($0) },
+                record: { self.addRecord($0, $1, $2, $3) }
             )
         }
     }
@@ -164,6 +177,26 @@ final class SyncCoordinatorTests: XCTestCase {
         XCTAssertEqual(outcome, .notDue)
         XCTAssertEqual(world.drains, 0)
         XCTAssertEqual(world.incrementals, 0)
+    }
+
+    func testEveryAutomaticChanceIsNotedWithItsOutcome() async {
+        let world = await openWorld()
+        let coordinator = SyncCoordinator(environment: world.environment)
+
+        _ = await coordinator.runAutomatic(.appRefresh)
+        world.now = world.now.addingTimeInterval(60)
+        _ = await coordinator.runAutomatic(.foreground)
+        world.state.lastRun = nil
+        world.unlocked = false
+        _ = await coordinator.runAutomatic(.observer)
+
+        XCTAssertEqual(world.records.map(\.trigger), [.appRefresh, .foreground, .observer])
+        XCTAssertEqual(world.records.map(\.outcome), [.ran(success: true), .notDue, .locked])
+        XCTAssertEqual(world.records[1].at, world.now)
+        // Only a chance that got to the lock check took time of its own.
+        XCTAssertNotNil(world.records[0].seconds)
+        XCTAssertNil(world.records[1].seconds)
+        XCTAssertNotNil(world.records[2].seconds)
     }
 
     func testChancesThatArriveTogetherRunOneSync() async {
