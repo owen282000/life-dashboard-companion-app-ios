@@ -43,6 +43,7 @@ key:Localizable | %lld of %lld selected | no-plural | the participle does not ch
 key:Localizable | %lld bucketed | no-plural | "3 gebundeld", "3 gebündelt": the participle does not change with the count
 key:Localizable | Step %lld of %lld | no-plural | a position, not an amount
 key:Localizable | Every %lld min | no-plural | abbreviated unit
+key:Localizable | %lld times since %@ | no-plural | shown only from 2 on, where every language takes the same form; Arabic reads it as a count label
 key:Localizable | Sync interval set to %lld min, the nearest this app allows. | no-plural | abbreviated unit
 key:Localizable | Min %lld minutes | no-plural | never below 15
 key:Localizable | Unknown error after %lld attempts | no-plural | always WebhookRetryPolicy.maxAttempts, 3

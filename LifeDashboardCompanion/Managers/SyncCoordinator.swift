@@ -55,6 +55,9 @@ actor SyncCoordinator {
         /// or the background task already holds the app. `expired` is called when iOS wants
         /// the time back first.
         var holdInForeground: @Sendable (_ expired: @escaping @Sendable () -> Void) async -> (@Sendable () -> Void)?
+        /// Notes what an automatic chance came to, for Background chances in Logs. `seconds` is
+        /// how long a run took, for one that got as far as the lock check.
+        var record: @Sendable (_ trigger: SyncTrigger, _ outcome: AutomaticSyncOutcome, _ at: Date, _ seconds: Double?) -> Void
     }
 
     static let shared = SyncCoordinator(environment: .live)
@@ -81,6 +84,15 @@ actor SyncCoordinator {
     // MARK: - Automatic
 
     func runAutomatic(_ trigger: SyncTrigger) async -> AutomaticSyncOutcome {
+        let arrivedAt = env.now()
+        var ranFrom: Date?
+        let outcome = await automatic(startedAt: &ranFrom)
+        env.record(trigger, outcome, arrivedAt, ranFrom.map { env.now().timeIntervalSince($0) })
+        return outcome
+    }
+
+    /// The decision and the run of an automatic chance; `ranFrom` is set once a run starts.
+    private func automatic(startedAt ranFrom: inout Date?) async -> AutomaticSyncOutcome {
         if let flight {
             // Whatever runs now covers this chance; ask again once it is done, since a manual
             // sync records nothing and a scheduled time may still be owed.
@@ -95,6 +107,7 @@ actor SyncCoordinator {
         }
 
         let env = self.env
+        ranFrom = startedAt
         let outcome = await fly { () -> AutomaticSyncOutcome in
             guard await env.isUnlocked() else { return .locked }
             await env.drain(false)
@@ -239,7 +252,10 @@ extension SyncCoordinator.Environment {
         },
         syncNow: { await HealthSyncManager.shared.performSyncNow() },
         replan: { afterLockedRun in await BackgroundSyncManager.shared.replan(afterLockedRun: afterLockedRun) },
-        holdInForeground: { expired in await MainActor.run { ForegroundHold.begin(expired: expired) } }
+        holdInForeground: { expired in await MainActor.run { ForegroundHold.begin(expired: expired) } },
+        record: { trigger, outcome, moment, seconds in
+            BackgroundChanceStore.shared.record(trigger, BackgroundChance.Outcome(outcome), at: moment, seconds: seconds)
+        }
     )
 }
 

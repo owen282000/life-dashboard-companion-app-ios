@@ -135,6 +135,8 @@ final class BackgroundSyncManager {
         guard case .due = prefs.healthSyncSchedule.decide(
             state: prefs.healthScheduleState, now: Date(), timeZone: .autoupdatingCurrent
         ) else {
+            // A due one is noted by the coordinator when its batch has run; this one never gets there.
+            BackgroundChanceStore.shared.record(.observer, .notDue, at: Date())
             completion.call(true)
             return
         }
