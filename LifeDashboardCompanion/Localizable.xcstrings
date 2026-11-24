@@ -28851,66 +28851,66 @@
         }
       }
     },
-    "iOS decides when the app may sync in the background, so syncs can come later than set. Health data can't be read while your iPhone is locked." : {
+    "iOS decides when the app may sync in the background. Health data can't be read while your iPhone is locked, so most syncs come when you unlock it or open the app. What you set here is the earliest a sync may come, not an exact time: after a night with the iPhone locked, the sync comes at the first unlock." : {
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "يقرر iOS متى يمكن للتطبيق المزامنة في الخلفية، لذا قد تتأخر المزامنة عن الوقت المحدد. لا يمكن قراءة البيانات الصحية أثناء قفل iPhone."
+            "value" : "يقرر iOS متى يمكن للتطبيق المزامنة في الخلفية. لا يمكن قراءة البيانات الصحية أثناء قفل iPhone، لذا تحدث معظم عمليات المزامنة عند فتح قفله أو فتح التطبيق. ما تضبطه هنا هو أقرب وقت ممكن للمزامنة، وليس وقتًا محددًا: بعد ليلة كان فيها iPhone مقفلًا، تحدث المزامنة عند أول فتح للقفل."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "iOS entscheidet, wann die App im Hintergrund synchronisieren darf, daher können Synchronisierungen später kommen als eingestellt. Gesundheitsdaten können nicht gelesen werden, solange dein iPhone gesperrt ist."
+            "value" : "iOS entscheidet, wann die App im Hintergrund synchronisieren darf. Gesundheitsdaten können nicht gelesen werden, solange dein iPhone gesperrt ist, deshalb kommen die meisten Synchronisierungen, wenn du es entsperrst oder die App öffnest. Was du hier einstellst, ist der früheste Zeitpunkt für eine Synchronisierung, keine genaue Uhrzeit: Nach einer Nacht mit gesperrtem iPhone kommt die Synchronisierung beim ersten Entsperren."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "iOS decide cuándo puede sincronizar la app en segundo plano, así que las sincronizaciones pueden llegar más tarde de lo configurado. Los datos de salud no se pueden leer mientras el iPhone está bloqueado."
+            "value" : "iOS decide cuándo puede sincronizar la app en segundo plano. Los datos de salud no se pueden leer mientras el iPhone está bloqueado, así que la mayoría de las sincronizaciones llegan cuando lo desbloqueas o abres la app. Lo que configuras aquí es el momento más temprano para una sincronización, no una hora exacta: después de una noche con el iPhone bloqueado, la sincronización llega al primer desbloqueo."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "iOS décide quand l’app peut se synchroniser en arrière-plan : les synchronisations peuvent donc arriver plus tard que prévu. Les données de santé ne peuvent pas être lues tant que votre iPhone est verrouillé."
+            "value" : "iOS décide quand l’app peut se synchroniser en arrière-plan. Les données de santé ne peuvent pas être lues tant que votre iPhone est verrouillé : la plupart des synchronisations ont donc lieu quand vous le déverrouillez ou ouvrez l’app. Ce que vous réglez ici est le moment le plus tôt possible pour une synchronisation, pas une heure exacte : après une nuit avec l’iPhone verrouillé, la synchronisation a lieu au premier déverrouillage."
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "iOS तय करता है कि ऐप बैकग्राउंड में कब सिंक कर सकता है, इसलिए सिंक सेट किए गए समय से देर से हो सकते हैं। iPhone लॉक होने पर स्वास्थ्य डेटा पढ़ा नहीं जा सकता।"
+            "value" : "iOS तय करता है कि ऐप बैकग्राउंड में कब सिंक कर सकता है। iPhone लॉक होने पर स्वास्थ्य डेटा पढ़ा नहीं जा सकता, इसलिए ज़्यादातर सिंक तब होते हैं जब आप उसे अनलॉक करते हैं या ऐप खोलते हैं। यहाँ आप जो सेट करते हैं, वह सिंक का सबसे पहला संभव समय है, सटीक समय नहीं: रात भर iPhone लॉक रहने के बाद सिंक पहली बार अनलॉक करने पर होता है।"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "È iOS a decidere quando l'app può sincronizzarsi in background, quindi le sincronizzazioni possono arrivare più tardi del previsto. I dati di Salute non si possono leggere mentre l'iPhone è bloccato."
+            "value" : "È iOS a decidere quando l'app può sincronizzarsi in background. I dati di Salute non si possono leggere mentre l'iPhone è bloccato, quindi la maggior parte delle sincronizzazioni arriva quando lo sblocchi o apri l'app. Ciò che imposti qui è il momento più presto per una sincronizzazione, non un orario esatto: dopo una notte con l'iPhone bloccato, la sincronizzazione arriva al primo sblocco."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "バックグラウンドで同期するタイミングはiOSが決めるため、設定より遅れることがあります。iPhoneがロックされている間は、ヘルスケアデータを読み取れません。"
+            "value" : "バックグラウンドで同期するタイミングはiOSが決めます。iPhoneがロックされている間はヘルスケアデータを読み取れないため、ほとんどの同期はロックを解除したときかアプリを開いたときに行われます。ここで設定するのは同期が行われる最も早いタイミングで、正確な時刻ではありません。iPhoneをロックしたまま一晩過ごすと、同期は最初にロックを解除したときに行われます。"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "iOS bepaalt wanneer de app op de achtergrond mag synchroniseren, dus synchronisaties kunnen later komen dan ingesteld. Gezondheidsdata kan niet worden gelezen zolang je iPhone vergrendeld is."
+            "value" : "iOS bepaalt wanneer de app op de achtergrond mag synchroniseren. Gezondheidsdata kan niet worden gelezen zolang je iPhone vergrendeld is, dus de meeste synchronisaties komen als je hem ontgrendelt of de app opent. Wat je hier instelt is het vroegste moment voor een synchronisatie, geen exacte tijd: na een nacht met een vergrendelde iPhone komt de synchronisatie bij de eerste keer ontgrendelen."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O iOS decide quando o app pode sincronizar em segundo plano, então as sincronizações podem acontecer depois do horário definido. Os dados do Saúde não podem ser lidos com o iPhone bloqueado."
+            "value" : "O iOS decide quando o app pode sincronizar em segundo plano. Os dados do Saúde não podem ser lidos com o iPhone bloqueado, então a maioria das sincronizações acontece quando você o desbloqueia ou abre o app. O que você define aqui é o momento mais cedo para uma sincronização, não um horário exato: depois de uma noite com o iPhone bloqueado, a sincronização acontece no primeiro desbloqueio."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "iOS 决定 App 何时可以在后台同步，因此同步可能会比设定的时间晚。iPhone 锁定时无法读取健康数据。"
+            "value" : "iOS 决定 App 何时可以在后台同步。iPhone 锁定时无法读取健康数据，因此大多数同步会在你解锁 iPhone 或打开 App 时进行。这里设置的是同步最早可以进行的时间，而不是确切时间：iPhone 锁定一整夜后，同步会在第一次解锁时进行。"
           }
         }
       }

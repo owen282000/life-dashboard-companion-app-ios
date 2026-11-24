@@ -6,6 +6,15 @@ enum HealthSyncResult {
     case failure(error: String)
 }
 
+extension HealthSyncResult {
+    /// A failure after Health data was read: the payload was built and queued for retry, or could
+    /// not be built. A lock that comes after it did not stop the read, so the run counts.
+    var failedAfterReading: Bool {
+        guard case .failure(let error) = self else { return false }
+        return error == AppDiagnostic.queuedForRetry.rawValue || error == AppDiagnostic.serializeFailed.rawValue
+    }
+}
+
 /// Which webhooks a delivered sync reached: all of `total` but the `missed` ones. A post counts
 /// as delivered once one webhook took it, so a missed one gets nothing queued; the result line
 /// and the partial streak say so instead.
