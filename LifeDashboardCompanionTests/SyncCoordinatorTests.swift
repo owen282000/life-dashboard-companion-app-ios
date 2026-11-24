@@ -167,6 +167,45 @@ final class SyncCoordinatorTests: XCTestCase {
         XCTAssertEqual(world.replans, [true])
     }
 
+    func testADeliveryThatFailsAfterTheIPhoneLocksIsAFailedRun() async {
+        let world = World()
+        await world.drainLatch.open()
+        world.result = .failure(error: AppDiagnostic.queuedForRetry.rawValue)
+        let coordinator = SyncCoordinator(environment: world.environment)
+
+        let outcome = await finished(within: 30) { () -> AutomaticSyncOutcome in
+            let run = Task { await coordinator.runAutomatic(.unlock) }
+            await world.syncLatch.waitForArrivals(1)
+            world.unlocked = false
+            await world.syncLatch.open()
+            return await run.value
+        }
+
+        XCTAssertEqual(outcome, .ran(success: false))
+        XCTAssertEqual(world.records.map(\.outcome), [.ran(success: false)])
+        XCTAssertEqual(world.state.lastRun, world.now)
+        XCTAssertEqual(world.replans, [false])
+    }
+
+    func testAReadThatFailsBecauseTheIPhoneLockedIsLocked() async {
+        let world = World()
+        await world.drainLatch.open()
+        world.result = .failure(error: AppDiagnostic.deviceLocked.rawValue)
+        let coordinator = SyncCoordinator(environment: world.environment)
+
+        let outcome = await finished(within: 30) { () -> AutomaticSyncOutcome in
+            let run = Task { await coordinator.runAutomatic(.observer) }
+            await world.syncLatch.waitForArrivals(1)
+            world.unlocked = false
+            await world.syncLatch.open()
+            return await run.value
+        }
+
+        XCTAssertEqual(outcome, .locked)
+        XCTAssertNil(world.state.lastRun)
+        XCTAssertEqual(world.replans, [true])
+    }
+
     func testANotDueChanceDoesNothing() async {
         let world = await openWorld()
         world.state.lastRun = world.now.addingTimeInterval(-600)

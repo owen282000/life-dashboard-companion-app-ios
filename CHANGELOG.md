@@ -12,6 +12,18 @@ All notable changes to this project are documented in this file. The format is b
   no trace, so a day without automatic syncs could not be told apart from a day iOS never woke
   the app. Chances that repeat are one line with a count, and the list keeps the last 50.
 
+### Changed
+
+- **When to send** says what to expect: Health data can't be read while the iPhone is locked, so
+  most syncs come when you unlock it or open the app, and the schedule is the earliest a sync may
+  come, not an exact time.
+
+### Fixed
+
+- A sync that read Health data but could not reach the server, while the iPhone was locked again
+  by the time the delivery failed, showed in Background chances as locked. It shows as failed now,
+  and counts as a run, so the payload waits in the retry queue and the schedule moves on.
+
 ## [1.13.0] - 2026-11-22
 
 ### Added

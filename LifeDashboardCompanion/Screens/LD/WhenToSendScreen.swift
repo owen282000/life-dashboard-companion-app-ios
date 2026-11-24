@@ -54,7 +54,7 @@ struct WhenToSendScreen: View {
                     }
                 }
             }
-            LDNote("iOS decides when the app may sync in the background, so syncs can come later than set. Health data can't be read while your iPhone is locked.", size: 13)
+            LDNote("iOS decides when the app may sync in the background. Health data can't be read while your iPhone is locked, so most syncs come when you unlock it or open the app. What you set here is the earliest a sync may come, not an exact time: after a night with the iPhone locked, the sync comes at the first unlock.", size: 13)
             LDNote("Sync Now and Shortcuts ignore this schedule.", top: 4, size: 13)
             LDGap(8)
             LDCard {
